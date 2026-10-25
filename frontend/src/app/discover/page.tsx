@@ -25,9 +25,9 @@ type Item = Record<string, any>;
 type Category = 'forYou' | 'trending' | 'creators' | 'reels' | 'live' | 'communities';
 type SearchFilter = 'all' | 'people' | 'posts' | 'reels' | 'live' | 'communities';
 
-const CATEGORIES: Array<[Category, string]> = [
+const CATEGORIES: Array<[Category | 'homes', string]> = [
   ['forYou', 'For You'], ['trending', 'Trending'], ['creators', 'Creators'],
-  ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'],
+  ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'], ['homes', 'VANTA Homes'],
 ];
 const SEARCH_FILTERS: Array<[SearchFilter, string]> = [
   ['all', 'All'], ['people', 'People'], ['posts', 'Posts'], ['reels', 'Reels'],
@@ -207,7 +207,7 @@ export default function DiscoverPage() {
         <section className="relative z-20 mb-5" aria-label="Search VANTA"><div className="group flex min-h-12 items-center gap-3 rounded-lg border border-white/[.08] bg-[#101010]/95 px-4 transition focus-within:bg-[#161616]"><Search size={18} className="shrink-0 text-[#8a8a8a]"/><input ref={searchRef} value={query} onChange={event => setQuery(event.target.value)} placeholder="Search VANTA..." aria-label="Search people, posts, reels, live streams, communities, and topics" className="h-12 min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-[#666]"/>{searching && <Loader2 size={17} className="animate-spin text-[#8a8a8a]"/>}{query && <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="flex h-9 w-9 items-center justify-center rounded-lg text-[#666] hover:bg-white/[.06] hover:text-white"><X size={17}/></button>}</div>
           <AnimatePresence>{debouncedQuery && <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="mt-2 overflow-hidden rounded-lg border border-white/[.1] bg-[#101010] shadow-2xl"><div className="flex overflow-x-auto border-b border-white/[.08] px-2 scrollbar-hide" role="tablist" aria-label="Search result filters">{SEARCH_FILTERS.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={searchFilter === id} onClick={() => setSearchFilter(id)} className={cn('relative min-h-11 shrink-0 px-3 text-xs text-[#666] hover:text-white', searchFilter === id && 'text-white after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[#b8b8b8]')}>{label}</button>)}</div><SearchResults query={debouncedQuery} filter={searchFilter} results={searchResults} searching={searching} open={(item: Item) => openSearchResult(item, router)} follow={follow}/></motion.div>}</AnimatePresence>
         </section>
-        {!debouncedQuery && <nav className="mb-7 flex overflow-x-auto border-b border-white/[.08] scrollbar-hide" aria-label="Discover categories">{CATEGORIES.map(([id, label]) => <button key={id} type="button" onClick={() => setCategory(id)} aria-current={category === id ? 'page' : undefined} className={cn('relative min-h-12 shrink-0 px-4 text-sm font-medium text-[#666] transition hover:text-[#b8b8b8]', category === id && 'text-white after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:bg-[#c9a227]')}>{label}</button>)}</nav>}
+        {!debouncedQuery && <nav className="mb-7 flex overflow-x-auto border-b border-white/[.08] scrollbar-hide" aria-label="Discover categories">{CATEGORIES.map(([id, label]) => <button key={id} type="button" onClick={() => id === 'homes' ? router.push('/homes') : setCategory(id)} aria-current={category === id ? 'page' : undefined} className={cn('relative min-h-12 shrink-0 px-4 text-sm font-medium text-[#666] transition hover:text-[#b8b8b8]', category === id && 'text-white after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:bg-[#c9a227]')}>{label}</button>)}</nav>}
 
         {loading ? <DiscoverSkeleton/> : error ? <ErrorState retry={() => void loadDiscover()}/> : !debouncedQuery && <div className="space-y-7">
           {category === 'forYou' && <>
