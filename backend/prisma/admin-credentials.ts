@@ -14,8 +14,10 @@
  *     password is generated and printed once to STDOUT so a developer can log
  *     into the local admin account.
  *
- * The email/username are public-safe identifiers and remain constant so the
- * seed can upsert the canonical CEO admin deterministically.
+ * Admin identity is configurable per deployment. Railway's ADMIN_EMAIL and
+ * ADMIN_USERNAME are authoritative when present; safe defaults are retained
+ * for existing installations. ADMIN_FULL_NAME (or ADMIN_NAME) controls the
+ * display name independently from the login handle.
  */
 
 import fs from 'fs';
@@ -72,8 +74,13 @@ function loadEnvForPrisma(): void {
 
 loadEnvForPrisma();
 
-export const ADMIN_EMAIL = 'ceo@vanta.app';
-export const ADMIN_USERNAME = 'CEO';
+export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'ceo@vanta.app').trim().toLowerCase();
+export const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || 'CEO').trim();
+export const ADMIN_FULL_NAME = (
+  process.env.ADMIN_FULL_NAME ||
+  process.env.ADMIN_NAME ||
+  ADMIN_USERNAME
+).trim();
 
 /**
  * Admin password resolution:
