@@ -5,6 +5,7 @@ import { CryptoUtils } from '../src/security/crypto';
 import {
   ADMIN_EMAIL as adminEmail,
   ADMIN_USERNAME as adminUsername,
+  ADMIN_FULL_NAME as adminFullName,
   resolveAdminPassword,
 } from './admin-credentials';
 import { seedAdminDevWallet } from '../src/services/admin-dev-wallet.service';
@@ -73,7 +74,7 @@ async function main() {
         email: adminEmail,
         username: adminUsername,
         passwordHash,
-        fullName: 'CEO',
+        fullName: adminFullName,
         role: 'ADMIN',
         verified: true,
         emailVerified: true,
@@ -81,7 +82,7 @@ async function main() {
         profile: {
           create: {
             username: adminUsername,
-            fullName: 'CEO',
+            fullName: adminFullName,
           },
         },
         wallet: {
@@ -155,7 +156,8 @@ async function main() {
     console.log(`✅ Verified creator account created: @${created.username}`);
   };
 
-  await ensureVerifiedUser('ceo', 'CEO', { role: 'ADMIN', email: adminEmail, password: adminPassword });
+  // The configured administrator above is the single admin bootstrap account.
+  // Do not create a second hard-coded CEO account on a fresh database.
   await ensureVerifiedUser('alex', 'Alex');
   console.log('✅ Verified creator accounts ensured (@alex, @ceo)');
 
