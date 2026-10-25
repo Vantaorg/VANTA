@@ -1,7 +1,6 @@
 import { fetchHomes, fetchHomePropertyTypes, fetchHomeRentPeriods } from '@/lib/services';
 import { HomeFilterBar } from '@/components/homes/HomeFilterBar';
 import EmptyState from '@/components/ui/EmptyState';
-import Button from '@/components/ui/Button';
 import { PostHomeButton } from '@/components/homes/PostHomeButton';
 import HomesResults from '@/components/homes/HomesResults';
 
@@ -26,8 +25,6 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   setIf('bathrooms', searchParams.bathrooms);
   setIf('furnished', searchParams.furnished);
   setIf('q', searchParams.q);
-  // The filter UI calls this field `q`; the API contract calls it `search`.
-  // Keep `q` for the controlled input and send `search` to the backend.
   if (params.q) params.search = params.q;
   setIf('sort', searchParams.sort || 'newest');
   if (!params.limit) params.limit = String(PAGE_LIMIT);
@@ -61,7 +58,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
           <PostHomeButton />
         </div>
         {data.data.length === 0 ? (
-          <EmptyState title="No homes found" description="Try adjusting your filters or search for a different location." action={<Button variant="outline" onClick={() => (window.location.search = '')}>Reset filters</Button>} />
+          <EmptyState title="No homes found" description="Try adjusting your filters or search for a different location." />
         ) : (
           <HomesResults
             initialListings={data.data}
