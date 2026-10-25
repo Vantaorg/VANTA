@@ -3,12 +3,14 @@
 import React, { type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Inbox } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface EmptyStateProps {
   icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
+  resetUrl?: string;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ export default function EmptyState({
   title,
   description,
   action,
+  resetUrl,
   className,
 }: EmptyStateProps) {
   return (
@@ -28,7 +31,16 @@ export default function EmptyState({
       {description && (
         <p className="text-white/30 text-sm max-w-sm">{description}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {(action || resetUrl) && (
+        <div className="mt-4">
+          {action}
+          {resetUrl && (
+            <Button variant="outline" onClick={() => window.location.assign(resetUrl)}>
+              Reset filters
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
