@@ -101,22 +101,24 @@ const MobileMenu = memo(function MobileMenu({
     <AnimatePresence>
       {open && (
         <>
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          <motion.button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.aside
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-0.5rem)] w-full max-w-[480px] flex-col overflow-hidden rounded-t-[24px] border border-b-0 border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
           >
-            <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" />
-            <div className="flex items-center justify-between px-5 h-16 border-b border-white/[0.06] shrink-0">
+            
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
               <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.12] bg-[#080808]">
                   <VantaLogo size={16} className="text-white" />
@@ -150,7 +152,7 @@ const MobileMenu = memo(function MobileMenu({
               </div>
             )}
 
-            <nav className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3" role="navigation" aria-label="More VANTA destinations">
+            <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-3" role="navigation" aria-label="More VANTA destinations">
               <div className="grid grid-cols-2 gap-2">
                 {mainNavItems.map((item) => {
                   const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -184,7 +186,7 @@ const MobileMenu = memo(function MobileMenu({
             </nav>
 
             {/* Bottom actions */}
-            <div className="border-t border-white/[0.06] px-3 py-2 shrink-0">
+            <div className="shrink-0 border-t border-white/[0.06] px-3 py-2">
               <button
                 onClick={onLogout}
                 className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 w-full text-sm text-red-400 hover:bg-white/[0.04] transition mt-1"
