@@ -153,7 +153,7 @@ const MobileMenu = memo(function MobileMenu({
             )}
 
             <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-3" role="navigation" aria-label="More VANTA destinations">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
                 {mainNavItems.map((item) => {
                   const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
                   const Icon = item.icon;
@@ -163,7 +163,7 @@ const MobileMenu = memo(function MobileMenu({
                       href={item.href}
                       onClick={onClose}
                       className={cn(
-                        'flex min-h-14 items-center gap-3 rounded-xl border px-3.5 py-3 transition-all',
+                        'flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 transition-all',
                         isActive
                           ? 'border-[var(--active-border)] bg-[var(--active-soft)] text-[var(--text-primary)] shadow-[var(--active-glow)]'
                           : 'border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
