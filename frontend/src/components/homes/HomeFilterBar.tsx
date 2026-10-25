@@ -31,7 +31,8 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div className="flex w-full sm:w-auto items-center gap-2 overflow-hidden">
         <Input
           placeholder="Search city, area or keyword"
@@ -55,9 +56,10 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
           Reset
         </Button>
       </div>
+      </div>
 
       {open && (
-        <div className="mt-4 p-4 rounded-xl border border-white/[0.08] bg-white/[0.03] w-full max-w-md">
+        <div className="p-4 rounded-xl border border-white/[0.08] bg-white/[0.03] w-full">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
             <FilterSelect label="Property type" name="propertyType" options={propertyTypes.map((t) => ({ value: t, label: TYPE_LABEL[t] || t }))} current={current.propertyType || ''} buildUrl={buildUrl} />
             <FilterSelect label="Bedrooms" name="bedrooms" options={['1', '2', '3', '4'].map((v) => ({ value: v, label: v === '4' ? '4+' : v }))} current={current.bedrooms || ''} buildUrl={buildUrl} />
