@@ -42,20 +42,25 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
 
   return (
     <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="px-4 pt-6 pb-2">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-[#c9a227] font-bold text-sm tracking-wider uppercase">VANTA Homes</span>
-            <h1 className="text-2xl font-bold text-white">Homes for Rent</h1>
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#080808]/95 px-4 pt-4 pb-4 shadow-lg backdrop-blur-xl">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#c9a227]">VANTA Homes</span>
+              <h1 className="mt-1 text-xl font-bold leading-tight text-white sm:text-2xl">Find your next home</h1>
+            </div>
+            <PostHomeButton />
           </div>
-          <p className="text-white/50 text-sm mb-6">Discover houses and apartments available for rent. All listings are free to browse.</p>
+          <p className="mt-2 mb-4 text-sm text-white/55">Browse rentals from landlords and property owners.</p>
           <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
         </div>
-      </div>
-      <div className="max-w-5xl mx-auto px-4 pb-24">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white font-semibold">Listings</h2>
-          <PostHomeButton />
+      </header>
+      <div className="mx-auto max-w-5xl px-4 pt-5 pb-28">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-white">Available properties</h2>
+            <p className="mt-1 text-xs text-white/45">{data.data.length ? 'Explore homes that match your search.' : 'No properties match these filters yet.'}</p>
+          </div>
         </div>
         {data.data.length === 0 ? (
           <EmptyState title="No homes found" description="Try adjusting your filters or search for a different location." />
