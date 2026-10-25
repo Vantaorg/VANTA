@@ -11,7 +11,7 @@ export function PostHomeButton() {
   if (!user) return null;
   return (
     <Button variant="gold" onClick={() => router.push('/homes/create')}>
-      <Plus size={18} /> Post a Property
+      <Plus size={18} /> List your property
     </Button>
   );
 }
