@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
@@ -18,6 +18,8 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilterBarProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(current.q || '');
+  useEffect(() => setSearch(current.q || ''), [current.q]);
   const hasFilters =
     current.city || current.area || current.propertyType || current.minRent || current.maxRent || current.bedrooms || current.bathrooms || current.furnished || current.q || (current.sort && current.sort !== 'newest');
 
@@ -37,10 +39,14 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
         <Input
           placeholder="Search city, area or keyword"
           value={current.q || ''}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => buildUrl({ q: e.target.value })}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
           className="w-full sm:w-64 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/40"
         />
-        <Button variant="outline" size="sm" onClick={() => buildUrl({ q: '', city: '', area: '' })} disabled={!current.q && !current.city && !current.area}>
+        <Button variant="gold" size="sm" onClick={() => buildUrl({ q: search.trim() })}>
+          Search
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setSearch(''); buildUrl({ q: '', city: '', area: '' }); }} disabled={!search && !current.q && !current.city && !current.area}>
           Clear
         </Button>
       </div>
