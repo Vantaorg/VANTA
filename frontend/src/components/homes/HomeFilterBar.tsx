@@ -38,7 +38,6 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
       <div className="flex w-full sm:w-auto items-center gap-2 overflow-hidden">
         <Input
           placeholder="Search city, area or keyword"
-          value={current.q || ''}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
           className="w-full sm:w-64 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/40"
