@@ -3,7 +3,7 @@ import { HomeFilterBar } from '@/components/homes/HomeFilterBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { PostHomeButton } from '@/components/homes/PostHomeButton';
 import HomesResults from '@/components/homes/HomesResults';
-import { ArrowRight, Building2, HeartHandshake, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Building2, ShieldCheck } from 'lucide-react';
 
 const PAGE_LIMIT = 20;
 
@@ -49,69 +49,36 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   ];
 
   return (
-    <main className="min-h-[var(--vanta-vh,100dvh)] overflow-hidden bg-[#080808] text-white">
-      <section className="relative isolate border-b border-white/[0.08]">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -top-36 right-[-8%] h-[26rem] w-[26rem] rounded-full bg-[#c9a227]/[0.12] blur-[100px]" />
-          <div className="absolute bottom-[-12rem] left-[-8%] h-[25rem] w-[25rem] rounded-full bg-[#c9a227]/[0.06] blur-[100px]" />
-          <div className="absolute inset-0 opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)', backgroundSize: '44px 44px', maskImage: 'linear-gradient(to bottom, black, transparent 85%)' }} />
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-8 pt-5 sm:px-6 sm:pb-12 sm:pt-8">
-          <nav className="mb-10 flex items-center justify-between gap-4 sm:mb-14" aria-label="Homes navigation">
-            <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes home">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#c9a227]/35 bg-[#c9a227]/10 text-[#c9a227]"><Building2 size={21} /></span>
-              <span className="min-w-0">
-                <span className="block text-xs font-black uppercase tracking-[0.2em] text-[#c9a227]">VANTA</span>
-                <span className="block text-sm font-semibold text-white">Homes</span>
-              </span>
-            </a>
-            <div className="flex shrink-0 items-center gap-2">
-              <a href="/homes/manage" className="hidden rounded-xl px-3 py-2 text-sm text-white/65 transition hover:bg-white/[0.06] hover:text-white sm:inline-flex">My listings</a>
-              <PostHomeButton />
-            </div>
-          </nav>
-
-          <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_.92fr] lg:gap-12">
-            <div className="max-w-2xl">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#c9a227]/25 bg-[#c9a227]/[0.08] px-3 py-1.5 text-xs font-medium text-[#e2c45f]">
-                <Sparkles size={14} /> A better way to find your place
-              </div>
-              <h1 className="max-w-xl text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-                Your next chapter starts <span className="text-[#d7b548]">at home.</span>
-              </h1>
-              <p className="mt-5 max-w-lg text-sm leading-6 text-white/60 sm:text-base sm:leading-7">
-                Explore places that fit your life and budget. Discover rentals, compare the details, and connect with property owners — all in VANTA.
-              </p>
-              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-white/55 sm:text-sm">
-                <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-[#c9a227]" /> Owner details and listing status</span>
-                <span className="inline-flex items-center gap-2"><HeartHandshake size={16} className="text-[#c9a227]" /> Contact through VANTA</span>
-              </div>
-            </div>
-            <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
-              <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[#c9a227]/20 via-transparent to-white/[0.03] blur-xl" />
-              <div className="relative overflow-hidden rounded-[1.7rem] border border-white/[0.12] bg-[#111]/95 p-4 shadow-2xl sm:p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#c9a227]">Find your fit</p>
-                    <p className="mt-1 text-lg font-bold">Start with what matters</p>
-                  </div>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05] text-[#d7b548]"><MapPin size={20} /></span>
-                </div>
-                <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
-                <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-3 text-xs text-white/45">
-                  <ShieldCheck size={15} className="shrink-0 text-[#c9a227]" />
-                  Never pay a deposit before verifying the property and owner.
-                </div>
-              </div>
-            </div>
+    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#080808] text-white">
+      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span>
+              <span className="text-sm font-medium text-white/80">Homes</span>
+            </span>
+          </a>
+          <div className="flex shrink-0 items-center gap-2">
+            <a href="/homes/manage" className="hidden px-3 py-2 text-sm text-white/60 transition hover:text-white sm:inline-flex">My listings</a>
+            <PostHomeButton />
           </div>
-          <div className="mt-9 flex flex-wrap items-center gap-2 sm:mt-12">
-            <span className="mr-1 text-xs font-medium text-white/40">Explore by type</span>
-            {quickTypes.map((type) => (
-              <a key={type.value} href={`/homes?propertyType=${type.value}`} className={`rounded-full border px-3.5 py-2 text-xs font-medium transition sm:text-sm ${params.propertyType === type.value ? 'border-[#c9a227]/60 bg-[#c9a227]/15 text-[#e2c45f]' : 'border-white/[0.1] bg-white/[0.025] text-white/65 hover:border-white/25 hover:text-white'}`}>
-                {type.label} <ArrowRight size={12} className="ml-1 inline" />
-              </a>
-            ))}
+        </div>
+      </header>
+
+      <section className="border-b border-white/[.07]">
+        <div className="mx-auto max-w-6xl px-4 pb-7 pt-8 sm:px-6 sm:pb-9 sm:pt-10">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Homes for the way you live.</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
+          </div>
+          <div className="mt-7 max-w-5xl">
+            <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-white/40">
+            <ShieldCheck size={14} className="shrink-0 text-[#c9a227]" />
+            Verify the property and owner before paying a deposit.
           </div>
         </div>
       </section>
@@ -119,21 +86,18 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
       <section className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pt-10">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#c9a227]">The collection</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Homes worth a closer look</h2>
-            <p className="mt-2 text-sm text-white/50">
-              {data.data.length ? `Showing ${data.data.length} place${data.data.length === 1 ? '' : 's'} to get you started.` : 'Your next place might be one search away.'}
-            </p>
+            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
+            <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'Listings appear here after they pass VANTA review.'}</p>
           </div>
-          <a href="/homes/manage" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] px-3 py-2 text-sm text-white/65 transition hover:border-[#c9a227]/40 hover:text-white">
-            Manage listings <ArrowRight size={15} />
+          <a href="/homes/manage" className="inline-flex items-center gap-1.5 py-2 text-sm text-white/55 transition hover:text-[#e2c45f]">
+            Manage listings <ArrowRight size={14} />
           </a>
         </div>
 
         {data.data.length === 0 ? (
-          <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] px-4 py-12 text-center sm:px-8">
-            <EmptyState title="No homes found just yet" description="Try another location or remove a filter. New listings will appear here as they become available." />
-            <a href="/homes" className="mt-3 inline-flex rounded-xl border border-[#c9a227]/40 px-4 py-2 text-sm font-semibold text-[#e2c45f] transition hover:bg-[#c9a227]/10">Browse all homes</a>
+          <div className="py-12 text-center">
+            <EmptyState title="No homes found" description="Try a different location or adjust your filters. Approved listings will appear here." />
+            <a href="/homes" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#e2c45f] transition hover:text-white">Clear search <ArrowRight size={14} /></a>
           </div>
         ) : (
           <HomesResults
