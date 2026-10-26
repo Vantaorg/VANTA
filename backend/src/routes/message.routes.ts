@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { getConversations, getMessages, startConversation, sendMessage, markMessagesRead, searchMessages, editMessage, deleteMessage, getUnreadCount, reactToMessage, setMessagePinned, setConversationMuted, recordCallMessage } from '../controllers/message.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
+import { rateLimiter } from '../security/rateLimiter';
 
 const router = Router();
 
 router.use(authenticateJWT);
+// Authenticate first so messaging rate limits are keyed to the real user, not a shared 'unknown' key.
+router.use(rateLimiter.messaging);
 
 router.get('/', getConversations);
 router.get('/unread/count', getUnreadCount);
