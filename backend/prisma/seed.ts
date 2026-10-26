@@ -48,6 +48,9 @@ async function main() {
     const freshHash = await CryptoUtils.hashPassword(adminPassword);
 
     const updates: any = {};
+    if (existingAdmin.email !== adminEmail) updates.email = adminEmail;
+    if (existingAdmin.username !== adminUsername) updates.username = adminUsername;
+    if (existingAdmin.fullName !== adminFullName) updates.fullName = adminFullName;
     if (existingAdmin.role !== 'ADMIN') updates.role = 'ADMIN';
     if (!existingAdmin.verified) updates.verified = true;
     if (!existingAdmin.emailVerified) updates.emailVerified = true;
@@ -158,8 +161,7 @@ async function main() {
 
   // The configured administrator above is the single admin bootstrap account.
   // Do not create a second hard-coded CEO account on a fresh database.
-  await ensureVerifiedUser(adminUsername, adminFullName, { role: 'ADMIN', email: adminEmail, password: adminPassword });
-  console.log(`✅ Configured administrator verified (@${adminUsername})`);
+  console.log(`✅ Configured administrator identity ensured (${adminEmail}, @${adminUsername})`);
 
 // ============================================================================
   // 0c + 1. PURCHASE CATALOG (Verified Badge plans + VANTA Coin packages)
