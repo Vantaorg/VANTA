@@ -83,7 +83,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pt-10">
+      <section className="mx-auto max-w-6xl px-4 pb-28 pt-7 sm:px-6 sm:pt-9">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
