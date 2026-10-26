@@ -747,7 +747,7 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
 
           <div className="absolute bottom-6 right-3 z-10 flex flex-col items-center gap-3 ">
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
-            <Action icon={<Heart className={reel.isLiked ? 'fill-white' : ''} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} />
+            <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
             <Action icon={<Share2 />} label="Share" ariaLabel="Share Reel" onClick={onShare} />
             <Action icon={<Gift />} label="Gift" ariaLabel="Send a gift" onClick={onGift} />
@@ -763,7 +763,7 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
 }
 
 function Action({ icon, label, ariaLabel, onClick, active }: { icon: ReactNode; label: string; ariaLabel: string; onClick: () => void; active?: boolean }) {
-  return <button type="button" onClick={onClick} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-white' : 'text-white/70 hover:text-white')} aria-label={ariaLabel} aria-pressed={active}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">{icon}</span><span>{label}</span></button>;
+  return <button type="button" onClick={onClick} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')} aria-label={ariaLabel} aria-pressed={active}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">{icon}</span><span>{label}</span></button>;
 }
 
 function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => void; close: () => void }) {
