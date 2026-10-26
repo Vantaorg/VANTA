@@ -690,7 +690,7 @@ const creator = current.group.user || {};
         {isOwner ? (
           <div className="flex flex-col items-center gap-2.5 rounded-2xl bg-black/35 px-2.5 py-3 backdrop-blur">
             <div className="flex flex-col items-center gap-1 text-white/85" title="Likes">
-              <Heart size={19} strokeWidth={2} className={current.story.likeCount ? 'fill-current text-[#d6a83f]' : 'text-white/70'} />
+              <Heart size={19} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
               <span className="text-[11px] font-semibold tabular-nums">{compact(current.story.likeCount || 0)}</span>
             </div>
             <div className="flex flex-col items-center gap-1 text-white/85" title="Reshares">
@@ -712,9 +712,9 @@ const creator = current.group.user || {};
               aria-label={current.story.likedByMe ? 'Unlike story' : 'Like story'}
               aria-pressed={Boolean(current.story.likedByMe)}
               title={current.story.likedByMe ? 'Unlike' : 'Like'}
-              className="grid h-11 w-11 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
+              className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
             >
-              <Heart size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#d6a83f]' : 'text-white'} />
+              <Heart size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
             </button>
             <button
               type="button"
