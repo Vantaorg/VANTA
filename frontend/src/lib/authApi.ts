@@ -52,6 +52,7 @@ export interface RegisterPayload {
   username: string;
   password: string;
   fullName?: string;
+  dateOfBirth?: string;
 }
 
 export interface LoginPayload {
