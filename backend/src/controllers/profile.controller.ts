@@ -17,9 +17,11 @@ import { AppError } from '../utils/api-error';
  * found", which would make existing users look nonexistent just because a query
  * failed. Genuine not-found and privacy-restricted cases keep their 404/403.
  */
-function classifyProfileError(error: unknown): { status: number; message: string } {
+export function classifyProfileError(error: unknown): { status: number; message: string; code?: string } {
   if (error instanceof AppError) {
-    return { status: error.statusCode, message: error.message };
+    // Preserve the machine-readable account-status code so profile clients can
+    // distinguish a moderated account from a genuinely private profile.
+    return { status: error.statusCode, message: error.message, code: error.code };
   }
   const message = error instanceof Error ? error.message : 'Internal server error';
   const isPrismaError =
@@ -39,8 +41,8 @@ function classifyProfileError(error: unknown): { status: number; message: string
 }
 
 const sendPublicProfileError = (res: Response, error: unknown): void => {
-  const { status, message } = classifyProfileError(error);
-  res.status(status).json({ error: message });
+  const { status, message, code } = classifyProfileError(error);
+  res.status(status).json({ error: message, ...(code ? { code } : {}) });
 };
 
 const parseLimit = (value: unknown, defaultLimit = 12) => {
