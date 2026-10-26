@@ -22,7 +22,7 @@ import VantaLogo from '@/components/ui/VantaLogo';
 
 type Props = { mode: 'login' | 'register' };
 type Availability = 'idle' | 'checking' | 'available' | 'taken';
-type FieldName = 'identifier' | 'username' | 'email' | 'password' | 'terms';
+type FieldName = 'identifier' | 'username' | 'email' | 'password' | 'terms' | 'fullName';
 type FieldErrors = Partial<Record<FieldName, string>>;
 type OAuthProviderName = 'google' | 'telegram';
 
@@ -191,6 +191,7 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       else if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username.replace(/^@/, ''))) nextErrors.username = 'Use 3–30 letters, numbers, underscores, or hyphens.';
       else if (availability === 'taken' || availability === 'checking') nextErrors.username = 'Please choose an available username.';
       if (!fullName.trim()) nextErrors.terms = 'Enter your display name.';
+      if (!fullName.trim()) nextErrors.fullName = 'Enter your display name.';
       if (!dateOfBirth) nextErrors.terms = 'Enter your date of birth.';
       else { const dob = new Date(dateOfBirth + 'T00:00:00'); const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 13); if (Number.isNaN(dob.getTime()) || dob > cutoff) nextErrors.terms = 'You must be at least 13 years old to join VANTA.'; }
       if (!terms) nextErrors.terms = 'Please agree before creating your account.';
@@ -314,7 +315,7 @@ return (
               {oauthSignup && <div className="auth-oauth-note" role="status"><UserRound size={14} /><span>Your {oauth.provider === 'google' ? 'Google' : 'Telegram'} identity was verified. Now choose your VANTA username.</span></div>}
               {oauthSignup && oauth.email && <div className="auth-oauth-email"><Mail size={15} /><span>{oauth.email}</span></div>}
               {oauthSignup && <Field id="username" label="Username" value={username} onChange={setUsername} placeholder="Choose a username" status={availability} error={fieldErrors.username} />}
-              {oauthSignup && <Field id="fullName" label="Display name" value={fullName} onChange={setFullName} placeholder="How should people know you?" />}
+              {oauthSignup && <Field id="fullName" label="Display name" value={fullName} onChange={setFullName} placeholder="How should people know you?" error={fieldErrors.fullName} />}
               {oauthSignup && <div className="auth-field"><label htmlFor="oauthDateOfBirth">Date of birth</label><div className="auth-input-wrap"><input id="oauthDateOfBirth" type="date" className="auth-input" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().slice(0, 10)} required /></div>{fieldErrors.terms && <span className="auth-field-error"><X size={12} />{fieldErrors.terms}</span>}</div>}
               {register && !oauthSignup && signupStep === 1 && <Field id="email" label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" error={fieldErrors.email} />}
               {register && !oauthSignup && signupStep >= 2 && <Field id="username" label="Username" value={username} onChange={setUsername} placeholder="Choose a username" status={availability} error={fieldErrors.username} />}
