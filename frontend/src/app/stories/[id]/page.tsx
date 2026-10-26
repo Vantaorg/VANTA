@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Eye, Heart, Link2, Loader2, MessageCircle, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Eye, Link2, Loader2, MessageCircle, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -691,7 +691,7 @@ const creator = current.group.user || {};
         <div className="flex flex-col items-center gap-4">
           <button
             type="button"
-            onClick={() => { if (!isOwner) void toggleLike(); }}
+            onClick={() => void toggleLike()}
             aria-label={current.story.likedByMe ? 'Unlike status' : 'Like status'}
             aria-pressed={Boolean(current.story.likedByMe)}
             title={current.story.likedByMe ? 'Unlike' : 'Like'}
