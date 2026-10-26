@@ -327,7 +327,7 @@ function CreateHomeContent() {
 
   return (
     <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto w-full max-w-3xl px-3 py-4 pb-44 sm:px-4 sm:py-6 sm:pb-32">
+      <div className="mx-auto min-h-full w-full max-w-3xl px-3 py-4 pb-48 sm:px-4 sm:py-6 sm:pb-32">
         <button
           onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')}
           className="mb-3 inline-flex min-h-9 items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
@@ -335,15 +335,15 @@ function CreateHomeContent() {
           <ArrowLeft size={16} /> {isEdit ? 'Manage listings' : 'All homes'}
         </button>
 
-        <div className="mb-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 sm:mb-6 sm:px-0 sm:py-0 sm:border-0 sm:bg-transparent">
-          <span className="text-sm font-bold uppercase tracking-wider text-[#c9a227]">VANTA Homes</span>
-          <h1 className="text-xl font-bold text-white sm:text-2xl">{isEdit ? 'Edit listing' : 'List your property'}</h1>
-          <p className="mt-1 text-sm text-white/50">
+        <header className="-mx-3 -mt-4 mb-5 overflow-hidden border-b border-[#c9a227]/25 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,0.18),transparent_55%),linear-gradient(135deg,#17150f_0%,#0b0b0d_55%,#15120a_100%)] px-5 pb-5 pt-5 shadow-[0_14px_38px_rgba(0,0,0,0.22)] sm:-mx-4 sm:-mt-6 sm:mb-6 sm:px-6 sm:pb-6 sm:pt-6">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-[#e0bb4f]"><span className="h-px w-5 bg-[#c9a227]/70" /> VANTA Homes</span>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{isEdit ? 'Edit listing' : 'List your property'}</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
             {isEdit
               ? 'Update the details below. Changes go live after a quick review.'
               : 'Fill in the details, add photos, then submit for a short review.'}
           </p>
-        </div>
+        </header>
 
         {existingStatus === 'PENDING_REVIEW' && (
           <div className="mb-5 rounded-[var(--radius-xl)] border border-amber-400/30 bg-amber-500/[0.07] px-3.5 py-2.5 text-sm text-amber-300">
@@ -662,8 +662,8 @@ function CreateHomeContent() {
       </div>
 
       {/* Sticky action bar ---------------------------------------------- */}
-      <div className="fixed inset-x-0 bottom-[5.25rem] z-40 border-t border-white/[0.06] bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:bottom-0">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
+      <div className="fixed inset-x-0 bottom-[4.9rem] z-40 border-t border-[#c9a227]/20 bg-[#0b0b0d]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_32px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:bottom-0">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-3 py-3 sm:px-4 sm:py-3">
           {formError && <p className="w-full text-xs text-red-400">{formError}</p>}
           <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
             <Button variant="ghost" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} className="!px-2 !text-xs sm:!px-3 sm:!text-sm">
