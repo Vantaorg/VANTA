@@ -884,7 +884,7 @@ export const completeOAuthRegistration = async (
   ) || null;
   const rawDateOfBirth = typeof payload.dateOfBirth === 'string' ? payload.dateOfBirth : '';
   const dateOfBirth = new Date(rawDateOfBirth + 'T00:00:00');
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDateOfBirth) || Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.toISOString().slice(0, 10) !== rawDateOfBirth) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDateOfBirth) || Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.toISOString().slice(0, 10) !== rawDateOfBirth) {
     throw new OAuthError('invalid-date-of-birth', 'Enter a valid date of birth.');
   }
   const today = new Date();
