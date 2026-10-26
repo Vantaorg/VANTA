@@ -20,14 +20,15 @@ import { cn } from '@/lib/utils';
 import { openAppMenu } from '@/lib/openAppMenu';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import PullToRefresh from '@/components/ui/PullToRefresh';
+import PropertyCard from '@/components/homes/PropertyCard';
 
 type Item = Record<string, any>;
-type Category = 'forYou' | 'trending' | 'creators' | 'reels' | 'live' | 'communities';
+type Category = 'forYou' | 'trending' | 'homes' | 'creators' | 'reels' | 'live' | 'communities';
 type SearchFilter = 'all' | 'people' | 'posts' | 'reels' | 'live' | 'communities';
 
-const CATEGORIES: Array<[Category | 'homes', string]> = [
-  ['forYou', 'For You'], ['trending', 'Trending'], ['creators', 'Creators'],
-  ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'], ['homes', 'VANTA Homes'],
+const CATEGORIES: Array<[Category, string]> = [
+  ['forYou', 'For You'], ['trending', 'Trending'], ['homes', 'VANTA Homes'],
+  ['creators', 'Creators'], ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'],
 ];
 const SEARCH_FILTERS: Array<[SearchFilter, string]> = [
   ['all', 'All'], ['people', 'People'], ['posts', 'Posts'], ['reels', 'Reels'],
@@ -72,6 +73,9 @@ export default function DiscoverPage() {
   const [reels, setReels] = useState<Item[]>([]);
   const [live, setLive] = useState<Item[]>([]);
   const [communities, setCommunities] = useState<Item[]>([]);
+  const [homeListings, setHomeListings] = useState<Item[]>([]);
+  const [homesLoading, setHomesLoading] = useState(false);
+  const [homesError, setHomesError] = useState('');
   const [cursor, setCursor] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -129,6 +133,17 @@ export default function DiscoverPage() {
   );
 
   useEffect(() => { void loadDiscover(); }, [loadDiscover]);
+  useEffect(() => {
+    if (category !== 'homes' || !token) return;
+    let current = true;
+    setHomesLoading(true);
+    setHomesError('');
+    apiGet<any>('/api/homes?limit=12&sort=newest', token, { skipCache: true })
+      .then((result) => { if (current) setHomeListings(Array.isArray(result?.data) ? result.data : Array.isArray(result?.items) ? result.items : []); })
+      .catch((reason: any) => { if (current) setHomesError(reason?.message || 'We could not load available properties. Please try again.'); })
+      .finally(() => { if (current) setHomesLoading(false); });
+    return () => { current = false; };
+  }, [category, token]);
   useEffect(() => { const timer = setTimeout(() => setDebouncedQuery(query.trim()), 350); return () => clearTimeout(timer); }, [query]);
   useEffect(() => {
     if (!debouncedQuery || !token) { setSearchResults({}); setSearching(false); return; }
@@ -207,7 +222,7 @@ export default function DiscoverPage() {
         <section className="relative z-20 mb-5" aria-label="Search VANTA"><div className="group flex min-h-12 items-center gap-3 rounded-lg border border-white/[.08] bg-[#101010]/95 px-4 transition focus-within:bg-[#161616]"><Search size={18} className="shrink-0 text-[#8a8a8a]"/><input ref={searchRef} value={query} onChange={event => setQuery(event.target.value)} placeholder="Search VANTA..." aria-label="Search people, posts, reels, live streams, communities, and topics" className="h-12 min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-[#666]"/>{searching && <Loader2 size={17} className="animate-spin text-[#8a8a8a]"/>}{query && <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="flex h-9 w-9 items-center justify-center rounded-lg text-[#666] hover:bg-white/[.06] hover:text-white"><X size={17}/></button>}</div>
           <AnimatePresence>{debouncedQuery && <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="mt-2 overflow-hidden rounded-lg border border-white/[.1] bg-[#101010] shadow-2xl"><div className="flex overflow-x-auto border-b border-white/[.08] px-2 scrollbar-hide" role="tablist" aria-label="Search result filters">{SEARCH_FILTERS.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={searchFilter === id} onClick={() => setSearchFilter(id)} className={cn('relative min-h-11 shrink-0 px-3 text-xs text-[#666] hover:text-white', searchFilter === id && 'text-white after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[#b8b8b8]')}>{label}</button>)}</div><SearchResults query={debouncedQuery} filter={searchFilter} results={searchResults} searching={searching} open={(item: Item) => openSearchResult(item, router)} follow={follow}/></motion.div>}</AnimatePresence>
         </section>
-        {!debouncedQuery && <nav className="mb-7 flex overflow-x-auto border-b border-white/[.08] scrollbar-hide" aria-label="Discover categories">{CATEGORIES.map(([id, label]) => <button key={id} type="button" onClick={() => id === 'homes' ? router.push('/homes') : setCategory(id)} aria-current={category === id ? 'page' : undefined} className={cn('relative min-h-12 shrink-0 px-4 text-sm font-medium text-[#666] transition hover:text-[#b8b8b8]', category === id && 'text-white after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:bg-[#c9a227]')}>{label}</button>)}</nav>}
+        {!debouncedQuery && <nav className="mb-7 flex overflow-x-auto border-b border-white/[.08] scrollbar-hide" aria-label="Discover categories">{CATEGORIES.map(([id, label]) => <button key={id} type="button" onClick={() => { setCategory(id); scrollPageTop(pageScrollRef.current); }} aria-current={category === id ? 'page' : undefined} className={cn('relative min-h-12 shrink-0 px-4 text-sm font-medium text-[#666] transition hover:text-[#b8b8b8]', category === id && 'text-white after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:bg-[#c9a227]')}>{label}</button>)}</nav>}
 
         {loading ? <DiscoverSkeleton/> : error ? <ErrorState retry={() => void loadDiscover()}/> : !debouncedQuery && <div className="space-y-7">
           {category === 'forYou' && <>
@@ -223,6 +238,14 @@ export default function DiscoverPage() {
           {category === 'creators' && <><CreatorSection title="POPULAR CREATORS" subtitle="Established voices across VANTA" profiles={[...creators].sort((a, b) => profileFollowers(b) - profileFollowers(a))} follow={follow} open={(profile: Item) => router.push(`/profile/${profile.username}`)}/><CreatorSection title="RISING CREATORS" subtitle="Recently active creators building momentum" profiles={rising} follow={follow} open={(profile: Item) => router.push(`/profile/${profile.username}`)}/></>}
           {category === 'reels' && <ReelSection items={reels} open={(item: Item) => openItem({ ...item, type: 'video' }, router)}/>} 
           {category === 'live' && <LiveSection items={live} open={(item: Item) => openItem({ ...item, type: 'live' }, router)}/>} 
+          {category === 'homes' && <section className="space-y-5" aria-label="Available VANTA Homes properties">
+            <div className="relative overflow-hidden rounded-2xl border border-[#c9a227]/25 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,0.20),transparent_48%),linear-gradient(135deg,#19160d_0%,#0b0b0d_58%,#15120a_100%)] p-5 sm:p-7">
+              <div className="relative z-10 max-w-xl"><span className="text-[10px] font-bold uppercase tracking-[.24em] text-[#e0bb4f]">VANTA Homes</span><h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Find a place that feels like yours.</h2><p className="mt-2 max-w-lg text-sm leading-relaxed text-white/65">Explore available homes and rentals shared by property owners on VANTA.</p><button type="button" onClick={() => router.push('/homes')} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c9a227]/40 bg-[#c9a227] px-4 py-2 text-sm font-semibold text-[#151108] shadow-[0_6px_24px_rgba(201,162,39,0.18)] transition hover:bg-[#e0bb4f]">Browse all homes <ArrowRight size={16}/></button></div>
+              <div className="pointer-events-none absolute -bottom-12 -right-8 h-44 w-44 rounded-full border border-[#c9a227]/15 sm:h-56 sm:w-56"/><div className="pointer-events-none absolute -bottom-6 -right-2 h-32 w-32 rounded-full border border-[#c9a227]/10 sm:h-40 sm:w-40"/>
+            </div>
+            <div className="flex items-end justify-between gap-3"><div><h3 className="text-base font-semibold text-white">Available properties</h3><p className="mt-1 text-xs text-white/45">Latest listings from landlords and property owners</p></div><button type="button" onClick={() => router.push('/homes')} className="shrink-0 text-xs font-semibold text-[#e0bb4f] hover:text-white">Filters &amp; search</button></div>
+            {homesLoading ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{[0,1,2,3].map((n) => <div key={n} className="animate-pulse overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025]"><div className="aspect-[4/3] bg-white/[.06]"/><div className="space-y-3 p-4"><div className="h-4 w-2/3 rounded bg-white/[.07]"/><div className="h-3 w-1/2 rounded bg-white/[.05]"/></div></div>)}</div> : homesError ? <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-6 text-center"><p className="text-sm text-white/70">{homesError}</p><button type="button" onClick={() => setCategory('homes')} className="mt-3 rounded-lg border border-[#c9a227]/35 px-4 py-2 text-sm text-[#e0bb4f]">Try again</button></div> : homeListings.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{homeListings.map((listing) => <PropertyCard key={listing.id} listing={listing}/>)}</div> : <div className="rounded-2xl border border-dashed border-[#c9a227]/25 bg-gradient-to-b from-[#c9a227]/[0.05] to-transparent px-5 py-9 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-[#c9a227]/25 bg-[#c9a227]/[0.08]"><Compass size={21} className="text-[#e0bb4f]"/></div><h3 className="mt-4 text-base font-semibold text-white">Your next home could be here</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/55">There are no available properties to show right now. Check back soon or browse the full Homes marketplace.</p><button type="button" onClick={() => router.push('/homes')} className="mt-4 rounded-xl border border-[#c9a227]/35 px-4 py-2.5 text-sm font-semibold text-[#e0bb4f] transition hover:bg-[#c9a227]/[0.08]">Explore VANTA Homes</button></div>}
+          </section>}
           {category === 'communities' && <CommunitySection items={communities} join={joinCommunity} open={(item: Item) => router.push(`/communities/${item.id}`)} copyLink={copyCommunityLink}/>} 
           {category === 'forYou' && <div ref={sentinel} className="flex min-h-10 items-center justify-center">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}</div>}
         </div>}
