@@ -411,13 +411,16 @@ export async function createListing(userId: string, data: any) {
   if (!isValidPropertyType(data.propertyType)) throw new Error('Invalid property type');
   if (!isValidRentPeriod(data.rentPeriod)) throw new Error('Invalid rental period');
   const rentAmount = Number(data.rentAmount);
-  if (Number.isNaN(rentAmount) || rentAmount < 0) throw new Error('Invalid rent amount');
+  if (!Number.isFinite(rentAmount) || rentAmount < 0) throw new Error('Invalid rent amount');
   if (!data.country || typeof data.country !== 'string') throw new Error('Country is required');
   if (!data.city || typeof data.city !== 'string') throw new Error('City is required');
   const bedrooms = Number(data.bedrooms);
   const bathrooms = Number(data.bathrooms);
-  if (Number.isNaN(bedrooms) || bedrooms < 0) throw new Error('Invalid bedrooms');
-  if (Number.isNaN(bathrooms) || bathrooms < 0) throw new Error('Invalid bathrooms');
+  if (!Number.isFinite(bedrooms) || bedrooms < 0) throw new Error('Invalid bedrooms');
+  if (!Number.isFinite(bathrooms) || bathrooms < 0) throw new Error('Invalid bathrooms');
+  if (data.depositAmount !== undefined && data.depositAmount !== null && data.depositAmount !== '' && (!Number.isFinite(Number(data.depositAmount)) || Number(data.depositAmount) < 0)) {
+    throw new Error('Invalid deposit amount');
+  }
 
   const listing = await prisma.propertyListing.create({
     data: {
@@ -491,7 +494,7 @@ export async function updateListing(listingId: string, userId: string, data: any
   }
   if (data.rentAmount !== undefined) {
     const amt = Number(data.rentAmount);
-    if (Number.isNaN(amt) || amt < 0) throw new Error('Invalid rent amount');
+    if (!Number.isFinite(amt) || amt < 0) throw new Error('Invalid rent amount');
     updateData.rentAmount = amt;
   }
   if (data.currency !== undefined) updateData.currency = data.currency;
@@ -502,17 +505,20 @@ export async function updateListing(listingId: string, userId: string, data: any
   if (data.streetAddress !== undefined) updateData.streetAddress = data.streetAddress || null;
   if (data.bedrooms !== undefined) {
     const b = Number(data.bedrooms);
-    if (Number.isNaN(b) || b < 0) throw new Error('Invalid bedrooms');
+    if (!Number.isFinite(b) || b < 0) throw new Error('Invalid bedrooms');
     updateData.bedrooms = b;
   }
   if (data.bathrooms !== undefined) {
     const b = Number(data.bathrooms);
-    if (Number.isNaN(b) || b < 0) throw new Error('Invalid bathrooms');
+    if (!Number.isFinite(b) || b < 0) throw new Error('Invalid bathrooms');
     updateData.bathrooms = b;
   }
   if (data.furnished !== undefined) updateData.furnished = Boolean(data.furnished);
   if (data.amenities !== undefined) updateData.amenities = JSON.stringify(data.amenities);
-  if (data.depositAmount !== undefined) updateData.depositAmount = data.depositAmount ? Number(data.depositAmount) : null;
+  if (data.depositAmount !== undefined) {
+    if (data.depositAmount !== null && data.depositAmount !== '' && (!Number.isFinite(Number(data.depositAmount)) || Number(data.depositAmount) < 0)) throw new Error('Invalid deposit amount');
+    updateData.depositAmount = data.depositAmount ? Number(data.depositAmount) : null;
+  }
   if (data.additionalFees !== undefined) updateData.additionalFees = data.additionalFees ? JSON.stringify(data.additionalFees) : null;
   if (data.moveInInfo !== undefined) updateData.moveInInfo = data.moveInInfo || null;
   if (data.contactVantaMessaging !== undefined) updateData.contactVantaMessaging = Boolean(data.contactVantaMessaging);
@@ -668,6 +674,15 @@ export async function getOwnerListings(userId: string, { cursor, limit = 20 }: {
 
 export async function addListingMedia(listingId: string, userId: string, files: Express.Multer.File[], type: 'PHOTO' | 'VIDEO', req: any) {
   requireActiveUser(userId);
+  if (!Array.isArray(files) || files.length === 0) throw new Error('At least one media file is required');
+  if (type !== 'PHOTO' && type !== 'VIDEO') throw new Error('Unsupported media type');
+  // Validate the entire batch before uploading anything, so one invalid file
+  // cannot leave a partially-added batch behind.
+  for (const file of files) {
+    const mimeType = file?.mimetype;
+    if (type === 'PHOTO' && !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(mimeType)) throw new Error('Unsupported image type');
+    if (type === 'VIDEO' && !['video/mp4', 'video/webm'].includes(mimeType)) throw new Error('Unsupported video type');
+  }
 
   const listing = await prisma.propertyListing.findUnique({ where: { id: listingId } });
   if (!listing) throw new Error('Listing not found');
