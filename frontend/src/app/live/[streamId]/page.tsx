@@ -972,17 +972,8 @@ const sendComment = useCallback(() => {
         )}
       </div>
 
-      {/* Ambient VANTA lighting — subtle purple/blue/pink/gold aurora */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-[5] mix-blend-screen">
-        <div className="live-ambient-orb animate-live-aurora -left-24 top-1/3 h-96 w-96 bg-[#7C5CFF]/[0.10]" />
-        <div className="live-ambient-orb animate-live-aurora right-[-6rem] top-1/4 h-80 w-80 bg-[#FF5CA8]/[0.07]" />
-        <div className="live-ambient-orb animate-live-aurora left-1/3 -top-20 h-72 w-72 bg-[#3BA9FF]/[0.08]" />
-        <div className="live-ambient-orb animate-live-aurora bottom-0 right-1/4 h-80 w-80 bg-[#C9A227]/[0.05]" />
-      </div>
-
-      {/* Legibility gradient + cinematic vignette */}
-      <div className="pointer-events-none absolute inset-0 z-[6] bg-gradient-to-b from-black/60 via-black/10 to-black/70" />
-      <div className="pointer-events-none absolute inset-0 z-[6] bg-[radial-gradient(120%_90%_at_50%_45%,transparent_55%,rgba(0,0,0,0.28)_100%)]" />
+      {/* Subtle gradient keeps controls readable without covering the stage. */}
+      <div className="pointer-events-none absolute inset-0 z-[6] bg-gradient-to-b from-black/55 via-transparent to-black/65" />
 
       {/* Floating join notice */}
       <AnimatePresence>
@@ -1024,7 +1015,7 @@ const sendComment = useCallback(() => {
       {/* VANTA Live header — compact branded band */}
       <header className="absolute inset-x-0 top-0 z-30">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/75 via-black/35 to-black/5" />
-        <div className="relative flex min-w-0 items-center gap-1.5 px-2.5 pb-1.5 pt-[calc(env(safe-area-inset-top)+5px)]">
+        <div className="relative flex min-w-0 items-center gap-2 px-3 pb-1.5 pt-[calc(env(safe-area-inset-top)+7px)]">
           <button
             type="button"
             onClick={handleLeave}
@@ -1047,7 +1038,6 @@ const sendComment = useCallback(() => {
               <span className="text-[13px] font-extrabold tracking-[0.14em] text-white">VANTA <span className="text-[#F2C75C]">Live</span></span>
               {stream.host.verified && stream.host.verificationType && <VerificationBadge type={stream.host.verificationType} size="xs" />}
             </span>
-            <span className="hidden max-w-[190px] truncate text-[10.5px] font-medium text-white/45 lg:inline">Good Vibes &bull; Real People &bull; Big Dreams</span>
           </button>
 
           <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
@@ -1062,7 +1052,7 @@ const sendComment = useCallback(() => {
               </span>
               <span className="text-[#F87171]">LIVE</span>
               <span className="text-white/70">{streamClock || '0:00'}</span>
-              {stream.categoryName && <span className="hidden max-w-[88px] truncate text-white/50 sm:inline">&middot; {stream.categoryName}</span>}
+              {stream.categoryName && <span className="hidden max-w-[88px] truncate text-white/50 sm:inline">{stream.categoryName}</span>}
             </span>
             <button
               type="button"
