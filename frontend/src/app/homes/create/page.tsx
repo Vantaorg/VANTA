@@ -7,13 +7,10 @@ import {
   fetchHome, createHomeListing, updateHomeListing, submitHomeListingForReview,
   uploadHomePhotos, deleteHomeMedia, fetchHomePropertyTypes, fetchHomeRentPeriods,
 } from '@/lib/services';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, Home as HomeIcon, BedDouble, Bath, ShieldCheck, UploadCloud, Eye, Sparkles } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, Home as HomeIcon, ShieldCheck, UploadCloud, Sparkles} from 'lucide-react';
 
 const MAX_PHOTOS = 10;
 
