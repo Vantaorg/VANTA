@@ -2031,20 +2031,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     onContextMenu={event => { if (!msg.pending) { event.preventDefault(); setMessageContextId(msg.id); } }}
                   >
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
-                      {showSenderIdentity && (
-                        <div className="shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => msg.sender.username && router.push(`/profile/${encodeURIComponent(msg.sender.username)}`)}
-                            aria-label={`View ${senderName}'s profile`}
-                            className="rounded-full transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                          >
-                            <span className="block rounded-full ring-1 ring-[#d6a83f]">
-                              <Avatar src={msg.sender.avatar} alt={senderName} size="sm" />
-                            </span>
-                          </button>
-                        </div>
-                      )}
                       <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
                           <div className={cn('flex max-w-[min(100%,420px)] items-center gap-2', msg.isOwn && 'justify-end')}>
