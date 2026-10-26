@@ -759,7 +759,7 @@ html.light .tile-type { background: rgba(5, 5, 5, 0.78); }
   width: min(1040px, 100%);
   margin: 0 auto;
   padding-bottom: 56px;
-  overflow: clip;
+  /* Keep fixed image viewers and dialogs free to escape the profile layout. */
 }
 .profile-header {
   isolation: isolate;
