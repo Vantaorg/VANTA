@@ -179,6 +179,7 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (register && !oauthSignup && signupStep < 3) return;
     if (busy) return;
     setError(''); setFieldErrors({});
 
@@ -294,8 +295,9 @@ return (
         <Logo />
         <header className="auth-header">
           <span className="auth-kicker">VANTA / {register ? 'JOIN' : 'SIGN IN'}</span>
-          <h1 id="auth-title">{register ? 'Create your account' : 'Welcome back'}</h1>
-          <p>{register ? (oauthSignup ? `Finish setting up your ${oauth.provider === 'google' ? 'Google' : 'Telegram'} account.` : 'Start creating, connecting, and going live on VANTA.') : 'Sign in to continue creating, connecting, and going live.'}</p>
+          <h1 id="auth-title">{register ? (oauthSignup ? 'Finish your profile' : signupStep === 1 ? 'Create your account' : signupStep === 2 ? 'Secure your account' : 'Tell us about yourself') : 'Welcome back'}</h1>
+          <p>{register ? (oauthSignup ? `Finish setting up your ${oauth.provider === 'google' ? 'Google' : 'Telegram'} account.` : signupStep === 1 ? 'Choose how you want to join VANTA.' : signupStep === 2 ? 'Choose your username and password.' : 'Just a couple of details to get you started.') : 'Sign in to continue creating, connecting, and going live.'}</p>
+          {register && !oauthSignup && <div className="auth-signup-progress" aria-label={`Registration step ${signupStep} of 3`}><div className="auth-signup-progress-track"><span style={{ width: `${signupStep * 33.333}%` }} /></div><div className="auth-signup-progress-labels"><span className={signupStep === 1 ? 'active' : ''}>Method</span><span className={signupStep === 2 ? 'active' : ''}>Credentials</span><span className={signupStep === 3 ? 'active' : ''}>Profile</span></div></div>}
         </header>
         <form className="auth-form" onSubmit={twoFactorUserId ? submit2FA : submit} noValidate>
               {twoFactorUserId && (
@@ -332,6 +334,7 @@ return (
 {error && <div className="auth-error" role="alert"><X size={15} />{error}</div>}
               {!error && oauthError && <div className="auth-error" role="alert"><X size={15} />{oauthError}</div>}
               {twoFactorUserId && twoFactorError && <div className="auth-error" role="alert"><X size={15} />{twoFactorError}</div>}
+              {register && !oauthSignup && signupStep > 1 && signupStep < 3 && <button className="auth-link" type="button" onClick={() => { setError(''); setFieldErrors({}); setSignupStep((step) => step - 1); }}>Back</button>}
               {register && !oauthSignup && signupStep < 3 && <button className="auth-submit" type="button" onClick={continueSignup}><span className="auth-submit-content">Continue<ArrowRight size={17} aria-hidden="true" /></span></button>}
               {(!register || oauthSignup || signupStep === 3) && <button className="auth-submit" type="submit" disabled={busy || twoFactorBusy || (register && availability === 'checking')} aria-busy={busy || twoFactorBusy} data-loading={busy || twoFactorBusy}><span className="auth-submit-content">{busy || twoFactorBusy ? <><Loader2 className="spin" size={18} aria-hidden="true" /><span>{register ? 'Creating account…' : twoFactorUserId ? 'Verifying…' : 'Signing in…'}</span></> : <>{register ? 'Create account' : twoFactorUserId ? 'Verify & sign in' : oauthSignin ? 'Finish sign in' : 'Sign In'}<ArrowRight size={17} aria-hidden="true" /></>}</span></button>}
         </form>
