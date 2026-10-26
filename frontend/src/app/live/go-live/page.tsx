@@ -1042,207 +1042,78 @@ export default function GoLivePage() {
           GO LIVE / PRE-LIVE SURFACE
           ********************************************************************* */}
       {isPreLive && (
-        <>
-        <div className="absolute inset-0 z-20 flex flex-col" aria-label="Go Live">
-          {/* Top controls — back, VANTA branding, settings */}
-          <div className="flex shrink-0 items-center justify-between px-3 pt-[calc(env(safe-area-inset-top)+8px)]">
+        <section className="absolute inset-0 z-20 flex flex-col" aria-label="Go Live setup">
+          <header className="flex shrink-0 items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+10px)]">
             <button
               type="button"
               onClick={() => router.replace('/live')}
-              aria-label="Close Go Live"
-              className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/40 text-white/90 backdrop-blur-md transition active:scale-95 hover:bg-black/60"
+              aria-label="Back to Live"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-black/65"
             >
-              <X size={19} />
+              <X size={18} />
             </button>
-            <div className="flex min-w-0 flex-col items-center">
-              <span className="inline-flex items-center gap-1.5 text-sm font-extrabold tracking-[0.08em] text-[#F2C75C] drop-shadow">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-[#D6A83F] to-[#F2C75C]">
-                  <Radio size={13} fill="currentColor" className="text-black" />
-                </span>
-                VANTA
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">Go Live</span>
+            <div className="text-center">
+              <p className="text-sm font-semibold tracking-tight text-white">Go live</p>
+              <p className="mt-0.5 text-[10px] text-white/45">Check your frame before starting</p>
             </div>
             <button
               type="button"
-              onClick={() => setSheet('settings')}
-              aria-label="Stream settings"
-              className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/40 text-white/90 backdrop-blur-md transition active:scale-95 hover:bg-black/60"
+              onClick={() => void cam.flipCamera()}
+              aria-label="Flip camera"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-black/65"
             >
-              <Settings size={18} />
+              <Repeat2 size={18} />
             </button>
-          </div>
+          </header>
 
-          {/* Camera control row — floats over the preview above the config panel */}
-          <div className="flex shrink-0 items-center justify-center gap-2.5 pt-4">
-            <CameraControl onPress={() => void cam.flipCamera()} label="Flip camera" active={!cam.isFrontCamera}>
-              <FlipIc />
-            </CameraControl>
-            <CameraControl onPress={() => setSheet('settings')} label="Settings" active={false}>
-              <Settings size={18} />
-            </CameraControl>
-          </div>
-
-          {/* Spacer */}
           <div className="min-h-0 flex-1" />
-        </div>
 
-        {/* Config panel — floating translucent panel over the camera */}
-        <div className="absolute inset-x-3 bottom-[58px] z-30 rounded-3xl border border-white/10 bg-black/55 px-4 pt-3 pb-2 shadow-2xl backdrop-blur-2xl">
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <Avatar src={avatar} alt={displayName} size="lg" wrapperClassName="rounded-full ring-2 ring-[#D6A83F]/60" />
-              <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-[#D6A83F] text-black">
-                <Check size={12} strokeWidth={3} />
-              </span>
+          <div className="mx-3 mb-[calc(env(safe-area-inset-bottom)+12px)] rounded-3xl border border-white/[.09] bg-[#090909]/90 p-4 shadow-2xl backdrop-blur-xl sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="mb-4 flex items-center gap-3">
+              <Avatar src={avatar} alt={displayName} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                <p className="mt-0.5 truncate text-xs text-white/45">@{user?.username || displayName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => cam.toggleVideo()}
+                aria-label={cam.isVideoOn ? 'Turn camera off' : 'Turn camera on'}
+                aria-pressed={cam.isVideoOn}
+                className={cn(
+                  'grid h-10 w-10 place-items-center rounded-full border transition',
+                  cam.isVideoOn ? 'border-white/10 bg-white/[.06] text-white' : 'border-rose-400/30 bg-rose-500/10 text-rose-200',
+                )}
+              >
+                {cam.isVideoOn ? <Camera size={17} /> : <CameraOff size={17} />}
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-              <p className="truncate text-[10px] text-white/50">@{user?.username || displayName} · Device camera</p>
-            </div>
+
+            <label htmlFor="live-title" className="mb-2 block text-xs font-medium text-white/55">Stream title</label>
+            <input
+              id="live-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, MAX_TITLE))}
+              placeholder="What are you live about?"
+              aria-label="Livestream title"
+              maxLength={MAX_TITLE}
+              className="h-12 w-full rounded-xl border border-white/[.1] bg-white/[.04] px-3.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#D6A83F]/70"
+            />
+
             <button
               type="button"
-              onClick={() => setSheet('settings')}
-              aria-label="Stream settings"
-              className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.07] text-white/80 transition active:scale-95 hover:bg-white/[0.12]"
+              onClick={() => void startLive()}
+              disabled={busy || !title.trim() || !cam.isVideoOn}
+              aria-label="Go live"
+              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#D6A83F] text-sm font-bold text-black transition hover:bg-[#E7B94F] active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <ChevronRight size={17} />
+              {busy ? <Loader2 size={17} className="animate-spin" /> : <Radio size={17} />}
+              {busy ? 'Starting stream…' : 'Go live'}
             </button>
+            <p className="mt-2.5 text-center text-[10px] text-white/35">Your camera and microphone will turn on when you start.</p>
           </div>
-
-          {/* Thumbnail from the "+" Go Live draft (when one was chosen) */}
-          {thumbnail && (
-            <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
-              <span className="grid h-10 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-[#18181b]">
-                <img src={thumbnail} alt="Stream thumbnail" className="h-full w-full object-cover" />
-              </span>
-              <span className="min-w-0 flex-1 text-[11px] leading-tight text-white/55">
-                <span className="block font-semibold text-white/85">Stream thumbnail</span>
-                Preview shown to viewers browsing Live
-              </span>
-            </div>
-          )}
-
-          {/* Title input */}
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value.slice(0, MAX_TITLE))}
-            placeholder="What are you going live about?"
-            aria-label="Livestream title"
-            className="mt-3 w-full rounded-2xl border border-white/12 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white outline-none placeholder:text-white/45 focus:border-[#D6A83F]/60"
-          />
-
-          {/* Category */}
-          <button
-            type="button"
-            onClick={() => setSheet('category')}
-            aria-label="Stream category"
-            className="mt-2 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-3.5 py-2.5 transition active:scale-[0.99] hover:bg-white/[0.08]"
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
-              <LayoutGrid size={15} className="text-[#F2C75C]" />
-              Category
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-bold text-white">
-              {category || 'Select'}
-              <ChevronRight size={15} className="text-white/40" />
-            </span>
-          </button>
-
-          {/* Guests permission */}
-          <button
-            type="button"
-            onClick={() => updateAllowGuests(!allowGuests)}
-            aria-label="Toggle allowing guests"
-            aria-pressed={allowGuests}
-            className="mt-2 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-3.5 py-2.5 transition active:scale-[0.99] hover:bg-white/[0.08]"
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
-              <Users size={15} className="text-[#F2C75C]" />
-              Guests
-            </span>
-            <span className="flex items-center gap-2">
-              <span className={cn('text-xs font-bold', allowGuests ? 'text-[#F2C75C]' : 'text-white/40')}>
-                {allowGuests ? 'Allow guests' : 'Guests off'}
-              </span>
-              <span className={cn('relative h-6 w-10 rounded-full border transition', allowGuests ? 'border-[#D6A83F]/60 bg-[#D6A83F]/30' : 'border-white/15 bg-white/10')}>
-                <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all', allowGuests ? 'left-[18px] bg-[#F2C75C]' : 'left-0.5 bg-white/50')} />
-              </span>
-            </span>
-          </button>
-
-          {/* LIVE goal */}
-          <button
-            type="button"
-            onClick={() => setSheet('goal')}
-            aria-label="LIVE goal"
-            className="mt-2 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-3.5 py-2.5 transition active:scale-[0.99] hover:bg-white/[0.08]"
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
-              <Trophy size={15} className="text-[#F2C75C]" />
-              LIVE goal
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-bold text-white">
-              {goal === 'none' ? 'Goal off' : `+${goalLabel}`}
-              {goal !== 'none' && <Zap size={13} className="text-[#F2C75C]" />}
-              <ChevronRight size={15} className="text-white/40" />
-            </span>
-          </button>
-
-          {/* Prominent GO LIVE button */}
-          <button
-            type="button"
-            onClick={() => void startLive()}
-            aria-label="Go live"
-            className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#D6A83F] py-3.5 text-base font-extrabold text-black shadow-[0_8px_28px_rgba(214,168,63,0.45)] transition active:scale-[0.98] hover:bg-[#E4B64C]"
-          >
-            <Radio size={20} fill="currentColor" />
-            GO LIVE
-          </button>
-
-          {/* Mode selector */}
-          <div className="mt-3 flex items-center justify-around border-t border-white/[0.08] pt-2.5 pb-1">
-            {MODES.map((m) => {
-              const Icon = m.icon;
-              const selected = mode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMode(m.id)}
-                  aria-pressed={selected}
-                  className={cn(
-                    'flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 transition active:scale-95',
-                    selected ? 'bg-white/[0.14]' : 'opacity-60 hover:opacity-90',
-                  )}
-                >
-                  <span className={cn('grid h-8 w-8 place-items-center rounded-full', selected ? 'bg-[#D6A83F] text-black' : 'bg-white/10 text-white/80')}>
-                    <Icon size={16} />
-                  </span>
-                  <span className={cn('text-[10px] font-semibold', selected ? 'text-white' : 'text-white/70')}>{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Bottom creation navigation */}
-        <div className="absolute inset-x-0 bottom-0 z-30 mx-auto flex items-center justify-center gap-1 pb-[calc(env(safe-area-inset-bottom)+8px)]">
-          <BottomNavTab active label="LIVE" onClick={() => router.replace('/live')}>
-            <Video size={16} />
-          </BottomNavTab>
-          <BottomNavTab active={cam.isVideoOn} label="CAMERA" onClick={() => cam.toggleVideo()}>
-            {cam.isVideoOn ? <Camera size={16} /> : <CameraOff size={16} />}
-          </BottomNavTab>
-          <BottomNavTab label="CREATE" onClick={() => router.replace('/')}>
-            <Plus size={16} />
-          </BottomNavTab>
-        </div>
-        </>
+        </section>
       )}
-{/* *********************************************************************
-          LIVE ROOM SURFACE — the video is the primary interface.
-          ********************************************************************* */}
       {isLiveRoom && (
         <div className="absolute inset-0 z-20 flex flex-col" aria-label="Live room">
           {/* Top-left: streamer identity + engagement + Fan Club */}
