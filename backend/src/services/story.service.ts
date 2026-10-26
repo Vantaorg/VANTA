@@ -228,6 +228,7 @@ export class StoryService {
     if (!original || original.expiresAt.getTime() <= Date.now()) {
       throw new Error("Story not found or expired");
     }
+    if (original.userId === userId) throw new Error("You cannot reshare your own story");
 
     // Reshare caption is Status content on the caller's tray — enforce the same
     // hard limits (700 chars / 10 lines) before publishing the new row.
@@ -301,6 +302,7 @@ export class StoryService {
 
   async likeStory(storyId: string, userId: string) {
     const story = await this.requireActiveStory(storyId);
+    if (story.userId === userId) throw new Error("You cannot like your own story");
     await prisma.storyLike.upsert({
       where: { storyId_userId: { storyId: story.id, userId } },
       create: { storyId: story.id, userId },
