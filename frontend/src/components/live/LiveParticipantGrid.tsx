@@ -151,12 +151,12 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
       )}
 
       {/* Identity + status chrome over a soft gradient */}
-      <div className="absolute inset-x-0 bottom-0 z-[3] flex items-end gap-2 bg-gradient-to-t from-black/75 via-black/25 to-transparent px-2 pb-2 pt-8">
-        <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/45 px-2 py-1 backdrop-blur-md">
-          <span className="shrink-0 max-w-[9rem] truncate text-[12px] font-semibold text-white">{p.username}</span>
+      <div className="absolute inset-x-0 bottom-0 z-[3] flex items-end gap-2 bg-gradient-to-t from-black/80 via-black/20 to-transparent px-2 pb-2 pt-7 sm:px-3 sm:pb-3">
+        <span className="flex min-w-0 items-center gap-1.5 rounded-lg border border-white/[.08] bg-black/45 px-2 py-1 backdrop-blur-md">
+          <span className="shrink-0 max-w-[9rem] truncate text-[11px] font-semibold text-white sm:text-xs">{p.username}</span>
           {p.verified && p.verificationType && <VerificationBadge type={p.verificationType} size="xs" />}
           {p.isHost && (
-            <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A227] to-[#F2C75C] px-1.5 py-[2px] text-[8.5px] font-extrabold uppercase tracking-[0.12em] text-black">
+            <span className="ml-0.5 inline-flex items-center rounded-md bg-[#D6A83F] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide text-black">
               Host
             </span>
           )}
@@ -164,19 +164,19 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {p.speaking && (
             <span
-              className="inline-flex h-5 items-center gap-[2px] rounded-full border border-purple-300/25 bg-black/55 px-1.5 backdrop-blur-md"
+              className="inline-flex h-5 items-center gap-[2px] rounded-md border border-[#D6A83F]/25 bg-black/55 px-1.5 backdrop-blur-md"
               title="Speaking"
               role="status"
               aria-label={`${p.username} is speaking`}
             >
-              <span className="h-2 w-[2.5px] rounded-full bg-purple-300/90" />
-              <span className="h-3 w-[2.5px] rounded-full bg-purple-200" />
-              <span className="h-2 w-[2.5px] rounded-full bg-purple-300/90" />
+              <span className="h-2 w-[2.5px] rounded-full bg-[#D6A83F]/90" />
+              <span className="h-3 w-[2.5px] rounded-full bg-[#F2C75C]" />
+              <span className="h-2 w-[2.5px] rounded-full bg-[#D6A83F]/90" />
             </span>
           )}
           {!p.micOn && (
             <span
-              className="grid h-5 w-5 place-items-center rounded-full border border-white/10 bg-black/60"
+              className="grid h-5 w-5 place-items-center rounded-md border border-white/10 bg-black/60"
               role="status"
               aria-label={`${p.username} microphone is muted`}
             >
