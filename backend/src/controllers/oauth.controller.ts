@@ -165,13 +165,13 @@ export const exchange = async (req: Request, res: Response): Promise<void> => {
 
 /** POST /api/auth/oauth/register  { ticket, username, fullName? } */
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { ticket, username, fullName } = req.body ?? {};
+  const { ticket, username, fullName, dateOfBirth } = req.body ?? {};
   if (typeof ticket !== 'string' || !ticket || typeof username !== 'string' || !username) {
     res.status(400).json({ error: 'Ticket and username are required' });
     return;
   }
   try {
-    const result = await completeOAuthRegistration({ ticket, username, fullName }, req);
+    const result = await completeOAuthRegistration({ ticket, username, fullName, dateOfBirth }, req);
     res.status(200).json({
       message: 'Account created successfully',
       token: result.token,

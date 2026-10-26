@@ -848,7 +848,7 @@ const normalizeUsername = (value: unknown): string => {
  * the `@@unique([provider, providerAccountId])` constraint is the final gate.
  */
 export const completeOAuthRegistration = async (
-  payload: { ticket: string; username: unknown; fullName?: unknown },
+  payload: { ticket: string; username: unknown; fullName?: unknown; dateOfBirth?: unknown },
   req: Request
 ) => {
   if (!payload || typeof payload.ticket !== 'string' || !payload.ticket) {
@@ -882,6 +882,14 @@ export const completeOAuthRegistration = async (
   const fullName = SecurityValidator.sanitizeText(
     typeof payload.fullName === 'string' && payload.fullName.trim() ? payload.fullName : ticket.name || ''
   ) || null;
+  const rawDateOfBirth = typeof payload.dateOfBirth === 'string' ? payload.dateOfBirth : '';
+  const dateOfBirth = new Date(rawDateOfBirth + 'T00:00:00');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDateOfBirth) || Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.toISOString().slice(0, 10) !== rawDateOfBirth) {
+    throw new OAuthError('invalid-date-of-birth', 'Enter a valid date of birth.');
+  }
+  const today = new Date();
+  const minimumBirthDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+  if (dateOfBirth > minimumBirthDate) throw new OAuthError('invalid-date-of-birth', 'You must be at least 13 years old to create a VANTA account.');
 
   let user: any;
   try {
@@ -891,6 +899,7 @@ export const completeOAuthRegistration = async (
           email: ticket.email,
           username,
           fullName,
+          dateOfBirth,
           profile: { create: { username, fullName } },
           wallet: { create: {} },
           userSettings: { create: {} },

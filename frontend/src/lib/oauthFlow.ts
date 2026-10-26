@@ -104,6 +104,7 @@ export interface OAuthCreateAccountPayload {
   ticket: string;
   username: string;
   fullName?: string;
+  dateOfBirth: string;
 }
 
 /**
