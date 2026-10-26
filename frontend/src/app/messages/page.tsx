@@ -2010,15 +2010,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   const previousDate = index > 0 ? new Date(messages[index - 1].timestamp) : null;
                   const showDate = !previousDate || currentDate.toDateString() !== previousDate.toDateString();
                   const dateLabel = currentDate.toDateString() === new Date().toDateString() ? 'Today' : currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                  const senderRole = activeConv.participants?.find((participant: any) => participant.id === msg.sender.id)?.role;
+                  const senderRole = activeConv.participants?.find((participant: any) => (participant.id ?? participant.userId) === msg.sender.id)?.role;
                   const senderName = msg.sender.fullName || msg.sender.username || 'Unknown user';
-                  // Group & channel chats always show the full sender identity
-                  // (circular avatar + display name) so every message is clearly
-                  // attributed — including the current user's own messages.
-                  // 1:1 DMs keep the existing compact layout (name above incoming
-                  // bubbles only).
+                  const previousMessage = index > 0 ? messages[index - 1] : null;
+                  const senderChanged = !previousMessage || previousMessage.sender.id !== msg.sender.id || new Date(previousMessage.timestamp).toDateString() !== currentDate.toDateString();
+                  // Direct chats stay private and compact: no role badges, and
+                  // show the other person's avatar only at the start of a run.
+                  // Group/channel conversations retain sender identity for each run.
                   const isGroupLike = activeConv?.type === 'group' || activeConv?.type === 'channel';
-                  const showSenderIdentity = !msg.isOwn || isGroupLike;
+                  const showSenderIdentity = isGroupLike ? senderChanged : (!msg.isOwn && senderChanged);
                   return <div key={msg.id}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full border border-white/[0.06] bg-[#0d0d0f] px-3 py-1 text-[9px] text-white/35">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
                   <div
                     id={`message-${msg.id}`}
@@ -2030,7 +2030,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     onPointerMove={event => { cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                     onContextMenu={event => { if (!msg.pending) { event.preventDefault(); setMessageContextId(msg.id); } }}
                   >
-                    <div className={cn('flex w-fit min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
+                    <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
                       {showSenderIdentity && (
                         <div className="shrink-0">
                           <button
@@ -2043,7 +2043,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </button>
                         </div>
                       )}
-                      <div className="w-fit max-w-[78%] min-w-0">
+                      <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)] min-w-0">
                         {showSenderIdentity && (
                           <div className={cn('flex max-w-[min(100%,420px)] items-center gap-2', msg.isOwn && 'justify-end')}>
                             <button
@@ -2053,7 +2053,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                             >
                               {senderName}
                             </button>
-                            {!msg.isOwn && ['OWNER', 'ADMIN', 'MODERATOR'].includes(senderRole || '') && <span className="text-[8px] font-bold uppercase text-[#d6a83f]">{senderRole === 'OWNER' ? 'Owner' : senderRole === 'MODERATOR' ? 'Moderator' : 'Admin'}</span>}
+                            {isGroupLike && !msg.isOwn && ['OWNER', 'ADMIN', 'MODERATOR'].includes(senderRole || '') && <span className="text-[8px] font-bold uppercase text-[#d6a83f]">{senderRole === 'OWNER' ? 'Owner' : senderRole === 'MODERATOR' ? 'Moderator' : 'Admin'}</span>}
                           </div>
                         )}
                       <div className={cn(
@@ -2081,7 +2081,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                 <img src={resolveMediaUrl(msg.storyReplyMediaUrl)} alt="Story preview" decoding="async" loading="lazy" className="mt-1 h-16 w-full rounded-[10px] object-cover" />
                               )}
                             </div>
-                            {msg.text.trim() && <p className="px-3 pt-1 pb-0.5 max-w-[420px] break-words">{renderTextWithLinks(msg.text, 'linkify')}</p>}
+                            {msg.text.trim() && <p className="px-3 pt-1 pb-0.5 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(msg.text, 'linkify')}</p>}
                           </div>
                         ) : (
                           <>
@@ -2130,7 +2130,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               </>
                             );
                           })()}
-                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[420px] break-words">{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
+                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
                           {msg.uploading && <div className="mt-1 flex items-center gap-1.5 px-3 pb-2 text-[10px] text-[#6aa5ff]"><Loader2 size={10} className="animate-spin" /><span className="tabular-nums">Uploading {msg.uploadProgress ?? 0}%</span></div>}
                         </>)}
                       </div>
