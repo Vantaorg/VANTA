@@ -10,6 +10,7 @@ import {
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
+import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, ShieldCheck, UploadCloud, Home as HomeIcon} from 'lucide-react';
 import { ArrowLeft, Home as HomeIcon, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, ShieldCheck, UploadCloud } from 'lucide-react';
 
 const MAX_PHOTOS = 10;
@@ -348,7 +349,7 @@ function CreateHomeContent() {
   return (
     <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 text-white">
       <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} aria-label="Back to Homes" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/60 transition hover:bg-white/[.06] hover:text-white">
               <ArrowLeft size={17} />
