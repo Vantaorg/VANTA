@@ -479,7 +479,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 64, opacity: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-[var(--border)] bg-[var(--nav-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl"
+            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
             aria-label="Mobile navigation"
           >
             <div className="mx-auto grid min-h-16 w-full max-w-5xl grid-cols-5 items-center px-2 pt-1">
