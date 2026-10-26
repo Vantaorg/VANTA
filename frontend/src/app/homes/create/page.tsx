@@ -13,7 +13,7 @@ import Input from '@/components/ui/Input';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { ArrowLeft, ImagePlus, Trash2, Check } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, Home as HomeIcon, BedDouble, Bath, ShieldCheck, UploadCloud, Eye, Sparkles } from 'lucide-react';
 
 const MAX_PHOTOS = 10;
 
@@ -98,6 +98,7 @@ function CreateHomeContent() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [step, setStep] = useState(0);
   const [propertyTypes, setPropertyTypes] = useState<string[]>(DEFAULT_TYPES);
   const [rentPeriods, setRentPeriods] = useState<string[]>(DEFAULT_PERIODS);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -325,366 +326,114 @@ function CreateHomeContent() {
     );
   }
 
+  const steps = [
+    { title: 'Property details', subtitle: 'Tell people what you are listing', icon: HomeIcon },
+    { title: 'Location & price', subtitle: 'Help the right people find it', icon: MapPin },
+    { title: 'Photos & features', subtitle: 'Show off the property', icon: ImagePlus },
+    { title: 'Contact & review', subtitle: 'Choose how people reach you', icon: ShieldCheck },
+  ];
+  const fieldClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-[#111113] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#c9a227]/70 focus:ring-2 focus:ring-[#c9a227]/10';
+  const labelClass = 'block text-xs font-semibold tracking-wide text-white/65';
+  const setField = (key: keyof FormState, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+  const advance = () => {
+    setFormError(null);
+    if (step === 0 && (form.title.trim().length < 3 || form.description.trim().length < 10)) {
+      setFormError('Add a clear title and a description of at least 10 characters.');
+      return;
+    }
+    if (step === 1 && (!form.country.trim() || !form.city.trim() || !form.rentAmount.trim() || Number(form.rentAmount) < 0)) {
+      setFormError('Add a valid price, country and city before continuing.');
+      return;
+    }
+    setStep(value => Math.min(3, value + 1));
+  };
+
   return (
-    <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto min-h-full w-full max-w-3xl px-3 py-4 pb-48 sm:px-4 sm:py-6 sm:pb-32">
-        <button
-          onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')}
-          className="mb-3 inline-flex min-h-9 items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
-        >
-          <ArrowLeft size={16} /> {isEdit ? 'Manage listings' : 'All homes'}
-        </button>
+    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 text-white">
+      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} className="flex h-10 items-center gap-2 rounded-xl px-2 text-sm text-white/60 hover:bg-white/[.05] hover:text-white">
+            <ArrowLeft size={17} /> <span className="hidden sm:inline">Back to Homes</span><span className="sm:hidden">Back</span>
+          </button>
+          <div className="text-right"><p className="text-[10px] font-bold uppercase tracking-[.22em] text-[#c9a227]">VANTA HOMES</p><p className="text-xs text-white/45">{isEdit ? 'Edit property' : 'New listing'}</p></div>
+        </div>
+      </header>
 
-        <header className="-mx-3 -mt-4 mb-5 overflow-hidden border-b border-[#c9a227]/25 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,0.18),transparent_55%),linear-gradient(135deg,#17150f_0%,#0b0b0d_55%,#15120a_100%)] px-5 pb-5 pt-5 shadow-[0_14px_38px_rgba(0,0,0,0.22)] sm:-mx-4 sm:-mt-6 sm:mb-6 sm:px-6 sm:pb-6 sm:pt-6">
-          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-[#e0bb4f]"><span className="h-px w-5 bg-[#c9a227]/70" /> VANTA Homes</span>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{isEdit ? 'Edit listing' : 'List your property'}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
-            {isEdit
-              ? 'Update the details below. Changes go live after a quick review.'
-              : 'Fill in the details, add photos, then submit for a short review.'}
-          </p>
-        </header>
+      <div className="mx-auto max-w-5xl px-4 pt-5 sm:pt-8">
+        <section className="relative overflow-hidden rounded-3xl border border-[#c9a227]/20 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,.16),transparent_45%),linear-gradient(140deg,#17150f,#0b0b0d_65%,#11100c)] p-5 sm:p-8">
+          <div className="absolute right-5 top-5 hidden h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a227]/20 bg-black/20 text-[#c9a227]/80 sm:flex"><HomeIcon size={27}/></div>
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/25 bg-[#c9a227]/[.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.18em] text-[#e4c65d]"><Sparkles size={12}/> Property listing studio</span>
+          <h1 className="mt-4 max-w-2xl text-2xl font-bold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Let’s get your property listed.'}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{isEdit ? 'Review your details, make changes, then resubmit if needed.' : 'A few simple steps. Save your progress as a draft and submit when everything looks right.'}</p>
+          <div className="mt-5 flex flex-wrap gap-2 text-[11px] text-white/50"><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">Up to {MAX_PHOTOS} photos</span><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">Secure review</span><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">You control contact details</span></div>
+        </section>
 
-        {existingStatus === 'PENDING_REVIEW' && (
-          <div className="mb-5 rounded-[var(--radius-xl)] border border-amber-400/30 bg-amber-500/[0.07] px-3.5 py-2.5 text-sm text-amber-300">
-            This listing is being reviewed. You can keep editing it in the meantime.
-          </div>
-        )}
-        {existingStatus === 'REJECTED' && (
-          <div className="mb-5 rounded-[var(--radius-xl)] border border-red-400/30 bg-red-500/[0.07] px-3.5 py-2.5 text-sm text-red-300">
-            This listing was rejected. Make the changes described by the moderator, then submit it again.
-          </div>
-        )}
+        {(existingStatus === 'PENDING_REVIEW' || existingStatus === 'REJECTED') && <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${existingStatus === 'REJECTED' ? 'border-red-400/25 bg-red-500/[.07] text-red-300' : 'border-amber-400/25 bg-amber-500/[.07] text-amber-200'}`}>{existingStatus === 'REJECTED' ? 'This listing was rejected. Update the details and submit it again for review.' : 'This listing is under review. Your edits may require another review.'}</div>}
 
-        {loadingExisting ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        ) : (
-          <div className="space-y-3 sm:space-y-5">
-            {/* Basics ---------------------------------------------------- */}
-            <Card variant="glass" padding="md">
-              <h2 className="mb-4 text-lg font-semibold text-white">The basics</h2>
-              <div className="space-y-4">
-                <Input
-                  label="Listing title"
-                  value={form.title}
-                  onChange={(e) => set('title', e.target.value)}
-                  placeholder="Bright 2-bedroom apartment in Lekki"
-                  maxLength={120}
-                />
+        <div className="mt-6 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+          <aside className="h-fit rounded-2xl border border-white/[.08] bg-[#0d0d0f] p-3 lg:sticky lg:top-24">
+            <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Your progress</p>
+            <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-1 lg:gap-2">
+              {steps.map((item, index) => {
+                const Icon = item.icon;
+                const active = step === index;
+                const complete = index < step;
+                return <button key={item.title} type="button" onClick={() => { setFormError(null); setStep(index); }} className={`flex min-w-0 items-center gap-3 rounded-xl border p-2.5 text-left transition sm:p-3 ${active ? 'border-[#c9a227]/40 bg-[#c9a227]/[.09]' : 'border-transparent hover:bg-white/[.035]'}`}>
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active || complete ? 'bg-[#c9a227] text-black' : 'bg-white/[.05] text-white/40'}`}>{complete ? <Check size={16}/> : <Icon size={16}/>}</span>
+                  <span className="hidden min-w-0 lg:block"><span className={`block text-sm font-semibold ${active ? 'text-[#f0d36a]' : 'text-white/75'}`}>{item.title}</span><span className="mt-0.5 block text-[11px] text-white/35">{item.subtitle}</span></span>
+                  <span className="sr-only lg:hidden">{item.title}</span>
+                </button>;
+              })}
+            </div>
+            <div className="mt-3 hidden rounded-xl bg-white/[.025] p-3 lg:block"><p className="text-xs font-semibold text-white/70">A quick tip</p><p className="mt-1 text-xs leading-5 text-white/40">Use bright, clear photos and accurate details. Your full street address is not shown publicly.</p></div>
+          </aside>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="home-desc" className="form-label">Description</label>
-                  <textarea
-                    id="home-desc"
-                    value={form.description}
-                    onChange={(e) => set('description', e.target.value)}
-                    rows={5}
-                    maxLength={3000}
-                    placeholder="Describe the home, the neighbourhood and anything a tenant should know."
-                    className="form-input resize-none leading-relaxed"
-                  />
-                  <p className="text-xs text-white/30">{form.description.trim().length}/3000</p>
+          <section className="min-w-0">
+            {loadingExisting ? <div className="space-y-3"><div className="h-24 animate-pulse rounded-2xl bg-white/[.04]"/><div className="h-56 animate-pulse rounded-2xl bg-white/[.04]"/></div> : <>
+              <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-semibold text-[#c9a227]">STEP {step + 1} OF {steps.length}</p><h2 className="mt-1 text-xl font-bold">{steps[step].title}</h2><p className="mt-1 text-xs text-white/40">{steps[step].subtitle}</p></div><span className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-white/45">{Math.round(((step + 1) / steps.length) * 100)}%</span></div>
+              <div className="mb-5 h-1 overflow-hidden rounded-full bg-white/[.07]"><div className="h-full rounded-full bg-[#c9a227] transition-all" style={{width:`${((step + 1) / steps.length) * 100}%`}}/></div>
+
+              {step === 0 && <div className="space-y-5 rounded-2xl border border-white/[.08] bg-[#0d0d0f] p-4 sm:p-6">
+                <div><label className={labelClass} htmlFor="home-title">Listing title</label><input id="home-title" className={fieldClass} value={form.title} onChange={e => setField('title',e.target.value)} maxLength={120} placeholder="e.g. Spacious 2-bedroom apartment in Lekki"/></div>
+                <div><label className={labelClass} htmlFor="home-description">Description</label><textarea id="home-description" className={fieldClass + ' min-h-32 resize-y leading-6'} value={form.description} onChange={e => setField('description',e.target.value)} rows={5} maxLength={3000} placeholder="Describe the property, what makes it special, and what a tenant should know."/><p className="mt-1 text-right text-[11px] text-white/30">{form.description.length}/3000</p></div>
+                <div className="grid gap-4 sm:grid-cols-2"><div><label className={labelClass} htmlFor="home-type">Property type</label><select id="home-type" className={fieldClass} value={form.propertyType} onChange={e => setField('propertyType',e.target.value)}>{propertyTypes.map(type=><option key={type} value={type}>{TYPE_LABEL[type] || type.replaceAll('_',' ').toLowerCase()}</option>)}</select></div><div><label className={labelClass} htmlFor="home-period">Payment period</label><select id="home-period" className={fieldClass} value={form.rentPeriod} onChange={e => setField('rentPeriod',e.target.value)}>{rentPeriods.map(period=><option key={period} value={period}>{PERIOD_LABEL[period] || period}</option>)}</select></div></div>
+                <div className="grid grid-cols-2 gap-3"><div><label className={labelClass} htmlFor="home-bedrooms">Bedrooms</label><input id="home-bedrooms" className={fieldClass} type="number" min="0" max="100" value={form.bedrooms} onChange={e=>setField('bedrooms',e.target.value)}/></div><div><label className={labelClass} htmlFor="home-bathrooms">Bathrooms</label><input id="home-bathrooms" className={fieldClass} type="number" min="0" max="100" value={form.bathrooms} onChange={e=>setField('bathrooms',e.target.value)}/></div></div>
+                <button type="button" onClick={()=>setField('furnished',!form.furnished)} aria-pressed={form.furnished} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm ${form.furnished ? 'border-[#c9a227]/40 bg-[#c9a227]/[.07] text-[#e4c65d]' : 'border-white/10 bg-white/[.02] text-white/60'}`}><span>Furnished property</span><span className={`grid h-5 w-5 place-items-center rounded-md border ${form.furnished ? 'border-[#c9a227] bg-[#c9a227] text-black' : 'border-white/20'}`}>{form.furnished && <Check size={13}/>}</span></button>
+              </div>}
+
+              {step === 1 && <div className="space-y-5 rounded-2xl border border-white/[.08] bg-[#0d0d0f] p-4 sm:p-6">
+                <div className="rounded-xl border border-[#c9a227]/15 bg-[#c9a227]/[.04] p-3 text-xs leading-5 text-white/55"><ShieldCheck size={15} className="mr-2 inline text-[#c9a227]"/>Your exact street address is not requested here. The neighbourhood you enter is what people see on the public listing.</div>
+                <div className="grid gap-4 sm:grid-cols-2"><div><label className={labelClass} htmlFor="home-country">Country</label><input id="home-country" className={fieldClass} value={form.country} onChange={e=>setField('country',e.target.value)} placeholder="Nigeria"/></div><div><label className={labelClass} htmlFor="home-state">State / region</label><input id="home-state" className={fieldClass} value={form.state} onChange={e=>setField('state',e.target.value)} placeholder="Lagos State"/></div><div><label className={labelClass} htmlFor="home-city">City</label><input id="home-city" className={fieldClass} value={form.city} onChange={e=>setField('city',e.target.value)} placeholder="Lagos"/></div><div><label className={labelClass} htmlFor="home-area">Area / neighbourhood</label><input id="home-area" className={fieldClass} value={form.area} onChange={e=>setField('area',e.target.value)} placeholder="Lekki Phase 1"/></div></div>
+                <div className="grid gap-4 sm:grid-cols-2"><div><label className={labelClass} htmlFor="home-price">Price</label><div className="flex gap-2"><select aria-label="Currency" className={fieldClass+' max-w-28'} value={form.currency} onChange={e=>setField('currency',e.target.value)}><option value="NGN">NGN ₦</option><option value="USD">USD $</option><option value="GBP">GBP £</option><option value="EUR">EUR €</option></select><input id="home-price" className={fieldClass+' min-w-0'} type="number" min="0" value={form.rentAmount} onChange={e=>setField('rentAmount',e.target.value)} placeholder="250000"/></div><p className="mt-1 text-[11px] text-white/35">Enter the amount for the selected payment period.</p></div><div><label className={labelClass} htmlFor="home-deposit">Security deposit (optional)</label><input id="home-deposit" className={fieldClass} type="number" min="0" value={form.depositAmount} onChange={e=>setField('depositAmount',e.target.value)} placeholder="No deposit? Leave blank"/></div></div>
+                <div><label className={labelClass} htmlFor="home-movein">Move-in details (optional)</label><input id="home-movein" className={fieldClass} value={form.moveInInfo} onChange={e=>setField('moveInInfo',e.target.value)} placeholder="Available immediately, lease terms, etc."/></div>
+              </div>}
+
+              {step === 2 && <div className="space-y-5 rounded-2xl border border-white/[.08] bg-[#0d0d0f] p-4 sm:p-6">
+                <div><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Property photos</h3><p className="mt-1 text-xs text-white/40">Upload clear photos. Your first cover photo makes the first impression.</p></div><span className="shrink-0 rounded-lg bg-white/[.05] px-2.5 py-1.5 text-xs text-white/55">{photos.length}/{MAX_PHOTOS}</span></div>
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={e=>void handlePhotos(e.target.files)} className="sr-only" id="home-photos"/>
+                  <button type="button" disabled={uploading || photos.length >= MAX_PHOTOS} onClick={()=>fileInputRef.current?.click()} className="mt-4 flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-[#c9a227]/35 bg-[#c9a227]/[.035] px-4 py-8 text-center transition hover:bg-[#c9a227]/[.07] disabled:opacity-50"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#c9a227]/10 text-[#e4c65d]">{uploading ? <UploadCloud size={22} className="animate-pulse"/> : <ImagePlus size={22}/>}</span><span className="mt-3 text-sm font-semibold">{uploading ? 'Uploading photos…' : 'Tap to choose photos'}</span><span className="mt-1 text-xs text-white/40">JPG, PNG or WebP · up to {MAX_PHOTOS} images</span></button>
                 </div>
+                {photos.length>0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map(photo=>{const src=photo?.uploadedFile?.url || photo?.thumbnailUrl || null;return <div key={photo.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-white/[.03]">{src?<img src={src} alt="Property photo" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center"><ImagePlus/></div>}{photo.isCover&&<span className="absolute left-2 top-2 rounded-full bg-[#c9a227] px-2 py-1 text-[10px] font-bold text-black">COVER</span>}<button type="button" onClick={()=>void removePhoto(photo.id)} aria-label="Remove photo" className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/75 text-white hover:bg-red-500"><Trash2 size={14}/></button></div>})}</div>}
+                <div className="rounded-xl border border-white/[.07] bg-black/20 p-3"><p className="text-xs leading-5 text-white/45">Photos help renters understand the space. Only upload images you have permission to share. You can save your draft and finish later.</p></div>
+                <div><h3 className="mb-3 text-sm font-semibold">Amenities</h3><div className="flex flex-wrap gap-2">{AMENITIES.map(amenity=>{const active=form.amenities.includes(amenity);return <button key={amenity} type="button" onClick={()=>toggleAmenity(amenity)} aria-pressed={active} className={`rounded-full border px-3 py-2 text-xs transition ${active?'border-[#c9a227]/50 bg-[#c9a227]/[.09] text-[#e4c65d]':'border-white/10 bg-white/[.025] text-white/55 hover:text-white'}`}>{active&&<Check size={11} className="mr-1 inline"/>}{AMENITY_LABEL[amenity] || amenity}</button>})}</div></div>
+              </div>}
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label htmlFor="home-type" className="form-label">Property type</label>
-                    <select
-                      id="home-type"
-                      value={form.propertyType}
-                      onChange={(e) => set('propertyType', e.target.value)}
-                      className="form-input"
-                    >
-                      {propertyTypes.map((type) => (
-                        <option key={type} value={type}>{TYPE_LABEL[type] || type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="home-period" className="form-label">Rent period</label>
-                    <select
-                      id="home-period"
-                      value={form.rentPeriod}
-                      onChange={(e) => set('rentPeriod', e.target.value)}
-                      className="form-input"
-                    >
-                      {rentPeriods.map((period) => (
-                        <option key={period} value={period}>{PERIOD_LABEL[period] || period}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+              {step === 3 && <div className="space-y-5 rounded-2xl border border-white/[.08] bg-[#0d0d0f] p-4 sm:p-6">
+                <div><h3 className="text-sm font-semibold">How should people contact you?</h3><p className="mt-1 text-xs leading-5 text-white/40">Keep conversations on VANTA or optionally publish a phone number.</p></div>
+                <button type="button" onClick={()=>setField('contactVantaMessaging',!form.contactVantaMessaging)} aria-pressed={form.contactVantaMessaging} className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left ${form.contactVantaMessaging?'border-[#c9a227]/35 bg-[#c9a227]/[.05]':'border-white/10 bg-white/[.02]'}`}><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border ${form.contactVantaMessaging?'border-[#c9a227] bg-[#c9a227] text-black':'border-white/20'}`}>{form.contactVantaMessaging&&<Check size={13}/>}</span><span><span className="block text-sm font-semibold">VANTA messages</span><span className="mt-1 block text-xs leading-5 text-white/40">Let interested people send an enquiry inside VANTA.</span></span></button>
+                <div className="grid gap-4 sm:grid-cols-2"><div><label className={labelClass} htmlFor="home-whatsapp">WhatsApp number (optional)</label><input id="home-whatsapp" className={fieldClass} value={form.contactWhatsApp} onChange={e=>setField('contactWhatsApp',e.target.value)} placeholder="+234…"/><label className="mt-2 flex items-center gap-2 text-xs text-white/50"><input type="checkbox" checked={form.contactWhatsAppPublished} onChange={e=>setField('contactWhatsAppPublished',e.target.checked)} className="accent-[#c9a227]"/>Show WhatsApp on my listing</label></div><div><label className={labelClass} htmlFor="home-phone">Phone number (optional)</label><input id="home-phone" className={fieldClass} value={form.contactPhone} onChange={e=>setField('contactPhone',e.target.value)} placeholder="+234…"/><label className="mt-2 flex items-center gap-2 text-xs text-white/50"><input type="checkbox" checked={form.contactPhonePublished} onChange={e=>setField('contactPhonePublished',e.target.checked)} className="accent-[#c9a227]"/>Show phone on my listing</label></div></div>
+                <div className="rounded-xl border border-[#c9a227]/20 bg-[#c9a227]/[.045] p-4"><div className="flex gap-3"><ShieldCheck size={19} className="mt-0.5 shrink-0 text-[#c9a227]"/><div><p className="text-sm font-semibold">Before you submit</p><p className="mt-1 text-xs leading-5 text-white/50">Check the price, location, photos and contact choices. Your listing is saved as a draft first and sent to the VANTA Homes team for review before it appears publicly.</p></div></div></div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-start gap-3"><div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-white/[.04]">{photos[0]?.uploadedFile?.url||photos[0]?.thumbnailUrl?<img src={photos[0]?.uploadedFile?.url||photos[0]?.thumbnailUrl} alt="" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center text-white/25"><ImagePlus size={22}/></div>}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{form.title || 'Your property title'}</p><p className="mt-1 text-xs text-white/45">{[form.area,form.city,form.state,form.country].filter(Boolean).join(', ') || 'Add your location'}</p><p className="mt-2 text-sm font-bold text-[#e4c65d]">{form.rentAmount ? `${form.currency} ${Number(form.rentAmount).toLocaleString()}` : 'Price not set'} <span className="text-[10px] font-normal text-white/40">/ {PERIOD_LABEL[form.rentPeriod]?.toLowerCase() || 'month'}</span></p><p className="mt-1 text-[10px] text-white/40">{form.bedrooms} beds · {form.bathrooms} baths · {form.furnished?'Furnished':'Unfurnished'}</p></div></div></div>
+              </div>}
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <Input
-                    label="Rent amount"
-                    type="number"
-                    min={0}
-                    value={form.rentAmount}
-                    onChange={(e) => set('rentAmount', e.target.value)}
-                    placeholder="250000"
-                  />
-                  <Input
-                    label="Currency"
-                    value={form.currency}
-                    onChange={(e) => set('currency', e.target.value.toUpperCase())}
-                    placeholder="NGN"
-                    maxLength={3}
-                  />
-                  <Input
-                    label="Security deposit"
-                    type="number"
-                    min={0}
-                    value={form.depositAmount}
-                    onChange={(e) => set('depositAmount', e.target.value)}
-                    placeholder="Optional"
-                    helperText="Leave blank if none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <Input
-                    label="Bedrooms"
-                    type="number"
-                    min={0}
-                    value={form.bedrooms}
-                    onChange={(e) => set('bedrooms', e.target.value)}
-                  />
-                  <Input
-                    label="Bathrooms"
-                    type="number"
-                    min={0}
-                    value={form.bathrooms}
-                    onChange={(e) => set('bathrooms', e.target.value)}
-                  />
-                  <div className="space-y-1.5">
-                    <label htmlFor="home-furnished" className="form-label">Furnishing</label>
-                    <button
-                      id="home-furnished"
-                      type="button"
-                      onClick={() => set('furnished', !form.furnished)}
-                      className={`flex h-[42px] w-full items-center justify-between rounded-[var(--radius-lg)] border px-3.5 text-sm transition ${
-                        form.furnished
-                          ? 'border-[#c9a227]/50 bg-[#c9a227]/10 text-[#e6c65a]'
-                          : 'border-white/[0.08] bg-white/[0.04] text-white/60'
-                      }`}
-                      aria-pressed={form.furnished}
-                    >
-                      {form.furnished ? 'Furnished' : 'Unfurnished'}
-                      <span className={`grid h-4 w-4 place-items-center rounded border ${
-                        form.furnished ? 'border-[#c9a227] bg-[#c9a227]' : 'border-white/25'
-                      }`}>
-                        {form.furnished && <Check size={11} className="text-black" />}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Location -------------------------------------------------- */}
-            <Card variant="glass" padding="lg">
-              <h2 className="mb-4 text-lg font-semibold text-white">Where it is</h2>
-              <p className="mb-4 text-xs leading-relaxed text-white/40">
-                Only the area is shown publicly. Add the street address so our team can verify the listing — it is
-                never displayed to tenants.
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  label="Country"
-                  value={form.country}
-                  onChange={(e) => set('country', e.target.value)}
-                  placeholder="Nigeria"
-                />
-                <Input
-                  label="State / region"
-                  value={form.state}
-                  onChange={(e) => set('state', e.target.value)}
-                  placeholder="Lagos"
-                />
-                <Input
-                  label="City"
-                  value={form.city}
-                  onChange={(e) => set('city', e.target.value)}
-                  placeholder="Lagos"
-                />
-                <Input
-                  label="Area / neighbourhood"
-                  value={form.area}
-                  onChange={(e) => set('area', e.target.value)}
-                  placeholder="Lekki Phase 1"
-                />
-              </div>
-            </Card>
-
-            {/* Amenities -------------------------------------------------- */}
-            <Card variant="glass" padding="lg">
-              <h2 className="mb-1 text-lg font-semibold text-white">Amenities</h2>
-              <p className="mb-4 text-xs text-white/40">Pick everything this home offers.</p>
-              <div className="flex flex-wrap gap-2">
-                {AMENITIES.map((amenity) => {
-                  const active = form.amenities.includes(amenity);
-                  return (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => toggleAmenity(amenity)}
-                      aria-pressed={active}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? 'border-[#c9a227]/50 bg-[#c9a227]/12 text-[#e6c65a]'
-                          : 'border-white/[0.08] bg-white/[0.03] text-white/55 hover:border-white/[0.16] hover:text-white/80'
-                      }`}
-                    >
-                      {active && <Check size={12} />}
-                      {AMENITY_LABEL[amenity]}
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* Photos ---------------------------------------------------- */}
-            <Card variant="glass" padding="lg">
-              <h2 className="mb-1 text-lg font-semibold text-white">Photos</h2>
-              <p className="mb-4 text-xs text-white/40">
-                Up to {MAX_PHOTOS} photos. At least one is required before submitting.{' '}
-                {photos.length}/{MAX_PHOTOS} added.
-              </p>
-
-              {photos.length > 0 && (
-                <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {photos.map((photo) => {
-                    const src = photo?.uploadedFile?.url || photo?.thumbnailUrl || null;
-                    return (
-                      <div
-                        key={photo.id}
-                        className="group relative aspect-square overflow-hidden rounded-[var(--radius-lg)] bg-white/[0.05]"
-                      >
-                        {src ? (
-                          <img src={src} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-white/20">
-                            <ImagePlus size={20} />
-                          </span>
-                        )}
-                        {photo?.isCover && (
-                          <span className="absolute left-1.5 top-1.5 rounded-[var(--radius-md)] bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-[#e6c65a]">
-                            Cover
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => void removePhoto(photo.id)}
-                          className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1.5 text-white/80 opacity-0 transition hover:bg-red-500/80 hover:text-white group-hover:opacity-100"
-                          aria-label="Remove photo"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => void handlePhotos(e.target.files)}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || photos.length >= MAX_PHOTOS}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-dashed border-white/[0.14] bg-white/[0.02] px-4 py-4 text-sm text-white/55 transition hover:border-[#c9a227]/50 hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ImagePlus size={18} />
-                {uploading ? 'Uploading...' : photos.length >= MAX_PHOTOS ? 'Photo limit reached' : 'Add photos'}
-              </button>
-            </Card>
-
-            {/* Contact preferences ---------------------------------------- */}
-            <Card variant="glass" padding="lg">
-              <h2 className="mb-1 text-lg font-semibold text-white">How tenants reach you</h2>
-              <p className="mb-4 text-xs text-white/40">
-                VANTA messaging is always on. WhatsApp and phone stay private unless you publish them.
-              </p>
-              <div className="space-y-4">
-                <Input
-                  label="WhatsApp number"
-                  value={form.contactWhatsApp}
-                  onChange={(e) => set('contactWhatsApp', e.target.value)}
-                  placeholder="+234 801 234 5678"
-                />
-                <label className="flex items-center gap-2.5 text-sm text-white/65">
-                  <input
-                    type="checkbox"
-                    checked={form.contactWhatsAppPublished}
-                    onChange={(e) => set('contactWhatsAppPublished', e.target.checked)}
-                    className="h-4 w-4 accent-[#c9a227]"
-                  />
-                  Show my WhatsApp on the listing
-                </label>
-
-                <Input
-                  label="Phone number"
-                  value={form.contactPhone}
-                  onChange={(e) => set('contactPhone', e.target.value)}
-                  placeholder="+234 801 234 5678"
-                />
-                <label className="flex items-center gap-2.5 text-sm text-white/65">
-                  <input
-                    type="checkbox"
-                    checked={form.contactPhonePublished}
-                    onChange={(e) => set('contactPhonePublished', e.target.checked)}
-                    className="h-4 w-4 accent-[#c9a227]"
-                  />
-                  Show my phone number on the listing
-                </label>
-
-                <Input
-                  label="Move-in note"
-                  value={form.moveInInfo}
-                  onChange={(e) => set('moveInInfo', e.target.value)}
-                  placeholder="e.g. Available from 1 March, 12-month lease"
-                />
-              </div>
-            </Card>
-          </div>
-        )}
-      </div>
-
-      {/* Sticky action bar ---------------------------------------------- */}
-      <div className="fixed inset-x-0 bottom-[4.9rem] z-40 border-t border-[#c9a227]/20 bg-[#0b0b0d]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_32px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:bottom-0">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-3 py-3 sm:px-4 sm:py-3">
-          {formError && <p className="w-full text-xs text-red-400">{formError}</p>}
-          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
-            <Button variant="ghost" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} className="!px-2 !text-xs sm:!px-3 sm:!text-sm">
-              Cancel
-            </Button>
-            <Button variant="outline" loading={saving} onClick={() => void handleSave()} className="!px-2 !text-xs sm:!px-3 sm:!text-sm">
-              Save draft
-            </Button>
-            <Button
-              variant="gold"
-              className="!px-2 !text-xs sm:!px-3 sm:!text-sm"
-              loading={saving || uploading}
-              disabled={photos.length === 0}
-              onClick={() => void handleSubmitForReview()}
-            >
-              Submit for review
-            </Button>
-          </div>
+              {formError && <div role="alert" className="mt-4 rounded-xl border border-red-400/25 bg-red-500/[.07] px-4 py-3 text-sm text-red-300">{formError}</div>}
+              <div className="mt-5 flex items-center justify-between gap-3"><button type="button" disabled={step===0} onClick={()=>{setFormError(null);setStep(value=>Math.max(0,value-1));}} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm text-white/65 transition hover:bg-white/[.04] disabled:opacity-25"><ChevronLeft size={16}/>Back</button><div className="flex gap-2"><button type="button" disabled={saving||uploading} onClick={()=>void handleSave()} className="min-h-11 rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/65 transition hover:bg-white/[.04] disabled:opacity-40 sm:px-4 sm:text-sm">Save draft</button>{step<3?<button type="button" onClick={advance} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#c9a227] px-4 text-sm font-bold text-black transition hover:bg-[#e0bd46]">Continue<ChevronRight size={16}/></button>:<button type="button" disabled={saving||uploading||photos.length===0} onClick={()=>void handleSubmitForReview()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#c9a227] px-4 text-sm font-bold text-black transition hover:bg-[#e0bd46] disabled:opacity-40">{saving?'Submitting…':'Submit for review'}<Check size={16}/></button>}</div></div>
+              {step===3 && photos.length===0 && <p className="mt-3 text-right text-[11px] text-amber-200/70">Add at least one property photo in the previous step before submitting.</p>}
+            </>}
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
