@@ -677,7 +677,6 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .profile-page { width: calc(100% + 32px); margin: -20px 0 0 -16px; padding-bottom: 0; }
-.cover-brand { right: 13px; bottom: 11px; }
 .cover-monogram { bottom: -24px; }
 .vanta-verified { width: 19px; height: 19px; }
 .profile-bio { margin: 12px auto 0; line-height: 1.5; }
