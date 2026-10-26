@@ -224,7 +224,7 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
 
       if (lastConnectError) {
         throw new Error(
-          `LiveKit is not connected. The LiveKit server at ${liveKitUrl} could not be reached after multiple attempts. It starts automatically with Windows — if it is still down, start the VANTA LiveKit background service and retry.`
+          `Could not connect to LiveKit at ${liveKitUrl} after 3 attempts. Check that the VANTA frontend URL and backend LiveKit credentials belong to the same LiveKit Cloud project, then retry. Connection detail: ${lastConnectError instanceof Error ? lastConnectError.message : String(lastConnectError)}`
         );
       }
 

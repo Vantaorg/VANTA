@@ -140,7 +140,7 @@ export default function CreateHub({ open, onClose }: CreateHubProps) {
             animate="visible"
             exit="exit"
           >
-            <div className="flex max-h-[calc(var(--vanta-vh,100dvh)-0.5rem)] flex-col overflow-hidden rounded-t-[20px] border border-b-0 border-white/[0.08] bg-[#0d0d0f]/98 pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl">
+            <div className="flex max-h-[calc(var(--vanta-vh,100dvh)-0.5rem)] flex-col overflow-hidden rounded-t-[20px] border border-b-0 border-white/[0.10] bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_50px_rgba(0,0,0,0.65)]">
               <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" />
               {/* Header */}
               <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4">

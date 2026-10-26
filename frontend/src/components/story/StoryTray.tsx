@@ -2,15 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Sparkles, X } from 'lucide-react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import StoryCard from '@/components/story/StoryCard';
 import {
   fetchStoryGroups,
-  fetchStatusUsage,
   type StoryGroup,
-  type StoryUsage,
 } from '@/lib/storyApi';
 import { onStoryFeedChanged } from '@/lib/storyEvents';
 
@@ -44,7 +42,6 @@ export default function StoryTray({
   const { token, user } = useAuth();
   const router = useRouter();
   const [groups, setGroups] = useState<StoryGroup[]>([]);
-  const [usage, setUsage] = useState<StoryUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const mountedRef = useRef(true);
@@ -57,13 +54,9 @@ export default function StoryTray({
     setLoading(true);
     setError(false);
     try {
-      const [storyGroups, usageData] = await Promise.all([
-        fetchStoryGroups(token),
-        fetchStatusUsage(token).catch(() => null),
-      ]);
+      const storyGroups = await fetchStoryGroups(token);
       if (!mountedRef.current) return;
       setGroups(storyGroups);
-      setUsage(usageData);
       onStoriesChange?.(storyGroups);
     } catch {
       if (!mountedRef.current) return;
@@ -112,26 +105,10 @@ export default function StoryTray({
       aria-label="Stories and Status"
       className={cn(
         'border-b border-white/[0.07]',
-        compact ? 'py-3' : 'px-1 py-4',
+        compact ? 'py-2' : 'px-0 py-3',
         className
       )}
     >
-      <div className={cn('mb-3 flex items-center justify-between', compact ? 'px-1' : 'px-3')}>
-        <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a8a8a]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#c9a227]" aria-hidden="true" />
-          Stories &amp; Status
-        </h2>
-        {usage && !usage.unlimited && (
-          <span
-            className="rounded-full border border-white/[0.07] bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium tabular-nums text-[#8a8a8a]"
-            title={`${usage.used} Status posts published today out of ${usage.limit}`}
-          >
-            {usage.used}
-            <span className="text-[#555]"> / {usage.limit} today</span>
-          </span>
-        )}
-      </div>
-
       {error ? (
         <div className="flex items-center gap-3 px-3 py-4">
           <p className="text-xs leading-5 text-[#666]">Couldn&apos;t load Stories.</p>
@@ -207,12 +184,6 @@ export default function StoryTray({
         </div>
       )}
 
-      {!loading && !holdEmpty && (
-        <p className={cn('mt-2 flex items-center gap-1.5 text-[11px] text-[#555]', compact ? 'px-1' : 'px-3')}>
-          <X size={11} className="text-[#c9a227]/70" aria-hidden="true" />
-          Stories disappear after 24 hours · unseen rings are gold
-        </p>
-      )}
     </section>
   );
 }

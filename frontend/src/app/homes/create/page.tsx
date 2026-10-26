@@ -11,6 +11,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, ShieldCheck, UploadCloud, Home as HomeIcon} from 'lucide-react';
+import { ArrowLeft, Home as HomeIcon, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, ShieldCheck, UploadCloud } from 'lucide-react';
 
 const MAX_PHOTOS = 10;
 

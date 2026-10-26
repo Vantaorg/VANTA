@@ -449,7 +449,7 @@ app.use('/api/wallets', walletRoutes);
 // This is the ONLY path that credits coins for a LIVE purchase.
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/welcome-reward', welcomeRewardRoutes);
-app.use('/api/messages', rateLimiter.messaging, messageRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/live', liveRoutes);
 app.use('/api/gifts', giftRoutes);

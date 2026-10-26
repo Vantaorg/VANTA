@@ -88,8 +88,8 @@ export const config = {
       max: parseInt(process.env.RATE_LIMIT_API_MAX || '60', 10),
     },
     messaging: {
-      windowMs: parseInt(process.env.RATE_LIMIT_MESSAGING_WINDOW || '1000', 10),
-      max: parseInt(process.env.RATE_LIMIT_MESSAGING_MAX || '1', 10),
+      windowMs: parseInt(process.env.RATE_LIMIT_MESSAGING_WINDOW || '60000', 10),
+      max: parseInt(process.env.RATE_LIMIT_MESSAGING_MAX || '60', 10),
     },
     upload: {
       windowMs: parseInt(process.env.RATE_LIMIT_UPLOAD_WINDOW || '3600000', 10),
