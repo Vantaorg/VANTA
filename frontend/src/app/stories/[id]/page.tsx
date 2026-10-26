@@ -686,76 +686,48 @@ const creator = current.group.user || {};
       )}
 
 {/* Story actions — owner sees engagement stats; viewers see Like → Comment → Reshare */}
+      {/* Status actions: only Like, Comment and Reshare. Engagement counts are owner-only. */}
       <div className="absolute bottom-0 right-0 z-10 flex flex-col items-center gap-3 p-3 pb-[max(1.15rem,env(safe-area-inset-bottom))]">
-        {isOwner ? (
-          <div className="flex flex-col items-center gap-2.5 rounded-2xl bg-black/35 px-2.5 py-3 backdrop-blur">
-            <div className="flex flex-col items-center gap-1 text-white/85" title="Likes">
-              <ThumbsUp size={19} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
-              <span className="text-[11px] font-semibold tabular-nums">{compact(current.story.likeCount || 0)}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-white/85" title="Reshares">
-              <Repeat size={19} strokeWidth={2} className="text-white/70" />
-              <span className="text-[11px] font-semibold tabular-nums">{compact(current.story.reshareCount || 0)}</span>
-            </div>
-            <button type="button" onClick={() => void openComments()} aria-label="View comments on your story" title="Comments" className="flex flex-col items-center gap-1 text-white/85">
-              <MessageCircle size={19} strokeWidth={2} className="text-white/70" />
-              <span className="text-[11px] font-semibold tabular-nums">{compact(current.story.commentCount || 0)}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-4">
-            {/* Icon-only actions — no text labels, no boxes. Gold Like when active.
-                Adequate touch targets (h-11 w-11) with accessible names + tooltips. */}
-            <button
-              type="button"
-              onClick={() => void toggleLike()}
-              aria-label={current.story.likedByMe ? 'Unlike story' : 'Like story'}
-              aria-pressed={Boolean(current.story.likedByMe)}
-              title={current.story.likedByMe ? 'Unlike' : 'Like'}
-              className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
-            >
-              <ThumbsUp size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void openComments()}
-              aria-label="View or add comments"
-              title="Comment"
-              className="grid h-11 w-11 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
-            >
-              <MessageCircle size={23} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => { pauseStory('reply'); setReplyOpen(true); }}
-              aria-label="Reply to story — sends the owner a private message"
-              title="Reply"
-              className="grid h-11 w-11 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
-            >
-            <button
-              type="button"
-              onClick={() => { pauseStory('reshare'); setReshareOpen(true); }}
-              aria-label="Reshare story to your Status"
-              title="Reshare"
-              className="grid h-11 w-11 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
-            >
-              <Repeat size={23} strokeWidth={2} />
-            </button>
-            {/* Engagement counts displayed separately from the icon-only buttons. */}
-            <div className="flex flex-col items-center gap-1 pt-1 text-white/85">
-              <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums" title="Likes">
-                <Heart size={12} strokeWidth={2.4} className={current.story.likeCount ? 'fill-current text-[#d6a83f]' : 'text-white/70'} aria-hidden="true" />
-                {compact(current.story.likeCount || 0)}
-              </span>
-              <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums" title="Reshares">
-                <Repeat size={12} strokeWidth={2.4} className="text-white/70" aria-hidden="true" />
-                {compact(current.story.reshareCount || 0)}
-              </span>
-              <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums" title="Comments">
-                <MessageCircle size={12} strokeWidth={2.4} className="text-white/70" aria-hidden="true" />
-                {compact(current.story.commentCount || 0)}
-              </span>
-            </div>
+        <div className="flex flex-col items-center gap-4">
+          <button
+            type="button"
+            onClick={() => { if (!isOwner) void toggleLike(); }}
+            aria-label={current.story.likedByMe ? 'Unlike status' : 'Like status'}
+            aria-pressed={Boolean(current.story.likedByMe)}
+            title={current.story.likedByMe ? 'Unlike' : 'Like'}
+            className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
+          >
+            <ThumbsUp size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void openComments()}
+            aria-label="View or add comments"
+            title="Comment"
+            className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
+          >
+            <MessageCircle size={23} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={() => { pauseStory('reshare'); setReshareOpen(true); }}
+            aria-label="Reshare status to your Status"
+            title="Reshare"
+            className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
+          >
+            <Repeat size={23} strokeWidth={2} />
+          </button>
+        </div>
+        {isOwner && (
+          <div className="flex flex-col items-center gap-1.5 rounded-xl bg-black/35 px-2 py-2 text-white/85 backdrop-blur">
+            <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums" title="Likes">
+              <ThumbsUp size={12} strokeWidth={2.4} className="text-[#c9a227]" aria-hidden="true" />
+              {compact(current.story.likeCount || 0)}
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums" title="Reshares">
+              <Repeat size={12} strokeWidth={2.4} className="text-white/70" aria-hidden="true" />
+              {compact(current.story.reshareCount || 0)}
+            </span>
           </div>
         )}
       </div>
