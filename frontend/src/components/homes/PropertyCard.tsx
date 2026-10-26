@@ -2,102 +2,83 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { toggleSaveHome } from '@/lib/services';
 import { useAuth } from '@/context/AuthContext';
-import { MapPin, Bed, Bath, Home, Play, Save } from 'lucide-react';
+import { MapPin, Bed, Bath, Home, Play, Bookmark } from 'lucide-react';
 
-export interface PropertyCardProps {
-  listing: any;
-}
+export interface PropertyCardProps { listing: any; }
 
 const PERIOD_LABEL: Record<string, string> = { WEEKLY: '/week', MONTHLY: '/month', YEARLY: '/year' };
 const TYPE_LABEL: Record<string, string> = {
   APARTMENT: 'Apartment', STUDIO: 'Studio', FLAT: 'Flat',
-  DETACHED_HOUSE: 'Detached House', SEMI_DETACHED_HOUSE: 'Semi-Detached House',
-  DUPLEX: 'Duplex', ROOM_SHARED: 'Shared Room', OTHER: 'Other',
+  DETACHED_HOUSE: 'Detached house', SEMI_DETACHED_HOUSE: 'Semi-detached house',
+  DUPLEX: 'Duplex', ROOM_SHARED: 'Shared room', OTHER: 'Other',
 };
 
 export default function PropertyCard({ listing }: PropertyCardProps) {
-  const { locale } = useI18n();
+  const { formatCurrency } = useI18n();
   const { user, token } = useAuth();
   const { showToast } = useToast();
-  const router = useRouter();
   const [saved, setSaved] = useState<boolean>(Boolean(listing.isSaved));
-
+  const [saving, setSaving] = useState(false);
   const cover = listing.media?.[0];
-  const { formatCurrency } = useI18n();
+  const coverUrl = cover?.uploadedFile?.url || cover?.url || cover?.thumbnailUrl;
   const price = formatCurrency(listing.rentAmount, listing.currency || 'NGN');
   const period = PERIOD_LABEL[listing.rentPeriod || 'MONTHLY'] || '/month';
   const type = TYPE_LABEL[listing.propertyType || 'OTHER'] || 'Other';
-  const isVerified = listing.ownerVerificationStatus === 'VERIFIED';
 
   const handleSave = async () => {
-    if (!user) { showToast({ type: 'error', title: 'Login required', message: 'Please log in to save properties.' }); return; }
+    if (!user) {
+      showToast({ type: 'error', title: 'Login required', message: 'Please log in to save properties.' });
+      return;
+    }
+    if (saving) return;
     const previous = saved;
     setSaved(!previous);
+    setSaving(true);
     try {
       const result = await toggleSaveHome(listing.id, token);
       setSaved(Boolean(result?.saved));
-      showToast({ type: 'success', title: result?.saved ? 'Saved' : 'Removed from saved' });
+      showToast({ type: 'success', title: result?.saved ? 'Saved to your homes' : 'Removed from saved homes' });
     } catch (e: any) {
       setSaved(previous);
-      showToast({ type: 'error', title: 'Error', message: e?.message || 'Could not save property' });
+      showToast({ type: 'error', title: 'Could not update saved homes', message: e?.message || 'Please try again.' });
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (listing.loading) {
-    return (<Card variant="glass" padding="none" className="max-w-md"><Skeleton variant="card" className="h-64" /></Card>);
-  }
+  if (listing.loading) return <div className="animate-pulse"><div className="aspect-[4/3] rounded-xl bg-white/[.06]" /><div className="mt-3 h-4 w-2/3 rounded bg-white/[.06]" /><div className="mt-2 h-4 w-1/3 rounded bg-white/[.06]" /></div>;
 
   return (
-    <Card variant="hover" padding="none" className="max-w-md overflow-hidden">
-      <div className="relative h-64 overflow-hidden">
-        {cover ? (
-          <div className="h-full w-full relative">
-            <img src={cover.uploadedFile?.url || cover.url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
-            {cover.type === 'VIDEO' && (<div className="absolute inset-0 flex items-center justify-center bg-black/40"><Play size={24} className="text-white" /></div>)}
-          </div>
-        ) : (
-          <div className="h-full w-full bg-white/[0.05] flex items-center justify-center"><Home size={32} className="text-white/20" /></div>
-        )}
-        <div className="absolute top-3 left-3 z-10 flex gap-2">
-          <span className={`px-2 py-0.5 rounded text-xs font-bold border ${listing.availabilityStatus === 'PUBLISHED' ? 'text-emerald-400 border-emerald-400/40' : 'text-white/50 border-white/[0.1]'}`}>{listing.availabilityStatus === 'PUBLISHED' ? 'Available' : 'Unavailable'}</span>
-          {isVerified && (<span className="bg-[#c9a227]/20 text-[#c9a227] text-xs font-bold px-2 py-1 rounded border border-[#c9a227]/40">Verified Owner</span>)}
-        </div>
-        <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="absolute top-3 right-3 z-10 p-2 bg-white/[0.1] backdrop-blur rounded-full hover:bg-white/[0.2] transition" aria-label={saved ? 'Unsave property' : 'Save property'}>
-          {saved ? (<Save size={18} className="text-[#c9a227]" />) : (<Save size={18} className="text-white" />)}
+    <article className="group min-w-0">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-white/[.04] sm:aspect-[5/4]">
+        <Link href={'/homes/' + listing.id} className="absolute inset-0 block" aria-label={'View ' + listing.title}>
+          {coverUrl ? <img src={coverUrl} alt={listing.title || 'Property photo'} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-white/25"><Home size={32} strokeWidth={1.4} /></div>}
+          {cover?.type === 'VIDEO' && <span className="absolute inset-0 flex items-center justify-center bg-black/25"><Play size={28} className="text-white" /></span>}
+        </Link>
+        <span className="absolute bottom-3 left-3 max-w-[calc(100%-4.5rem)] truncate rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white backdrop-blur-sm">{type}</span>
+        <button type="button" onClick={() => void handleSave()} disabled={saving} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9a227] disabled:opacity-60" aria-label={saved ? 'Remove from saved homes' : 'Save this property'} aria-pressed={saved}>
+          <Bookmark size={17} fill={saved ? '#c9a227' : 'none'} className={saved ? 'text-[#c9a227]' : ''} />
         </button>
       </div>
-      <div className="p-4">
-        <Link href={`/homes/${listing.id}`} className="block">
-          <h3 className="font-semibold text-white leading-tight mb-1">{listing.title}</h3>
-          <p className="text-sm text-white/50 mb-3">{listing.area || listing.city} {listing.area && listing.city ? '·' : ''} {listing.city}</p>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1 text-[#c9a227] font-bold text-lg">{price}</div>
-            <span className="text-xs text-white/40">{period}</span>
+      <div className="pt-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Link href={'/homes/' + listing.id} className="block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]"><h3 className="line-clamp-1 text-[15px] font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3></Link>
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-white/50"><MapPin size={13} className="shrink-0" /><span className="truncate">{[listing.area, listing.city].filter(Boolean).join(', ') || 'Location not specified'}</span></p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-white/60 mb-3">
-            <span className="flex items-center gap-1"><Bed size={14} /> {listing.bedrooms}</span>
-            <span className="flex items-center gap-1"><Bath size={14} /> {listing.bathrooms}</span>
-            <span className="flex items-center gap-1"><Home size={14} /> {type}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <p className="text-xs text-white/40 flex-1"><MapPin size={12} className="mr-1" /> {listing.area || listing.city}</p>
-            <span className="text-xs text-white/40">{formatDate(listing.createdAt || listing.updatedAt)}</span>
-          </div>
-        </Link>
-        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between">
-          <Button size="sm" variant="ghost" onClick={() => router.push(`/homes/${listing.id}`)}>View details</Button>
-          <Button size="sm" variant="goldGhost" onClick={() => router.push(`/homes/${listing.id}`)}>Contact</Button>
+          <div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums text-[#e4c65d]">{price}</p><p className="mt-0.5 text-[11px] text-white/40">{period}</p></div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[.08] pt-3 text-xs text-white/55">
+          <span className="inline-flex items-center gap-1.5"><Bed size={14} /> {listing.bedrooms ?? '—'} beds</span>
+          <span className="inline-flex items-center gap-1.5"><Bath size={14} /> {listing.bathrooms ?? '—'} baths</span>
+          {listing.furnished && <span>Furnished</span>}
+          <Link href={'/homes/' + listing.id} className="ml-auto inline-flex min-h-8 items-center text-xs font-semibold text-white/75 transition hover:text-[#e4c65d]">View property <span className="ml-1" aria-hidden="true">→</span></Link>
         </div>
       </div>
-    </Card>
+    </article>
   );
 }
