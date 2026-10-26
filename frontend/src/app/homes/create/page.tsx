@@ -10,7 +10,7 @@ import {
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, Home as HomeIcon, ShieldCheck, UploadCloud, Sparkles} from 'lucide-react';
+import { ArrowLeft, ImagePlus, Trash2, Check, ChevronLeft, ChevronRight, MapPin, Home as HomeIcon, ShieldCheck, UploadCloud} from 'lucide-react';
 
 const MAX_PHOTOS = 10;
 
@@ -347,22 +347,27 @@ function CreateHomeContent() {
 
   return (
     <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 text-white">
-      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} className="flex h-10 items-center gap-2 rounded-xl px-2 text-sm text-white/60 hover:bg-white/[.05] hover:text-white">
-            <ArrowLeft size={17} /> <span className="hidden sm:inline">Back to Homes</span><span className="sm:hidden">Back</span>
-          </button>
-          <div className="text-right"><p className="text-[10px] font-bold uppercase tracking-[.22em] text-[#c9a227]">VANTA HOMES</p><p className="text-xs text-white/45">{isEdit ? 'Edit property' : 'New listing'}</p></div>
+      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} aria-label="Back to Homes" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/60 transition hover:bg-white/[.06] hover:text-white">
+              <ArrowLeft size={17} />
+            </button>
+            <button type="button" onClick={() => router.push('/homes')} className="flex items-baseline gap-2 text-left">
+              <span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span>
+              <span className="text-sm font-medium text-white/80">Homes</span>
+            </button>
+          </div>
+          <span className="shrink-0 text-sm font-medium text-white/65">+ Property</span>
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-4 pt-5 sm:pt-8">
-        <section className="relative overflow-hidden rounded-3xl border border-[#c9a227]/20 bg-[radial-gradient(ellipse_at_top_right,rgba(201,162,39,.16),transparent_45%),linear-gradient(140deg,#17150f,#0b0b0d_65%,#11100c)] p-5 sm:p-8">
-          <div className="absolute right-5 top-5 hidden h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a227]/20 bg-black/20 text-[#c9a227]/80 sm:flex"><HomeIcon size={27}/></div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#c9a227]/25 bg-[#c9a227]/[.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.18em] text-[#e4c65d]"><Sparkles size={12}/> Property listing studio</span>
-          <h1 className="mt-4 max-w-2xl text-2xl font-bold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Let’s get your property listed.'}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{isEdit ? 'Review your details, make changes, then resubmit if needed.' : 'A few simple steps. Save your progress as a draft and submit when everything looks right.'}</p>
-          <div className="mt-5 flex flex-wrap gap-2 text-[11px] text-white/50"><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">Up to {MAX_PHOTOS} photos</span><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">Secure review</span><span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">You control contact details</span></div>
+        <section className="border-b border-white/[.07] pb-6 pt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">{isEdit ? 'Manage your listing' : 'List a property'}</p>
+          <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Add your property to VANTA Homes.'}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{isEdit ? 'Review your details and resubmit if changes are needed.' : 'Enter accurate details, add clear photos, then send your listing to the VANTA team for review before it goes live.'}</p>
+          <p className="mt-3 text-xs text-white/40">Up to {MAX_PHOTOS} photos <span className="mx-2 text-white/20">·</span> Admin review before publication <span className="mx-2 text-white/20">·</span> You control contact details</p>
         </section>
 
         {(existingStatus === 'PENDING_REVIEW' || existingStatus === 'REJECTED') && <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${existingStatus === 'REJECTED' ? 'border-red-400/25 bg-red-500/[.07] text-red-300' : 'border-amber-400/25 bg-amber-500/[.07] text-amber-200'}`}>{existingStatus === 'REJECTED' ? 'This listing was rejected. Update the details and submit it again for review.' : 'This listing is under review. Your edits may require another review.'}</div>}
