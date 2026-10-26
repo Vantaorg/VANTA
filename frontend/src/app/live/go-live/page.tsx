@@ -1116,42 +1116,29 @@ export default function GoLivePage() {
       )}
       {isLiveRoom && (
         <div className="absolute inset-0 z-20 flex flex-col" aria-label="Live room">
-          {/* Top-left: streamer identity + engagement + Fan Club */}
-          <div className="flex shrink-0 items-center gap-2.5 px-3 pt-[calc(env(safe-area-inset-top)+8px)]">
+          {/* Minimal host status */}
+          <div className="flex shrink-0 items-center gap-2.5 px-4 pt-[calc(env(safe-area-inset-top)+10px)]">
             <button type="button" onClick={() => router.replace(`/profile/${user?.username || ''}`)} aria-label="Your profile" className="shrink-0">
               {/* Circular profile avatar — no square box around it */}
               <Avatar src={avatar} alt={displayName} size="md" />
             </button>
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-1.5">
-                <p className="min-w-0 flex-1 truncate text-sm font-bold leading-none text-white drop-shadow">{displayName}</p>
-                <span className="inline-flex h-[18px] shrink-0 items-center gap-1 rounded-full bg-[#D6A83F] px-2 text-[9px] font-extrabold uppercase tracking-wide text-black">
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-none text-white">{displayName}</p>
+                <span className="inline-flex h-[18px] shrink-0 items-center gap-1 rounded-md bg-[#D6A83F] px-2 text-[9px] font-bold uppercase tracking-wide text-black">
                   <Radio size={9} fill="currentColor" /> LIVE
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] leading-none">
-                <span className="inline-flex items-center gap-1 font-semibold text-white/80">
-                  <Eye size={10} className="text-[#F2C75C]" /> {formatNumber(viewers)} watching
-                </span>
-                <span className="text-white/35">·</span>
-                <span className="inline-flex items-center gap-0.5 font-medium text-white/70">
-                  <Clock size={10} /> {clock}
-                </span>
-                {liveGiftCount > 0 && (
-                  <>
-                    <span className="text-white/35">·</span>
-                    <span className="inline-flex items-center gap-0.5 font-medium text-[#F2C75C]">
-                      <Gift size={10} /> {formatNumber(liveGiftCount)}
-                    </span>
-                  </>
-                )}
+              <div className="mt-1 flex items-center gap-2 text-[10px] leading-none text-white/65">
+                <span className="inline-flex items-center gap-1"><Clock size={10} /> {clock}</span>
+                {liveGiftCount > 0 && <span className="inline-flex items-center gap-1 text-[#F2C75C]"><Gift size={10} /> {formatNumber(liveGiftCount)}</span>}
               </div>
             </div>
           </div>
 
           {/* Top-right: viewers, cam/mic status, end live */}
-          <div className="absolute right-3 top-[calc(env(safe-area-inset-top)+8px)] flex flex-col items-end gap-2">
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-3 text-xs font-bold text-white backdrop-blur-md tabular-nums">
+          <div className="absolute right-4 top-[calc(env(safe-area-inset-top)+10px)] flex flex-col items-end gap-2">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-black/45 px-2.5 text-xs font-semibold text-white backdrop-blur-md tabular-nums">
               <Eye size={13} className="text-[#F2C75C]" /> {formatNumber(viewers)}
             </span>
             <span className="flex items-center gap-1.5">
