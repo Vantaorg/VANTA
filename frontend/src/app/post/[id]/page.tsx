@@ -218,7 +218,7 @@ useEffect(() => {
         {/* Engagement toolbar — lightweight, evenly distributed icon actions
             with the VANTA gold accent on active states. */}
         <footer className="mt-2 flex w-full min-w-0 items-center justify-between gap-1 border-b border-white/[0.08] pb-2">
-          <button onClick={() => void toggleLike()} className={toolClass(liked ? 'text-[#f2c75c]' : '')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
+          <button onClick={() => void toggleLike()} className={toolClass(liked ? '!text-[#c9a227]' : 'text-[#8a8a8a]')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
             <Heart size={20} className={liked ? 'fill-current' : ''} />
             <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
           </button>
