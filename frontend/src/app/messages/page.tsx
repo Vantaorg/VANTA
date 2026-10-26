@@ -2039,7 +2039,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                             aria-label={`View ${senderName}'s profile`}
                             className="rounded-full transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                           >
-                            <Avatar src={msg.sender.avatar} alt={senderName} size="sm" />
+                            <span className="block rounded-full ring-1 ring-[#d6a83f]">
+                              <Avatar src={msg.sender.avatar} alt={senderName} size="sm" />
+                            </span>
                           </button>
                         </div>
                       )}
@@ -2059,7 +2061,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <div className={cn(
                         'chat-bubble-text w-fit max-w-full overflow-hidden border text-[14px] leading-[1.45] shadow-[0_1px_3px_rgba(0,0,0,.22)]',
                         msg.isOwn
-                           ? 'rounded-[15px] rounded-br-[4px] border-[#d6a83f]/20 bg-[#23211a] text-[#f5f5f5]'
+                           ? 'rounded-[15px] rounded-br-[4px] border-white/[0.08] bg-[#050505] text-[#f5f5f5]'
                            : 'rounded-[15px] rounded-bl-[4px] border-white/[0.08] bg-[#151517] text-[#d4d4d8]'
                       )}>
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
