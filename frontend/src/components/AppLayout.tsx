@@ -111,16 +111,16 @@ const MobileMenu = memo(function MobileMenu({
             onClick={onClose}
           />
           <motion.aside
-            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-[#c9a227]/30 bg-[linear-gradient(145deg,rgba(27,24,15,0.98),rgba(12,12,14,0.98)_55%,rgba(20,17,10,0.98))] shadow-[0_20px_70px_rgba(0,0,0,0.65),0_0_28px_rgba(201,162,39,0.08)] backdrop-blur-2xl"
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
           >
             
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#c9a227]/20 bg-gradient-to-r from-[#c9a227]/[0.10] via-transparent to-transparent px-4">
               <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.12] bg-[#080808]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#c9a227]/35 bg-gradient-to-br from-[#c9a227]/20 to-[#080808] shadow-[0_0_18px_rgba(201,162,39,0.12)]">
                   <VantaLogo size={16} className="text-white" />
                 </div>
                 <span className="text-base font-semibold tracking-[.18em] text-white">VANTA</span>
@@ -163,10 +163,10 @@ const MobileMenu = memo(function MobileMenu({
                       href={item.href}
                       onClick={onClose}
                       className={cn(
-                        'flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 transition-all',
+                        'flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2.5 transition-all',
                         isActive
-                          ? 'border-[var(--active-border)] bg-[var(--active-soft)] text-[var(--text-primary)] shadow-[var(--active-glow)]'
-                          : 'border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
+                          ? 'border-[#c9a227]/40 bg-gradient-to-r from-[#c9a227]/15 to-[#c9a227]/[0.04] text-white shadow-[0_0_18px_rgba(201,162,39,0.08)]'
+                          : 'border-white/[0.055] bg-white/[0.018] text-white/65 hover:border-[#c9a227]/25 hover:bg-[#c9a227]/[0.06] hover:text-white'
                       )}
                     >
                       <span className="relative">
