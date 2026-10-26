@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Eye, Heart, Link2, Loader2, MessageCircle, Repeat, Send, Share2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Eye, Heart, Link2, Loader2, MessageCircle, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -659,7 +659,7 @@ const creator = current.group.user || {};
         <div className="ml-auto flex items-center gap-2">
           {isOwner && (
             <button type="button" onClick={() => void openViewers()} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 text-[11px] font-medium text-[#dfbd55] backdrop-blur transition hover:bg-black/60" aria-label="Open Story viewers">
-              <Eye size={14}/>{compact(current.story.views || 0)} views
+              <Eye size={14}/>{compact(current.story.views || 0)}
             </button>
           )}
           <button type="button" onClick={() => { pauseStory('share'); setShareOpen(true); }} aria-label="Share story" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/40 text-white/85 backdrop-blur transition hover:bg-black/60">
@@ -690,7 +690,7 @@ const creator = current.group.user || {};
         {isOwner ? (
           <div className="flex flex-col items-center gap-2.5 rounded-2xl bg-black/35 px-2.5 py-3 backdrop-blur">
             <div className="flex flex-col items-center gap-1 text-white/85" title="Likes">
-              <Heart size={19} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
+              <ThumbsUp size={19} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
               <span className="text-[11px] font-semibold tabular-nums">{compact(current.story.likeCount || 0)}</span>
             </div>
             <div className="flex flex-col items-center gap-1 text-white/85" title="Reshares">
@@ -714,7 +714,7 @@ const creator = current.group.user || {};
               title={current.story.likedByMe ? 'Unlike' : 'Like'}
               className="grid h-11 w-11 place-items-center text-[#8a8a8a] drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
             >
-              <Heart size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
+              <ThumbsUp size={24} strokeWidth={2} className={current.story.likedByMe ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />
             </button>
             <button
               type="button"
@@ -732,8 +732,6 @@ const creator = current.group.user || {};
               title="Reply"
               className="grid h-11 w-11 place-items-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition active:scale-90 hover:text-white"
             >
-              <Send size={23} strokeWidth={2} />
-            </button>
             <button
               type="button"
               onClick={() => { pauseStory('reshare'); setReshareOpen(true); }}
