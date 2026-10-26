@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Eye, Link2, Loader2, MessageCircle, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
+import { Check, Eye, Link2, Loader2, MessageCircle, MoreVertical, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -77,6 +77,7 @@ export default function StoryViewerPage({ params }: { params: { id: string } }) 
   // through the story API; each story payload carries likeCount / reshareCount /
   // commentCount / likedByMe so the owner sees real engagement numbers.
   const [shareOpen, setShareOpen] = useState(false);
+  const [storyMenuOpen, setStoryMenuOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [reshareOpen, setReshareOpen] = useState(false);
   const [reshareText, setReshareText] = useState('');
@@ -635,7 +636,6 @@ const creator = current.group.user || {};
 
       {/* Header */}
       <header className="absolute inset-x-0 top-0 z-20 flex items-center gap-3 px-4 pb-4 pt-[max(1.25rem,calc(env(safe-area-inset-top)+1.25rem))]">
-        <button type="button" onClick={() => router.replace('/home')} aria-label="Back to Home" className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/45 text-white/90 backdrop-blur transition hover:bg-black/60"><ArrowLeft size={20}/></button>
         <button type="button" onClick={() => creator.username && router.push(`/profile/${creator.username}`)} aria-label="Open profile" className="flex min-w-0 items-center gap-3 text-left">
           <span className="relative">
             <Avatar src={creator.avatar} alt={creator.username || 'Story owner'} size="sm" />
@@ -650,21 +650,32 @@ const creator = current.group.user || {};
             )}
           </span>
         </button>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {isOwner && (
             <button type="button" onClick={() => void openViewers()} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 text-[11px] font-medium text-[#dfbd55] backdrop-blur transition hover:bg-black/60" aria-label="Open Story viewers">
               <Eye size={14}/>{compact(current.story.views || 0)}
             </button>
           )}
-          <button type="button" onClick={() => { pauseStory('share'); setShareOpen(true); }} aria-label="Share story" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/40 text-white/85 backdrop-blur transition hover:bg-black/60">
-            <Share2 size={16}/>
-          </button>
-          {isOwner && (
-            <button type="button" onClick={() => { pauseStory('delete'); setDeleteConfirmOpen(true); }} aria-label="Delete story" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/40 text-white/85 backdrop-blur transition hover:bg-black/60">
-              <Trash2 size={16}/>
+          <div className="relative">
+            <button type="button" onClick={() => setStoryMenuOpen(open => !open)} aria-label="Story options" aria-expanded={storyMenuOpen} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/40 text-white/85 backdrop-blur transition hover:bg-black/60">
+              <MoreVertical size={18}/>
             </button>
-          )}
-          <button type="button" onClick={() => router.replace('/home')} aria-label="Close story" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-black/40 text-white/85 backdrop-blur transition hover:bg-black/60"><X size={18}/></button>
+            {storyMenuOpen && (
+              <>
+                <button type="button" aria-label="Close story options" className="fixed inset-0 z-30 cursor-default" onClick={() => setStoryMenuOpen(false)} />
+                <div className="absolute right-0 top-12 z-40 min-w-40 overflow-hidden rounded-xl border border-white/10 bg-[#111113] p-1 shadow-xl">
+                  <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('share'); setShareOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-white/90 transition hover:bg-white/[0.06]">
+                    <Share2 size={15}/> Share
+                  </button>
+                  {isOwner && (
+                    <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('delete'); setDeleteConfirmOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-300 transition hover:bg-white/[0.06]">
+                      <Trash2 size={15}/> Delete
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 {/* Caption (media stories — TEXT stories render inside their own canvas) */}
