@@ -33,7 +33,7 @@ async function main() {
   if (existingAdmin) {
     // SECURE production admin password bootstrap/reset.
     //
-    // When the canonical admin account (ceo@vanta.app) already exists, the
+    // When the configured admin account already exists, the
     // Railway ADMIN_PASSWORD establishes/refreshes its password. Without this,
     // setting ADMIN_PASSWORD after the first seed has NO effect, because the
     // account-creation branch below is skipped on re-runs.
@@ -48,6 +48,9 @@ async function main() {
     const freshHash = await CryptoUtils.hashPassword(adminPassword);
 
     const updates: any = {};
+    if (existingAdmin.email !== adminEmail) updates.email = adminEmail;
+    if (existingAdmin.username !== adminUsername) updates.username = adminUsername;
+    if (existingAdmin.fullName !== adminFullName) updates.fullName = adminFullName;
     if (existingAdmin.role !== 'ADMIN') updates.role = 'ADMIN';
     if (!existingAdmin.verified) updates.verified = true;
     if (!existingAdmin.emailVerified) updates.emailVerified = true;
@@ -101,7 +104,7 @@ async function main() {
   }
 
   // ============================================================================
-  // 0b. VERIFIED CREATOR ACCOUNTS (@alex, @ceo)
+  // 0b. VERIFY THE CONFIGURED ADMIN ACCOUNT
   // Verification is a REAL, server-controlled property on the User record
   // (User.verified). This block is idempotent and never destroys existing
   // accounts/data — it only ensures the flag is set. The frontend badge reads
@@ -158,8 +161,7 @@ async function main() {
 
   // The configured administrator above is the single admin bootstrap account.
   // Do not create a second hard-coded CEO account on a fresh database.
-  await ensureVerifiedUser('alex', 'Alex');
-  console.log('✅ Verified creator accounts ensured (@alex, @ceo)');
+  console.log(`✅ Configured administrator identity ensured (${adminEmail}, @${adminUsername})`);
 
 // ============================================================================
   // 0c + 1. PURCHASE CATALOG (Verified Badge plans + VANTA Coin packages)
@@ -196,8 +198,8 @@ async function main() {
   console.log(`✅ ${allGifts.length} gifts created`);
 
   // ============================================================================
-  // 3b. CEO/Admin initial allocation: grant the canonical CEO account
-  //     (ceo@vanta.app) EXACTLY 1,000,000 VANTA Coins, once, through the real
+  // 3b. Admin initial allocation: grant the configured administrator
+  //     EXACTLY 1,000,000 VANTA Coins, once, through the real
   //     wallet/ledger system (see src/services/admin-dev-wallet.service.ts).
   //     This is idempotent and database-gated: re-running the seed, restarting,
   //     or redeploying can NEVER add a duplicate allocation, and a spent

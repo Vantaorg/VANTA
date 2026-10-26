@@ -1,7 +1,7 @@
 /**
- * VANTA - CEO/Admin initial allocation seed (thin wrapper)
+ * VANTA - administrator initial allocation seed (thin wrapper)
  *
- * Seeds the designated CEO/Admin account (ceo@vanta.app) with its one-time
+ * Seeds the designated administrator account (vantapp74@gmail.com) with its one-time
  * initial allocation of EXACTLY 1,000,000 VANTA Coins using the shared
  * `admin-dev-wallet` service (src/services/admin-dev-wallet.service.ts).
  *
@@ -33,23 +33,23 @@ const prisma = new PrismaClient();
 export { isAdminDevEnvironment as isDevelopment };
 
 /**
- * Seed the CEO/Admin initial allocation. Idempotent and database-gated.
+ * Seed the administrator initial allocation. Idempotent and database-gated.
  * Returns the service result for programmatic/observability use.
  */
 export async function seedDevWallet(): Promise<ReturnType<typeof seedAdminDevWallet>> {
   const result = await seedAdminDevWallet(prisma);
   switch (result.action) {
     case 'disabled':
-      console.log('⏭️  CEO/Admin allocation disabled by configuration.');
+      console.log('⏭️  administrator allocation disabled by configuration.');
       break;
     case 'admin-not-found':
-      console.log('⚠️  No CEO/Admin account found. Run `npx prisma db seed` first to create the admin.');
+      console.log('⚠️  No administrator account found. Run `npx prisma db seed` first to create the admin.');
       break;
     case 'seed-already-available':
-      console.log(`✓ CEO/Admin initial allocation already present. ${result.admin?.email || result.admin?.username} has ${result.balanceAfter.toLocaleString()} VANTA Coins.`);
+      console.log(`✓ administrator initial allocation already present. ${result.admin?.email || result.admin?.username} has ${result.balanceAfter.toLocaleString()} VANTA Coins.`);
       break;
     case 'granted':
-      console.log('✓ CEO/Admin initial allocation applied.');
+      console.log('✓ administrator initial allocation applied.');
       console.log(`Admin (${result.admin?.email || result.admin?.username}) credited with ${result.credited.toLocaleString()} VANTA Coins`);
       console.log(`  - Available Balance: ${result.balanceAfter.toLocaleString()} VANTA Coins`);
       console.log(`  - Transaction: ${ADMIN_DEV_TX_TYPE} (${ADMIN_DEV_TX_REFERENCE})`);

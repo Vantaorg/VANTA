@@ -1,10 +1,8 @@
 /**
  * VANTA - Verified Creator Provisioning Script
  *
- * Marks the @alex and @ceo accounts as VERIFIED using the real,
- * server-controlled `User.verified` boolean. This is the single source of
- * truth the whole application reads from; the frontend badge must never be
- * inferred from a hardcoded username.
+ * Ensures the configured Alex administrator account is VERIFIED using the
+ * server-controlled `User.verified` boolean.
  *
  * The script is idempotent and NON-destructive:
  *   - It never resets the database or deletes records.
@@ -78,15 +76,19 @@ async function main(): Promise<void> {
   console.log('🔵 VANTA verified-creator provisioning');
   console.log('='.repeat(56));
 
-  await ensureVerifiedUser('ceo', 'CEO', { role: 'ADMIN' });
-  await ensureVerifiedUser('alex', 'Alex');
+  const { ADMIN_EMAIL, ADMIN_USERNAME, ADMIN_FULL_NAME, resolveAdminPassword } = await import('./admin-credentials');
+  await ensureVerifiedUser(ADMIN_USERNAME, ADMIN_FULL_NAME, {
+    role: 'ADMIN',
+    email: ADMIN_EMAIL,
+    password: resolveAdminPassword(),
+  });
 
   // Report final state so the change is auditable.
   const rows = await prisma.user.findMany({
-    where: { OR: [{ username: 'ceo' }, { username: 'CEO' }, { username: 'alex' }, { username: 'Alex' }] },
+    where: { OR: [{ username: 'alex' }, { username: 'Alex' }] },
     select: { id: true, username: true, verified: true, role: true, status: true },
   });
-  console.log('\n📋 Verified creator state:');
+  console.log('\n📋 Verified administrator state:');
   for (const row of rows) {
     const icon = row.verified ? '✅' : '❌';
     console.log(`${icon} @${row.username} — verified=${row.verified}, role=${row.role}, status=${row.status}`);
