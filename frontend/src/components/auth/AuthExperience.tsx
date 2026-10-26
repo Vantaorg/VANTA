@@ -190,7 +190,6 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       if (!username.trim()) nextErrors.username = 'Choose a username.';
       else if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username.replace(/^@/, ''))) nextErrors.username = 'Use 3–30 letters, numbers, underscores, or hyphens.';
       else if (availability === 'taken' || availability === 'checking') nextErrors.username = 'Please choose an available username.';
-      if (!fullName.trim()) nextErrors.terms = 'Enter your display name.';
       if (!fullName.trim()) nextErrors.fullName = 'Enter your display name.';
       if (!dateOfBirth) nextErrors.terms = 'Enter your date of birth.';
       else { const dob = new Date(dateOfBirth + 'T00:00:00'); const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 13); if (Number.isNaN(dob.getTime()) || dob > cutoff) nextErrors.terms = 'You must be at least 13 years old to join VANTA.'; }
@@ -217,6 +216,7 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       if (!username.trim()) nextErrors.username = 'Choose a username.';
       else if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username.replace(/^@/, ''))) nextErrors.username = 'Use 3–30 letters, numbers, underscores, or hyphens.';
       else if (availability === 'taken' || availability === 'checking') nextErrors.username = 'Please choose an available username.';
+      if (!fullName.trim()) nextErrors.fullName = 'Enter your display name.';
       if (!email.trim()) nextErrors.email = 'Enter your email address.';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Enter a valid email address.';
       if (!password) nextErrors.password = 'Create a password.';
