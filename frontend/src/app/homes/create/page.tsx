@@ -327,17 +327,17 @@ function CreateHomeContent() {
 
   return (
     <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="max-w-3xl mx-auto px-4 py-6 pb-32">
+      <div className="mx-auto w-full max-w-3xl px-3 py-4 pb-44 sm:px-4 sm:py-6 sm:pb-32">
         <button
           onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')}
-          className="mb-4 inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
+          className="mb-3 inline-flex min-h-9 items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
         >
           <ArrowLeft size={16} /> {isEdit ? 'Manage listings' : 'All homes'}
         </button>
 
-        <div className="mb-6">
+        <div className="mb-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 sm:mb-6 sm:px-0 sm:py-0 sm:border-0 sm:bg-transparent">
           <span className="text-sm font-bold uppercase tracking-wider text-[#c9a227]">VANTA Homes</span>
-          <h1 className="text-2xl font-bold text-white">{isEdit ? 'Edit listing' : 'List your property'}</h1>
+          <h1 className="text-xl font-bold text-white sm:text-2xl">{isEdit ? 'Edit listing' : 'List your property'}</h1>
           <p className="mt-1 text-sm text-white/50">
             {isEdit
               ? 'Update the details below. Changes go live after a quick review.'
@@ -363,9 +363,9 @@ function CreateHomeContent() {
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-3 sm:space-y-5">
             {/* Basics ---------------------------------------------------- */}
-            <Card variant="glass" padding="lg">
+            <Card variant="glass" padding="md">
               <h2 className="mb-4 text-lg font-semibold text-white">The basics</h2>
               <div className="space-y-4">
                 <Input
@@ -603,7 +603,7 @@ function CreateHomeContent() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || photos.length >= MAX_PHOTOS}
-                className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-dashed border-white/[0.14] bg-white/[0.02] px-4 py-6 text-sm text-white/55 transition hover:border-[#c9a227]/50 hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-dashed border-white/[0.14] bg-white/[0.02] px-4 py-4 text-sm text-white/55 transition hover:border-[#c9a227]/50 hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ImagePlus size={18} />
                 {uploading ? 'Uploading...' : photos.length >= MAX_PHOTOS ? 'Photo limit reached' : 'Add photos'}
@@ -662,18 +662,19 @@ function CreateHomeContent() {
       </div>
 
       {/* Sticky action bar ---------------------------------------------- */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.06] bg-[var(--background)]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 py-3">
+      <div className="fixed inset-x-0 bottom-[5.25rem] z-40 border-t border-white/[0.06] bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:bottom-0">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
           {formError && <p className="w-full text-xs text-red-400">{formError}</p>}
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')}>
+          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
+            <Button variant="ghost" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} className="!px-2 !text-xs sm:!px-3 sm:!text-sm">
               Cancel
             </Button>
-            <Button variant="outline" loading={saving} onClick={() => void handleSave()}>
+            <Button variant="outline" loading={saving} onClick={() => void handleSave()} className="!px-2 !text-xs sm:!px-3 sm:!text-sm">
               Save draft
             </Button>
             <Button
               variant="gold"
+              className="!px-2 !text-xs sm:!px-3 sm:!text-sm"
               loading={saving || uploading}
               disabled={photos.length === 0}
               onClick={() => void handleSubmitForReview()}
