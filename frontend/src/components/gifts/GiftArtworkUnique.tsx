@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+'use client';
+
+import { useId } from 'react';
 
 type Props = { slug?: string; name?: string; size?: number; quality?: number };
 
@@ -73,7 +75,8 @@ const FALLBACK = { glyph: '🎁', a: '#f4c8ff', b: '#a855f7', c: '#ec4899' };
 
 export default function GiftArtworkUnique({ slug, name, size = 120, quality = 1 }: Props) {
   const art = ART[(slug || '').toLowerCase()] || ART[(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')] || FALLBACK;
-  const uid = useMemo(() => (slug || name || 'gift').replace(/[^a-z0-9]/gi, ''), [slug, name]);
+  const reactId = useId();
+  const uid = ((slug || name || 'gift').replace(/[^a-z0-9]/gi, '') + reactId).replace(/[^a-zA-Z0-9_-]/g, '');
   const level = Math.max(0, Math.min(5, quality));
   return (
     <svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label={name || slug || 'VANTA gift artwork'} className="overflow-visible drop-shadow-[0_16px_22px_rgba(0,0,0,.45)]">
