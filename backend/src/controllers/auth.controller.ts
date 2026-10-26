@@ -15,13 +15,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const normalizedUsername = typeof username === 'string' ? username.trim().replace(/^@/, '').toLowerCase() : '';
 
     // Validate input
-    if (!normalizedEmail || !password || !normalizedUsername) {
-      res.status(400).json({ error: 'Email, username, and password are required' });
+    if (!normalizedEmail || !password || !normalizedUsername || typeof dateOfBirth !== 'string' || !dateOfBirth.trim()) {
+      res.status(400).json({ error: 'Email, username, password, and date of birth are required' });
       return;
     }
 
     const parsedDateOfBirth = typeof dateOfBirth === 'string' && dateOfBirth.trim() ? new Date(dateOfBirth) : null;
-    if (dateOfBirth && (!parsedDateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth) || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth.toISOString().slice(0, 10) !== dateOfBirth)) {
+    if (dateOfBirth && (!parsedDateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth.toISOString().slice(0, 10) !== dateOfBirth)) {
       res.status(400).json({ error: 'Enter a valid date of birth' });
       return;
     }
