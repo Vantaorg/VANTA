@@ -1217,8 +1217,8 @@
      and media-with-caption bubbles. */
   .chat-bubble-text {
     @apply min-w-0 max-w-full whitespace-pre-wrap;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .chat-bubble-self {
