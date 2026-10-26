@@ -2043,7 +2043,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </button>
                         </div>
                       )}
-                      <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)] min-w-0">
+                      <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
                           <div className={cn('flex max-w-[min(100%,420px)] items-center gap-2', msg.isOwn && 'justify-end')}>
                             <button
