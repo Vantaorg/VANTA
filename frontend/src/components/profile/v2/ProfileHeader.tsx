@@ -47,8 +47,6 @@ export default function ProfileHeader({ profile, own, onFollow, onMessage, onGif
       className={`profile-cover ${cover ? 'has-image cursor-zoom-in' : 'cover-fallback'}`}
       style={cover ? { backgroundImage: `url("${cover.replace(/"/g, '%22')}")` } : undefined}
     >
-      {!cover && <><span className="cover-rule" aria-hidden="true" /><span className="cover-monogram" aria-hidden="true">V</span></>}
-      <span className="cover-brand" aria-hidden="true">VANTA / PROFILE</span>
     </button>
 
     <div className="profile-overview">
