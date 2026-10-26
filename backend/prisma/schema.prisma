@@ -19,6 +19,7 @@ model User {
   gender          String?
   interestedIn    String?
   age             Int?
+  dateOfBirth     DateTime?
   country         String?
   city            String?
   avatar          String?

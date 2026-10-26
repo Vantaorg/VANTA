@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LandingExperience from "@/components/landing/LandingExperience";
+import { redirect } from "next/navigation";
 import { SOCIAL_IMAGE_URL } from "@/lib/i18n/seo";
 
 export const metadata: Metadata = {
@@ -18,5 +18,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <LandingExperience />;
+  redirect("/reels");
 }

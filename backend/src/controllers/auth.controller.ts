@@ -10,7 +10,7 @@ import { authService } from '../services/auth.service';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, username, fullName } = req.body;
+    const { email, password, username, fullName, dateOfBirth } = req.body;
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const normalizedUsername = typeof username === 'string' ? username.trim().replace(/^@/, '').toLowerCase() : '';
 
@@ -18,6 +18,20 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (!normalizedEmail || !password || !normalizedUsername) {
       res.status(400).json({ error: 'Email, username, and password are required' });
       return;
+    }
+
+    const parsedDateOfBirth = typeof dateOfBirth === 'string' && dateOfBirth.trim() ? new Date(dateOfBirth) : null;
+    if (dateOfBirth && (!parsedDateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth) || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth.toISOString().slice(0, 10) !== dateOfBirth)) {
+      res.status(400).json({ error: 'Enter a valid date of birth' });
+      return;
+    }
+    if (parsedDateOfBirth) {
+      const today = new Date();
+      const minimumBirthDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+      if (parsedDateOfBirth > minimumBirthDate) {
+        res.status(400).json({ error: 'You must be at least 13 years old to create a VANTA account' });
+        return;
+      }
     }
 
     if (!SecurityValidator.isValidEmail(normalizedEmail)) {
@@ -63,6 +77,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         username: normalizedUsername,
         passwordHash,
         fullName: SecurityValidator.sanitizeText(fullName) || null,
+        ...(parsedDateOfBirth ? { dateOfBirth: parsedDateOfBirth } : {}),
         profile: { create: { username: normalizedUsername, fullName: SecurityValidator.sanitizeText(fullName) || null } },
         wallet: { create: {} },
         userSettings: { create: {} },

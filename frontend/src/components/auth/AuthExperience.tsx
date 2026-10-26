@@ -74,6 +74,8 @@ export default function AuthExperience({ mode }: Props) {
   const register = mode === 'register';
   const [identifier, setIdentifier] = useState('');
   const [fullName, setFullName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [signupStep, setSignupStep] = useState(1);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -154,6 +156,27 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
     window.location.replace(oauthAuthorizeEndpoint(provider, redirect));
   };
 
+  const continueSignup = () => {
+    setError('');
+    setFieldErrors({});
+    if (signupStep === 1) {
+      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setFieldErrors({ email: 'Enter a valid email address.' });
+        return;
+      }
+      setSignupStep(2);
+      return;
+    }
+    const nextErrors: FieldErrors = {};
+    if (!username.trim()) nextErrors.username = 'Choose a username.';
+    else if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username.replace(/^@/, ''))) nextErrors.username = 'Use 3–30 letters, numbers, underscores, or hyphens.';
+    else if (availability === 'taken' || availability === 'checking') nextErrors.username = 'Please choose an available username.';
+    if (!password) nextErrors.password = 'Create a password.';
+    else if (password.length < 8) nextErrors.password = 'Use at least 8 characters.';
+    if (Object.keys(nextErrors).length) { setFieldErrors(nextErrors); return; }
+    setSignupStep(3);
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
@@ -166,6 +189,8 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       if (!username.trim()) nextErrors.username = 'Choose a username.';
       else if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username.replace(/^@/, ''))) nextErrors.username = 'Use 3–30 letters, numbers, underscores, or hyphens.';
       else if (availability === 'taken' || availability === 'checking') nextErrors.username = 'Please choose an available username.';
+      if (!dateOfBirth) nextErrors.terms = 'Enter your date of birth.';
+      else { const dob = new Date(dateOfBirth + 'T00:00:00'); const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 13); if (Number.isNaN(dob.getTime()) || dob > cutoff) nextErrors.terms = 'You must be at least 13 years old to join VANTA.'; }
       if (!terms) nextErrors.terms = 'Please agree before creating your account.';
       if (Object.keys(nextErrors).length) { setFieldErrors(nextErrors); return; }
       setBusy(true);
@@ -199,7 +224,7 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
     setBusy(true);
     try {
       const response = register
-        ? await authRegister({ email: email.trim(), username: username.trim().replace(/^@/, ''), password, fullName: fullName.trim() || undefined })
+        ? await authRegister({ email: email.trim(), username: username.trim().replace(/^@/, ''), password, fullName: fullName.trim() || undefined, dateOfBirth })
         : await authLogin({ identifier: identifier.trim(), password, rememberMe: remember });
       // The backend holds the login for two-factor verification (it never
       // issues a token until the authenticator/backup code is confirmed).
@@ -282,10 +307,12 @@ return (
               <>
               {oauthSignup && <div className="auth-oauth-note" role="status"><UserRound size={14} /><span>Your {oauth.provider === 'google' ? 'Google' : 'Telegram'} identity was verified. Now choose your VANTA username.</span></div>}
               {oauthSignup && oauth.email && <div className="auth-oauth-email"><Mail size={15} /><span>{oauth.email}</span></div>}
-              {register && !oauthSignup && <Field id="fullName" label="Full name" value={fullName} onChange={setFullName} placeholder="Your name" optional />}
-              {register && <Field id="username" label="Username" value={username} onChange={setUsername} placeholder="Choose a username" status={availability} error={fieldErrors.username} />}
-              {!oauthSignup && <Field id={register ? 'email' : 'identifier'} label={register ? 'Email address' : 'Email or username'} value={register ? email : identifier} onChange={register ? setEmail : setIdentifier} placeholder={register ? 'you@example.com' : 'Email address or username'} type={register ? 'email' : 'text'} error={register ? fieldErrors.email : fieldErrors.identifier} />}
-              {!oauthSignup && (
+              {register && !oauthSignup && signupStep === 1 && <Field id="email" label="Email address" value={email} onChange={setEmail} placeholder="you@example.com" type="email" error={fieldErrors.email} />}
+              {register && !oauthSignup && signupStep >= 2 && <Field id="username" label="Username" value={username} onChange={setUsername} placeholder="Choose a username" status={availability} error={fieldErrors.username} />}
+              {register && !oauthSignup && signupStep === 3 && <Field id="fullName" label="Display name" value={fullName} onChange={setFullName} placeholder="How should people know you?" optional />}
+              {register && !oauthSignup && signupStep === 3 && <div className="auth-field"><label htmlFor="dateOfBirth">Date of birth</label><div className="auth-input-wrap"><input id="dateOfBirth" type="date" className="auth-input" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().slice(0, 10)} required /></div>{fieldErrors.terms && <span className="auth-field-error"><X size={12} />{fieldErrors.terms}</span>}</div>}
+              {!register && <Field id="identifier" label="Email or username" value={identifier} onChange={setIdentifier} placeholder="Email address or username" type="text" error={fieldErrors.identifier} />}
+              {(!register || signupStep === 2 || oauthSignup) && !oauthSignup && (
               <div className="auth-field">
                 <label htmlFor="password">Password</label>
                 <div className={`auth-input-wrap ${fieldErrors.password ? 'invalid' : ''}`}><LockKeyhole size={17} /><input id="password" type={show ? 'text' : 'password'} className="auth-input has-action" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={register ? 'At least 8 characters' : 'Enter your password'} autoComplete={register ? 'new-password' : 'current-password'} aria-invalid={!!fieldErrors.password} aria-describedby={fieldErrors.password ? 'password-error' : register ? 'password-strength' : undefined} required /><button type="button" className="auth-password-toggle" onClick={() => setShow((visible) => !visible)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
@@ -294,14 +321,15 @@ return (
               </div>
               )}
               {!register && !oauthSignin && <div className="auth-login-options"><label className="auth-check"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Remember me</span></label><Link className="auth-link" href="/forgot-password">Forgot password?</Link></div>}
-              {register && <><label className={`auth-check ${fieldErrors.terms ? 'invalid' : ''}`}><input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} required /><span>I agree to the <Link className="auth-link" href="/terms">Terms of Service</Link> and <Link className="auth-link" href="/privacy">Privacy Policy</Link>.</span></label>{fieldErrors.terms && <span className="auth-field-error auth-terms-error"><X size={12} />{fieldErrors.terms}</span>}</>}
+              {register && (signupStep === 3 || oauthSignup) && <><label className={`auth-check ${fieldErrors.terms ? 'invalid' : ''}`}><input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} required /><span>I agree to the <Link className="auth-link" href="/terms">Terms of Service</Link> and <Link className="auth-link" href="/privacy">Privacy Policy</Link>.</span></label>{fieldErrors.terms && <span className="auth-field-error auth-terms-error"><X size={12} />{fieldErrors.terms}</span>}</>}
               </>)}
 {error && <div className="auth-error" role="alert"><X size={15} />{error}</div>}
               {!error && oauthError && <div className="auth-error" role="alert"><X size={15} />{oauthError}</div>}
               {twoFactorUserId && twoFactorError && <div className="auth-error" role="alert"><X size={15} />{twoFactorError}</div>}
-              <button className="auth-submit" type="submit" disabled={busy || twoFactorBusy || (register && availability === 'checking')} aria-busy={busy || twoFactorBusy} data-loading={busy || twoFactorBusy}><span className="auth-submit-content">{busy || twoFactorBusy ? <><Loader2 className="spin" size={18} aria-hidden="true" /><span>{register ? 'Creating account…' : twoFactorUserId ? 'Verifying…' : 'Signing in…'}</span></> : <>{register ? 'Create account' : twoFactorUserId ? 'Verify & sign in' : oauthSignin ? 'Finish sign in' : 'Sign In'}<ArrowRight size={17} aria-hidden="true" /></>}</span></button>
+              {register && !oauthSignup && signupStep < 3 && <button className="auth-submit" type="button" onClick={continueSignup}><span className="auth-submit-content">Continue<ArrowRight size={17} aria-hidden="true" /></span></button>}
+              {(!register || oauthSignup || signupStep === 3) && <button className="auth-submit" type="submit" disabled={busy || twoFactorBusy || (register && availability === 'checking')} aria-busy={busy || twoFactorBusy} data-loading={busy || twoFactorBusy}><span className="auth-submit-content">{busy || twoFactorBusy ? <><Loader2 className="spin" size={18} aria-hidden="true" /><span>{register ? 'Creating account…' : twoFactorUserId ? 'Verifying…' : 'Signing in…'}</span></> : <>{register ? 'Create account' : twoFactorUserId ? 'Verify & sign in' : oauthSignin ? 'Finish sign in' : 'Sign In'}<ArrowRight size={17} aria-hidden="true" /></>}</span></button>}
         </form>
-        {!twoFactorUserId && !oauthSignup && !oauthSignin && (providerReady.google || providerReady.telegram) && (
+        {!twoFactorUserId && !oauthSignin && (!register || signupStep === 1) && !oauthSignup && (providerReady.google || providerReady.telegram) && (
           <div className="auth-providers">
             <span className="auth-provider-divider">or continue with</span>
             {providerReady.google && (
