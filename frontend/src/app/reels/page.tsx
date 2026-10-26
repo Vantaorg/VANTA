@@ -20,7 +20,6 @@ import {
   Maximize,
   MessageCircle,
   MoreHorizontal,
-  Music2,
   Pause,
   Play,
   Plus,
@@ -557,7 +556,7 @@ export default function ReelsPage() {
 
   return (
     <div data-dark-surface className="relative h-[100dvh] overflow-hidden bg-[#050505] text-[#f5f5f5] ">
-      <header className="pointer-events-none fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-center bg-gradient-to-b from-black/75 to-transparent px-16 ">
+      <header className="pointer-events-none fixed left-0 right-0 top-0 z-30 flex h-14 items-center justify-center bg-black/35 px-16 backdrop-blur-sm">
         <div className="pointer-events-auto flex items-center gap-5" role="tablist" aria-label="Reel feeds">
           {(['for-you', 'following', 'trending'] as Feed[]).map(tab => (
             <button key={tab} type="button" role="tab" aria-selected={feed === tab} onClick={() => setFeed(tab)} className={cn('relative h-10 text-xs font-medium text-white/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', feed === tab && 'text-white')}>
@@ -601,7 +600,7 @@ export default function ReelsPage() {
         ))}
       </PullToRefresh>
 
-      <nav className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-30 grid h-[calc(64px+env(safe-area-inset-bottom))] grid-cols-5 border-t border-white/[.08] bg-[#080808]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl " aria-label="Mobile navigation">
+      <nav className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-30 grid h-[calc(60px+env(safe-area-inset-bottom))] grid-cols-5 border-t border-white/[.06] bg-[#080808]/95 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
         {nav.map(item => item.create ? (
           <button key={item.label} type="button" onClick={openCreateHub} className="mx-auto grid h-12 w-12 place-items-center self-center rounded-full bg-[#c9a227] text-black" aria-label="Create"><Plus size={22} /></button>
         ) : (
@@ -677,8 +676,8 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
 
   return (
     <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] snap-start items-center justify-center bg-[#050505] pb-[calc(64px+env(safe-area-inset-bottom))] pt-0  ">
-      <div className="flex h-full w-full items-center justify-center   ">
-        <div className="relative h-full w-full overflow-hidden bg-black      ">
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="relative h-full w-full overflow-hidden bg-black">
           {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
           {nearby && !videoFailed && (
             <video
@@ -742,7 +741,6 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
             </div>
             <p className={cn('mt-3 max-w-[44ch] text-sm leading-5 text-white/90', !expanded && 'line-clamp-2')}>{reel.description || reel.title || 'A new Reel on VANTA.'}</p>
             {(reel.description?.length || reel.title?.length || 0) > 110 && <button type="button" onClick={() => setExpanded(value => !value)} className="mt-0.5 text-xs text-white/60">{expanded ? 'less' : 'more'}</button>}
-            <button type="button" className="mt-2 flex items-center gap-2 text-xs text-white/60" aria-label="Original audio"><Music2 size={13} />Original audio</button>
           </div>
 
           <div className="absolute bottom-6 right-3 z-10 flex flex-col items-center gap-3 ">
