@@ -1,7 +1,7 @@
 /**
  * VANTA — CEO/Admin initial allocation (real, database-backed, idempotent).
  *
- * Gives the designated CEO/Admin account (`ceo@vanta.app`) an initial
+ * Gives the designated CEO/Admin account (`vantapp74@gmail.com`) an initial
  * allocation of EXACTLY 1,000,000 VANTA Coins, persisted through VANTA's
  * existing wallet / ledger architecture:
  *
@@ -53,14 +53,14 @@
  * Identity + security
  * ────────────────────────────────────────────────────────────────────────────
  * The recipient is resolved strictly by the canonical administrator EMAIL
- * (`ceo@vanta.app`). It is NOT derived from a client-supplied username/role,
+ * (`vantapp74@gmail.com`). It is NOT derived from a client-supplied username/role,
  * so a normal user who renames themselves to `ceo` (or `CEO`) can never claim
  * the allocation. There is no HTTP endpoint that mints coins: this function is
  * called only from the trusted seed / server-startup paths.
  * ────────────────────────────────────────────────────────────────────────────
  */
 /** Canonical CEO/Admin account email. Single source of truth with the seed. */
-export const ADMIN_DEV_EMAIL = 'ceo@vanta.app';
+export const ADMIN_DEV_EMAIL = ADMIN_EMAIL;
 
 /** The exact CEO/Admin initial allocation amount in VANTA Coins. */
 export const CEO_ADMIN_ALLOCATION_COINS = 1_000_000;
@@ -201,7 +201,7 @@ export interface AdminDevTx {
  * Idempotently ensure the canonical CEO account's wallet holds the CEO/Admin
  * initial allocation (default 1,000,000 VANTA Coins).
  *
- *  - If the CEO account (identified by `ceo@vanta.app`) does not exist,
+ *  - If the CEO account (identified by `vantapp74@gmail.com`) does not exist,
  *    returns `admin-not-found` without creating anything.
  *  - If the allocation was already received (DB marker or existing ledger
  *    transaction), returns `seed-already-available` and leaves the balance
