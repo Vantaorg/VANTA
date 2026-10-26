@@ -111,19 +111,19 @@ const MobileMenu = memo(function MobileMenu({
             onClick={onClose}
           />
           <motion.aside
-            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-[#c9a227]/30 bg-[linear-gradient(145deg,rgba(27,24,15,0.98),rgba(12,12,14,0.98)_55%,rgba(20,17,10,0.98))] shadow-[0_20px_70px_rgba(0,0,0,0.65),0_0_28px_rgba(201,162,39,0.08)] backdrop-blur-2xl"
+            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.10] bg-[#080808]/[0.99] shadow-[0_20px_70px_rgba(0,0,0,0.72)] backdrop-blur-2xl"
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
           >
             
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#c9a227]/20 bg-gradient-to-r from-[#c9a227]/[0.10] via-transparent to-transparent px-4">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#080808] px-4">
               <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#c9a227]/35 bg-gradient-to-br from-[#c9a227]/20 to-[#080808] shadow-[0_0_18px_rgba(201,162,39,0.12)]">
-                  <VantaLogo size={16} className="text-white" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.10] bg-[#111111]">
+                  <VantaLogo size={16} className="text-[#c9a227]" />
                 </div>
-                <span className="text-base font-semibold tracking-[.18em] text-white">VANTA</span>
+                <span className="text-base font-semibold tracking-[.18em] text-[#c9a227]">VANTA</span>
               </div>
               <button
                 onClick={onClose}
@@ -146,7 +146,7 @@ const MobileMenu = memo(function MobileMenu({
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-white truncate">{user.fullName || user.username || 'Guest'}</p>
-                    <p className="text-[10px] text-gray-500">@{user.username || 'user'}</p>
+                    <p className="text-[10px] text-gray-400">@{user.username || 'user'}</p>
                   </div>
                 </div>
               </div>
@@ -165,12 +165,12 @@ const MobileMenu = memo(function MobileMenu({
                       className={cn(
                         'flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2.5 transition-all',
                         isActive
-                          ? 'border-[#c9a227]/40 bg-gradient-to-r from-[#c9a227]/15 to-[#c9a227]/[0.04] text-white shadow-[0_0_18px_rgba(201,162,39,0.08)]'
-                          : 'border-white/[0.055] bg-white/[0.018] text-white/65 hover:border-[#c9a227]/25 hover:bg-[#c9a227]/[0.06] hover:text-white'
+                          ? 'border-[#c9a227]/25 bg-white/[0.035] text-[#c9a227]'
+                          : 'border-transparent bg-transparent text-[#c9a227] hover:border-white/[0.08] hover:bg-white/[0.045]'
                       )}
                     >
                       <span className="relative">
-                        <Icon size={17} className={isActive ? 'text-[var(--active-bright)]' : undefined} />
+                        <Icon size={17} className="text-gray-400" />
                         {navBadgeFor(item.href) > 0 && (
                           <span className="absolute -right-2 -top-2 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[#0d0d0f]">
                             {navBadgeFor(item.href) > 99 ? '99+' : navBadgeFor(item.href)}
