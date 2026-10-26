@@ -30,7 +30,7 @@ interface MockState {
   $transactionCalls: number;
 }
 
-const ADMIN = { id: 'admin1', username: 'CEO', email: 'ceo@vanta.app', coins: 0 };
+const ADMIN = { id: 'admin1', username: 'Alex', email: 'vantapp74@gmail.com', coins: 0 };
 
 function makeMockPrisma(
   initialBalance: number,
@@ -328,7 +328,7 @@ describe('ensureAdminDevBalance — CEO/Admin initial allocation', () => {
     await ensureAdminDevBalance(prisma);
     // The lookup must be strictly by canonical email, never by username/role.
     const args = (prisma.user.findFirst as jest.Mock).mock.calls[0][0];
-    expect((args as { where: { email: string } }).where.email).toBe('ceo@vanta.app');
+    expect((args as { where: { email: string } }).where.email).toBe('vantapp74@gmail.com');
     expect(state.balance).toBe(1_000_000);
   });
 
