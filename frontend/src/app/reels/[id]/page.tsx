@@ -495,7 +495,7 @@ function ReelRailAction({ icon, label, ariaLabel, onClick, active }: { icon: Rea
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={active}
-      className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 active:scale-95', active ? 'text-[#f2c75c]' : 'text-white/85 hover:text-white')}
+      className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 active:scale-95', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')}
     >
       <span className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-[#161616]/80 backdrop-blur">{icon}</span>
       <span className="tabular-nums">{label}</span>
