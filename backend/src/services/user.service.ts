@@ -147,7 +147,10 @@ export class UserService {
       country: profile?.country || null,
       city: profile?.city || null,
       interests: profile?.interests || null,
-      verified: badgeActive || Boolean(user.verified),
+      verified: badgeActive || (Boolean(user.verified) && !user.verificationBadge),
+      verificationType: badgeActive
+        ? user.verificationBadge!.badgeType
+        : Boolean(user.verified) && !user.verificationBadge ? 'GOLD' : null,
       premium: user.premium,
       // Creator Hub fields
       creatorCategory: profile?.creatorCategory || null,
