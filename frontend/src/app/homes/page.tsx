@@ -49,8 +49,8 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   ];
 
   return (
-    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] pt-14 text-white">
-      <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
+    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
+      <header className="sticky top-0 z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
