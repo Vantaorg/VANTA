@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -6,55 +6,53 @@ import { useAuth } from '@/context/AuthContext';
 import { getDashboardStats, getInfrastructure } from '@/lib/adminApi';
 import { cn } from '@/lib/utils';
 import {
-  Users, UserPlus, ShieldCheck, Radio, Flag,
-  FileText, DollarSign, RefreshCw, ChevronRight,
-  Wallet, Gift, Server, BadgeCheck, Crown, Activity,
-  AlertTriangle,
+  Users, Activity, Radio, Wallet, Flag, ShieldCheck, Gift, Server,
+  FileText, RefreshCw, ArrowUpRight, ChevronRight, AlertTriangle,
 } from 'lucide-react';
-import MetricTile from '@/components/console/MetricTile';
-import ConsolePanel from '@/components/console/Panel';
 import StatusBadge, { statusToneFor } from '@/components/console/StatusBadge';
 import TrendChart from '@/components/console/TrendChart';
-import {
-  ConsoleErrorState, ConsoleEmptyState, SkeletonRows,
-} from '@/components/console/States';
-import {
-  fmtNumber, fmtCompact, fmtCompactCurrency, timeAgo,
-} from '@/components/console/format';
-
-// ============================================================================
-// ADMIN COMMAND CENTER - OVERVIEW
-// ----------------------------------------------------------------------------
-// Every figure below is read live from GET /api/admin/stats plus the real
-// GET /api/admin/infrastructure service-health snapshot. Nothing is invented:
-// a metric with no backend source is not rendered, and each period is labelled
-// explicitly so cumulative totals are never mistaken for activity counts.
-// ============================================================================
+import { ConsoleErrorState, ConsoleEmptyState } from '@/components/console/States';
+import { fmtNumber, fmtCompact, fmtCompactCurrency, timeAgo } from '@/components/console/format';
 
 type GrowthKey = '7d' | '30d' | '90d' | '12m';
 
-const GROWTH_LABEL: Record<GrowthKey, string> = {
-  '7d': 'last 7 days',
-  '30d': 'last 30 days',
-  '90d': 'last 90 days',
-  '12m': 'last 12 months',
-};
+const PERIODS: { key: GrowthKey; label: string; description: string }[] = [
+  { key: '7d', label: '7D', description: 'last 7 days' },
+  { key: '30d', label: '30D', description: 'last 30 days' },
+  { key: '90d', label: '90D', description: 'last 90 days' },
+  { key: '12m', label: '12M', description: 'last 12 months' },
+];
 
-const QUICK_ACTIONS = [
-  { href: '/admin/users', label: 'User management', desc: 'Roles, status, verification', icon: Users },
-  { href: '/admin/compliance', label: 'Moderation queue', desc: 'Reports awaiting review', icon: Flag },
-  { href: '/admin/finance', label: 'Finance ledger', desc: 'Transactions and payouts', icon: Wallet },
-  { href: '/admin/verification', label: 'Verification', desc: 'Badge requests and approvals', icon: BadgeCheck },
-  { href: '/admin/gifts', label: 'Gift catalog', desc: 'Pricing and availability', icon: Gift },
-  { href: '/admin/infrastructure', label: 'System health', desc: 'Service diagnostics', icon: Server },
+const WORKSPACES = [
+  { href: '/admin/users', label: 'Users', detail: 'Accounts and access', icon: Users },
+  { href: '/admin/verification', label: 'Verification', detail: 'Review badge requests', icon: ShieldCheck },
+  { href: '/admin/compliance', label: 'Moderation', detail: 'Reports and safety', icon: Flag },
+  { href: '/admin/finance', label: 'Finance', detail: 'Payments and payouts', icon: Wallet },
+  { href: '/admin/gifts', label: 'Gifts', detail: 'Catalog and pricing', icon: Gift },
+  { href: '/admin/infrastructure', label: 'System health', detail: 'Platform diagnostics', icon: Server },
 ];
 
 const roleTone = (role: string | undefined) => {
-  const r = String(role || '').toUpperCase();
-  if (['SUPER_ADMIN', 'CEO', 'FINANCE_MANAGER'].includes(r)) return 'gold' as const;
-  if (['MODERATOR', 'SUPPORT_AGENT', 'CONTENT_REVIEWER'].includes(r)) return 'info' as const;
+  const value = String(role || '').toUpperCase();
+  if (['SUPER_ADMIN', 'CEO', 'ADMIN'].includes(value)) return 'gold' as const;
+  if (['MODERATOR', 'SUPPORT_AGENT', 'CONTENT_REVIEWER'].includes(value)) return 'info' as const;
   return 'neutral' as const;
 };
+
+function Metric({ label, value, note, icon: Icon, highlight = false }: {
+  label: string; value: string; note: string; icon: any; highlight?: boolean;
+}) {
+  return (
+    <div className="min-w-0 border-l border-console-border pl-3 first:border-l-0 first:pl-0 sm:pl-4">
+      <div className="mb-2 flex items-center gap-1.5 text-console-text-3">
+        <Icon size={13} aria-hidden />
+        <span className="truncate text-[11px] font-medium">{label}</span>
+      </div>
+      <p className={cn('truncate text-2xl font-semibold leading-none tracking-tight tabular-nums sm:text-[28px]', highlight ? 'text-console-gold' : 'text-console-text')}>{value}</p>
+      <p className="mt-2 truncate text-[10px] text-console-text-3 sm:text-[11px]">{note}</p>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const { token } = useAuth();
@@ -63,392 +61,199 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [growthKey, setGrowthKey] = useState<GrowthKey>('30d');
+  const [period, setPeriod] = useState<GrowthKey>('30d');
 
-  const fetchData = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
     setRefreshing(true);
     setError(null);
     try {
-      const [data, infraData] = await Promise.all([
+      const [dashboard, infrastructure] = await Promise.all([
         getDashboardStats(token),
         getInfrastructure(token).catch(() => null),
       ]);
-      setStats(data);
-      setInfra(infraData);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load the platform overview.');
+      setStats(dashboard);
+      setInfra(infrastructure);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load the platform overview.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [token]);
 
-  useEffect(() => { void fetchData(); }, [fetchData]);
+  useEffect(() => { void load(); }, [load]);
 
   const growth = useMemo(() => {
-    const raw = stats?.userGrowth?.[growthKey];
+    const raw = stats?.userGrowth?.[period];
     return Array.isArray(raw)
-      ? raw.map((g: any) => ({ label: String(g.date || g.month || ''), value: Number(g.count) || 0 }))
+      ? raw.map((point: any) => ({ label: String(point.date || point.month || ''), value: Number(point.count) || 0 }))
       : [];
-  }, [stats, growthKey]);
-
-  const services = Array.isArray(infra?.services) ? infra.services : [];
-  const s: any = stats || {};
+  }, [stats, period]);
 
   if (loading && !stats) {
     return (
-      <div className="space-y-6" aria-busy="true">
-        <div className="space-y-2">
-          <div className="h-6 w-52 animate-pulse rounded bg-white/[0.06]" />
-          <div className="h-3.5 w-80 animate-pulse rounded bg-white/[0.04]" />
+      <div className="w-full space-y-8" aria-busy="true">
+        <div className="space-y-3">
+          <div className="h-7 w-48 animate-pulse rounded bg-white/[0.06]" />
+          <div className="h-4 w-72 max-w-full animate-pulse rounded bg-white/[0.04]" />
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 animate-pulse rounded bg-white/[0.04]" />)}
+        <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-4">
+          {[1, 2, 3, 4].map((item) => <div key={item} className="h-20 animate-pulse rounded bg-white/[0.04]" />)}
         </div>
-        <div className="vc-panel"><SkeletonRows rows={6} /></div>
       </div>
     );
   }
 
   if (error && !stats) {
-    return <ConsoleErrorState title="Platform overview unavailable" message={error} onRetry={() => void fetchData()} />;
+    return <ConsoleErrorState title="Platform overview unavailable" message={error} onRetry={() => void load()} />;
   }
 
-  const pendingReports = Number(s.pendingReports || 0);
-  const rawVerificationCount = s.pendingVerificationRequests ?? s.pendingVerifications;
-  const pendingVerifications = Number(rawVerificationCount ?? NaN);
-  const pendingWithdrawals = Number(s.pendingWithdrawals || 0);
-  const economyMax = Math.max(1, s.revenue || 0, s.totalGiftVolume || 0, s.coinPurchases || 0, s.badgePurchases || 0);
+  const data = stats || {};
+  const services = Array.isArray(infra?.services) ? infra.services : [];
+  const verificationRaw = data.pendingVerificationRequests ?? data.pendingVerifications;
+  const verificationCount = Number(verificationRaw);
+  const queues = [
+    { label: 'Reports', count: Number(data.pendingReports || 0), known: true, href: '/admin/compliance', icon: Flag },
+    { label: 'Verifications', count: verificationCount, known: Number.isFinite(verificationCount), href: '/admin/verification', icon: ShieldCheck },
+    { label: 'Withdrawals', count: Number(data.pendingWithdrawals || 0), known: true, href: '/admin/finance', icon: Wallet },
+  ];
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* ---- Operational indicators: one open metric band, not card grids ---- */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-console-text-3">Operational indicators</h2>
-        <button
-          type="button"
-          onClick={() => void fetchData()}
-          disabled={refreshing}
-          aria-busy={refreshing || undefined}
-          className="vc-focus inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[var(--vc-radius)] border border-console-border px-2.5 text-[11px] font-semibold text-console-text-2 transition-colors hover:bg-white/[0.04] hover:text-console-text disabled:opacity-60"
-        >
-          <RefreshCw size={12} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
-          {refreshing ? 'Refreshing' : 'Refresh'}
-        </button>
-      </div>
-
-      <section aria-label="Operational indicators">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
-          <MetricTile
-            label="Registered users"
-            value={fmtCompact(s.totalUsers)}
-            icon={<Users size={13} />}
-            accent
-            hint={`${fmtCompact(s.newUsersThisMonth)} joined in the last 30 days`}
-          />
-          <MetricTile
-            label="Active today"
-            value={fmtCompact(s.activeUsersToday)}
-            icon={<Activity size={13} />}
-            hint={`${fmtCompact(s.activeUsersThisWeek)} this week, ${fmtCompact(s.onlineUsers)} online now`}
-          />
-          <MetricTile
-            label="Purchase revenue"
-            value={fmtCompactCurrency(s.revenue)}
-            icon={<DollarSign size={13} />}
-            hint="Completed purchase orders"
-          />
-          <MetricTile
-            label="Active streams"
-            value={fmtCompact(s.activeStreams)}
-            icon={<Radio size={13} />}
-            hint={`${fmtCompact(s.totalStreams)} streams all-time`}
-          />
+    <div className="w-full min-w-0 space-y-9 pb-8 sm:space-y-11">
+      <section className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-console-gold">VANTA / ADMINISTRATION</p>
+          <h2 className="text-2xl font-semibold tracking-tight text-console-text sm:text-3xl">Platform overview</h2>
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-console-text-3 sm:text-sm">A live operational view of your community, activity and platform systems.</p>
         </div>
-        <p className="mt-3 max-w-2xl text-[11px] leading-relaxed text-console-text-3">
-          Cumulative and period figures are computed directly from the production database by the
-          admin stats service. Registered users is a lifetime count, not an activity count.
-        </p>
+        <button type="button" onClick={() => void load()} disabled={refreshing} aria-busy={refreshing || undefined} className="vc-focus inline-flex min-h-9 items-center gap-2 rounded-[var(--vc-radius)] border border-console-border px-3 text-xs font-medium text-console-text-2 transition-colors hover:border-console-border-strong hover:text-console-text disabled:opacity-60">
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
+          {refreshing ? 'Updating' : 'Refresh data'}
+        </button>
       </section>
 
-      {/* ------------------------ Growth trend + economy ---------------------- */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ConsolePanel
-          className="lg:col-span-2"
-          title="User growth"
-          description={`New accounts per period, ${GROWTH_LABEL[growthKey]}`}
-          actions={
-            <div className="flex items-center gap-0.5 rounded-[var(--vc-radius)] border border-console-border bg-console-bg2 p-0.5" role="group" aria-label="Growth period">
-              {(['7d', '30d', '90d', '12m'] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setGrowthKey(k)}
-                  aria-pressed={growthKey === k}
-                  className={cn(
-                    'vc-focus rounded-[calc(var(--vc-radius)-2px)] px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                    growthKey === k ? 'bg-console-gold text-console-gold-fg' : 'text-console-text-3 hover:text-console-text-2',
-                  )}
-                >
-                  {k === '12m' ? '12 mo' : k}
+      <section aria-label="Platform metrics" className="border-y border-console-border py-5 sm:py-6">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-console-border">
+          <Metric label="Registered users" value={fmtCompact(data.totalUsers)} note="All-time accounts" icon={Users} highlight />
+          <Metric label="Active today" value={fmtCompact(data.activeUsersToday)} note={fmtCompact(data.onlineUsers) + ' online now'} icon={Activity} />
+          <Metric label="Purchase revenue" value={fmtCompactCurrency(data.revenue)} note="Completed purchases" icon={Wallet} />
+          <Metric label="Live streams" value={fmtCompact(data.activeStreams)} note={fmtCompact(data.totalStreams) + ' total streams'} icon={Radio} />
+        </div>
+        <p className="mt-5 text-[10px] leading-relaxed text-console-text-3">Figures reflect the data returned by the admin service. Registered users and total streams are cumulative totals.</p>
+      </section>
+
+      <div className="grid min-w-0 grid-cols-1 gap-9 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.8fr)] xl:gap-10">
+        <section className="min-w-0" aria-label="User growth">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-console-text">User growth</h3>
+              <p className="mt-1 text-xs text-console-text-3">New accounts over the {PERIODS.find((p) => p.key === period)?.description}</p>
+            </div>
+            <div className="flex items-center gap-1" role="group" aria-label="Growth period">
+              {PERIODS.map((item) => (
+                <button key={item.key} type="button" onClick={() => setPeriod(item.key)} aria-pressed={period === item.key} className={cn('vc-focus min-h-8 rounded px-2.5 text-[11px] font-semibold transition-colors', period === item.key ? 'bg-console-gold text-console-gold-fg' : 'text-console-text-3 hover:bg-white/[0.04] hover:text-console-text')}>
+                  {item.label}
                 </button>
               ))}
             </div>
-          }
-          bodyClassName="px-4 pb-5 pt-4 sm:px-5"
-        >
-          {growth.length === 0 ? (
-            <ConsoleEmptyState
-              icon={<Users size={19} />}
-              title="No signups in this period"
-              description="The reporting backend returned no new-account buckets for the selected range."
-            />
-          ) : (
-            <TrendChart
-              data={growth}
-              variant="bar"
-              height={200}
-              formatValue={fmtCompact}
-              ariaLabel={`New user accounts per period over the ${GROWTH_LABEL[growthKey]}`}
-            />
-          )}
-        </ConsolePanel>
-
-        <ConsolePanel title="Economy" description="Real monetization activity" bodyClassName="px-4 py-4 sm:px-5">
-          <dl className="space-y-4">
+          </div>
+          <div className="min-w-0 border-y border-console-border py-4">
+            {growth.length ? (
+              <TrendChart data={growth} variant="bar" height={220} formatValue={fmtCompact} ariaLabel={'New user accounts over the ' + PERIODS.find((p) => p.key === period)?.description} />
+            ) : (
+              <ConsoleEmptyState icon={<Users size={18} />} title="No growth data for this period" description="The reporting service returned no account buckets for this range." />
+            )}
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-3">
             {[
-              { label: 'Purchase revenue', value: s.revenue, tone: 'bg-console-success' },
-              { label: 'Gift volume (coins)', value: s.totalGiftVolume, tone: 'bg-console-gold' },
-              { label: 'Coin purchases', value: s.coinPurchases, tone: 'bg-console-info' },
-              { label: 'Badge purchases', value: s.badgePurchases, tone: 'bg-console-warning' },
-            ].map((row) => (
-              <div key={row.label}>
-                <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                  <dt className="text-xs text-console-text-3">{row.label}</dt>
-                  <dd className="text-xs font-semibold tabular-nums text-console-text">{fmtNumber(row.value)}</dd>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div
-                    className={cn('h-full rounded-full', row.tone)}
-                    style={{ width: `${Math.max(2, Math.min(100, (Number(row.value || 0) / economyMax) * 100))}%` }}
-                  />
-                </div>
-              </div>
+              { label: 'Content items', value: data.totalContent, icon: FileText },
+              { label: 'Verified users', value: data.verifiedUsers, icon: ShieldCheck },
+              { label: 'Gifts sent', value: data.totalGiftsSent, icon: Gift },
+            ].map((item) => {
+              const Icon = item.icon;
+              const known = item.value !== undefined && item.value !== null && Number.isFinite(Number(item.value));
+              return <div key={item.label} className="flex min-w-0 items-start gap-2.5"><Icon size={14} className="mt-0.5 shrink-0 text-console-text-3" aria-hidden /><div className="min-w-0"><p className="truncate text-[11px] text-console-text-3">{item.label}</p><p className="mt-1 text-lg font-semibold tabular-nums text-console-text">{known ? fmtCompact(item.value) : '—'}</p></div></div>;
+            })}
+          </div>
+        </section>
+
+        <section className="min-w-0" aria-label="Queues requiring attention">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-console-text">Needs attention</h3>
+            <p className="mt-1 text-xs text-console-text-3">Items awaiting an admin decision</p>
+          </div>
+          <div className="divide-y divide-console-border border-y border-console-border">
+            {queues.map((queue) => {
+              const Icon = queue.icon;
+              return (
+                <Link key={queue.label} href={queue.href} className="vc-focus group flex min-h-[68px] items-center gap-3 py-3 transition-colors">
+                  <Icon size={16} className={queue.known && queue.count > 0 ? 'shrink-0 text-console-gold' : 'shrink-0 text-console-text-3'} aria-hidden />
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-console-text">{queue.label}</span><span className="block text-[11px] text-console-text-3">{queue.known ? (queue.count > 0 ? 'Waiting for review' : 'No pending items') : 'Count unavailable'}</span></span>
+                  <span className="text-lg font-semibold tabular-nums text-console-text">{queue.known ? fmtNumber(queue.count) : '—'}</span>
+                  <ChevronRight size={14} className="shrink-0 text-console-text-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
+              );
+            })}
+          </div>
+          <h3 className="mb-3 mt-8 text-sm font-semibold text-console-text">Platform economy</h3>
+          <dl className="space-y-3">
+            {[{ label: 'Gift volume', value: data.totalGiftVolume }, { label: 'Coin purchases', value: data.coinPurchases }, { label: 'Badge purchases', value: data.badgePurchases }].map((item) => (
+              <div key={item.label} className="flex items-center justify-between gap-3"><dt className="text-xs text-console-text-3">{item.label}</dt><dd className="text-xs font-semibold tabular-nums text-console-text">{fmtNumber(item.value)}</dd></div>
             ))}
           </dl>
-          <Link href="/admin/finance" className="vc-focus mt-5 inline-flex items-center gap-1 rounded text-xs font-semibold text-console-gold hover:text-console-gold-hover">
-            Open finance ledger <ChevronRight size={13} aria-hidden />
-          </Link>
-        </ConsolePanel>
+          <Link href="/admin/finance" className="vc-focus mt-4 inline-flex items-center gap-1 text-xs font-semibold text-console-gold hover:text-console-gold-hover">Open finance <ArrowUpRight size={13} aria-hidden /></Link>
+        </section>
       </div>
 
-      {/* ------------------ Queues requiring attention ----------------------- */}
-      <section aria-label="Queues requiring attention">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-console-text-3">Requires attention</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            { label: 'Pending reports', value: pendingReports, known: true, href: '/admin/compliance', icon: Flag, desc: 'Open moderation reports' },
-            { label: 'Verification requests', value: pendingVerifications, known: Number.isFinite(pendingVerifications), href: '/admin/verification', icon: BadgeCheck, desc: 'Awaiting badge review' },
-            { label: 'Pending withdrawals', value: pendingWithdrawals, known: true, href: '/admin/finance', icon: Wallet, desc: 'Payouts awaiting review' },
-          ].map((q) => {
-            const Icon = q.icon;
-            const hasWork = q.known && q.value > 0;
-            return (
-              <Link
-                key={q.label}
-                href={q.href}
-                className="vc-focus vc-panel group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:border-console-border-strong hover:bg-white/[0.02]"
-              >
-                <span className={cn(
-                  'grid h-9 w-9 shrink-0 place-items-center rounded-[var(--vc-radius)]',
-                  hasWork ? 'bg-console-warning-soft text-console-warning' : 'bg-white/[0.04] text-console-text-3',
-                )}>
-                  <Icon size={16} aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-2xl font-semibold leading-none tabular-nums text-console-text">
-                    {q.known ? fmtNumber(q.value) : 'Unavailable'}
-                  </span>
-                  <span className="mt-1.5 block truncate text-xs font-medium text-console-text-2">{q.label}</span>
-                  <span className="block truncate text-[11px] text-console-text-3">
-                    {q.known ? q.desc : 'Not reported by the stats endpoint'}
-                  </span>
-                </span>
-                <ChevronRight size={15} className="shrink-0 text-console-text-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
-              </Link>
-            );
-          })}
-        </div>
-        {!Number.isFinite(pendingVerifications) ? (
-          <p className="mt-2 max-w-2xl text-[11px] leading-relaxed text-console-text-3">
-            The stats endpoint does not report an open verification-request count, so it is shown as
-            unavailable rather than as zero. Open the Verification workspace for the live queue.
-          </p>
-        ) : null}
-      </section>
-
-      {/* ------------------------ Platform totals ---------------------------- */}
-      <section aria-label="Platform totals">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-console-text-3">Platform totals</h2>
-        <div className="vc-panel grid grid-cols-2 divide-x divide-y divide-console-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-          {[
-            { label: 'Content items', value: s.totalContent, icon: FileText },
-            { label: 'Comments', value: s.totalComments, icon: Users },
-            { label: 'Verified users', value: s.verifiedUsers, icon: ShieldCheck },
-            { label: 'New today', value: s.newUsersToday, icon: UserPlus },
-            { label: 'Gifts sent', value: s.totalGiftsSent, icon: Gift },
-            { label: 'Suspended', value: s.suspendedUsers, icon: Crown },
-          ].map((m) => {
-            const Icon = m.icon;
-            const known = m.value !== undefined && m.value !== null && Number.isFinite(Number(m.value));
-            return (
-              <div key={m.label} className="min-w-0 px-4 py-3.5">
-                <div className="flex items-center gap-1.5 text-console-text-3">
-                  <Icon size={12} className="shrink-0" aria-hidden />
-                  <p className="truncate text-[11px] font-medium uppercase tracking-wider">{m.label}</p>
-                </div>
-                <p className="mt-1 truncate text-lg font-semibold tabular-nums text-console-text">
-                  {known ? fmtCompact(m.value) : 'Unavailable'}
-                </p>
-                {known ? null : <p className="text-[10px] text-console-text-3">not reported</p>}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ------------------------ Admin workspaces --------------------------- */}
       <section aria-label="Admin workspaces">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-console-text-3">Workspaces</h2>
-        <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {QUICK_ACTIONS.map((qa) => {
-            const Icon = qa.icon;
-            return (
-              <Link
-                key={qa.href}
-                href={qa.href}
-                className="vc-focus vc-panel group flex flex-col gap-2.5 p-3.5 transition-colors hover:border-console-border-strong hover:bg-white/[0.02]"
-              >
-                <span className="grid h-9 w-9 place-items-center rounded-[var(--vc-radius)] border border-console-border bg-console-bg2 text-console-text-3 transition-colors group-hover:text-console-gold">
-                  <Icon size={16} aria-hidden />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-semibold text-console-text">{qa.label}</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-console-text-3">{qa.desc}</span>
-                </span>
-              </Link>
-            );
+        <div className="mb-4"><h3 className="text-base font-semibold text-console-text">Workspaces</h3><p className="mt-1 text-xs text-console-text-3">Jump directly into a platform area.</p></div>
+        <nav className="grid grid-cols-2 gap-x-5 sm:grid-cols-3 xl:grid-cols-6">
+          {WORKSPACES.map((workspace) => {
+            const Icon = workspace.icon;
+            return <Link key={workspace.href} href={workspace.href} className="vc-focus group flex min-w-0 items-start gap-3 border-t border-console-border py-4 transition-colors hover:border-console-gold"><Icon size={16} className="mt-0.5 shrink-0 text-console-text-3 transition-colors group-hover:text-console-gold" aria-hidden /><span className="min-w-0"><span className="block truncate text-xs font-semibold text-console-text">{workspace.label}</span><span className="mt-1 block text-[10px] leading-relaxed text-console-text-3">{workspace.detail}</span></span><ArrowUpRight size={12} className="ml-auto mt-0.5 shrink-0 text-console-text-3 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></Link>;
           })}
         </nav>
       </section>
 
-      {/* ------------------------ Service health ----------------------------- */}
-      {services.length > 0 ? (
-        <section aria-label="Service health">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-console-text-3">Service health</h2>
-            <Link href="/admin/infrastructure" className="vc-focus inline-flex items-center gap-1 rounded text-[11px] font-semibold text-console-gold hover:text-console-gold-hover">
-              Diagnostics <ChevronRight size={12} aria-hidden />
-            </Link>
-          </div>
-          <div className="vc-panel grid grid-cols-2 gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-3 lg:grid-cols-5">
-            {services.slice(0, 10).map((svc: any) => (
-              <div key={svc.name} className="flex min-w-0 items-center gap-2.5 py-1.5">
-                <StatusBadge tone={statusToneFor(svc.status)} label={String(svc.status || 'unknown')} pulse={svc.status === 'degraded'} />
-                <span className="min-w-0 truncate text-xs text-console-text-2" title={svc.name}>{svc.name}</span>
-              </div>
-            ))}
-          </div>
+      <div className="grid min-w-0 grid-cols-1 gap-9 xl:grid-cols-2 xl:gap-10">
+        <section className="min-w-0" aria-label="Recent signups">
+          <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-console-text">Recent signups</h3><p className="mt-1 text-xs text-console-text-3">Newest accounts on VANTA</p></div><Link href="/admin/users" className="vc-focus shrink-0 text-xs font-semibold text-console-gold hover:text-console-gold-hover">All users <ChevronRight size={12} className="inline" aria-hidden /></Link></div>
+          {!Array.isArray(data.recentUsers) || data.recentUsers.length === 0 ? (
+            <div className="border-y border-console-border py-4"><ConsoleEmptyState icon={<Users size={17} />} title="No recent signups" description="No recent account data was returned." /></div>
+          ) : (
+            <ul className="divide-y divide-console-border border-y border-console-border">
+              {data.recentUsers.slice(0, 5).map((user: any) => (
+                <li key={user.id}><Link href={'/admin/users?search=' + encodeURIComponent(user.username || '')} className="vc-focus flex items-center gap-3 py-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.05] text-xs font-semibold text-console-text-2">{(user.username || '?').charAt(0).toUpperCase()}</span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-medium text-console-text">@{user.username}</span><span className="mt-1 block truncate text-[10px] text-console-text-3">{user.fullName ? user.fullName + ' · ' : ''}{timeAgo(user.createdAt)}</span></span><StatusBadge tone={roleTone(user.role)} label={String(user.role || 'USER')} /></Link></li>
+              ))}
+            </ul>
+          )}
         </section>
-      ) : (
-        <ConsoleEmptyState
-          icon={<Server size={19} />}
-          title="Service health unavailable"
-          description="The infrastructure diagnostics endpoint did not return service data for this session, so live-stream and payment health cannot be confirmed from this page."
-          action={
-            <Link href="/admin/infrastructure" className="vc-focus inline-flex min-h-9 items-center rounded-[var(--vc-radius)] border border-console-border-strong px-4 text-xs font-semibold text-console-text-2 hover:bg-white/[0.04]">
-              Open diagnostics
-            </Link>
-          }
-        />
-      )}
 
-      {/* ------------------------- Recent signups ---------------------------- */}
-      <ConsolePanel
-        title="Recent signups"
-        description="Newest accounts on the platform"
-        bodyClassName="p-0"
-        actions={
-          <Link href="/admin/users" className="vc-focus inline-flex items-center gap-1 rounded text-xs font-semibold text-console-gold hover:text-console-gold-hover">
-            View all <ChevronRight size={13} aria-hidden />
-          </Link>
-        }
-      >
-        {!Array.isArray(s.recentUsers) || s.recentUsers.length === 0 ? (
-          <ConsoleEmptyState icon={<Users size={19} />} title="No recent signups" description="The stats payload did not include any recent accounts." />
-        ) : (
-          <ul className="divide-y divide-console-border">
-            {s.recentUsers.slice(0, 6).map((u: any) => (
-              <li key={u.id}>
-                <Link href={`/admin/users?search=${encodeURIComponent(u.username || '')}`} className="vc-focus flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02] sm:px-5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-console-border bg-console-bg2 text-[11px] font-semibold text-console-text-2">
-                    {(u.username || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium text-console-text">@{u.username}</span>
-                    <span className="block truncate text-[11px] text-console-text-3">
-                      {u.fullName ? `${u.fullName}, ` : ''}{timeAgo(u.createdAt)}
-                    </span>
-                  </span>
-                  <StatusBadge tone={roleTone(u.role)} label={String(u.role || 'USER')} />
-                </Link>
-              </li>
+        <section className="min-w-0" aria-label="Service health">
+          <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-console-text">Service health</h3><p className="mt-1 text-xs text-console-text-3">Infrastructure snapshot</p></div><Link href="/admin/infrastructure" className="vc-focus shrink-0 text-xs font-semibold text-console-gold hover:text-console-gold-hover">Diagnostics <ChevronRight size={12} className="inline" aria-hidden /></Link></div>
+          {services.length ? (
+            <div className="grid grid-cols-1 gap-x-5 divide-y divide-console-border border-y border-console-border sm:grid-cols-2 sm:divide-y-0">
+              {services.slice(0, 8).map((service: any) => (
+                <div key={service.name} className="flex min-w-0 items-center gap-2.5 border-b border-console-border py-3 last:border-b-0 sm:odd:pr-3 sm:even:pl-3"><StatusBadge tone={statusToneFor(service.status)} label={String(service.status || 'unknown')} pulse={service.status === 'degraded'} /><span className="min-w-0 truncate text-xs text-console-text-2" title={service.name}>{service.name}</span></div>
+              ))}
+            </div>
+          ) : (
+            <div className="border-y border-console-border py-4"><ConsoleEmptyState icon={<Server size={17} />} title="Service health unavailable" description="The diagnostics endpoint did not return service data. Open system diagnostics for more detail." action={<Link href="/admin/infrastructure" className="vc-focus mt-2 inline-flex items-center gap-1 text-xs font-semibold text-console-gold">Open diagnostics <ArrowUpRight size={12} aria-hidden /></Link>} /></div>
+          )}
+        </section>
+      </div>
+
+      {Array.isArray(data.recentReports) && data.recentReports.length > 0 ? (
+        <section aria-label="Recent moderation reports">
+          <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-console-text">Recent reports</h3><p className="mt-1 text-xs text-console-text-3">Latest community safety reports</p></div><Link href="/admin/compliance" className="vc-focus shrink-0 text-xs font-semibold text-console-gold hover:text-console-gold-hover">Moderation queue <ChevronRight size={12} className="inline" aria-hidden /></Link></div>
+          <ul className="divide-y divide-console-border border-y border-console-border">
+            {data.recentReports.slice(0, 4).map((report: any) => (
+              <li key={report.id} className="flex items-center gap-3 py-3"><AlertTriangle size={15} className="shrink-0 text-console-text-3" aria-hidden /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-medium text-console-text">{report.reason || report.category || 'Report'}</span><span className="mt-1 block text-[10px] text-console-text-3">{timeAgo(report.createdAt)}</span></span><StatusBadge tone={statusToneFor(report.status)} label={String(report.status || 'PENDING')} /></li>
             ))}
           </ul>
-        )}
-      </ConsolePanel>
-
-      {/* ------------------------- Recent reports ---------------------------- */}
-      <ConsolePanel
-        title="Recent reports"
-        description="Latest submitted moderation reports"
-        bodyClassName="p-0"
-        actions={
-          <Link href="/admin/compliance" className="vc-focus inline-flex items-center gap-1 rounded text-xs font-semibold text-console-gold hover:text-console-gold-hover">
-            Open queue <ChevronRight size={13} aria-hidden />
-          </Link>
-        }
-      >
-        {!Array.isArray(s.recentReports) || s.recentReports.length === 0 ? (
-          <ConsoleEmptyState
-            icon={<Flag size={19} />}
-            title="No recent reports"
-            description={pendingReports > 0 ? `${fmtNumber(pendingReports)} reports are pending. Open the moderation queue to review them.` : 'Nothing has been reported recently.'}
-            action={pendingReports > 0 ? (
-              <Link href="/admin/compliance" className="vc-focus inline-flex min-h-9 items-center rounded-[var(--vc-radius)] bg-console-gold px-4 text-xs font-semibold text-console-gold-fg hover:bg-console-gold-hover">
-                Review reports
-              </Link>
-            ) : undefined}
-          />
-        ) : (
-          <ul className="divide-y divide-console-border">
-            {s.recentReports.slice(0, 6).map((r: any) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--vc-radius)] border border-console-border bg-console-bg2 text-console-warning">
-                  <AlertTriangle size={14} aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium text-console-text">{r.reason || r.category || 'Report'}</span>
-                  <span className="block truncate text-[11px] text-console-text-3">{timeAgo(r.createdAt)}</span>
-                </span>
-                <StatusBadge tone={statusToneFor(r.status)} label={String(r.status || 'PENDING')} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </ConsolePanel>
+        </section>
+      ) : null}
     </div>
   );
 }
