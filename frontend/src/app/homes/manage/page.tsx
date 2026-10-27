@@ -10,9 +10,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { Building2 } from 'lucide-react';
 import {
-  ArrowLeft, Plus, Archive, Home as HomeIcon,
+  ArrowLeft, Plus, Archive, Home as HomeIcon, Building2,
 } from 'lucide-react';
 
 const PAGE_LIMIT = 20;
