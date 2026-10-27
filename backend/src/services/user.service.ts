@@ -1383,7 +1383,7 @@ export class UserService {
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { follower: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, profile: { select: { avatarUrl: true } } } } },
+      include: { follower: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, verificationBadge: { select: { badgeType: true, status: true, expiresAt: true } }, profile: { select: { avatarUrl: true } } } } },
     });
     const nextCursor = followers.length > limit ? followers.pop()?.id : undefined;
     const userIds = followers.map(follow => follow.follower.id).filter(id => id !== viewerId);
@@ -1397,6 +1397,8 @@ export class UserService {
     return {
       items: followers.map(f => ({
         ...f.follower,
+        verified: isBadgeRowActive(f.follower.verificationBadge) || (Boolean(f.follower.verified) && !f.follower.verificationBadge),
+        verificationType: isBadgeRowActive(f.follower.verificationBadge) ? f.follower.verificationBadge!.badgeType : Boolean(f.follower.verified) && !f.follower.verificationBadge ? 'GOLD' : null,
         avatarUrl: f.follower.profile?.avatarUrl || f.follower.avatar || null,
         profile: undefined,
         isFollowing: f.follower.id !== viewerId && followedUserIds.has(f.follower.id),
@@ -1420,7 +1422,7 @@ export class UserService {
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { following: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, profile: { select: { avatarUrl: true } } } } },
+      include: { following: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, verificationBadge: { select: { badgeType: true, status: true, expiresAt: true } }, profile: { select: { avatarUrl: true } } } } },
     });
     const nextCursor = following.length > limit ? following.pop()?.id : undefined;
     const userIds = following.map(follow => follow.following.id).filter(id => id !== viewerId);
@@ -1436,6 +1438,8 @@ export class UserService {
     return {
       items: following.map(f => ({
         ...f.following,
+        verified: isBadgeRowActive(f.following.verificationBadge) || (Boolean(f.following.verified) && !f.following.verificationBadge),
+        verificationType: isBadgeRowActive(f.following.verificationBadge) ? f.following.verificationBadge!.badgeType : Boolean(f.following.verified) && !f.following.verificationBadge ? 'GOLD' : null,
         avatarUrl: f.following.profile?.avatarUrl || f.following.avatar || null,
         profile: undefined,
         isFollowing: f.following.id !== viewerId && followedUserIds.has(f.following.id),
