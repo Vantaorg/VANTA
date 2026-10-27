@@ -28,6 +28,10 @@ const TABS: Array<{ id: ProfileTab; label: string; icon: typeof Film; ownOnly?: 
 
 const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [], about: [] });
 const errorStatus = (reason: any) => Number(reason?.statusCode ?? reason?.status ?? reason?.response?.status) || 0;
+const nextCursorFrom = (value: any): string | undefined => {
+  const candidates = [value?.nextCursor, value?.data?.nextCursor, value?.data?.data?.nextCursor];
+  return candidates.find((cursor) => typeof cursor === 'string' && cursor.length > 0);
+};
 
 export default function CreatorHubPage({ username }: { username?: string }) {
   const { token, refreshToken, user, isLoading: authLoading } = useAuth(); const router = useRouter(); const toast = useToast();
@@ -35,7 +39,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   const normalized = username && username !== 'me' ? decodeURIComponent(username).replace(/^@/, '') : '';
   const own = !normalized || (!!user?.username && normalized.toLowerCase() === user.username.toLowerCase());
   const [profile, setProfile] = useState<ProfileData | null>(null); const [tab, setTab] = useState<ProfileTab>('posts');
-  const [content, setContent] = useState(emptyContent); const [loading, setLoading] = useState(true); const [contentLoading, setContentLoading] = useState(false);
+  const [content, setContent] = useState(emptyContent); const [nextCursor, setNextCursor] = useState<Partial<Record<ProfileTab, string>>>({}); const [loadingMore, setLoadingMore] = useState(false); const [loading, setLoading] = useState(true); const [contentLoading, setContentLoading] = useState(false);
   const [contentError, setContentError] = useState(''); const [contentRetry, setContentRetry] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [unfollowOpen, setUnfollowOpen] = useState(false);
@@ -88,10 +92,15 @@ export default function CreatorHubPage({ username }: { username?: string }) {
 
   useEffect(() => {
     if (!profile || tab === 'about') return;
-    if (!endpoint) { setContent(current => ({ ...current, [tab]: [] })); return; }
+    if (!endpoint) { setContent(current => ({ ...current, [tab]: [] })); setNextCursor(current => ({ ...current, [tab]: undefined })); return; }
     let active = true; setContentLoading(true); setContentError('');
     apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
-      .then(result => active && setContent(current => ({ ...current, [tab]: postOnly(unwrap(result)).map(item => tab === 'likes' && item.post ? { ...item.post, liked: true } : item) })))
+      .then(result => {
+        if (!active) return;
+        const rows = postOnly(unwrap(result)).map(item => tab === 'likes' ? { ...(item.post || item), liked: true } : item);
+        setContent(current => ({ ...current, [tab]: rows }));
+        setNextCursor(current => ({ ...current, [tab]: nextCursorFrom(result) }));
+      })
       .catch((reason: any) => {
         if (!active || reason?.statusCode === 499) return;
         setContent(current => ({ ...current, [tab]: [] }));
@@ -101,6 +110,26 @@ export default function CreatorHubPage({ username }: { username?: string }) {
       .finally(() => active && setContentLoading(false));
     return () => { active = false; };
   }, [contentRetry, endpoint, profile, tab, token]);
+
+  const loadMore = async () => {
+    const requestedTab = tab;
+    const cursor = nextCursor[requestedTab];
+    if (!endpoint || !cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await apiGet<any>(`${endpoint}?limit=24&cursor=${encodeURIComponent(cursor)}`, token || undefined, { skipCache: true });
+      const rows = postOnly(unwrap(result)).map(item => requestedTab === 'likes' ? { ...(item.post || item), liked: true } : item);
+      setContent(current => {
+        const existingIds = new Set(current[requestedTab].map(cleanPostId));
+        return { ...current, [requestedTab]: [...current[requestedTab], ...rows.filter(item => !existingIds.has(cleanPostId(item)))] };
+      });
+      setNextCursor(current => ({ ...current, [requestedTab]: nextCursorFrom(result) }));
+    } catch (reason: any) {
+      toast.error(`Unable to load more ${requestedTab}`, reason?.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const copyProfile = async () => {
     try { await navigator.clipboard.writeText(`${location.origin}/profile/${profile?.username}`); toast.success('Profile link copied'); }
@@ -200,7 +229,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     <ProfileHeader profile={profile} own={own} onFollow={() => { void follow(); }} onMessage={() => { void messageProfile(); }} onGift={() => { void openGift(profile); }} onCopy={() => { void copyProfile(); }} onPeople={setPeople} followPending={followPending} />
     {!own && <FollowerRewardGiftBox creatorUsername={profile.username} token={token} />}
     <nav className="profile-tabs" aria-label="Profile content">{TABS.filter(item => !item.ownOnly || own).map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}><Icon size={16} strokeWidth={tab === id ? 2.4 : 1.9} /><span className="tab-label">{label}</span></button>)}</nav>
-    <section className="profile-content" aria-live="polite">{contentLoading ? <ContentSkeleton /> : contentError ? <ContentError message={contentError} retry={() => setContentRetry(value => value + 1)} /> : <ProfileContent tab={tab} rows={content[tab]} profile={profile} own={own} router={router} currentUserId={user?.id} onLike={item => void togglePost(item, 'like')} onSave={item => void togglePost(item, 'save')} onComment={setCommentFor} onGift={item => void openGift(item)} onDelete={item => void deletePost(item)} onShare={setShareFor} onFollow={() => { void follow(); setContentRetry(value => value + 1); }} onMore={setMoreFor} onCreate={own ? openPostModal : undefined} />}</section>
+    <section className="profile-content" aria-live="polite">{contentLoading ? <ContentSkeleton /> : contentError ? <ContentError message={contentError} retry={() => setContentRetry(value => value + 1)} /> : <><ProfileContent tab={tab} rows={content[tab]} profile={profile} own={own} router={router} currentUserId={user?.id} onLike={item => void togglePost(item, 'like')} onSave={item => void togglePost(item, 'save')} onComment={setCommentFor} onGift={item => void openGift(item)} onDelete={item => void deletePost(item)} onShare={setShareFor} onFollow={() => { void follow(); setContentRetry(value => value + 1); }} onMore={setMoreFor} onCreate={own ? openPostModal : undefined} />{nextCursor[tab] && <div className="profile-load-more"><button className="profile-button" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</button></div>}</>}</section>
     <AnimatePresence>{commentFor && token && <CommentPanel postId={cleanPostId(commentFor)} initialCount={finite(commentFor.comments ?? commentFor._count?.comments)} token={token} currentUser={user} onClose={() => setCommentFor(undefined)} onCountChange={value => updatePost(cleanPostId(commentFor), { comments: value })} />}{giftFor && token && <GiftPicker gifts={gifts} balance={balance} recipient={{ id: profile.id, username: profile.username, fullName: profile.fullName || profile.displayName || profile.username, avatar }} token={token} initialGift={null} onClose={() => setGiftFor(undefined)} onSent={remaining => { setBalance(remaining); setGiftFor(undefined); toast.success('Gift sent'); }} />}{shareFor && token && <FeedPostShareSheet close={() => setShareFor(undefined)} share={sharePost} />}{moreFor && token && <FeedPostMoreSheet item={moreFor} isOwn={creatorOf(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = creatorOf(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void togglePost(moreFor, 'save'); setMoreFor(undefined); }} remove={() => deletePost(moreFor)} />}</AnimatePresence>
     {people && <PeopleDialog kind={people} own={own} username={profile.username} token={token || undefined} currentUserId={user?.id} close={() => setPeople(null)} />}
     {unfollowOpen && <ConfirmDialog username={profile.username} onCancel={() => setUnfollowOpen(false)} onConfirm={() => { void follow(); }} />}
