@@ -35,9 +35,17 @@ export const formatCount = (value: unknown) => {
   return String(number);
 };
 
-export const unwrap = (value: any): ProfileItem[] => Array.isArray(value)
-  ? value
-  : value?.items || value?.data || value?.posts || value?.reels || value?.streams || value?.gifts || [];
+export const unwrap = (value: any): ProfileItem[] => {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+  for (const key of ['items', 'data', 'posts', 'reels', 'streams', 'gifts']) {
+    if (value[key] !== undefined && value[key] !== value) {
+      const rows = unwrap(value[key]);
+      if (rows.length || Array.isArray(value[key])) return rows;
+    }
+  }
+  return [];
+};
 
 // Gift catalog/wallet responses sometimes share the same transport shape as
 // feed responses. Keep those feature records out of the social post renderer.
@@ -49,8 +57,9 @@ export const postOnly = (items: ProfileItem[]) => items.filter((item) => {
     && !/^gift\s*box(?:\s|$)/i.test(text);
 });
 
-export const mediaUrl = (item: ProfileItem) => resolveMediaUrl(item.mediaUrl || item.media || item.imageUrl
-  || item.thumbnailUrl || item.thumbnail || item.attachments?.[0]?.url || item.mediaUrls?.[0]);
+export const mediaUrl = (item: ProfileItem) => resolveMediaUrl(item.mediaUrl || item.media || item.imageUrl || item.image
+  || item.url || item.videoUrl || item.playbackUrl || item.thumbnailUrl || item.thumbnail
+  || item.attachments?.[0]?.url || item.mediaUrls?.[0]);
 
 export type PostKind = 'video' | 'image' | 'text';
 
