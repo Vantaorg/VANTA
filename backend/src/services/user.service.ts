@@ -1495,7 +1495,7 @@ export class UserService {
   // ===== REELS (VIDEOS) =====
   async getUserReels(userId: string, cursor?: string, limit: number = 12) {
     const reels = await prisma.video.findMany({
-      where: { creatorId: userId },
+      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -1526,6 +1526,9 @@ export class UserService {
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) throw new Error('Profile not found');
     assertProfileAccessible(user, viewerId);
+    if (!(await this.canViewProfile(user.id, viewerId))) {
+      throw new Error('This profile is private');
+    }
     return this.getUserReels(user.id, cursor, limit);
   }
 
