@@ -1,8 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import dynamic from 'next/dynamic';
 import { useState } from 'react';
+import GiftArtworkUnique from './GiftArtworkUnique';
 import { paletteFor, renderGiftArtwork, resolveGiftArtworkId } from './GiftArtworkSvgs';
 import { giftArtworkAsset } from './giftArtworkAssets';
 
@@ -18,13 +18,13 @@ export type GiftArtworkProps = {
   quality?: number;
 };
 
-const GiftScene3D = dynamic(() => import('./GiftScene3D'), { ssr: false });
-
-function key(slug = '', name = '') {
-  return (slug || name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
 /**
+ * Shared renderer for every VANTA gift surface: store, picker, history,
+ * realtime overlay, admin and previews. Catalog-provided media still wins;
+ * otherwise the 63 known catalog slugs each receive their own artwork identity.
+ *
+ * Presentation only: gift IDs, names, prices, balances and send transactions
+ * are not changed by this component.
  * Single render entry for EVERY gift surface in VANTA (Gift Store grid,
  * pickers, gift history, admin, realtime overlay + previews):
  *   1. Existing DB assetUrl wins; known gifts use an optional local WebP next.
@@ -35,8 +35,17 @@ function key(slug = '', name = '') {
  * This is presentation-only: catalog IDs, names, prices, and send transactions
  * remain unchanged.
  */
-export default function GiftArtwork({ slug, name, artworkType, assetUrl, size = 120, animate = true, className = '', quality = 1 }: GiftArtworkProps) {
+export default function GiftArtwork({
+  slug,
+  name,
+  assetUrl,
+  size = 120,
+  animate = true,
+  className = '',
+  quality = 1,
+}: GiftArtworkProps) {
   const [assetFailed, setAssetFailed] = useState(false);
+  const id = (slug || name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const id = key(slug, name);
   const artId = resolveGiftArtworkId(slug, artworkType);
   const resolvedAssetUrl = assetUrl || giftArtworkAsset(slug, name);
@@ -49,13 +58,13 @@ export default function GiftArtwork({ slug, name, artworkType, assetUrl, size = 
     animate: animate ? { y: [0, -5, 0], rotate: [-2, 2, -2], scale: [1, 1.04, 1] } : undefined,
     transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' as const },
   };
-  const svg = (
-    <svg viewBox="0 0 160 160" width="100%" height="100%" aria-hidden="true" className="overflow-visible drop-shadow-[0_16px_22px_rgba(0,0,0,.45)]">
-      {renderGiftArtwork({ id: artId, u: id, p, quality, animate })}
-    </svg>
-  );
+
   return (
     <motion.div {...common} className={`relative shrink-0 ${className}`} style={{ width: size, height: size }}>
+      {assetUrl && !assetFailed ? (/\.(mp4|webm)(\?|$)/i.test(assetUrl)
+        ? <video src={assetUrl} autoPlay={animate} loop muted playsInline preload={animate ? 'metadata' : 'none'} onError={() => setAssetFailed(true)} className="h-full w-full object-contain" />
+        : <img src={assetUrl} alt="" loading={animate ? 'eager' : 'lazy'} onError={() => setAssetFailed(true)} className="h-full w-full object-contain" />)
+        : <GiftArtworkUnique slug={id} name={name} size={size} quality={quality} />}
       {resolvedAssetUrl && !assetFailed ? (/\\.(mp4|webm)(\\?|$)/i.test(resolvedAssetUrl)
         ? <video src={resolvedAssetUrl} autoPlay={animate} loop muted playsInline preload={animate ? 'metadata' : 'none'} onError={() => setAssetFailed(true)} className="h-full w-full object-contain" />
         : <img src={resolvedAssetUrl} alt="" loading={animate ? 'eager' : 'lazy'} onError={() => setAssetFailed(true)} className="h-full w-full object-contain" />)
