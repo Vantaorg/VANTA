@@ -93,7 +93,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   useEffect(() => {
     if (!profile || tab === 'about') return;
     if (!endpoint) { setContent(current => ({ ...current, [tab]: [] })); setNextCursor(current => ({ ...current, [tab]: undefined })); return; }
-    let active = true; setContentLoading(true); setContentError('');
+    let active = true; setContentLoading(true); setContentError(''); setNextCursor(current => ({ ...current, [tab]: undefined }));
     apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
       .then(result => {
         if (!active) return;
