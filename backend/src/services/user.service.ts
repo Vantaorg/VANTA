@@ -3,7 +3,7 @@ import { prisma } from '../prisma';
 import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/api-error';
-import { BADGE_USER_SELECT, isBadgeRowActive } from './public-verification';
+import { isBadgeRowActive } from './public-verification';
 
 /**
  * Reject public-profile reads for restricted accounts. The account OWNER
@@ -248,9 +248,8 @@ export class UserService {
   async getPublicProfileByUsername(username: string, currentUserId?: string) {
     const user = await prisma.user.findUnique({
       where: { username },
-      select: {
-        ...BADGE_USER_SELECT,
-        id: true, username: true, fullName: true, avatar: true, verified: true, premium: true, status: true, createdAt: true,
+      include: {
+        verificationBadge: { select: { badgeType: true, status: true, expiresAt: true } },
         profile: { include: { socialLinks: true, media: { orderBy: { createdAt: 'desc' }, take: 12 } } },
         _count: { select: { followers: true, following: true, posts: true } },
         posts: {
