@@ -85,16 +85,16 @@ describe('stageLayoutFor', () => {
     expect(layout.guestAreas).toEqual(['g1', 'g2', 'g3']);
   });
 
-  test('five participants use equal tiles in a balanced 3x2 grid', () => {
+  test('five participants use equal tiles in a balanced 2x3 grid', () => {
     const layout = stageLayoutFor(5);
     expect(layout.arrangement).toBe('host-grid5');
-    expect(layout.areas).toEqual(['"host g1 g2"', '". g3 g4"']);
+    expect(layout.areas).toEqual(['"host g1"', '"g2 g3"', '". g4"']);
     expect(layout.guestAreas).toEqual(['g1', 'g2', 'g3', 'g4']);
     // Each participant gets one unique, equal-size cell; no duplicated host area.
     const cells = layout.areas.flatMap((row) => row.replace(/"/g, '').trim().split(/\s+/));
     expect(cells.filter((area) => area === 'host')).toHaveLength(1);
-    expect(layout.columns).toBe('repeat(3, minmax(0, 1fr))');
-    expect(layout.rows).toBe('repeat(2, minmax(0, 1fr))');
+    expect(layout.columns).toBe('repeat(2, minmax(0, 1fr))');
+    expect(layout.rows).toBe('repeat(3, minmax(0, 1fr))');
   });
 
   test('every supported count uses integer-free responsive grid fractions', () => {
