@@ -119,8 +119,6 @@ const HOST_GRID: StageLayout = {
 const HOST_GRID5: StageLayout = {
   arrangement: 'host-grid5',
   containerClass: STAGE_CONTAINER_CLASS,
-  columns: 'minmax(0, 1fr) minmax(0, 1fr)',
-  rows: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)',
   columns: 'repeat(3, minmax(0, 1fr))',
   rows: 'repeat(2, minmax(0, 1fr))',
   areas: ['"host g1 g2"', '". g3 g4"'],
