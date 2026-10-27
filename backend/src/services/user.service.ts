@@ -390,7 +390,9 @@ export class UserService {
       },
     });
 
-    const nextCursor = posts.length > limit ? posts.pop()?.id : undefined;
+    const hasMore = posts.length > limit;
+    const nextCursor = hasMore ? posts[limit - 1]?.id : undefined;
+    if (hasMore) posts.pop();
 
     // Whether the viewer already follows the post author. This is the same
     // "following" flag Home's feed uses on the post header Follow button.
@@ -449,19 +451,56 @@ export class UserService {
 
   async getProfileMedia(userId: string, cursor?: string, limit: number = 12) {
     const profile = await prisma.profile.findUnique({ where: { userId } });
-    if (!profile) {
-      // A user can have a valid account before an optional profile row exists.
-      // Treat that as an empty media collection, not a broken profile.
-      return { items: [], nextCursor: undefined };
-    }
-    const media = await prisma.profileMedia.findMany({
-      where: { profileId: profile.id },
-      orderBy: { createdAt: 'desc' },
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    const [cursorDateText, cursorId] = cursor?.includes('|') ? cursor.split('|', 2) : [];
+    const cursorDate = cursorDateText ? new Date(cursorDateText) : undefined;
+    const afterCursor = cursorDate && !Number.isNaN(cursorDate.getTime()) && cursorId
+      ? { OR: [{ createdAt: { lt: cursorDate } }, { createdAt: cursorDate, id: { lt: cursorId } }] }
+      : {};
+
+    // "Media" includes both manually uploaded profile photos and media attached
+    // to published posts. The old implementation only queried ProfileMedia,
+    // which made images posted to the feed silently disappear from this tab.
+    const [profileMedia, postMedia] = await Promise.all([
+      profile
+        ? prisma.profileMedia.findMany({
+            where: { profileId: profile.id, ...afterCursor },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: limit + 1,
+          })
+        : Promise.resolve([]),
+      prisma.post.findMany({
+        where: { authorId: userId, mediaUrl: { not: null }, ...afterCursor },
+        select: { id: true, content: true, mediaUrl: true, createdAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+      }),
+    ]);
+
+    const items = [
+      ...profileMedia.map((item: any) => ({
+        ...item,
+        source: 'profile-media',
+        mediaUrl: item.url,
+        type: String(item.type || 'IMAGE').toLowerCase() === 'video' ? 'video' : 'image',
+      })),
+      ...postMedia.map((item: any) => ({
+        ...item,
+        source: 'post-media',
+        url: item.mediaUrl,
+        type: /\\.(mp4|webm|mov|m4v|ogv|m3u8)(?:\\?.*)?$/i.test(String(item.mediaUrl || '')) ? 'video' : 'image',
+      })),
+    ].sort((a: any, b: any) => {
+      const timeDifference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return timeDifference || String(b.id).localeCompare(String(a.id));
     });
-    const nextCursor = media.length > limit ? media.pop()?.id : undefined;
-    return { items: media, nextCursor };
+
+    const hasMore = items.length > limit;
+    const page = items.slice(0, limit);
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last
+      ? `${new Date(last.createdAt).toISOString()}|${last.id}`
+      : undefined;
+    return { items: page, nextCursor };
   }
 
   async getUserReplies(userId: string, cursor?: string, limit: number = 10) {
@@ -510,7 +549,9 @@ export class UserService {
         },
       },
     });
-    const nextCursor = likes.length > limit ? likes.pop()?.id : undefined;
+    const hasMore = likes.length > limit;
+    const nextCursor = hasMore ? likes[limit - 1]?.id : undefined;
+    if (hasMore) likes.pop();
     // Liked posts are the viewer's own likes, so every row is liked; follow state
     // of the post author is irrelevant here but serialized identically.
     return {
@@ -1454,7 +1495,7 @@ export class UserService {
   // ===== REELS (VIDEOS) =====
   async getUserReels(userId: string, cursor?: string, limit: number = 12) {
     const reels = await prisma.video.findMany({
-      where: { creatorId: userId },
+      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -1462,7 +1503,9 @@ export class UserService {
         _count: { select: { likes: true, comments: true } },
       },
     });
-    const nextCursor = reels.length > limit ? reels.pop()?.id : undefined;
+    const hasMore = reels.length > limit;
+    const nextCursor = hasMore ? reels[limit - 1]?.id : undefined;
+    if (hasMore) reels.pop();
     return {
       items: reels.map(r => ({
         id: r.id,
@@ -1483,6 +1526,9 @@ export class UserService {
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) throw new Error('Profile not found');
     assertProfileAccessible(user, viewerId);
+    if (!(await this.canViewProfile(user.id, viewerId))) {
+      throw new Error('This profile is private');
+    }
     return this.getUserReels(user.id, cursor, limit);
   }
 
