@@ -113,6 +113,8 @@ function SegmentedRing({
 export default function StoryCircle({
   src,
   alt = 'Story',
+  verified,
+  verificationType,
   active,
   showDot = false,
   size = 'md',
