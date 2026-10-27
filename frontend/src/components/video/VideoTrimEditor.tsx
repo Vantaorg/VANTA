@@ -480,7 +480,7 @@ export default function VideoTrimEditor({
   if (!activeFile) return null;
 
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
+    <div className={cn('flex min-h-0 w-full flex-1 flex-col', className)}>
       <input
         ref={fileInputRef}
         type="file"
@@ -534,7 +534,7 @@ export default function VideoTrimEditor({
                 className="flex min-h-0 flex-1 flex-col"
               >
                 {/* File info */}
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/40">
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45">
                   <span className="inline-flex min-w-0 items-center gap-1.5">
                     <Film size={13} className="shrink-0 text-[#b8b8b8]" />
                     <span className="max-w-[220px] truncate">{activeFile.name}</span>
@@ -580,11 +580,11 @@ export default function VideoTrimEditor({
                 )}
 
                 {/* Edit footer actions */}
-                <div className="mt-auto flex shrink-0 items-center gap-2 pt-4">
+                <div className="sticky bottom-0 mt-auto flex shrink-0 items-center gap-2 border-t border-white/[0.06] bg-[#080808] py-3 pt-3">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-ghost min-h-11 shrink-0 px-4"
+                    className="min-h-11 shrink-0 rounded-xl px-3 text-sm text-white/65 hover:bg-white/[0.05]"
                   >
                     Replace Video
                   </button>
@@ -592,7 +592,7 @@ export default function VideoTrimEditor({
                     type="button"
                     onClick={handleResetTrim}
                     disabled={!canResetTrim}
-                    className="btn-ghost min-h-11 shrink-0 px-4"
+                    className="min-h-11 shrink-0 rounded-xl px-3 text-sm text-white/65 hover:bg-white/[0.05]"
                     aria-label="Reset trim selection"
                     title="Reset trim selection"
                   >
@@ -603,7 +603,7 @@ export default function VideoTrimEditor({
                     type="button"
                     onClick={handleContinue}
                     disabled={!canContinue}
-                    className="btn-gold min-h-11 flex-1"
+                    className="btn-gold min-h-11 flex-1 rounded-xl"
                   >
                     <Scissors size={15} />
                     {trimActionLabel}
