@@ -50,7 +50,7 @@ export default function ProfileContent(props: Props) {
           <p className="tile-text-body">{item.content || item.title || 'Text post'}</p>
         </button>
       ) : (
-        <button className="tile-open" onClick={() => { if (isProfileMedia) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{image ? <img src={image} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
+        <button className="tile-open" onClick={() => { if (isProfileMedia && !isVideo) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{image ? <img src={image} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
       )}
       {isVideo && !isLive && <span className="tile-type"><Play size={11} className="tile-type-play" />{gridTab === 'reels' ? 'REEL' : 'VIDEO'}</span>}
       {isLive && <span className={`tile-type ${item.status === 'LIVE' ? 'is-live' : ''}`}>{item.status === 'LIVE' ? 'LIVE' : 'STREAM'}</span>}
