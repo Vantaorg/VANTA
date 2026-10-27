@@ -453,8 +453,7 @@ export class UserService {
     const profile = await prisma.profile.findUnique({ where: { userId } });
     const [cursorDateText, cursorId] = cursor?.includes('|') ? cursor.split('|', 2) : [];
     const cursorDate = cursorDateText ? new Date(cursorDateText) : undefined;
-    const hasCompositeCursor = Boolean(cursorDate && !Number.isNaN(cursorDate.getTime()) && cursorId);
-    const afterCursor = hasCompositeCursor
+    const afterCursor = cursorDate && !Number.isNaN(cursorDate.getTime()) && cursorId
       ? { OR: [{ createdAt: { lt: cursorDate } }, { createdAt: cursorDate, id: { lt: cursorId } }] }
       : {};
 
