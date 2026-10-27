@@ -41,6 +41,11 @@ export default function ProfileContent(props: Props) {
     const kind = isLive || gridTab === 'reels' ? 'video' : postKind(item);
     const isVideo = kind === 'video';
     const isText = kind === 'text';
+    // Video URLs must never be used as <img src>. Prefer their poster/thumbnail
+    // and show the existing fallback tile when a video has no poster image.
+    const tileImage = isVideo
+      ? mediaUrl({ thumbnailUrl: item.thumbnailUrl || item.thumbnail || item.posterUrl || item.previewImageUrl })
+      : image;
     const destination = isLive ? `/live/${item.id}` : gridTab === 'reels' ? `/reels/${item.id}` : `/post/${cleanPostId(item)}`;
     const isProfileMedia = gridTab === 'media';
     return <article className={isText ? 'content-tile tile-text' : 'content-tile'} key={item.id}>
@@ -50,7 +55,7 @@ export default function ProfileContent(props: Props) {
           <p className="tile-text-body">{item.content || item.title || 'Text post'}</p>
         </button>
       ) : (
-        <button className="tile-open" onClick={() => { if (isProfileMedia && !isVideo) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{image ? <img src={image} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
+        <button className="tile-open" onClick={() => { if (isProfileMedia && !isVideo) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{tileImage ? <img src={tileImage} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
       )}
       {isVideo && !isLive && <span className="tile-type"><Play size={11} className="tile-type-play" />{gridTab === 'reels' ? 'REEL' : 'VIDEO'}</span>}
       {isLive && <span className={`tile-type ${item.status === 'LIVE' ? 'is-live' : ''}`}>{item.status === 'LIVE' ? 'LIVE' : 'STREAM'}</span>}
