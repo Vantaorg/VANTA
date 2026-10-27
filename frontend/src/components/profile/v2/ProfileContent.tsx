@@ -40,6 +40,7 @@ export default function ProfileContent(props: Props) {
     const isLive = gridTab === 'live';
     const kind = isLive || gridTab === 'reels' ? 'video' : postKind(item);
     const isVideo = kind === 'video';
+    const videoSource = isVideo ? mediaUrl({ videoUrl: item.videoUrl || item.playbackUrl || item.mediaUrl || item.media || item.url }) : '';
     const isText = kind === 'text';
     // Video URLs must never be used as <img src>. Prefer their poster/thumbnail
     // and show the existing fallback tile when a video has no poster image.
@@ -55,7 +56,7 @@ export default function ProfileContent(props: Props) {
           <p className="tile-text-body">{item.content || item.title || 'Text post'}</p>
         </button>
       ) : (
-        <button className="tile-open" onClick={() => { if (isProfileMedia && !isVideo) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{tileImage ? <img src={tileImage} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : isVideo && !isLive && image ? <video src={image} aria-label={item.content || item.title || 'Reel preview'} muted playsInline preload="metadata" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
+        <button className="tile-open" onClick={() => { if (isProfileMedia && !isVideo) { if (image) setPreview({ src: image, alt: item.title || `${profile.username}'s media` }); } else router.push(destination); }} aria-label={isProfileMedia ? `View ${item.title || 'profile media'}` : `Open ${gridTab} item`}>{tileImage ? <img src={tileImage} alt={item.content || item.title || `${gridTab} item`} loading="lazy" /> : isVideo && !isLive && videoSource ? <video src={videoSource} aria-label={item.content || item.title || 'Reel preview'} muted playsInline preload="metadata" /> : <div className="tile-fallback"><span>{isLive ? <Radio /> : gridTab === 'reels' ? <Film /> : <ImageIcon />}</span><small>{item.content || item.title || 'VANTA'}</small></div>}</button>
       )}
       {isVideo && !isLive && <span className="tile-type"><Play size={11} className="tile-type-play" />{gridTab === 'reels' ? 'REEL' : 'VIDEO'}</span>}
       {isLive && <span className={`tile-type ${item.status === 'LIVE' ? 'is-live' : ''}`}>{item.status === 'LIVE' ? 'LIVE' : 'STREAM'}</span>}
