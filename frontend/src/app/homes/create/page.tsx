@@ -346,9 +346,9 @@ function CreateHomeContent() {
   };
 
   return (
-    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 text-white">
-      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 pt-14 text-white">
+      <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
+        <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} aria-label="Back to Homes" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/60 transition hover:bg-white/[.06] hover:text-white">
               <ArrowLeft size={17} />
@@ -362,7 +362,7 @@ function CreateHomeContent() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 pt-5 sm:pt-8">
+      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-6">
         <section className="border-b border-white/[.07] pb-6 pt-2">
           <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">{isEdit ? 'Manage your listing' : 'List a property'}</p>
           <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Add your property to VANTA Homes.'}</h1>
