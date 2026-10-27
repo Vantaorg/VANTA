@@ -590,7 +590,7 @@ export default function GlobalSearch() {
                           role="option"
                           aria-selected={selectedIndex === globalIndex}
                         >
-                          <Avatar src={post.author.avatar} alt={post.author.username} size="sm" className="shrink-0 mt-0.5" />
+                          <Avatar src={post.author.avatar} alt={post.author.username} size="sm" className="shrink-0 mt-0.5" verified={Boolean(post.author.verified && post.author.verificationType)} verificationType={post.author.verificationType} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="text-sm font-medium text-white truncate">@{post.author.username}</span>
