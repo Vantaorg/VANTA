@@ -72,9 +72,9 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
       <section className="border-b border-white/[.06]">
         <div className="w-full px-3 pb-5 pt-6 sm:px-5 sm:pb-7 sm:pt-8">
           <div className="w-full">
-            <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Homes for the way you live.</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-5 text-white/55 sm:text-base sm:leading-6">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
+            <p className="text-[11px] font-semibold uppercase leading-4 tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
+            <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-[1.15] tracking-tight sm:mt-5 sm:text-4xl">Homes for the way you live.</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55 sm:mt-4 sm:text-base sm:leading-7">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
           </div>
           <div className="mt-5 w-full">
             <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
