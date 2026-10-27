@@ -3,110 +3,59 @@
 import { useId } from 'react';
 
 type Props = { slug?: string; name?: string; size?: number; quality?: number };
+type Art = { kind: string; a: string; b: string; c: string };
 
-/** A distinct visual identity for each real catalog slug; presentation only. */
-const ART: Record<string, { glyph: string; a: string; b: string; c: string }> = {
-  'thumbs-up': { glyph: '👍', a: '#a6f7ff', b: '#31bfff', c: '#2254ef' },
-  fire: { glyph: '🔥', a: '#fff3a0', b: '#ff7a1a', c: '#ed174d' },
-  rose: { glyph: '🌹', a: '#ffc4df', b: '#f02d70', c: '#7c174c' },
-  heart: { glyph: '💗', a: '#ffd1f2', b: '#ff3e9e', c: '#9c2fe8' },
-  'happy-day': { glyph: '🎉', a: '#fff6a1', b: '#ffad32', c: '#ff4d91' },
-  teddy: { glyph: '🧸', a: '#ffe3b7', b: '#c98a4a', c: '#79442d' },
-  'fancy-pearl': { glyph: '🦪', a: '#ffffff', b: '#b9eaff', c: '#8b63ff' },
-  'first-place': { glyph: '🏅', a: '#fff3a6', b: '#e8ac32', c: '#a85b10' },
-  'lets-ride': { glyph: '🏎️', a: '#c8fbff', b: '#2cb9f0', c: '#2c36db' },
-  'gold-medal': { glyph: '🥇', a: '#fff4a6', b: '#f0b52e', c: '#9e5b0b' },
-  'elite-status': { glyph: '🛩️', a: '#e8f7ff', b: '#86bdff', c: '#3849d9' },
-  yacht: { glyph: '🛥️', a: '#d7ffff', b: '#30d5ed', c: '#1856c7' },
-  diamond: { glyph: '💎', a: '#ffffff', b: '#83dfff', c: '#3c5eff' },
-  crown: { glyph: '👑', a: '#fff1a6', b: '#f4bd37', c: '#9b4be7' },
-  'neon-flare': { glyph: '🌟', a: '#fff3b1', b: '#ff7b37', c: '#e62cce' },
-  'ember-orbit': { glyph: '☄️', a: '#ffd3a0', b: '#ff653b', c: '#8d32ff' },
-  'solar-cinder': { glyph: '☀️', a: '#fff6a2', b: '#ff9d27', c: '#f04443' },
-  'crimson-bloom': { glyph: '🌺', a: '#ffc6de', b: '#f02c6c', c: '#77184d' },
-  'velvet-rose': { glyph: '🥀', a: '#ffd2e5', b: '#d92c75', c: '#501e59' },
-  'aurora-petal': { glyph: '🌷', a: '#d8fff5', b: '#c25cff', c: '#2f7ef5' },
-  'prism-kiss': { glyph: '💋', a: '#ffd4f3', b: '#ff419d', c: '#7449f5' },
-  'luminous-embrace': { glyph: '💞', a: '#ffd6f4', b: '#ff5aa8', c: '#693cf4' },
-  'starry-love': { glyph: '💘', a: '#ffe1ff', b: '#e746ff', c: '#3e5eff' },
-  'confetti-rocket': { glyph: '🚀', a: '#fff1a6', b: '#ff6eab', c: '#7d4bff' },
-  'aurora-party': { glyph: '🎊', a: '#b7fff5', b: '#5a8dff', c: '#c64dff' },
-  'celebration-orb': { glyph: '🔮', a: '#ffd7ff', b: '#b94dff', c: '#3a4cff' },
-  'moon-shell': { glyph: '🐚', a: '#fff0f6', b: '#ffb5d9', c: '#716bff' },
-  'iridescent-relic': { glyph: '🪬', a: '#e8ffff', b: '#7cd7ff', c: '#a14fff' },
-  'tide-pearl': { glyph: '🫧', a: '#e6ffff', b: '#70caff', c: '#7656f7' },
-  'champion-ribbon': { glyph: '🎗️', a: '#fff2a5', b: '#ffb52f', c: '#e44e85' },
-  'victory-medallion': { glyph: '🏆', a: '#fff5b2', b: '#eab033', c: '#a35c10' },
-  'diamond-league': { glyph: '💠', a: '#ffffff', b: '#66d9ff', c: '#514eff' },
-  'hyper-roadster': { glyph: '🏎️', a: '#ffd7d7', b: '#ff334f', c: '#742bff' },
-  'aurora-coupe': { glyph: '🚘', a: '#caffff', b: '#27d9d0', c: '#554bff' },
-  'velocity-x': { glyph: '🏁', a: '#f4fbff', b: '#55baff', c: '#2630bd' },
-  'skyline-jet': { glyph: '✈️', a: '#f3fcff', b: '#7cbcff', c: '#3d4fe8' },
-  'cloud-nine': { glyph: '☁️', a: '#ffffff', b: '#b8e4ff', c: '#7b78ff' },
-  'royal-flight': { glyph: '🛫', a: '#fff0bd', b: '#a9caff', c: '#714bdf' },
-  'frost-prism': { glyph: '🧊', a: '#ffffff', b: '#8ee9ff', c: '#4566ff' },
-  'glacier-shard': { glyph: '❄️', a: '#ffffff', b: '#9fe8ff', c: '#4b7cff' },
-  'polar-star': { glyph: '🌠', a: '#ffffff', b: '#8beaff', c: '#5b50ff' },
-  'solar-crown': { glyph: '🌞', a: '#fff4a6', b: '#ffb52f', c: '#e95b34' },
-  'empire-crown': { glyph: '👑', a: '#fff0ad', b: '#d7a02b', c: '#6138c9' },
-  'celestial-crown': { glyph: '♛', a: '#f9e8ff', b: '#bd7bff', c: '#3d3bd1' },
-  'crystal-star': { glyph: '✦', a: '#ffffff', b: '#85e5ff', c: '#7355ff' },
-  'violet-comet': { glyph: '☄️', a: '#f8d5ff', b: '#a45bff', c: '#3159ff' },
-  'quantum-orb': { glyph: '🔮', a: '#f6d5ff', b: '#a45cff', c: '#234cff' },
-  'holo-badge': { glyph: '🎖️', a: '#f5ffff', b: '#76dcff', c: '#8b50ff' },
-  'plasma-ring': { glyph: '💍', a: '#e6ffff', b: '#68d8ff', c: '#a14eff' },
-  'nova-scepter': { glyph: '🪄', a: '#fff2c2', b: '#f3a9ff', c: '#5745ff' },
-  'eclipse-gem': { glyph: '🌑', a: '#f2d7ff', b: '#8d63ff', c: '#171e69' },
-  'starlight-capsule': { glyph: '🪩', a: '#ffffff', b: '#77e5ff', c: '#bb4eff' },
-  'infinite-spark': { glyph: '✨', a: '#fff6b2', b: '#8f9dff', c: '#c44eff' },
-  'galaxy-crest': { glyph: '🌌', a: '#e7d8ff', b: '#8d63ff', c: '#2445d8' },
-  'cosmic-wings': { glyph: '🪽', a: '#e8f7ff', b: '#9a87ff', c: '#3c49c7' },
-  'phoenix-flame': { glyph: '🪽', a: '#fff0a6', b: '#ff6739', c: '#c52b74' },
-  'royal-dragon': { glyph: '🐉', a: '#b8ffd4', b: '#35c982', c: '#7b32d9' },
-  'aurora-castle': { glyph: '🏰', a: '#f3dfff', b: '#9b75ff', c: '#2b47b8' },
-  'platinum-throne': { glyph: '🪑', a: '#ffffff', b: '#c8d7f7', c: '#5c52d7' },
-  'time-crystal': { glyph: '⌛', a: '#fff3bf', b: '#8fe7ff', c: '#6650e9' },
-  'nebula-heart': { glyph: '💜', a: '#f7d5ff', b: '#a84dff', c: '#2e3fd8' },
-  'lunar-rose': { glyph: '🌙', a: '#fff0f9', b: '#b4a1ff', c: '#4d47b7' },
-  'golden-horizon': { glyph: '🌅', a: '#fff4a4', b: '#ff9b38', c: '#7a42e8' },
+const ART: Record<string, Art> = {
+  rose:{kind:'rose',a:'#ffb5ca',b:'#f12e55',c:'#8e123b'}, 'crimson-bloom':{kind:'rose',a:'#ffc2d4',b:'#ec2455',c:'#771134'}, 'velvet-rose':{kind:'rose',a:'#ffb7cf',b:'#b81c54',c:'#47122d'}, 'aurora-petal':{kind:'rose',a:'#d6fff4',b:'#b16aff',c:'#2c75c8'}, 'lunar-rose':{kind:'rose',a:'#fff0f9',b:'#b4a1ff',c:'#4d47b7'},
+  heart:{kind:'heart',a:'#ffd4e7',b:'#ff3d6e',c:'#a40e42'}, 'prism-kiss':{kind:'heart',a:'#fff0fb',b:'#ff50a8',c:'#7544d5'}, 'luminous-embrace':{kind:'heart',a:'#ffe0f1',b:'#ff5b9e',c:'#9a3ee0'}, 'starry-love':{kind:'heart',a:'#fff1ff',b:'#da60ff',c:'#4648d6'}, 'nebula-heart':{kind:'heart',a:'#f7d5ff',b:'#a84dff',c:'#2e3fd8'},
+  crown:{kind:'crown',a:'#fff3a1',b:'#f7b82f',c:'#a45b16'}, 'solar-crown':{kind:'crown',a:'#fff5a2',b:'#ffbb32',c:'#df6227'}, 'empire-crown':{kind:'crown',a:'#fff1ad',b:'#d5a12e',c:'#6535ae'}, 'celestial-crown':{kind:'crown',a:'#fff1ff',b:'#bd83ff',c:'#4a3da9'},
+  diamond:{kind:'diamond',a:'#ffffff',b:'#82e7ff',c:'#3a60db'}, 'diamond-league':{kind:'diamond',a:'#ffffff',b:'#64ddff',c:'#5842db'}, 'frost-prism':{kind:'diamond',a:'#ffffff',b:'#a6f2ff',c:'#547ee8'}, 'glacier-shard':{kind:'diamond',a:'#ffffff',b:'#83e5ff',c:'#4878d2'},
+  yacht:{kind:'yacht',a:'#fff0c4',b:'#70dcff',c:'#1659a9'}, 'hyper-roadster':{kind:'car',a:'#fff0a1',b:'#ff3f39',c:'#821d36'}, 'aurora-coupe':{kind:'car',a:'#d7fff7',b:'#26d8d1',c:'#2659a9'}, 'velocity-x':{kind:'car',a:'#f1fcff',b:'#68baff',c:'#333fbc'}, 'lets-ride':{kind:'car',a:'#fff0a1',b:'#ff8d31',c:'#b92825'},
+  'elite-status':{kind:'jet',a:'#fff0c4',b:'#b9d9ff',c:'#5472c8'}, 'skyline-jet':{kind:'jet',a:'#fff8d9',b:'#b8dcff',c:'#3f68b9'}, 'royal-flight':{kind:'jet',a:'#fff0c4',b:'#b8c9ff',c:'#7c4dc7'},
+  'royal-dragon':{kind:'dragon',a:'#d2ffe3',b:'#42cf8b',c:'#235e9d'}, 'phoenix-flame':{kind:'phoenix',a:'#fff0a6',b:'#ff6739',c:'#c52b24'}, fire:{kind:'phoenix',a:'#fff4a8',b:'#ff7927',c:'#e52c28'},
+  'aurora-castle':{kind:'castle',a:'#f3dfff',b:'#9b75ff',c:'#2b47b8'}, 'platinum-throne':{kind:'throne',a:'#ffffff',b:'#c8d7f7',c:'#5c52b8'}, teddy:{kind:'bear',a:'#ffe2b6',b:'#bd7844',c:'#683b29'},
+  'fancy-pearl':{kind:'pearl',a:'#fffef8',b:'#bceaff',c:'#8d73ed'}, 'tide-pearl':{kind:'pearl',a:'#ffffff',b:'#8de6f2',c:'#526de0'}, 'iridescent-relic':{kind:'pearl',a:'#f4ffff',b:'#8bdcff',c:'#a24ed8'},
+  'happy-day':{kind:'fireworks',a:'#fff2a0',b:'#ff9e32',c:'#ec4388'}, 'aurora-party':{kind:'fireworks',a:'#e3fff7',b:'#54c9ff',c:'#b64aff'}, 'neon-flare':{kind:'star',a:'#fff5a4',b:'#ff8e37',c:'#ec408e'}, 'polar-star':{kind:'star',a:'#ffffff',b:'#a5efff',c:'#4f67db'}, 'crystal-star':{kind:'star',a:'#ffffff',b:'#83e5ff',c:'#7655e9'}, 'infinite-spark':{kind:'star',a:'#fff6b2',b:'#8f9dff',c:'#c44eff'},
+  'ember-orbit':{kind:'orbit',a:'#ffe2a6',b:'#ff7438',c:'#8d35d8'}, 'celebration-orb':{kind:'orb',a:'#f8e5ff',b:'#b74cff',c:'#3b4ee3'}, 'quantum-orb':{kind:'orb',a:'#f5ddff',b:'#ad62ff',c:'#2e4dd1'}, 'eclipse-gem':{kind:'orb',a:'#f2d7ff',b:'#8d63ff',c:'#171e69'}, 'starlight-capsule':{kind:'orb',a:'#ffffff',b:'#77e5ff',c:'#bb4eff'}, 'galaxy-crest':{kind:'orb',a:'#e7d8ff',b:'#8d63ff',c:'#2445d8'},
+  'confetti-rocket':{kind:'rocket',a:'#fff1a5',b:'#ff8435',c:'#a13df0'}, 'champion-ribbon':{kind:'medal',a:'#fff2a5',b:'#f8b52c',c:'#d34c72'}, 'victory-medallion':{kind:'medal',a:'#fff1a0',b:'#efaa23',c:'#a45113'}, 'first-place':{kind:'medal',a:'#fff0a1',b:'#ffc13d',c:'#a85d16'}, 'gold-medal':{kind:'medal',a:'#fff0a1',b:'#ffc13d',c:'#a85d16'}, 'thumbs-up':{kind:'medal',a:'#fff0a1',b:'#ffc13d',c:'#a85d16'}, 'holo-badge':{kind:'medal',a:'#f5ffff',b:'#70d8ff',c:'#8b50d8'},
+  'plasma-ring':{kind:'ring',a:'#e6ffff',b:'#68d8ff',c:'#a14eff'}, 'nova-scepter':{kind:'wand',a:'#fff2c2',b:'#e6a3ff',c:'#5745ce'}, 'time-crystal':{kind:'hourglass',a:'#fff3bf',b:'#8fe7ff',c:'#6650c9'}, 'cosmic-wings':{kind:'wings',a:'#e8f7ff',b:'#9a87ff',c:'#3c49c7'}, 'moon-shell':{kind:'shell',a:'#fff2f8',b:'#ffb7d9',c:'#7775d8'}, 'cloud-nine':{kind:'cloud',a:'#ffffff',b:'#bfe8ff',c:'#6e82db'}, 'solar-cinder':{kind:'sun',a:'#fff5a4',b:'#ffb52e',c:'#e54a24'}, 'golden-horizon':{kind:'sun',a:'#fff4a4',b:'#ff9b38',c:'#7a42b8'}, 'violet-comet':{kind:'comet',a:'#f7ddff',b:'#b16bff',c:'#3154d4'}, 'dragon-egg':{kind:'orb',a:'#ffdb9e',b:'#a46a32',c:'#392e26'}
 };
 
-const FALLBACK = { glyph: '🎁', a: '#f4c8ff', b: '#a855f7', c: '#ec4899' };
+const FALLBACK: Art = {kind:'gift',a:'#fff0bd',b:'#e7a83b',c:'#87521b'};
 
-export default function GiftArtworkUnique({ slug, name, size = 120, quality = 1 }: Props) {
-  const art = ART[(slug || '').toLowerCase()] || ART[(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')] || FALLBACK;
-  const reactId = useId();
-  const uid = ((slug || name || 'gift').replace(/[^a-z0-9]/gi, '') + reactId).replace(/[^a-zA-Z0-9_-]/g, '');
-  const level = Math.max(0, Math.min(5, quality));
-  return (
-    <svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label={name || slug || 'VANTA gift artwork'} className="overflow-visible drop-shadow-[0_16px_22px_rgba(0,0,0,.45)]">
-      <defs>
-        <radialGradient id={uid + '-aura'} cx="50%" cy="48%" r="58%">
-          <stop offset="0%" stopColor={art.b} stopOpacity={0.42 + level * 0.045} />
-          <stop offset="60%" stopColor={art.c} stopOpacity=".19" />
-          <stop offset="100%" stopColor={art.c} stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={uid + '-ring'} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={art.a} />
-          <stop offset="52%" stopColor={art.b} />
-          <stop offset="100%" stopColor={art.c} />
-        </linearGradient>
-        <filter id={uid + '-glow'} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-      <ellipse cx="80" cy="142" rx="43" ry="8" fill={art.c} opacity=".24" />
-      <circle cx="80" cy="77" r="65" fill={'url(#' + uid + '-aura)'} />
-      <circle cx="80" cy="77" r="54" fill="none" stroke={'url(#' + uid + '-ring)'} strokeWidth="1.5" strokeDasharray="3 8" opacity=".8" />
-      <circle cx="80" cy="77" r="44" fill="none" stroke={art.a} strokeWidth=".8" opacity=".3" />
-      <path d="M29 79 Q80 18 131 79 Q80 137 29 79Z" fill={art.b} opacity=".09" stroke={art.a} strokeWidth=".7" strokeOpacity=".55" />
-      <path d="M80 18 L84 28 L95 29 L87 37 L89 48 L80 42 L71 48 L73 37 L65 29 L76 28Z" fill={art.a} opacity=".8" />
-      <text x="80" y="98" textAnchor="middle" fontSize="62" dominantBaseline="middle" filter={'url(#' + uid + '-glow)'}>{art.glyph}</text>
-      <circle cx="35" cy="61" r="2.6" fill={art.a} />
-      <circle cx="124" cy="93" r="2.3" fill={art.a} />
-      <path d="M47 119 l4 -8 l4 8 l-4 8Z M112 42 l3 -6 l3 6 l-3 6Z" fill={art.a} opacity=".9" />
-      <ellipse cx="80" cy="136" rx="26" ry="2.8" fill={art.a} opacity=".25" />
-    </svg>
-  );
+export default function GiftArtworkUnique({slug,name,quality=1}:Props) {
+  const id=(slug||name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const art=ART[id]||FALLBACK;
+  const uid=useId().replace(/:/g,'');
+  const grad=uid+'-grad', glow=uid+'-glow';
+  const gem=(x:number,y:number,r:number)=><g key={x+':'+y}><circle cx={x} cy={y} r={r+2} fill={art.c}/><circle cx={x} cy={y} r={r} fill={art.a} stroke={art.c}/><path d={'M'+(x-r*.55)+' '+y+' L'+x+' '+(y-r*.6)+' L'+(x+r*.55)+' '+y+' L'+x+' '+(y+r*.6)+'Z'} fill="#fff"/></g>;
+  let subject;
+  switch(art.kind) {
+    case 'rose': subject=<g filter={'url(#'+glow+')'}><path d="M80 86 Q76 117 81 143" stroke="#278848" strokeWidth="5" fill="none"/><path d="M80 119 Q49 94 49 120 Q62 133 80 119 M81 128 Q110 103 111 127 Q96 139 81 128" fill="#258345" stroke="#86d86b"/><path d="M80 98 C47 90 42 63 58 52 C54 30 78 22 91 38 C112 31 127 55 110 73 C106 89 91 99 80 98Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M80 89 C57 82 56 63 68 54 C67 40 83 38 90 49 C105 43 115 60 102 73 C98 84 88 91 80 89Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M79 78 C66 70 72 54 82 54 C96 52 101 67 89 76 C85 80 81 81 79 78Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M78 69 C77 60 88 58 91 65 C92 70 84 74 81 70" fill="none" stroke={art.a} strokeWidth="2.5"/>{gem(58,91,2)}{gem(105,91,2)}</g>; break;
+    case 'heart': subject=<g filter={'url(#'+glow+')'}><path d="M80 125 C62 108 29 83 37 57 C44 35 69 37 80 56 C94 35 119 37 126 57 C135 83 97 109 80 125Z" fill={art.c} stroke={art.a} strokeWidth="2.5"/><path d="M80 114 C64 100 40 79 46 60 C52 47 69 49 80 66 C93 48 111 48 117 61 C123 79 95 102 80 114Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M52 59 Q58 50 68 59" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>{gem(80,80,5)}</g>; break;
+    case 'crown': subject=<g filter={'url(#'+glow+')'}><path d="M29 64 L48 36 L68 58 L81 24 L96 58 L116 36 L133 64 L120 111 Q81 126 42 111Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M36 65 L50 47 L69 68 L81 37 L94 68 L114 47 L126 65 L116 101 Q81 115 46 101Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M42 85 Q81 98 120 85 L116 103 Q81 116 46 103Z" fill={art.c} stroke={art.a} strokeWidth="2"/>{gem(49,49,4)}{gem(81,39,5)}{gem(115,49,4)}{gem(81,91,4)}</g>; break;
+    case 'diamond': subject=<g filter={'url(#'+glow+')'}><path d="M80 25 L112 48 L120 82 L80 122 L40 82 L48 48Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M80 25 L95 52 L80 122 L65 52Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M48 48 L65 52 L80 25 L95 52 L112 48 L96 70 L64 70Z" fill={art.a}/><path d="M40 82 L64 70 L80 122 L96 70 L120 82 L80 122Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/></g>; break;
+    case 'pearl': case 'orb': subject=<g filter={'url(#'+glow+')'}><circle cx="80" cy="78" r="41" fill={art.c} opacity=".5"/><circle cx="80" cy="75" r="33" fill={'url(#'+grad+')'} stroke={art.a} strokeWidth="2.5"/><ellipse cx="69" cy="61" rx="16" ry="9" fill="#fff" opacity=".45" transform="rotate(-35 69 61)"/><path d="M52 86 Q80 109 108 79" fill="none" stroke={art.a} strokeWidth="2"/>{gem(98,57,3)}</g>; break;
+    case 'bear': subject=<g filter={'url(#'+glow+')'}><circle cx="53" cy="48" r="17" fill={art.c} stroke={art.a} strokeWidth="2"/><circle cx="107" cy="48" r="17" fill={art.c} stroke={art.a} strokeWidth="2"/><circle cx="53" cy="48" r="9" fill={art.a}/><circle cx="107" cy="48" r="9" fill={art.a}/><path d="M44 64 Q80 39 116 64 Q129 99 106 119 Q80 137 54 119 Q31 99 44 64Z" fill={art.b} stroke={art.a} strokeWidth="2"/><ellipse cx="80" cy="91" rx="25" ry="21" fill={art.a}/><circle cx="66" cy="77" r="3.5" fill="#251914"/><circle cx="94" cy="77" r="3.5" fill="#251914"/><ellipse cx="80" cy="87" rx="6" ry="4.5" fill="#553126"/><path d="M73 95 Q80 102 87 95" fill="none" stroke="#553126" strokeWidth="2"/><path d="M62 107 Q80 97 98 107 Q92 123 80 123 Q68 123 62 107Z" fill={art.c} stroke={art.a} strokeWidth="1.5"/></g>; break;
+    case 'car': subject=<g filter={'url(#'+glow+')'}><path d="M25 94 L33 77 L53 70 L70 49 Q75 43 88 46 L111 65 L128 73 L137 91 L132 107 L29 107Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M45 76 L60 72 L75 53 Q79 49 87 52 L105 69Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M65 72 L82 53 L87 53 L102 69Z" fill="#172a40"/><path d="M28 91 L44 87 L51 96 L28 99Z M116 84 L131 89 L133 97 L117 96Z" fill="#fff3b1"/><circle cx="50" cy="106" r="12" fill="#10131c" stroke={art.a} strokeWidth="3"/><circle cx="50" cy="106" r="5" fill="#b8d4e5"/><circle cx="111" cy="106" r="12" fill="#10131c" stroke={art.a} strokeWidth="3"/><circle cx="111" cy="106" r="5" fill="#b8d4e5"/></g>; break;
+    case 'yacht': subject=<g filter={'url(#'+glow+')'}><path d="M23 92 L137 92 L118 119 Q80 132 42 119Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M30 94 L130 94 L113 113 Q80 123 47 113Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M45 84 L58 58 L106 58 L123 84Z" fill="#e9f7ff" stroke={art.a} strokeWidth="2"/><path d="M65 58 L65 75 L82 75 L82 58 M89 58 L89 75 L105 75 L105 58" fill="none" stroke={art.c} strokeWidth="2"/><path d="M28 131 Q51 123 72 131 T119 131" fill="none" stroke={art.a} strokeWidth="2"/></g>; break;
+    case 'jet': subject=<g filter={'url(#'+glow+')'}><path d="M80 20 L92 69 L132 99 L132 109 L89 91 L85 125 L101 136 L101 142 L80 135 L59 142 L59 136 L75 125 L71 91 L28 109 L28 99 L68 69Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M80 28 L84 75 L80 120 L76 75Z" fill={art.a}/></g>; break;
+    case 'dragon': subject=<g filter={'url(#'+glow+')'}><path d="M37 105 Q20 82 45 62 L63 48 L58 29 L76 40 L90 32 L87 49 Q112 44 121 61 L138 65 L125 78 L111 76 Q112 98 90 112 L91 131 L76 120 L60 130 L64 110Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M46 87 Q63 59 94 59 Q112 60 117 73 L101 78 L93 96 L73 105 L59 96Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M54 70 L31 49 L57 56 L71 42 L72 63 M95 60 L114 44 L111 65" fill={art.b} stroke={art.a} strokeWidth="1.5"/><circle cx="103" cy="65" r="3" fill="#fff"/><circle cx="104" cy="65" r="1.5" fill="#111"/></g>; break;
+    case 'phoenix': case 'fireworks': case 'star': case 'comet': subject=<g filter={'url(#'+glow+')'}><path d="M80 20 L91 62 L132 42 L101 75 L141 84 L101 92 L122 128 L87 102 L80 143 L73 102 L38 128 L59 92 L19 84 L59 75 L28 42 L69 62Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M80 43 L86 76 L112 84 L86 90 L80 119 L74 90 L48 84 L74 76Z" fill={art.a}/>{gem(80,83,4)}</g>; break;
+    case 'castle': subject=<g filter={'url(#'+glow+')'}><path d="M30 125 L30 70 L45 70 L45 50 L60 65 L60 45 L80 27 L100 45 L100 65 L115 50 L115 70 L130 70 L130 125Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M38 119 L38 77 L52 77 L52 62 L68 77 L68 52 L80 41 L92 52 L92 77 L108 62 L108 77 L122 77 L122 119Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M70 125 L70 96 Q80 81 90 96 L90 125Z" fill="#24192b" stroke={art.a} strokeWidth="1.5"/>{gem(80,47,4)}</g>; break;
+    case 'throne': subject=<g filter={'url(#'+glow+')'}><path d="M48 46 L60 46 L64 77 L96 77 L100 46 L112 46 L111 93 L125 119 L35 119 L49 93Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M58 53 L65 83 L95 83 L102 53 L103 91 L114 111 L46 111 L57 91Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M65 119 L61 139 M99 119 L103 139" stroke={art.a} strokeWidth="5"/>{gem(80,68,7)}</g>; break;
+    case 'rocket': subject=<g filter={'url(#'+glow+')'}><path d="M80 22 Q113 43 104 87 L80 112 L56 87 Q47 43 80 22Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M80 29 Q101 49 94 80 L80 96 L66 80 Q59 49 80 29Z" fill={art.a}/><circle cx="80" cy="61" r="10" fill="#15243c" stroke="#fff" strokeWidth="2"/><path d="M57 79 L39 101 L59 98 M103 79 L121 101 L101 98" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M71 109 L80 139 L89 109Z" fill="#ff8c37"/></g>; break;
+    case 'ring': subject=<g filter={'url(#'+glow+')'}><ellipse cx="80" cy="83" rx="37" ry="25" transform="rotate(-25 80 83)" fill="none" stroke={art.c} strokeWidth="14"/><ellipse cx="80" cy="80" rx="37" ry="25" transform="rotate(-25 80 80)" fill="none" stroke={'url(#'+grad+')'} strokeWidth="9"/><path d="M80 34 L96 51 L80 67 L64 51Z" fill={art.b} stroke={art.a} strokeWidth="2"/></g>; break;
+    case 'wand': subject=<g filter={'url(#'+glow+')'}><path d="M48 124 L108 46 L116 53 L56 131Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M105 44 L111 25 L117 42 L136 48 L117 54 L111 73 L105 54 L86 48Z" fill={art.b} stroke={art.a} strokeWidth="2"/>{gem(84,79,3)}</g>; break;
+    case 'hourglass': subject=<g filter={'url(#'+glow+')'}><path d="M49 25 L111 25 L111 35 Q111 56 88 76 Q111 96 111 117 L111 130 L49 130 L49 117 Q49 96 72 76 Q49 56 49 35Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M58 34 L102 34 Q102 53 80 70 Q58 53 58 34Z M58 121 Q58 100 80 83 Q102 100 102 121Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M58 34 L102 34 M58 121 L102 121" stroke={art.a} strokeWidth="4"/></g>; break;
+    case 'shell': subject=<g filter={'url(#'+glow+')'}><path d="M35 107 Q22 69 52 47 Q80 24 108 47 Q138 69 125 107 Q80 132 35 107Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M80 120 L80 39 M80 120 L49 53 M80 120 L111 53 M80 120 L34 84 M80 120 L126 84" stroke={art.a} strokeWidth="2.5" fill="none"/></g>; break;
+    case 'wings': subject=<g filter={'url(#'+glow+')'}><path d="M77 80 Q46 31 24 44 Q29 75 59 97 Q34 86 32 110 Q54 124 78 103Z" fill={art.b} stroke={art.a} strokeWidth="2"/><path d="M83 80 Q114 31 136 44 Q131 75 101 97 Q126 86 128 110 Q106 124 82 103Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M75 82 L40 55 M72 91 L42 83 M71 100 L50 108 M85 82 L120 55 M88 91 L118 83 M89 100 L110 108" stroke={art.a} strokeWidth="2"/></g>; break;
+    case 'sun': subject=<g filter={'url(#'+glow+')'}>{Array.from({length:12},(_,i)=><path key={i} d="M80 22 L86 43 L74 43Z" fill={art.b} stroke={art.a} transform={'rotate('+(i*30)+' 80 80)'}/>)}<circle cx="80" cy="80" r="34" fill={art.b} stroke={art.a} strokeWidth="3"/><path d="M61 73 Q67 66 73 73 M87 73 Q93 66 99 73 M65 89 Q80 103 95 89" fill="none" stroke={art.a} strokeWidth="3" strokeLinecap="round"/></g>; break;
+    case 'cloud': subject=<g filter={'url(#'+glow+')'}><path d="M40 103 Q23 99 27 82 Q29 68 45 68 Q47 44 69 47 Q87 47 91 64 Q111 53 124 72 Q140 96 115 105Z" fill={art.b} stroke={art.a} strokeWidth="2.5"/><path d="M49 113 L43 126 M70 113 L64 130 M91 113 L85 126 M112 113 L106 130" stroke={art.a} strokeWidth="3" strokeLinecap="round"/></g>; break;
+    default: subject=<g filter={'url(#'+glow+')'}><path d="M39 68 L121 68 L115 128 L45 128Z" fill={art.c} stroke={art.a} strokeWidth="2"/><path d="M43 71 L117 71 L111 120 L49 120Z" fill={art.b} stroke={art.a} strokeWidth="1.5"/><path d="M72 68 L72 125 M88 68 L88 125" stroke={art.a} strokeWidth="6"/><path d="M80 69 C49 63 48 40 62 40 C73 40 79 54 80 69 C81 54 88 40 99 40 C113 40 111 63 80 69Z" fill={art.b} stroke={art.a} strokeWidth="2"/></g>;
+  }
+  return <svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label={name||slug||'VANTA gift artwork'} className="overflow-visible">
+    <defs><radialGradient id={uid+'-aura'} cx="50%" cy="45%" r="62%"><stop offset="0%" stopColor={art.b} stopOpacity=".3"/><stop offset="70%" stopColor={art.c} stopOpacity=".08"/><stop offset="100%" stopColor={art.c} stopOpacity="0"/></radialGradient><linearGradient id={grad} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={art.a}/><stop offset="42%" stopColor={art.b}/><stop offset="100%" stopColor={art.c}/></linearGradient><filter id={glow} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation={2+(quality||1)*.3} result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <ellipse cx="80" cy="139" rx="38" ry="7" fill={art.c} opacity=".35"/><circle cx="80" cy="78" r="65" fill={'url(#'+uid+'-aura)'}/>{subject}<path d="M31 43 L34 49 L41 51 L34 53 L31 60 L29 53 L22 51 L29 49Z M127 37 L130 43 L136 45 L130 47 L127 53 L125 47 L119 45 L125 43Z" fill={art.a} opacity=".9"/><circle cx="36" cy="91" r="2" fill="#fff"/><circle cx="127" cy="111" r="2.4" fill={art.a}/>
+  </svg>;
 }
