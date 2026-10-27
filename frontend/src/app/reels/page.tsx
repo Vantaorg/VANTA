@@ -578,6 +578,7 @@ export default function ReelsPage() {
           <ReelCard
             key={reel.id}
             reel={reel}
+            isOwn={Boolean(user?.id && reel.author.id === user.id)}
             index={index}
             active={active === index}
             nearby={Math.abs(active - index) <= 1}
@@ -620,8 +621,8 @@ export default function ReelsPage() {
   );
 }
 
-function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onMute, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
-  reel: Reel; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onMute, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
+  reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
   followPending: boolean; onPlayToggle: () => void; onMute: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onShare: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
@@ -735,9 +736,9 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
                 <Avatar src={reel.author.avatar} alt={reel.author.username} size="sm" />
                 <span className="min-w-0"><span className="flex items-center gap-1 text-sm font-semibold"><span className="truncate">{reel.author.fullName || reel.author.username}</span>{reel.author.verified && reel.author.verificationType && <VerificationBadge verified type={reel.author.verificationType} size="sm" />}</span><small className="block truncate text-[11px] text-white/60">@{reel.author.username}</small></span>
               </button>
-              <button type="button" disabled={followPending} onClick={onFollow} className={cn('min-w-[76px] rounded-md border px-3 py-1.5 text-xs font-semibold transition', followed ? 'border-white/15 bg-white/10 text-white/75' : 'border-white/50 text-white', followPending && 'opacity-60')}>
+              {!isOwn && <button type="button" disabled={followPending} onClick={onFollow} className={cn('min-w-[76px] rounded-md border px-3 py-1.5 text-xs font-semibold transition', followed ? 'border-white/15 bg-white/10 text-white/75' : 'border-white/50 text-white', followPending && 'opacity-60')}>
                 {followPending ? <Loader2 className="mx-auto animate-spin" size={14} /> : followed ? 'Following' : 'Follow'}
-              </button>
+              </button>}
             </div>
             <p className={cn('mt-3 max-w-[44ch] text-sm leading-5 text-white/90', !expanded && 'line-clamp-2')}>{reel.description || reel.title || 'A new Reel on VANTA.'}</p>
             {(reel.description?.length || reel.title?.length || 0) > 110 && <button type="button" onClick={() => setExpanded(value => !value)} className="mt-0.5 text-xs text-white/60">{expanded ? 'less' : 'more'}</button>}
