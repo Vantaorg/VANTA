@@ -61,7 +61,7 @@ export default function HomesResults({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-0 gap-y-5 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {listings.map((listing) => <PropertyCard key={listing.id} listing={listing} />)}
       </div>
       {error && <p role="alert" className="mt-4 text-center text-sm text-red-400">{error}</p>}
