@@ -89,14 +89,31 @@ export default function CreatorUpgradePage() {
   const handleSubscribe = async (planId: string) => {
     if (!token) return;
     setError(null);
-    // Creators purchase the GOLD Verified badge plan. The payment is verified
-    // server-side before the badge/membership activates — clicking never does.
-    const goldPlan = badgePlans.find((p) => p.badgeType === 'GOLD') || badgePlans[0];
-    if (!goldPlan) {
-      setError('Verification plans are not available right now. Please try again shortly.');
+
+    // Never silently replace the plan the user clicked with the first Gold
+    // plan. The creator pricing catalog and verified-badge checkout catalog
+    // must agree on duration and price before checkout can start.
+    const selectedCreatorPlan = plans.find((plan) => plan.id === planId);
+    if (!selectedCreatorPlan) {
+      setError('That creator plan could not be found. Please refresh and try again.');
       return;
     }
-    setPurchasePlan(goldPlan);
+
+    const matchingBadgePlan = badgePlans.find(
+      (badgePlan) =>
+        badgePlan.badgeType === 'GOLD' &&
+        badgePlan.durationMonths === selectedCreatorPlan.durationMonths &&
+        Math.abs(badgePlan.priceUSD - selectedCreatorPlan.price) < 0.001,
+    );
+
+    if (!matchingBadgePlan) {
+      setError(
+        `The ${selectedCreatorPlan.name} plan does not have a matching verified-badge checkout configured yet. No payment has been started. Please try a plan that is available under Verified Badge.`,
+      );
+      return;
+    }
+
+    setPurchasePlan(matchingBadgePlan);
   };
 
   if (isLoading) {
