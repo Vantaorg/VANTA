@@ -1065,8 +1065,7 @@ html.light .tile-type { background: rgba(5, 5, 5, 0.78); }
 /* Fix profile image viewer stacking and full-width profile tabs. */
 .profile-header { isolation: auto; }
 .profile-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   width: 100%;
   min-width: 0;
   margin-top: 28px;
@@ -1074,7 +1073,8 @@ html.light .tile-type { background: rgba(5, 5, 5, 0.78); }
   border-right: 0;
 }
 .profile-tabs button {
-  width: 100%;
+  flex: 1 1 0;
+  width: auto;
   min-width: 0;
   justify-content: center;
   padding-inline: 4px;
