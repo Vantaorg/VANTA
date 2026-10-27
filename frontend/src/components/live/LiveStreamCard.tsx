@@ -157,7 +157,7 @@ export default function LiveStreamCard({ stream, ended = false, index = 0 }: Liv
         <p className="truncate text-[13px] font-semibold leading-tight text-[#F5F5F5]">{stream.title}</p>
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar src={host.avatar} alt={host.username} size="xs" />
+            <Avatar src={host.avatar} alt={host.username} size="xs" verified={Boolean(host.verified && host.verificationType)} verificationType={host.verificationType} />
             <div className="min-w-0">
               <div className="flex items-center gap-1">
                 <span className="max-w-[92px] truncate text-[11px] font-medium text-[#C8C8CC]">{host.fullName || host.username}</span>
