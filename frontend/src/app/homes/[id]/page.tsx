@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/lib/i18n/context';
 import { formatDate } from '@/lib/utils';
+import { API_BASE_URL } from '@/lib/api';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import {
   MapPin, Bed, Bath, Home, Play, Share2, Phone, MessageCircle,
@@ -77,7 +78,7 @@ function WhatsAppGlyph({ size = 18, className }: { size?: number; className?: st
 
 interface ListingMedia {
   id: string;
-  type: 'IMAGE' | 'VIDEO';
+  type: 'IMAGE' | 'VIDEO' | 'PHOTO' | 'image' | 'video';
   order: number;
   isCover: boolean;
   thumbnailUrl?: string | null;
@@ -105,6 +106,14 @@ interface MediaFee {
   label?: string;
   amount?: number;
   currency?: string;
+}
+
+function resolveHomeMediaUrl(media: any): string | null {
+  const raw = media?.uploadedFile?.url || media?.url || media?.thumbnailUrl || media?.uploadedFile?.thumbnailUrl;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const value = raw.trim();
+  if (/^(https?:|blob:|data:)/i.test(value)) return value;
+  try { return new URL(value.startsWith('/') ? value : `/${value}`, API_BASE_URL).toString(); } catch { return value; }
 }
 
 function parseJsonArray<T>(raw: unknown): T[] {
@@ -220,12 +229,12 @@ export default function HomeDetailPage() {
 
   const media = useMemo<ListingMedia[]>(() => {
     const items: ListingMedia[] = Array.isArray(listing?.media) ? listing.media : [];
-    return [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return [...items].sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)) || (a.order ?? 0) - (b.order ?? 0));
   }, [listing]);
 
   const activeIndex = Math.min(viewerIndex, Math.max(media.length - 1, 0));
   const activeMedia = media[activeIndex] || null;
-  const activeSrc = activeMedia?.uploadedFile?.url || activeMedia?.thumbnailUrl || null;
+  const activeSrc = resolveHomeMediaUrl(activeMedia);
 
   const amenities = useMemo(() => parseJsonArray<string>(listing?.amenities), [listing]);
   const fees = useMemo<MediaFee[]>(() => parseJsonArray<MediaFee>(listing?.additionalFees), [listing]);
@@ -348,8 +357,8 @@ export default function HomeDetailPage() {
   // ---------------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)]">
-        <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)]">
+        <div className="w-full px-0 py-4">
           <Skeleton className="w-24 h-4 mb-6" />
           <Skeleton variant="rectangular" className="h-72 sm:h-96 w-full mb-4" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -358,7 +367,7 @@ export default function HomeDetailPage() {
               <Skeleton className="w-1/2 h-5" />
               <Skeleton className="w-full h-32" />
             </div>
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <Skeleton className="w-full h-48" />
               <Skeleton className="w-full h-32" />
             </div>
@@ -371,7 +380,7 @@ export default function HomeDetailPage() {
   if (error || !listing) {
     return (
       <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)]">
-        <div className="max-w-5xl mx-auto px-4 py-10">
+        <div className="w-full px-0 py-6">
           <button
             onClick={() => router.push('/homes')}
             className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors"
@@ -395,8 +404,8 @@ export default function HomeDetailPage() {
   }
 
   return (
-    <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="max-w-5xl mx-auto px-4 py-5 pb-24">
+    <div className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)] text-[var(--foreground)]">
+      <div className="w-full px-0 pb-28">
         {/* Top bar ------------------------------------------------------- */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <button
@@ -429,7 +438,7 @@ export default function HomeDetailPage() {
         </div>
 
         {reportOpen && !isOwner && (
-          <Card variant="glass" padding="lg" className="mb-4">
+          <section className="mb-4 border-y border-white/[.08] py-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Report this listing</h2>
               <button type="button" onClick={() => setReportOpen(false)} className="text-sm text-white/50 hover:text-white">Cancel</button>
@@ -455,12 +464,12 @@ export default function HomeDetailPage() {
                 <Button variant="gold" loading={reporting} onClick={() => void handleReport()}>Submit report</Button>
               </div>
             </div>
-          </Card>
+          </section>
         )}
 
         {/* Owner-only banner while the listing is not public -------------- */}
         {isOwner && listing.availabilityStatus !== 'PUBLISHED' && (
-          <div className="mb-4 flex items-center gap-2 rounded-[var(--radius-xl)] border border-[#c9a227]/30 bg-[#c9a227]/[0.07] px-3.5 py-2.5 text-sm text-[#e6c65a]">
+          <div className="mb-4 flex items-center gap-2 border-y border-[#c9a227]/25 bg-[#c9a227]/[0.05] px-4 py-3 text-sm text-[#e6c65a]">
             <AlertCircle size={16} className="shrink-0" />
             <span>
               This listing is{' '}
@@ -471,18 +480,18 @@ export default function HomeDetailPage() {
         )}
 
         {/* Media gallery ------------------------------------------------- */}
-        <Card variant="glass" padding="none" className="mb-6 overflow-hidden">
+        <section className="mb-6 w-full overflow-hidden border-y border-white/[.06]">
           <div className="relative bg-black/40">
-            <div className="relative h-64 sm:h-96">
+            <div className="relative h-[54vw] min-h-64 max-h-[620px] sm:h-[min(64vh,620px)]">
               {activeMedia ? (
-                activeMedia.type === 'VIDEO' ? (
+                activeMedia.type === 'VIDEO' || activeMedia.type === 'video' ? (
                   <video
                     key={activeMedia.id}
                     src={activeSrc || undefined}
                     poster={activeMedia.thumbnailUrl || undefined}
                     controls
                     playsInline
-                    className="h-full w-full object-contain bg-black"
+                    className="h-full w-full object-cover bg-[#101010]"
                   />
                 ) : (
                   <button
@@ -494,7 +503,7 @@ export default function HomeDetailPage() {
                     <img
                       src={activeSrc || undefined}
                       alt={listing.title}
-                      className="h-full w-full object-contain bg-black"
+                      className="h-full w-full object-cover bg-[#101010]"
                     />
                     <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-black/60 px-2.5 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
                       <Maximize2 size={13} /> View
@@ -539,7 +548,7 @@ export default function HomeDetailPage() {
             {media.length > 1 && (
               <div className="flex gap-2 overflow-x-auto px-3 py-3">
                 {media.map((item, index) => {
-                  const thumb = item.thumbnailUrl || item.uploadedFile?.url || '';
+                  const thumb = resolveHomeMediaUrl(item) || '';
                   const isActive = index === activeIndex;
                   return (
                     <button
@@ -548,7 +557,7 @@ export default function HomeDetailPage() {
                       className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-[var(--radius-md)] border transition ${
                         isActive ? 'border-[#c9a227]' : 'border-white/10 opacity-60 hover:opacity-100'
                       }`}
-                      aria-label={`View ${item.type === 'VIDEO' ? 'video' : 'photo'} ${index + 1}`}
+                      aria-label={`View ${['VIDEO', 'video'].includes(item.type) ? 'video' : 'photo'} ${index + 1}`}
                       aria-current={isActive}
                     >
                       {thumb ? (
@@ -558,7 +567,7 @@ export default function HomeDetailPage() {
                           <Home size={14} className="text-white/30" />
                         </span>
                       )}
-                      {item.type === 'VIDEO' && (
+                      {['VIDEO', 'video'].includes(item.type) && (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/40">
                           <Play size={14} className="text-white" fill="currentColor" />
                         </span>
@@ -569,18 +578,18 @@ export default function HomeDetailPage() {
               </div>
             )}
           </div>
-        </Card>
+        </section>
 
         <ImageViewer
-          src={lightboxOpen && activeMedia?.type === 'IMAGE' ? activeSrc : null}
+          src={lightboxOpen && activeMedia && !['VIDEO', 'video'].includes(activeMedia.type) ? activeSrc : null}
           alt={listing.title}
           onClose={() => setLightboxOpen(false)}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid w-full grid-cols-1 gap-0 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
           {/* Left: the listing itself ------------------------------------ */}
-          <div className="lg:col-span-2 space-y-5">
-            <Card variant="glass" padding="lg">
+          <div className="min-w-0 space-y-0">
+            <section className="border-b border-white/[.08] py-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h1 className="text-2xl font-bold text-white leading-tight">{listing.title}</h1>
@@ -630,19 +639,19 @@ export default function HomeDetailPage() {
                   </div>
                 </div>
               </div>
-            </Card>
+            </section>
 
             {/* Description */}
-            <Card variant="glass" padding="lg">
+            <section className="border-b border-white/[.08] py-5">
               <h2 className="mb-3 text-lg font-semibold text-white">About this home</h2>
               <p className="whitespace-pre-line text-sm leading-relaxed text-white/65">
                 {listing.description || 'The owner has not added a description yet.'}
               </p>
-            </Card>
+            </section>
 
             {/* Amenities */}
             {amenities.length > 0 && (
-              <Card variant="glass" padding="lg">
+              <section className="border-b border-white/[.08] py-5">
                 <h2 className="mb-3 text-lg font-semibold text-white">What this place offers</h2>
                 <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {amenities.map((amenity) => (
@@ -655,12 +664,12 @@ export default function HomeDetailPage() {
                     </li>
                   ))}
                 </ul>
-              </Card>
+              </section>
             )}
 
             {/* Costs: deposit + disclosed fees + move-in note */}
             {(typeof listing.depositAmount === 'number' || fees.length > 0 || listing.moveInInfo) && (
-              <Card variant="glass" padding="lg">
+              <section className="border-b border-white/[.08] py-5">
                 <h2 className="mb-3 text-lg font-semibold text-white">Costs &amp; move-in</h2>
                 <ul className="divide-y divide-white/[0.06]">
                   {typeof listing.depositAmount === 'number' && listing.depositAmount > 0 && (
@@ -690,14 +699,14 @@ export default function HomeDetailPage() {
                     <span>{listing.moveInInfo}</span>
                   </p>
                 )}
-              </Card>
+              </section>
             )}
           </div>
 
           {/* Right: owner + contact ---------------------------------------- */}
           <div className="space-y-5 lg:sticky lg:top-5">
             {/* Owner */}
-            <Card variant="glass" padding="lg">
+            <section className="border-b border-white/[.08] py-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/40">Listed by</h2>
               <div className="flex items-center gap-3">
                 <button
@@ -732,10 +741,10 @@ export default function HomeDetailPage() {
                   </span>
                 </p>
               )}
-            </Card>
+            </section>
 
             {/* Contact */}
-            <Card variant="glass" padding="lg">
+            <section className="border-b border-white/[.08] py-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/40">Contact</h2>
 
               {isOwner ? (
@@ -823,10 +832,10 @@ export default function HomeDetailPage() {
                   </div>
                 </div>
               )}
-            </Card>
+            </section>
 
             {/* Listing meta */}
-            <Card variant="glass" padding="md">
+            <section className="border-t border-white/[.06] py-4">
               <ul className="space-y-2 text-xs text-white/40">
                 {listing.publishedAt && (
                   <li className="flex items-center gap-2">
@@ -837,7 +846,7 @@ export default function HomeDetailPage() {
                   <AlertCircle size={13} /> Reference {String(listing.id).slice(0, 10).toUpperCase()}
                 </li>
               </ul>
-            </Card>
+            </section>
           </div>
         </div>
       </div>
