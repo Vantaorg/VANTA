@@ -3,6 +3,7 @@ import { prisma } from '../prisma';
 import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/api-error';
+import { BADGE_USER_SELECT, isBadgeRowActive } from './public-verification';
 
 /**
  * Reject public-profile reads for restricted accounts. The account OWNER
@@ -247,16 +248,15 @@ export class UserService {
   async getPublicProfileByUsername(username: string, currentUserId?: string) {
     const user = await prisma.user.findUnique({
       where: { username },
-      include: {
+      select: {
+        ...BADGE_USER_SELECT,
+        id: true, username: true, fullName: true, avatar: true, verified: true, premium: true, status: true, createdAt: true,
         profile: { include: { socialLinks: true, media: { orderBy: { createdAt: 'desc' }, take: 12 } } },
         _count: { select: { followers: true, following: true, posts: true } },
         posts: {
           orderBy: { createdAt: 'desc' },
           take: 6,
-          include: {
-            likes: { select: { id: true } },
-            comments: { select: { id: true } },
-          },
+          include: { likes: { select: { id: true } }, comments: { select: { id: true } } },
         },
       },
     });
@@ -314,7 +314,10 @@ export class UserService {
       country: user.profile?.country || null,
       city: user.profile?.city || null,
       interests: user.profile?.interests || null,
-      verified: user.verified,
+      verified: isBadgeRowActive(user.verificationBadge) || (Boolean(user.verified) && !user.verificationBadge),
+      verificationType: isBadgeRowActive(user.verificationBadge)
+        ? user.verificationBadge.badgeType
+        : Boolean(user.verified) && !user.verificationBadge ? 'GOLD' : null,
       premium: user.premium,
       creatorCategory: user.profile?.creatorCategory || null,
       occupation: user.profile?.occupation || null,
