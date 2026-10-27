@@ -117,7 +117,7 @@ export default function Avatar({
         )}
       </div>
 
-      {verified && verificationType && verificationType !== 'NONE' && (
+      {verified && verificationType && (
         <span className="pointer-events-none absolute -right-0.5 -top-0.5 z-10 rounded-full bg-[#050505] p-[1px] leading-none" aria-label={verificationType === 'BLUE' ? 'Blue verified' : 'Gold verified'}>
           <VerificationBadge type={verificationType} size={size === 'xs' || size === 'sm' ? 'xs' : 'sm'} />
         </span>
