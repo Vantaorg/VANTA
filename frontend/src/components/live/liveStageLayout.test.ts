@@ -130,7 +130,7 @@ describe('stageLayoutFor', () => {
   test('the design only ever seats host + up to 4 guests', () => {
     expect(MAX_STAGE_PARTICIPANTS).toBe(5);
     const layout = stageLayoutFor(5);
-    // 4 guests max → a 2x2 guest cluster, never a taller stack.
+    // Four guests max; the equal-width grid remains readable on phones.
     expect(layout.guestAreas).toHaveLength(4);
     expect(layout.rows.match(/minmax\(0, 1fr\)/g)).toHaveLength(3);
   });
