@@ -51,7 +51,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   return (
     <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#080808] pt-14 text-white">
       <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
-        <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-4">
+        <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
             <span className="flex items-baseline gap-2">
@@ -67,13 +67,13 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
       </header>
 
       <section className="border-b border-white/[.06]">
-        <div className="mx-auto max-w-7xl px-4 pb-6 pt-7 sm:px-6 sm:pb-8 sm:pt-9">
-          <div className="max-w-3xl">
+        <div className="w-full px-3 pb-5 pt-6 sm:px-4 sm:pb-7 sm:pt-8">
+          <div className="w-full">
             <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Homes for the way you live.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-5 text-white/55 sm:text-base sm:leading-6">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
           </div>
-          <div className="mt-6 w-full max-w-6xl">
+          <div className="mt-5 w-full">
             <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-white/40">
@@ -83,8 +83,8 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <section className="w-full px-3 pb-28 pt-5 sm:px-4 sm:pt-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
             <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'Listings appear here after they pass VANTA review.'}</p>

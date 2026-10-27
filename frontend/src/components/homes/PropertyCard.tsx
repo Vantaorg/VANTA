@@ -54,29 +54,29 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
 
   return (
     <article className="group min-w-0">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-white/[.04] sm:aspect-[5/4]">
+      <div className="relative aspect-[5/4] overflow-hidden rounded-lg bg-white/[.04] sm:aspect-[4/3]">
         <Link href={'/homes/' + listing.id} className="absolute inset-0 block" aria-label={'View ' + listing.title}>
           {coverUrl ? <img src={coverUrl} alt={listing.title || 'Property photo'} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-white/25"><Home size={32} strokeWidth={1.4} /></div>}
           {cover?.type === 'VIDEO' && <span className="absolute inset-0 flex items-center justify-center bg-black/25"><Play size={28} className="text-white" /></span>}
         </Link>
         <span className="absolute bottom-3 left-3 max-w-[calc(100%-4.5rem)] truncate rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white backdrop-blur-sm">{type}</span>
-        <button type="button" onClick={() => void handleSave()} disabled={saving} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9a227] disabled:opacity-60" aria-label={saved ? 'Remove from saved homes' : 'Save this property'} aria-pressed={saved}>
+        <button type="button" onClick={() => void handleSave()} disabled={saving} className="absolute right-2.5 top-2.5 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9a227] disabled:opacity-60" aria-label={saved ? 'Remove from saved homes' : 'Save this property'} aria-pressed={saved}>
           <Bookmark size={17} fill={saved ? '#c9a227' : 'none'} className={saved ? 'text-[#c9a227]' : ''} />
         </button>
       </div>
-      <div className="pt-3.5">
+      <div className="pt-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <Link href={'/homes/' + listing.id} className="block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]"><h3 className="line-clamp-1 text-[15px] font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3></Link>
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-white/50"><MapPin size={13} className="shrink-0" /><span className="truncate">{[listing.area, listing.city].filter(Boolean).join(', ') || 'Location not specified'}</span></p>
+            <Link href={'/homes/' + listing.id} className="block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]"><h3 className="line-clamp-1 text-sm font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3></Link>
+            <p className="mt-1 flex items-center gap-1 text-xs text-white/50"><MapPin size={13} className="shrink-0" /><span className="truncate">{[listing.area, listing.city].filter(Boolean).join(', ') || 'Location not specified'}</span></p>
           </div>
           <div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums text-[#e4c65d]">{price}</p><p className="mt-0.5 text-[11px] text-white/40">{period}</p></div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[.08] pt-3 text-xs text-white/55">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/[.06] pt-2.5 text-[11px] text-white/55">
           <span className="inline-flex items-center gap-1.5"><Bed size={14} /> {listing.bedrooms ?? '—'} beds</span>
           <span className="inline-flex items-center gap-1.5"><Bath size={14} /> {listing.bathrooms ?? '—'} baths</span>
           {listing.furnished && <span>Furnished</span>}
-          <Link href={'/homes/' + listing.id} className="ml-auto inline-flex min-h-8 items-center text-xs font-semibold text-white/75 transition hover:text-[#e4c65d]">View property <span className="ml-1" aria-hidden="true">→</span></Link>
+          <Link href={'/homes/' + listing.id} className="ml-auto inline-flex min-h-7 items-center text-[11px] font-semibold text-white/75 transition hover:text-[#e4c65d]">View property <span className="ml-1" aria-hidden="true">→</span></Link>
         </div>
       </div>
     </article>
