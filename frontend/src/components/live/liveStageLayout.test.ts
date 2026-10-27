@@ -69,10 +69,10 @@ describe('stageLayoutFor', () => {
     expect(row.indexOf('host')).toBeLessThan(row.indexOf('g1'));
   });
 
-  test('three participants: host+g1 on top, g2 spans the bottom row', () => {
+  test('three participants use a balanced 2x2 canvas without stretching one guest', () => {
     const layout = stageLayoutFor(3);
     expect(layout.arrangement).toBe('host-col');
-    expect(layout.areas).toEqual(['"host g1"', '"g2 g2"']);
+    expect(layout.areas).toEqual(['"host g1"', '"g2 ."']);
     expect(layout.guestAreas).toEqual(['g1', 'g2']);
     expect(layout.columns).toBe('minmax(0, 1fr) minmax(0, 1fr)');
     expect(layout.rows).toBe('minmax(0, 1fr) minmax(0, 1fr)');
@@ -85,16 +85,16 @@ describe('stageLayoutFor', () => {
     expect(layout.guestAreas).toEqual(['g1', 'g2', 'g3']);
   });
 
-  test('five participants keep a readable adaptive grid with host priority', () => {
+  test('five participants use equal tiles in a balanced 3x2 grid', () => {
     const layout = stageLayoutFor(5);
     expect(layout.arrangement).toBe('host-grid5');
-    expect(layout.areas).toEqual(['"host g1"', '"host g2"', '"g3 g4"']);
+    expect(layout.areas).toEqual(['"host g1 g2"', '". g3 g4"']);
     expect(layout.guestAreas).toEqual(['g1', 'g2', 'g3', 'g4']);
-    // Host spans the left column of the first two rows (2 cells — prioritised,
-    // not overpowering).
-    expect(layout.areas[0]).toContain('host');
-    expect(layout.areas[1]).toContain('host');
-    expect(layout.areas[2]).not.toContain('host');
+    // Each participant gets one unique, equal-size cell; no duplicated host area.
+    const cells = layout.areas.flatMap((row) => row.replace(/"/g, '').trim().split(/\s+/));
+    expect(cells.filter((area) => area === 'host')).toHaveLength(1);
+    expect(layout.columns).toBe('repeat(3, minmax(0, 1fr))');
+    expect(layout.rows).toBe('repeat(2, minmax(0, 1fr))');
   });
 
   test('every supported count uses integer-free responsive grid fractions', () => {
