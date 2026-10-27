@@ -1055,3 +1055,8 @@ html.light .tile-type { background: rgba(5, 5, 5, 0.78); }
     font-size: 9px;
   }
 }
+
+
+/* Keep profile pagination controls visible and aligned across Posts, Reels, Media and Likes. */
+.profile-load-more { display: flex; justify-content: center; padding: 18px 12px 26px; }
+.profile-load-more .profile-button { min-width: 112px; }
