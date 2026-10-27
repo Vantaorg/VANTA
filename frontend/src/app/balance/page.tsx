@@ -23,6 +23,13 @@ import SendCoinsModal from '@/components/wallet/SendCoinsModal';
 import WithdrawModal from '@/components/wallet/WithdrawModal';
 
 // ============================================================================
+function csvCell(value: unknown): string {
+  const raw = String(value ?? '');
+  // Prefix spreadsheet formula-like text before CSV quoting.
+  const safe = /^[\s\u0000-\u001f]*[=+@\-]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 // TRANSACTION TYPE HELPERS
 // ============================================================================
 
@@ -235,14 +242,14 @@ export default function BalancePage() {
       const rows = transactions.map((tx: any) => [
         new Date(tx.createdAt).toISOString(),
         tx.type,
-        `"${(tx.description || '').replace(/"/g, '""')}"`,
+        tx.description || '',
         tx.displayAmount ?? tx.amount ?? 0,
         tx.fee ?? 0,
         tx.balance ?? 0,
         tx.status,
         tx.reference || '',
       ]);
-      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

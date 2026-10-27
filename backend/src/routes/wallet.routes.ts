@@ -5,7 +5,7 @@ import {
   saveWalletAddress, requestWithdrawal, getWithdrawals, cancelWithdrawal,
   processDeposit, transferCoins,
   setupPin, updatePin, verifyPin,
-  updateTransferLimit, getWalletAnalytics,
+  updateTransferLimit,
   getCoinPackages, getPaymentAddress, verifyPayment, searchWalletUsers,
   getCoinPurchases,
   exportTransactions,
@@ -64,7 +64,5 @@ router.get('/purchases', getCoinPurchases);
 // User search (Send Coins flow)
 router.get('/users/search', searchWalletUsers);
 
-// Analytics
-router.get('/analytics', getWalletAnalytics);
 
 export default router;
