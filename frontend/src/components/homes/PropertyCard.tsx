@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useI18n } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/Toast';
 import { toggleSaveHome } from '@/lib/services';
 import { API_BASE_URL } from '@/lib/api';
@@ -20,6 +19,15 @@ const resolveHomeMediaUrl = (media: any): string | null => {
 };
 
 const PERIOD_LABEL: Record<string, string> = { WEEKLY: '/week', MONTHLY: '/month', YEARLY: '/year' };
+const CURRENCY_SYMBOL: Record<string, string> = {
+  NGN: '₦', USD: '$', GBP: '£', EUR: '€', CAD: 'C$', AUD: 'A$',
+  GHS: '₵', KES: 'KSh', ZAR: 'R', INR: '₹', JPY: '¥', CNY: '¥',
+};
+const formatHomePrice = (value: number, currency = 'NGN') => {
+  const symbol = CURRENCY_SYMBOL[currency.toUpperCase()] || currency.toUpperCase() + ' ';
+  return symbol + new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(Number(value) || 0);
+};
+
 const TYPE_LABEL: Record<string, string> = {
   APARTMENT: 'Apartment', STUDIO: 'Studio', FLAT: 'Flat',
   DETACHED_HOUSE: 'Detached house', SEMI_DETACHED_HOUSE: 'Semi-detached house',
@@ -27,14 +35,13 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function PropertyCard({ listing }: PropertyCardProps) {
-  const { formatCurrency } = useI18n();
   const { user, token } = useAuth();
   const { showToast } = useToast();
   const [saved, setSaved] = useState<boolean>(Boolean(listing.isSaved));
   const [saving, setSaving] = useState(false);
   const cover = Array.isArray(listing.media) ? [...listing.media].sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)) || (a.order ?? 0) - (b.order ?? 0))[0] : null;
   const coverUrl = resolveHomeMediaUrl(cover);
-  const price = formatCurrency(listing.rentAmount, listing.currency || 'NGN');
+  const price = formatHomePrice(listing.rentAmount, listing.currency || 'NGN');
   const period = PERIOD_LABEL[listing.rentPeriod || 'MONTHLY'] || '/month';
   const type = TYPE_LABEL[listing.propertyType || 'OTHER'] || 'Other';
 
@@ -73,19 +80,20 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
           <Bookmark size={17} fill={saved ? '#c9a227' : 'none'} className={saved ? 'text-[#c9a227]' : ''} />
         </button>
       </div>
-      <div className="px-2.5 pt-2.5 pb-1 sm:px-0 sm:pb-0">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Link href={'/homes/' + listing.id} className="block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]"><h3 className="line-clamp-1 text-sm font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3></Link>
-            <p className="mt-1 flex items-center gap-1 text-xs text-white/50"><MapPin size={13} className="shrink-0" /><span className="truncate">{[listing.area, listing.city].filter(Boolean).join(', ') || 'Location not specified'}</span></p>
-          </div>
-          <div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums text-[#e4c65d]">{price}</p><p className="mt-0.5 text-[11px] text-white/40">{period}</p></div>
+      <div className="min-w-0 px-2.5 pb-3 pt-3 sm:px-0 sm:pb-0">
+        <Link href={'/homes/' + listing.id} className="block min-w-0 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]">
+          <h3 className="line-clamp-2 break-words text-sm font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3>
+        </Link>
+        <p className="mt-1 flex min-w-0 items-center gap-1 text-xs leading-4 text-white/50"><MapPin size={13} className="shrink-0" /><span className="line-clamp-2 break-words">{[listing.area, listing.city].filter(Boolean).join(', ') || 'Location not specified'}</span></p>
+        <div className="mt-3 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+          <p className="max-w-full break-words text-sm font-semibold leading-5 tabular-nums text-[#e4c65d] sm:text-base">{price}</p>
+          <p className="shrink-0 text-[11px] text-white/40">{period}</p>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-white/[.06] pt-2 text-[10px] text-white/55 sm:text-[11px]">
-          <span className="inline-flex items-center gap-1.5"><Bed size={14} /> {listing.bedrooms ?? '—'} beds</span>
-          <span className="inline-flex items-center gap-1.5"><Bath size={14} /> {listing.bathrooms ?? '—'} baths</span>
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/[.06] pt-2 text-[10px] text-white/55 sm:text-[11px]">
+          <span className="inline-flex items-center gap-1.5"><Bed size={14} className="shrink-0" /> {listing.bedrooms ?? '—'} beds</span>
+          <span className="inline-flex items-center gap-1.5"><Bath size={14} className="shrink-0" /> {listing.bathrooms ?? '—'} baths</span>
           {listing.furnished && <span>Furnished</span>}
-          <Link href={'/homes/' + listing.id} className="ml-auto inline-flex min-h-7 items-center text-[11px] font-semibold text-white/75 transition hover:text-[#e4c65d]">View property <span className="ml-1" aria-hidden="true">→</span></Link>
+          <Link href={'/homes/' + listing.id} className="ml-auto inline-flex min-h-7 items-center text-[11px] font-semibold text-white/75 transition hover:text-[#e4c65d]">View <span className="ml-1" aria-hidden="true">→</span></Link>
         </div>
       </div>
     </article>

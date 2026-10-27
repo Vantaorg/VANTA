@@ -12,7 +12,6 @@ import ImageViewer from '@/components/ui/ImageViewer';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { useI18n } from '@/lib/i18n/context';
 import { formatDate } from '@/lib/utils';
 import { API_BASE_URL } from '@/lib/api';
 import VerificationBadge from '@/components/ui/VerificationBadge';
@@ -21,6 +20,15 @@ import {
   AlertCircle, User, ChevronLeft, ChevronRight, Maximize2, Bookmark,
   CalendarDays, Building2, Wallet, Shield, ArrowLeft, Flag,
 } from 'lucide-react';
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  NGN: '₦', USD: '$', GBP: '£', EUR: '€', CAD: 'C$', AUD: 'A$',
+  GHS: '₵', KES: 'KSh', ZAR: 'R', INR: '₹', JPY: '¥', CNY: '¥',
+};
+const formatHomePrice = (value: number, currency = 'NGN') => {
+  const symbol = CURRENCY_SYMBOL[currency.toUpperCase()] || currency.toUpperCase() + ' ';
+  return symbol + new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(Number(value) || 0);
+};
 
 const PERIOD_LABEL: Record<string, string> = {
   WEEKLY: '/week',
@@ -161,7 +169,6 @@ export default function HomeDetailPage() {
   const router = useRouter();
   const { user, token, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
-  const { formatCurrency } = useI18n();
 
   const [listing, setListing] = useState<any>(null);
   const [contactOptions, setContactOptions] = useState<ContactOptions | null>(null);
@@ -348,7 +355,7 @@ export default function HomeDetailPage() {
     setViewerIndex((i) => (media.length === 0 ? 0 : (i + delta + media.length) % media.length));
   }, [media.length]);
 
-  const rent = typeof listing?.rentAmount === 'number' ? formatCurrency(listing.rentAmount, listing.currency || 'NGN') : '';
+  const rent = typeof listing?.rentAmount === 'number' ? formatHomePrice(listing.rentAmount, listing.currency || 'NGN') : '';
   const periodSuffix = PERIOD_LABEL[listing?.rentPeriod || 'MONTHLY'] || '/month';
   const typeLabel = TYPE_LABEL[listing?.propertyType || 'OTHER'] || 'Other';
 
@@ -514,8 +521,8 @@ export default function HomeDetailPage() {
             {(typeof listing.depositAmount === 'number' || fees.length > 0 || listing.moveInInfo) && <section className="border-b border-white/[.08] py-5 sm:py-7">
               <h2 className="text-base font-semibold text-white sm:text-lg">Costs & move-in</h2>
               <ul className="mt-3 divide-y divide-white/[.06]">
-                {typeof listing.depositAmount === 'number' && listing.depositAmount > 0 && <li className="flex items-center justify-between gap-3 py-3 text-sm"><span className="flex items-center gap-2 text-white/55"><Wallet size={15} /> Security deposit</span><span className="font-semibold text-white">{formatCurrency(listing.depositAmount, listing.currency || 'NGN')}</span></li>}
-                {fees.map((fee, index) => <li key={(fee.label || 'fee') + '-' + index} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-white/55">{fee.label || 'Additional fee'}</span><span className="font-semibold text-white">{typeof fee.amount === 'number' ? formatCurrency(fee.amount, fee.currency || listing.currency || 'NGN') : '—'}</span></li>)}
+                {typeof listing.depositAmount === 'number' && listing.depositAmount > 0 && <li className="flex items-center justify-between gap-3 py-3 text-sm"><span className="flex items-center gap-2 text-white/55"><Wallet size={15} /> Security deposit</span><span className="font-semibold text-white">{formatHomePrice(listing.depositAmount, listing.currency || 'NGN')}</span></li>}
+                {fees.map((fee, index) => <li key={(fee.label || 'fee') + '-' + index} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-white/55">{fee.label || 'Additional fee'}</span><span className="font-semibold text-white">{typeof fee.amount === 'number' ? formatHomePrice(fee.amount, fee.currency || listing.currency || 'NGN') : '—'}</span></li>)}
               </ul>
               {listing.moveInInfo && <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-white/55"><CalendarDays size={15} className="mt-1 shrink-0 text-[#c9a227]" /><span>{listing.moveInInfo}</span></p>}
             </section>}
