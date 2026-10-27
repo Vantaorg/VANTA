@@ -278,9 +278,7 @@ export default function CreatorLayout({ children }: { children: React.ReactNode 
       {/* Content starts below the fixed viewport header (its full height,
           including the safe-area inset, is reserved as top padding). */}
       <div className="flex min-h-dvh flex-col lg:pl-[var(--vc-sidebar-w)]">
-        <main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)]">
-          <div className="mx-auto w-full max-w-[var(--vc-content-max)]">{children}</div>
-        </main>
+        <main className="min-w-0 w-full flex-1 overflow-x-hidden px-3 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:px-5 lg:px-6"><div className="w-full min-w-0">{children}</div></main>
       </div>
     </div>
   );
