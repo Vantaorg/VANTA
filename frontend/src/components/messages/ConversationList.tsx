@@ -163,7 +163,7 @@ function ConversationItem({ conv, isActive, onSelect, timeAgo }: {
       {/* Avatar */}
       <div className="relative shrink-0">
         {conv.type === 'private' ? (
-          <Avatar src={conv.avatar} alt={conv.name} size="md" />
+          <Avatar src={conv.avatar} alt={conv.name} size="md" verified={Boolean(conv.verified && conv.verificationType)} verificationType={conv.verificationType} />
         ) : (
           <div className="w-10 h-10 rounded-full border border-white/[0.08] bg-[#161616] flex items-center justify-center text-white/50">
             {conv.type === 'group' ? <Users size={15} /> : <Hash size={15} />}
