@@ -404,454 +404,157 @@ export default function HomeDetailPage() {
   }
 
   return (
-    <div className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)] text-[var(--foreground)]">
-      <div className="w-full px-0 pb-28">
-        {/* Top bar ------------------------------------------------------- */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <button
-            onClick={() => router.push('/homes')}
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} /> All homes
-          </button>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" icon={<Share2 size={16} />} onClick={() => void handleShare()}>
-              Share
-            </Button>
-            {!isOwner && (
-              <Button
-                size="sm"
-                variant={saved ? 'gold' : 'goldGhost'}
-                icon={<Bookmark size={16} fill={saved ? 'currentColor' : 'none'} />}
-                loading={saving}
-                onClick={() => void handleSave()}
-              >
-                {saved ? 'Saved' : 'Save'}
-              </Button>
-            )}
-            {!isOwner && (
-              <Button size="sm" variant="ghost" icon={<Flag size={15} />} onClick={() => setReportOpen((open) => !open)}>
-                Report
-              </Button>
-            )}
+    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
+      <header className="sticky top-0 z-50 h-14 shrink-0 border-b border-white/[.07] bg-[#080808]/95 px-3 backdrop-blur-xl sm:px-5">
+        <div className="flex h-full w-full items-center justify-between gap-3">
+          <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
+            <span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span>
+          </a>
+          <div className="flex shrink-0 items-center gap-2">
+            <a href="/homes/manage" className="hidden px-2 py-2 text-sm text-white/55 transition hover:text-white sm:inline-flex">My listings</a>
+            <a href="/homes/create" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black transition hover:bg-[#e0bd46] sm:px-4 sm:text-sm"><Home size={15} /> List a property</a>
+          </div>
+        </div>
+      </header>
+
+      <div className="w-full pb-28 lg:pb-12">
+        <div className="flex min-h-12 items-center justify-between gap-3 px-3 sm:px-5">
+          <button type="button" onClick={() => router.push('/homes')} className="inline-flex min-h-10 items-center gap-2 text-sm text-white/55 transition hover:text-white"><ArrowLeft size={16} /> All homes</button>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button type="button" onClick={() => void handleShare()} aria-label="Share property" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs text-white/65 transition hover:bg-white/[.06] hover:text-white sm:px-3 sm:text-sm"><Share2 size={15} /><span>Share</span></button>
+            {!isOwner && <button type="button" onClick={() => void handleSave()} disabled={saving} aria-pressed={saved} className={"inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs transition sm:px-3 sm:text-sm " + (saved ? "text-[#e4c65d]" : "text-white/65 hover:text-white")}><Bookmark size={15} fill={saved ? 'currentColor' : 'none'} /><span>{saved ? 'Saved' : 'Save'}</span></button>}
+            {!isOwner && <button type="button" onClick={() => setReportOpen((open) => !open)} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs text-white/55 transition hover:bg-white/[.06] hover:text-white sm:px-3 sm:text-sm"><Flag size={14} /><span className="hidden sm:inline">Report</span></button>}
           </div>
         </div>
 
         {reportOpen && !isOwner && (
-          <section className="mb-4 border-y border-white/[.08] py-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-white">Report this listing</h2>
-              <button type="button" onClick={() => setReportOpen(false)} className="text-sm text-white/50 hover:text-white">Cancel</button>
-            </div>
-            <div className="space-y-3">
-              <label className="block text-xs font-medium text-white/60" htmlFor="home-report-type">Reason category</label>
-              <select id="home-report-type" value={reportType} onChange={(event) => setReportType(event.target.value)} className="w-full rounded-[var(--radius-lg)] border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white">
-                <option value="SCAM">Suspected scam</option>
-                <option value="FAKE_PROPERTY">Fake property</option>
-                <option value="UNAUTHORIZED_LISTING">Unauthorized listing</option>
-                <option value="MISLEADING_MEDIA">Misleading photos or description</option>
-                <option value="INCORRECT_PRICE">Incorrect price or hidden charges</option>
-                <option value="DUPLICATE_LISTING">Duplicate listing</option>
-                <option value="ALREADY_RENTED">Already rented</option>
-                <option value="INAPPROPRIATE">Inappropriate content</option>
-                <option value="OTHER">Other</option>
-              </select>
-              <label className="block text-xs font-medium text-white/60" htmlFor="home-report-reason">What happened? <span className="text-red-300">*</span></label>
-              <textarea id="home-report-reason" value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={2} maxLength={500} required placeholder="Describe the concern so our moderators can review it." className="w-full resize-y rounded-[var(--radius-lg)] border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white placeholder-white/30" />
-              <label className="block text-xs font-medium text-white/60" htmlFor="home-report-details">Additional details (optional)</label>
-              <textarea id="home-report-details" value={reportDescription} onChange={(event) => setReportDescription(event.target.value)} rows={2} maxLength={1000} placeholder="Add any helpful context." className="w-full resize-y rounded-[var(--radius-lg)] border border-white/[0.1] bg-black/30 px-3 py-2.5 text-sm text-white placeholder-white/30" />
-              <div className="flex justify-end">
-                <Button variant="gold" loading={reporting} onClick={() => void handleReport()}>Submit report</Button>
+          <section className="mx-3 mb-4 border-y border-white/[.09] py-4 sm:mx-5">
+            <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Report this listing</h2><button type="button" onClick={() => setReportOpen(false)} className="text-sm text-white/50 hover:text-white">Cancel</button></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
+                <label className="block text-xs text-white/55" htmlFor="home-report-type">Reason category</label>
+                <select id="home-report-type" value={reportType} onChange={(event) => setReportType(event.target.value)} className="w-full rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm text-white">
+                  <option value="SCAM">Suspected scam</option><option value="FAKE_PROPERTY">Fake property</option><option value="UNAUTHORIZED_LISTING">Unauthorized listing</option><option value="MISLEADING_MEDIA">Misleading photos or description</option><option value="INCORRECT_PRICE">Incorrect price or hidden charges</option><option value="DUPLICATE_LISTING">Duplicate listing</option><option value="ALREADY_RENTED">Already rented</option><option value="INAPPROPRIATE">Inappropriate content</option><option value="OTHER">Other</option>
+                </select>
+                <label className="block text-xs text-white/55" htmlFor="home-report-reason">What happened? *</label>
+                <textarea id="home-report-reason" value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={3} maxLength={500} required placeholder="Describe the concern for our moderators." className="w-full resize-y rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm text-white placeholder-white/30" />
+              </div>
+              <div className="flex flex-col gap-3">
+                <label className="block text-xs text-white/55" htmlFor="home-report-details">Additional details (optional)</label>
+                <textarea id="home-report-details" value={reportDescription} onChange={(event) => setReportDescription(event.target.value)} rows={4} maxLength={1000} placeholder="Add any helpful context." className="w-full flex-1 rounded-lg border border-white/10 bg-[#111] px-3 py-2.5 text-sm text-white placeholder-white/30" />
+                <div className="flex justify-end"><Button variant="gold" loading={reporting} onClick={() => void handleReport()}>Submit report</Button></div>
               </div>
             </div>
           </section>
         )}
 
-        {/* Owner-only banner while the listing is not public -------------- */}
-        {isOwner && listing.availabilityStatus !== 'PUBLISHED' && (
-          <div className="mb-4 flex items-center gap-2 border-y border-[#c9a227]/25 bg-[#c9a227]/[0.05] px-4 py-3 text-sm text-[#e6c65a]">
-            <AlertCircle size={16} className="shrink-0" />
-            <span>
-              This listing is{' '}
-              <strong>{(listing.availabilityStatus || 'DRAFT').replace(/_/g, ' ').toLowerCase()}</strong> and is only
-              visible to you until it is published.
-            </span>
-          </div>
-        )}
+        {isOwner && listing.availabilityStatus !== 'PUBLISHED' && <div className="mx-3 mb-3 flex items-start gap-2 border-l-2 border-[#c9a227] bg-[#c9a227]/[.06] px-3 py-3 text-sm text-[#e6c65a] sm:mx-5"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span>This listing is <strong>{(listing.availabilityStatus || 'DRAFT').replace(/_/g, ' ').toLowerCase()}</strong> and is only visible to you until it is published.</span></div>}
 
-        {/* Media gallery ------------------------------------------------- */}
-        <section className="mb-6 w-full overflow-hidden border-y border-white/[.06]">
-          <div className="relative bg-black/40">
-            <div className="relative h-[54vw] min-h-64 max-h-[620px] sm:h-[min(64vh,620px)]">
-              {activeMedia ? (
-                activeMedia.type === 'VIDEO' || activeMedia.type === 'video' ? (
-                  <video
-                    key={activeMedia.id}
-                    src={activeSrc || undefined}
-                    poster={activeMedia.thumbnailUrl || undefined}
-                    controls
-                    playsInline
-                    className="h-full w-full object-cover bg-[#101010]"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setLightboxOpen(true)}
-                    className="group relative h-full w-full"
-                    aria-label="Open photo full screen"
-                  >
-                    <img
-                      src={activeSrc || undefined}
-                      alt={listing.title}
-                      className="h-full w-full object-cover bg-[#101010]"
-                    />
-                    <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-[var(--radius-md)] bg-black/60 px-2.5 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      <Maximize2 size={13} /> View
-                    </span>
-                  </button>
-                )
+        <section aria-label="Property photos" className="relative w-full overflow-hidden bg-[#111]">
+          <div className="relative h-[62vw] min-h-[260px] max-h-[640px] sm:h-[min(62vh,640px)]">
+            {activeMedia ? (
+              activeMedia.type === 'VIDEO' || activeMedia.type === 'video' ? (
+                <video key={activeMedia.id} src={activeSrc || undefined} poster={resolveHomeMediaUrl(activeMedia) || undefined} controls playsInline className="h-full w-full bg-[#101010] object-contain" />
               ) : (
-                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-white/25">
-                  <Home size={40} />
-                  <span className="text-xs">No photos yet</span>
-                </div>
-              )}
-
-              {statusMeta && (
-                <span
-                  className={`absolute left-3 top-3 z-10 rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-semibold backdrop-blur ${statusMeta.className}`}
-                >
-                  {statusMeta.label}
-                </span>
-              )}
-
-              {media.length > 1 && (
-                <>
-                  <button
-                    onClick={() => stepGallery(-1)}
-                    className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/80 backdrop-blur transition hover:bg-black/70 hover:text-white"
-                    aria-label="Previous photo"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button
-                    onClick={() => stepGallery(1)}
-                    className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/80 backdrop-blur transition hover:bg-black/70 hover:text-white"
-                    aria-label="Next photo"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </>
-              )}
-            </div>
-
-            {media.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto px-3 py-3">
-                {media.map((item, index) => {
-                  const thumb = resolveHomeMediaUrl(item) || '';
-                  const isActive = index === activeIndex;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setViewerIndex(index)}
-                      className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-[var(--radius-md)] border transition ${
-                        isActive ? 'border-[#c9a227]' : 'border-white/10 opacity-60 hover:opacity-100'
-                      }`}
-                      aria-label={`View ${['VIDEO', 'video'].includes(item.type) ? 'video' : 'photo'} ${index + 1}`}
-                      aria-current={isActive}
-                    >
-                      {thumb ? (
-                        <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center bg-white/5">
-                          <Home size={14} className="text-white/30" />
-                        </span>
-                      )}
-                      {['VIDEO', 'video'].includes(item.type) && (
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <Play size={14} className="text-white" fill="currentColor" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                <button type="button" onClick={() => setLightboxOpen(true)} className="group relative block h-full w-full" aria-label="Open photo full screen">
+                  <img src={activeSrc || undefined} alt={listing.title || 'Property photo'} className="h-full w-full bg-[#101010] object-cover" />
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+                  <span className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-xs text-white backdrop-blur-sm"><Maximize2 size={13} /> View photo</span>
+                </button>
+              )
+            ) : <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-white/25"><Home size={42} strokeWidth={1.2} /><span className="text-xs">Photos coming soon</span></div>}
+            {statusMeta && <span className={"absolute left-3 top-3 rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur " + statusMeta.className}>{statusMeta.label}</span>}
+            {media.length > 1 && <>
+              <button type="button" onClick={() => stepGallery(-1)} aria-label="Previous photo" className="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/80"><ChevronLeft size={21} /></button>
+              <button type="button" onClick={() => stepGallery(1)} aria-label="Next photo" className="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/80"><ChevronRight size={21} /></button>
+              <span className="absolute bottom-4 left-4 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white/85 backdrop-blur">{activeIndex + 1} / {media.length}</span>
+            </>}
           </div>
+          {media.length > 1 && <div className="flex gap-2 overflow-x-auto border-b border-white/[.06] px-3 py-2.5 sm:px-5">
+            {media.map((item, index) => {
+              const thumb = resolveHomeMediaUrl(item) || '';
+              const isActive = index === activeIndex;
+              return <button key={item.id} type="button" onClick={() => setViewerIndex(index)} className={"relative h-14 w-20 shrink-0 overflow-hidden rounded-md transition sm:h-16 sm:w-24 " + (isActive ? "ring-2 ring-[#c9a227] ring-offset-1 ring-offset-[#080808]" : "opacity-55 hover:opacity-100")} aria-label={"View media " + (index + 1)} aria-current={isActive}>
+                {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" /> : <span className="flex h-full w-full items-center justify-center bg-white/[.04]"><Home size={15} /></span>}
+                {['VIDEO', 'video'].includes(item.type) && <span className="absolute inset-0 flex items-center justify-center bg-black/40"><Play size={15} className="text-white" fill="currentColor" /></span>}
+              </button>;
+            })}
+          </div>}
         </section>
 
-        <ImageViewer
-          src={lightboxOpen && activeMedia && !['VIDEO', 'video'].includes(activeMedia.type) ? activeSrc : null}
-          alt={listing.title}
-          onClose={() => setLightboxOpen(false)}
-        />
+        <ImageViewer src={lightboxOpen && activeMedia && !['VIDEO', 'video'].includes(activeMedia.type) ? activeSrc : null} alt={listing.title} onClose={() => setLightboxOpen(false)} />
 
-        <div className="grid w-full grid-cols-1 gap-0 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
-          {/* Left: the listing itself ------------------------------------ */}
-          <div className="min-w-0 space-y-0">
-            <section className="border-b border-white/[.08] py-5">
+        <div className="grid w-full grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0 px-4 sm:px-6 lg:px-8">
+            <section className="border-b border-white/[.08] py-5 sm:py-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h1 className="text-2xl font-bold text-white leading-tight">{listing.title}</h1>
-                  <p className="mt-2 flex items-center gap-1.5 text-sm text-white/55">
-                    <MapPin size={15} className="shrink-0" />
-                    {locationLine(listing)}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">{typeLabel}{listing.furnished ? ' · Furnished' : ''}</p>
+                  <h1 className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">{listing.title}</h1>
+                  <p className="mt-2 flex items-start gap-1.5 text-sm leading-5 text-white/55"><MapPin size={15} className="mt-0.5 shrink-0" />{locationLine(listing)}</p>
                 </div>
-                <span className="shrink-0 rounded-[var(--radius-md)] bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-white/70">
-                  {typeLabel}
-                </span>
+                <div className="shrink-0 text-right"><p className="text-xl font-bold tabular-nums text-[#e4c65d] sm:text-2xl">{rent}</p><p className="mt-1 text-xs text-white/45">{periodSuffix}</p></div>
               </div>
-
-              <div className="mt-4 flex flex-wrap items-baseline gap-1.5">
-                <span className="text-3xl font-bold text-[#c9a227]">{rent}</span>
-                <span className="text-sm text-white/45">{periodSuffix}</span>
-              </div>
-
-              {/* Attribute chips */}
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-[var(--radius-lg)] bg-white/[0.04] px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-white/40">
-                    <Bed size={13} /> Bedrooms
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-white">{listing.bedrooms ?? '—'}</div>
-                </div>
-                <div className="rounded-[var(--radius-lg)] bg-white/[0.04] px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-white/40">
-                    <Bath size={13} /> Bathrooms
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-white">{listing.bathrooms ?? '—'}</div>
-                </div>
-                <div className="rounded-[var(--radius-lg)] bg-white/[0.04] px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-white/40">
-                    <Building2 size={13} /> Furnishing
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-white">
-                    {listing.furnished ? 'Furnished' : 'Unfurnished'}
-                  </div>
-                </div>
-                <div className="rounded-[var(--radius-lg)] bg-white/[0.04] px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-white/40">
-                    <CalendarDays size={13} /> Rent period
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-white">
-                    {PERIOD_NAME[listing.rentPeriod || 'MONTHLY'] || 'Monthly'}
-                  </div>
-                </div>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/[.06] pt-4 text-sm text-white/65">
+                <span className="inline-flex items-center gap-2"><Bed size={17} className="text-[#c9a227]" /><strong className="font-semibold text-white">{listing.bedrooms ?? '—'}</strong> bedrooms</span>
+                <span className="inline-flex items-center gap-2"><Bath size={17} className="text-[#c9a227]" /><strong className="font-semibold text-white">{listing.bathrooms ?? '—'}</strong> bathrooms</span>
+                <span className="inline-flex items-center gap-2"><Building2 size={16} className="text-[#c9a227]" />{listing.furnished ? 'Furnished' : 'Unfurnished'}</span>
+                <span className="inline-flex items-center gap-2"><CalendarDays size={16} className="text-[#c9a227]" />{PERIOD_NAME[listing.rentPeriod || 'MONTHLY'] || 'Monthly'} rent</span>
               </div>
             </section>
 
-            {/* Description */}
-            <section className="border-b border-white/[.08] py-5">
-              <h2 className="mb-3 text-lg font-semibold text-white">About this home</h2>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-white/65">
-                {listing.description || 'The owner has not added a description yet.'}
-              </p>
-            </section>
+            <section className="border-b border-white/[.08] py-5 sm:py-7"><h2 className="text-base font-semibold text-white sm:text-lg">About this home</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/65">{listing.description || 'The owner has not added a description yet.'}</p></section>
 
-            {/* Amenities */}
-            {amenities.length > 0 && (
-              <section className="border-b border-white/[.08] py-5">
-                <h2 className="mb-3 text-lg font-semibold text-white">What this place offers</h2>
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {amenities.map((amenity) => (
-                    <li
-                      key={amenity}
-                      className="flex items-center gap-2 rounded-[var(--radius-md)] bg-white/[0.03] px-3 py-2 text-sm text-white/70"
-                    >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c9a227]" />
-                      {amenityLabel(amenity)}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            {amenities.length > 0 && <section className="border-b border-white/[.08] py-5 sm:py-7">
+              <h2 className="text-base font-semibold text-white sm:text-lg">Features & amenities</h2>
+              <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">{amenities.map((amenity) => <li key={amenity} className="flex min-w-0 items-center gap-2 text-sm text-white/65"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c9a227]" />{amenityLabel(amenity)}</li>)}</ul>
+            </section>}
 
-            {/* Costs: deposit + disclosed fees + move-in note */}
-            {(typeof listing.depositAmount === 'number' || fees.length > 0 || listing.moveInInfo) && (
-              <section className="border-b border-white/[.08] py-5">
-                <h2 className="mb-3 text-lg font-semibold text-white">Costs &amp; move-in</h2>
-                <ul className="divide-y divide-white/[0.06]">
-                  {typeof listing.depositAmount === 'number' && listing.depositAmount > 0 && (
-                    <li className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                      <span className="flex items-center gap-2 text-white/60">
-                        <Wallet size={15} /> Security deposit
-                      </span>
-                      <span className="font-semibold text-white">
-                        {formatCurrency(listing.depositAmount, listing.currency || 'NGN')}
-                      </span>
-                    </li>
-                  )}
-                  {fees.map((fee, index) => (
-                    <li key={`${fee.label || 'fee'}-${index}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                      <span className="text-white/60">{fee.label || 'Additional fee'}</span>
-                      <span className="font-semibold text-white">
-                        {typeof fee.amount === 'number'
-                          ? formatCurrency(fee.amount, fee.currency || listing.currency || 'NGN')
-                          : '—'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {listing.moveInInfo && (
-                  <p className="mt-3 flex items-start gap-2 rounded-[var(--radius-md)] bg-white/[0.03] px-3 py-2.5 text-sm text-white/60">
-                    <CalendarDays size={15} className="mt-0.5 shrink-0" />
-                    <span>{listing.moveInInfo}</span>
-                  </p>
-                )}
-              </section>
-            )}
-          </div>
-
-          {/* Right: owner + contact ---------------------------------------- */}
-          <div className="space-y-5 lg:sticky lg:top-5">
-            {/* Owner */}
-            <section className="border-b border-white/[.08] py-5">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/40">Listed by</h2>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => owner?.username && router.push(`/profile/${owner.username}`)}
-                  disabled={!owner?.username}
-                  className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/[0.06] disabled:cursor-default"
-                  aria-label={owner?.username ? `View ${ownerName}'s profile` : 'Property owner'}
-                >
-                  {owner?.avatar ? (
-                    <img src={owner.avatar} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-white/40">
-                      <User size={22} />
-                    </span>
-                  )}
-                </button>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate font-semibold text-white">{ownerName}</p>
-                    {verif.type !== 'NONE' && <VerificationBadge type={verif.type} verified size="sm" showTooltip />}
-                  </div>
-                  <p className="text-xs text-white/45">{verif.label}</p>
-                </div>
-              </div>
-              {verif.type === 'NONE' && (
-                <p className="mt-3 flex items-start gap-2 rounded-[var(--radius-md)] bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed text-white/50">
-                  <Shield size={14} className="mt-0.5 shrink-0" />
-                  <span>
-                    This owner has not completed VANTA verification. Keep conversations and payments inside VANTA
-                    until you have seen the property.
-                  </span>
-                </p>
-              )}
-            </section>
-
-            {/* Contact */}
-            <section className="border-b border-white/[.08] py-5">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/40">Contact</h2>
-
-              {isOwner ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-white/55">This is your listing. Review enquiries from your dashboard.</p>
-                  <Button variant="gold" fullWidth onClick={() => router.push('/homes/manage')}>
-                    Manage this listing
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {canContact && (
-                    <Button
-                      variant="gold"
-                      fullWidth
-                      icon={<MessageCircle size={17} />}
-                      loading={contacting}
-                      onClick={() => (message.trim() ? void handleContact(message.trim()) : setShowComposer(true))}
-                    >
-                      Message on VANTA
-                    </Button>
-                  )}
-
-                  {contactOptions?.whatsappUrl && (
-                    <a
-                      href={contactOptions.whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-emerald-400/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-                    >
-                      <WhatsAppGlyph size={17} /> Chat on WhatsApp
-                    </a>
-                  )}
-
-                  {contactOptions?.phoneUrl && (
-                    <a
-                      href={contactOptions.phoneUrl}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]"
-                    >
-                      <Phone size={16} /> {contactOptions.phone || 'Call owner'}
-                    </a>
-                  )}
-
-                  {!canContact && !contactOptions?.whatsappUrl && !contactOptions?.phoneUrl && (
-                    <p className="text-sm text-white/50">This owner is not accepting enquiries right now.</p>
-                  )}
-
-                  <p className="pt-1 text-xs leading-relaxed text-white/35">
-                    Never send a deposit before you have viewed the home. VANTA does not process rental payments.
-                  </p>
-                </div>
-              )}
-
-              {/* Inline composer ------------------------------------------- */}
-              {showComposer && !isOwner && (
-                <div className="mt-4 border-t border-white/[0.06] pt-4">
-                  <label htmlFor="home-enquiry" className="mb-2 block text-xs font-medium text-white/50">
-                    Your message
-                  </label>
-                  <textarea
-                    id="home-enquiry"
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    rows={3}
-                    placeholder="Hi, is this home still available? I'd like to arrange a viewing."
-                    className="w-full resize-none rounded-[var(--radius-lg)] border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-[#c9a227]/60"
-                  />
-                  <div className="mt-2.5 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="gold"
-                      loading={contacting}
-                      disabled={message.trim().length === 0}
-                      onClick={() => void handleContact(message.trim())}
-                    >
-                      Send &amp; open chat
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { setShowComposer(false); setMessage(''); }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Listing meta */}
-            <section className="border-t border-white/[.06] py-4">
-              <ul className="space-y-2 text-xs text-white/40">
-                {listing.publishedAt && (
-                  <li className="flex items-center gap-2">
-                    <CalendarDays size={13} /> Listed {formatDate(listing.publishedAt)}
-                  </li>
-                )}
-                <li className="flex items-center gap-2">
-                  <AlertCircle size={13} /> Reference {String(listing.id).slice(0, 10).toUpperCase()}
-                </li>
+            {(typeof listing.depositAmount === 'number' || fees.length > 0 || listing.moveInInfo) && <section className="border-b border-white/[.08] py-5 sm:py-7">
+              <h2 className="text-base font-semibold text-white sm:text-lg">Costs & move-in</h2>
+              <ul className="mt-3 divide-y divide-white/[.06]">
+                {typeof listing.depositAmount === 'number' && listing.depositAmount > 0 && <li className="flex items-center justify-between gap-3 py-3 text-sm"><span className="flex items-center gap-2 text-white/55"><Wallet size={15} /> Security deposit</span><span className="font-semibold text-white">{formatCurrency(listing.depositAmount, listing.currency || 'NGN')}</span></li>}
+                {fees.map((fee, index) => <li key={(fee.label || 'fee') + '-' + index} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-white/55">{fee.label || 'Additional fee'}</span><span className="font-semibold text-white">{typeof fee.amount === 'number' ? formatCurrency(fee.amount, fee.currency || listing.currency || 'NGN') : '—'}</span></li>)}
               </ul>
-            </section>
+              {listing.moveInInfo && <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-white/55"><CalendarDays size={15} className="mt-1 shrink-0 text-[#c9a227]" /><span>{listing.moveInInfo}</span></p>}
+            </section>}
+            <section className="py-5 text-xs text-white/35 sm:py-6"><div className="flex flex-wrap gap-x-5 gap-y-2">{listing.publishedAt && <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} /> Listed {formatDate(listing.publishedAt)}</span>}<span>Reference {String(listing.id).slice(0, 10).toUpperCase()}</span></div></section>
           </div>
+
+          <aside className="min-w-0 border-t border-white/[.08] px-4 sm:px-6 lg:border-l lg:border-t-0 lg:px-6 lg:py-7">
+            <section className="py-5 lg:sticky lg:top-[4.5rem]">
+              <h2 className="text-xs font-semibold uppercase tracking-[.16em] text-white/40">Property contact</h2>
+              <div className="mt-4 flex items-center gap-3">
+                <button type="button" onClick={() => owner?.username && router.push('/profile/' + owner.username)} disabled={!owner?.username} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/[.06] disabled:cursor-default" aria-label={owner?.username ? "View " + ownerName + "'s profile" : 'Property owner'}>
+                  {owner?.avatar ? <img src={owner.avatar} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-white/40"><User size={22} /></span>}
+                </button>
+                <div className="min-w-0"><div className="flex items-center gap-1.5"><p className="truncate text-sm font-semibold text-white">{ownerName}</p>{verif.type !== 'NONE' && <VerificationBadge type={verif.type} verified size="sm" showTooltip />}</div><p className="mt-1 text-xs text-white/45">{verif.label}</p></div>
+              </div>
+              {verif.type === 'NONE' && <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-white/45"><Shield size={14} className="mt-0.5 shrink-0 text-[#c9a227]" /><span>This owner has not completed VANTA verification. View the property before sending money and keep communications on VANTA where possible.</span></p>}
+
+              <div className="mt-5 space-y-2.5 border-t border-white/[.08] pt-5">
+                {isOwner ? <><p className="text-sm leading-6 text-white/55">This is your listing. Manage it or review enquiries from your dashboard.</p><Button variant="gold" fullWidth onClick={() => router.push('/homes/manage')}>Manage this listing</Button></> : <>
+                  {canContact && <Button variant="gold" fullWidth icon={<MessageCircle size={17} />} loading={contacting} onClick={() => (message.trim() ? void handleContact(message.trim()) : setShowComposer(true))}>Message on VANTA</Button>}
+                  {contactOptions?.whatsappUrl && <a href={contactOptions.whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-400/25 px-4 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/[.08]"><WhatsAppGlyph size={17} /> Chat on WhatsApp</a>}
+                  {contactOptions?.phoneUrl && <a href={contactOptions.phoneUrl} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/[.1] px-4 text-sm font-semibold text-white/75 transition hover:bg-white/[.04]"><Phone size={16} /> {contactOptions.phone || 'Call owner'}</a>}
+                  {!canContact && !contactOptions?.whatsappUrl && !contactOptions?.phoneUrl && <p className="text-sm text-white/50">This owner is not accepting enquiries right now.</p>}
+                  <p className="pt-2 text-xs leading-5 text-white/35">Never send a deposit before viewing the property. VANTA does not process rental payments.</p>
+                </>}
+              </div>
+
+              {showComposer && !isOwner && <div className="mt-5 border-t border-white/[.08] pt-4">
+                <label htmlFor="home-enquiry" className="mb-2 block text-xs font-medium text-white/55">Your message</label>
+                <textarea id="home-enquiry" value={message} onChange={(event) => setMessage(event.target.value)} rows={3} placeholder="Hi, is this home still available? I'd like to arrange a viewing." className="w-full resize-none rounded-lg border border-white/[.1] bg-white/[.03] px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#c9a227]/60" />
+                <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="gold" loading={contacting} disabled={message.trim().length === 0} onClick={() => void handleContact(message.trim())}>Send & open chat</Button><Button size="sm" variant="ghost" onClick={() => { setShowComposer(false); setMessage(''); }}>Cancel</Button></div>
+              </div>}
+            </section>
+          </aside>
         </div>
       </div>
-    </div>
+
+      {!isOwner && <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[.08] bg-[#080808]/95 px-3 py-3 backdrop-blur-xl lg:hidden"><div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#e4c65d]">{rent}<span className="ml-1 text-xs font-normal text-white/45">{periodSuffix}</span></p><p className="truncate text-[11px] text-white/45">{listing.title}</p></div>{canContact && <Button variant="gold" icon={<MessageCircle size={16} />} loading={contacting} onClick={() => (message.trim() ? void handleContact(message.trim()) : setShowComposer(true))}>Message owner</Button>}</div></div>}
+    </main>
   );
 }
-
 
