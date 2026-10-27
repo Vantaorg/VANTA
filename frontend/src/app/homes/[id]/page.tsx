@@ -411,8 +411,8 @@ export default function HomeDetailPage() {
   }
 
   return (
-    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
-      <header className="sticky top-0 z-50 h-14 shrink-0 border-b border-white/[.07] bg-[#080808]/95 px-3 backdrop-blur-xl sm:px-5">
+    <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.07] bg-[#080808]/95 px-3 backdrop-blur-xl sm:px-5">
         <div className="flex h-full w-full items-center justify-between gap-3">
           <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
@@ -424,6 +424,8 @@ export default function HomeDetailPage() {
           </div>
         </div>
       </header>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
 
       <div className="w-full pb-28 lg:pb-12">
         <div className="flex min-h-12 items-center justify-between gap-3 px-3 sm:px-5">
@@ -561,6 +563,8 @@ export default function HomeDetailPage() {
       </div>
 
       {!isOwner && <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[.08] bg-[#080808]/95 px-3 py-3 backdrop-blur-xl lg:hidden"><div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#e4c65d]">{rent}<span className="ml-1 text-xs font-normal text-white/45">{periodSuffix}</span></p><p className="truncate text-[11px] text-white/45">{listing.title}</p></div>{canContact && <Button variant="gold" icon={<MessageCircle size={16} />} loading={contacting} onClick={() => (message.trim() ? void handleContact(message.trim()) : setShowComposer(true))}>Message owner</Button>}</div></div>}
+    
+      </div>
     </main>
   );
 }

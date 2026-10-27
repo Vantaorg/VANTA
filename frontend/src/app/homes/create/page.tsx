@@ -346,8 +346,8 @@ function CreateHomeContent() {
   };
 
   return (
-    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#070708] pb-36 text-white">
-      <header className="sticky top-0 z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
+    <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#070708] pb-36 text-white flex flex-col overflow-hidden">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} aria-label="Back to Homes" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/60 transition hover:bg-white/[.06] hover:text-white">
@@ -361,6 +361,8 @@ function CreateHomeContent() {
           <span className="shrink-0 text-sm font-medium text-white/65">+ Property</span>
         </div>
       </header>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
 
       <div className="w-full px-0 pt-4 sm:pt-5">
         <section className="border-b border-white/[.07] px-3 pb-6 pt-2 sm:px-5">
@@ -434,6 +436,8 @@ function CreateHomeContent() {
             </>}
           </section>
         </div>
+      </div>
+    
       </div>
     </main>
   );

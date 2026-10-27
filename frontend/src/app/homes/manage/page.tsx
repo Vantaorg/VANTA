@@ -144,26 +144,32 @@ export default function ManageHomesPage() {
 
   if (authLoading || (!user && !loading)) {
     return (
-      <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
-        <header className="sticky top-0 z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
+      <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
+        <header className="relative z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
           <div className="flex h-full items-center justify-between gap-3">
             <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
             <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>
           </div>
         </header>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
         <div className="w-full px-3 py-6 sm:px-5"><Skeleton className="mb-6 h-4 w-24" /><Skeleton className="mb-4 h-8 w-52" /><Skeleton className="mb-3 h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
-      </main>
+      
+      </div>
+    </main>
     );
   }
 
   return (
-    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
-      <header className="sticky top-0 z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
+    <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
+      <header className="relative z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
         <div className="flex h-full items-center justify-between gap-3">
           <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
           <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>
         </div>
       </header>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
       <div className="w-full px-3 py-5 pb-24 sm:px-5 sm:py-6"> 
         <button
           onClick={() => router.push('/homes')}
@@ -374,6 +380,8 @@ export default function ManageHomesPage() {
             </div>
           </div>
         )}
+      </div>
+    
       </div>
     </main>
   );
