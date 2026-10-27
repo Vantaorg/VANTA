@@ -49,8 +49,8 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   ];
 
   return (
-    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white">
-      <header className="sticky top-0 z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
+    <main className="relative left-1/2 flex h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[#080808] text-white">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
@@ -65,6 +65,9 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
           </div>
         </div>
       </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
 
       <section className="border-b border-white/[.06]">
         <div className="w-full px-3 pb-5 pt-6 sm:px-5 sm:pb-7 sm:pt-8">
@@ -109,6 +112,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
           />
         )}
       </section>
+          </div>
     </main>
   );
 }
