@@ -362,8 +362,8 @@ function CreateHomeContent() {
         </div>
       </header>
 
-      <div className="w-full px-3 pt-4 sm:px-4 sm:pt-5">
-        <section className="border-b border-white/[.07] pb-6 pt-2">
+      <div className="w-full px-0 pt-4 sm:pt-5">
+        <section className="border-b border-white/[.07] px-3 pb-6 pt-2 sm:px-5">
           <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">{isEdit ? 'Manage your listing' : 'List a property'}</p>
           <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Add your property to VANTA Homes.'}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{isEdit ? 'Review your details and resubmit if changes are needed.' : 'Enter accurate details, add clear photos, then send your listing to the VANTA team for review before it goes live.'}</p>
@@ -372,7 +372,7 @@ function CreateHomeContent() {
 
         {(existingStatus === 'PENDING_REVIEW' || existingStatus === 'REJECTED') && <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${existingStatus === 'REJECTED' ? 'border-red-400/25 bg-red-500/[.07] text-red-300' : 'border-amber-400/25 bg-amber-500/[.07] text-amber-200'}`}>{existingStatus === 'REJECTED' ? 'This listing was rejected. Update the details and submit it again for review.' : 'This listing is under review. Your edits may require another review.'}</div>}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <div className="mt-5 grid gap-4 px-3 sm:px-5 lg:grid-cols-[210px_minmax(0,1fr)]">
           <aside className="h-fit border-b border-white/[.08] pb-3 lg:sticky lg:top-16 lg:border-b-0 lg:pb-0">
             <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Your progress</p>
             <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-1 lg:gap-2">
