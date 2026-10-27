@@ -5,10 +5,19 @@ import Link from 'next/link';
 import { useI18n } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/Toast';
 import { toggleSaveHome } from '@/lib/services';
+import { API_BASE_URL } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { MapPin, Bed, Bath, Home, Play, Bookmark } from 'lucide-react';
 
 export interface PropertyCardProps { listing: any; }
+
+const resolveHomeMediaUrl = (media: any): string | null => {
+  const raw = media?.uploadedFile?.url || media?.url || media?.thumbnailUrl || media?.uploadedFile?.thumbnailUrl;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const value = raw.trim();
+  if (/^(https?:|blob:|data:)/i.test(value)) return value;
+  try { return new URL(value.startsWith('/') ? value : `/${value}`, API_BASE_URL).toString(); } catch { return value; }
+};
 
 const PERIOD_LABEL: Record<string, string> = { WEEKLY: '/week', MONTHLY: '/month', YEARLY: '/year' };
 const TYPE_LABEL: Record<string, string> = {
@@ -23,8 +32,8 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
   const { showToast } = useToast();
   const [saved, setSaved] = useState<boolean>(Boolean(listing.isSaved));
   const [saving, setSaving] = useState(false);
-  const cover = listing.media?.[0];
-  const coverUrl = cover?.uploadedFile?.url || cover?.url || cover?.thumbnailUrl;
+  const cover = Array.isArray(listing.media) ? [...listing.media].sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)) || (a.order ?? 0) - (b.order ?? 0))[0] : null;
+  const coverUrl = resolveHomeMediaUrl(cover);
   const price = formatCurrency(listing.rentAmount, listing.currency || 'NGN');
   const period = PERIOD_LABEL[listing.rentPeriod || 'MONTHLY'] || '/month';
   const type = TYPE_LABEL[listing.propertyType || 'OTHER'] || 'Other';
@@ -54,9 +63,9 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
 
   return (
     <article className="group min-w-0">
-      <div className="relative aspect-[1/1] overflow-hidden rounded-none bg-white/[.04] sm:aspect-[4/3] sm:rounded-lg">
+      <div className="relative aspect-[1/1] overflow-hidden rounded-none bg-[#111] sm:aspect-[4/3] sm:rounded-lg">
         <Link href={'/homes/' + listing.id} className="absolute inset-0 block" aria-label={'View ' + listing.title}>
-          {coverUrl ? <img src={coverUrl} alt={listing.title || 'Property photo'} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-white/25"><Home size={32} strokeWidth={1.4} /></div>}
+          {coverUrl ? <img src={coverUrl} alt={listing.title || 'Property photo'} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; event.currentTarget.parentElement?.classList.add('home-media-failed'); }} /> : <div className="flex h-full w-full items-center justify-center text-white/25"><Home size={32} strokeWidth={1.4} /></div>}
           {cover?.type === 'VIDEO' && <span className="absolute inset-0 flex items-center justify-center bg-black/25"><Play size={28} className="text-white" /></span>}
         </Link>
         <span className="absolute bottom-2 left-2 max-w-[calc(100%-4rem)] truncate rounded bg-black/65 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">{type}</span>
