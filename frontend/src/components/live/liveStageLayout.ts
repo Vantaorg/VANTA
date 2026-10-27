@@ -14,11 +14,10 @@
  * Arrangements (mirroring the product spec):
  *   - 1 person  → SOLO: host fills the stage (object-contain + blurred backdrop)
  *   - 2 people  → SPLIT: host LEFT | guest RIGHT (50/50)
- *   - 3 people  → host + guest on the top row, third guest spans the bottom row
- *   - 4 people  → 2×2 grid, host top-left
- *   - 5 people  → host anchors the left column (2 cells tall), 4 guests flow
- *                 into the right column + bottom row — an adaptive grid that
- *                 keeps faces readable and the host prioritised.
+ *   - 3 people  → balanced 2×2 canvas, with one naturally empty cell
+ *   - 4 people  → equal 2×2 grid, host top-left
+ *   - 5 people  → equal 3×2 grid, five tiles stay the same size and one
+ *                 quiet empty cell keeps the composition balanced.
  *
  * All sizes are `minmax(0, 1fr)` fractions of the available viewport — never
  * fixed `dvh`/pixel heights — so the stage can never overflow any screen.
@@ -57,9 +56,9 @@ export interface StageLayout {
 export const HOST_AREA = 'host';
 
 /** Outer shell shared by every participant count — an inset CSS grid. */
-export const STAGE_CONTAINER_CLASS = 'absolute inset-0 grid gap-1.5 p-1.5 md:gap-2 md:p-2';
+export const STAGE_CONTAINER_CLASS = 'absolute inset-0 grid gap-1 p-1 sm:gap-1.5 sm:p-1.5';
 
-const TILE_CLASS = 'live-stage-tile min-h-0 min-w-0 overflow-hidden rounded-2xl';
+const TILE_CLASS = 'live-stage-tile min-h-0 min-w-0 overflow-hidden rounded-xl bg-[#0b0b0d]';
 
 const SOLO: StageLayout = {
   arrangement: 'solo',
@@ -96,7 +95,7 @@ const HOST_COL: StageLayout = {
   containerClass: STAGE_CONTAINER_CLASS,
   columns: 'minmax(0, 1fr) minmax(0, 1fr)',
   rows: 'minmax(0, 1fr) minmax(0, 1fr)',
-  areas: ['"host g1"', '"g2 g2"'],
+  areas: ['"host g1"', '"g2 ."'],
   hostArea: HOST_AREA,
   guestAreas: ['g1', 'g2'],
   tileClass: TILE_CLASS,
@@ -122,7 +121,9 @@ const HOST_GRID5: StageLayout = {
   containerClass: STAGE_CONTAINER_CLASS,
   columns: 'minmax(0, 1fr) minmax(0, 1fr)',
   rows: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)',
-  areas: ['"host g1"', '"host g2"', '"g3 g4"'],
+  columns: 'repeat(3, minmax(0, 1fr))',
+  rows: 'repeat(2, minmax(0, 1fr))',
+  areas: ['"host g1 g2"', '". g3 g4"'],
   hostArea: HOST_AREA,
   guestAreas: ['g1', 'g2', 'g3', 'g4'],
   tileClass: TILE_CLASS,
@@ -136,7 +137,7 @@ export function stageArrangementFor(participantCount: number): StageArrangement 
   if (participantCount === 2) return 'split';
   if (participantCount === 3) return 'host-col';
   if (participantCount === 4) return 'host-grid';
-  // 5+ (or defensive negative input) flows extra guests into the 2×2 cluster.
+  // 5+ participants are bounded to the supported five-person stage.
   return 'host-grid5';
 }
 
