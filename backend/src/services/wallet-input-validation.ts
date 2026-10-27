@@ -14,7 +14,7 @@ export function validateWithdrawalInput(
 
   // Withdrawal accounting is denominated in cents. Reject excess precision
   // rather than silently charging or reserving a different amount.
-  if (!Number.isSafeInteger(Math.round(amount * 100)) || Math.round(amount * 100) !== amount * 100) {
+  if (!Number.isSafeInteger(Math.round(amount * 100)) || Number(amount.toFixed(2)) !== amount) {
     throw new Error("Withdrawal amount can have at most two decimal places");
   }
 
