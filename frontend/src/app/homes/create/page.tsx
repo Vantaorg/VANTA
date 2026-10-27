@@ -312,7 +312,7 @@ function CreateHomeContent() {
 
   if (authLoading || (!user && !loadingExisting)) {
     return (
-      <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)]">
+      <div className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)]">
         <div className="max-w-3xl mx-auto px-4 py-6">
           <Skeleton className="mb-6 h-4 w-24" />
           <Skeleton className="mb-4 h-8 w-64" />
@@ -346,7 +346,7 @@ function CreateHomeContent() {
   };
 
   return (
-    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#070708] pb-36 pt-14 text-white">
+    <main className="relative left-1/2 min-h-[var(--vanta-vh,100dvh)] w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#070708] pb-36 pt-14 text-white">
       <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
