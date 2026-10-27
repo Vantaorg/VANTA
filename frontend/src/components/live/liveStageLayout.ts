@@ -16,7 +16,7 @@
  *   - 2 people  → SPLIT: host LEFT | guest RIGHT (50/50)
  *   - 3 people  → balanced 2×2 canvas, with one naturally empty cell
  *   - 4 people  → equal 2×2 grid, host top-left
- *   - 5 people  → equal 3×2 grid, five tiles stay the same size and one
+ *   - 5 people  → equal 2×3 grid, five tiles stay the same size and one
  *                 quiet empty cell keeps the composition balanced.
  *
  * All sizes are `minmax(0, 1fr)` fractions of the available viewport — never
@@ -119,9 +119,9 @@ const HOST_GRID: StageLayout = {
 const HOST_GRID5: StageLayout = {
   arrangement: 'host-grid5',
   containerClass: STAGE_CONTAINER_CLASS,
-  columns: 'repeat(3, minmax(0, 1fr))',
-  rows: 'repeat(2, minmax(0, 1fr))',
-  areas: ['"host g1 g2"', '". g3 g4"'],
+  columns: 'repeat(2, minmax(0, 1fr))',
+  rows: 'repeat(3, minmax(0, 1fr))',
+  areas: ['"host g1"', '"g2 g3"', '". g4"'],
   hostArea: HOST_AREA,
   guestAreas: ['g1', 'g2', 'g3', 'g4'],
   tileClass: TILE_CLASS,
