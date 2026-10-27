@@ -98,8 +98,8 @@ export default function AdminHomesPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-console-bg px-4 py-5 text-console-text sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-5">
+    <div className="min-h-dvh w-full bg-console-bg px-3 py-4 text-console-text sm:px-5 lg:px-8">
+      <div className="w-full space-y-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-console-gold">VANTA Admin · Marketplace</p>
@@ -135,7 +135,10 @@ export default function AdminHomesPage() {
             {loading ? <ConsoleLoading label="Loading listings…" /> : listings.length === 0 ? <ConsoleEmptyState title="No listings found" description="Try another status or search term." /> : (
               <div className="divide-y divide-console-border">
                 {listings.map((listing) => (
-                  <article key={listing.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
+                  <article key={listing.id} className="grid grid-cols-1 gap-4 py-5 first:pt-0 last:pb-0 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-start">
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-white/[.04] md:aspect-[5/4] md:max-w-[180px]">
+                      {homeImage(listing) ? <img src={homeImage(listing) || undefined} alt={listing.title || "Property listing"} className="h-full w-full object-cover" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <div className="flex h-full min-h-24 items-center justify-center text-console-text-3"><Home size={26} /></div>}
+                    </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{listing.title || 'Untitled listing'}</h3><Status value={listing.availabilityStatus} /></div>
                       <p className="mt-1 flex items-center gap-1 text-xs text-console-text-3"><MapPin size={13} /> {[listing.area, listing.city, listing.state, listing.country].filter(Boolean).join(', ') || 'Location not provided'}</p>\n                      <p className="mt-2 text-sm font-semibold text-console-gold">{listing.currency || 'NGN'} {Number(listing.rentAmount || 0).toLocaleString()} <span className="text-xs font-normal text-console-text-3">/ {String(listing.rentPeriod || 'MONTHLY').toLowerCase()}</span></p>\n                      <p className="mt-1 flex flex-wrap gap-3 text-xs text-console-text-3"><span className="inline-flex items-center gap-1"><Bed size={13} /> {listing.bedrooms ?? '—'} beds</span><span className="inline-flex items-center gap-1"><Bath size={13} /> {listing.bathrooms ?? '—'} baths</span><span>{listing.propertyType || 'Property'}</span></p>
