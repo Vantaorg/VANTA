@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useI18n } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/Toast';
 import { toggleSaveHome } from '@/lib/services';
 import { API_BASE_URL } from '@/lib/api';
