@@ -67,7 +67,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
       </header>
 
       <section className="border-b border-white/[.06]">
-        <div className="w-full px-3 pb-5 pt-6 sm:px-4 sm:pb-7 sm:pt-8">
+        <div className="w-full px-3 pb-5 pt-6 sm:px-5 sm:pb-7 sm:pt-8">
           <div className="w-full">
             <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Homes for the way you live.</h1>
@@ -83,8 +83,8 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         </div>
       </section>
 
-      <section className="w-full px-3 pb-28 pt-5 sm:px-4 sm:pt-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <section className="w-full px-0 pb-28 pt-5 sm:pt-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-3 sm:px-5">
           <div>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
             <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'Listings appear here after they pass VANTA review.'}</p>

@@ -54,17 +54,17 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
 
   return (
     <article className="group min-w-0">
-      <div className="relative aspect-[5/4] overflow-hidden rounded-lg bg-white/[.04] sm:aspect-[4/3]">
+      <div className="relative aspect-[1/1] overflow-hidden rounded-none bg-white/[.04] sm:aspect-[4/3] sm:rounded-lg">
         <Link href={'/homes/' + listing.id} className="absolute inset-0 block" aria-label={'View ' + listing.title}>
           {coverUrl ? <img src={coverUrl} alt={listing.title || 'Property photo'} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-white/25"><Home size={32} strokeWidth={1.4} /></div>}
           {cover?.type === 'VIDEO' && <span className="absolute inset-0 flex items-center justify-center bg-black/25"><Play size={28} className="text-white" /></span>}
         </Link>
-        <span className="absolute bottom-3 left-3 max-w-[calc(100%-4.5rem)] truncate rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white backdrop-blur-sm">{type}</span>
-        <button type="button" onClick={() => void handleSave()} disabled={saving} className="absolute right-2.5 top-2.5 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9a227] disabled:opacity-60" aria-label={saved ? 'Remove from saved homes' : 'Save this property'} aria-pressed={saved}>
+        <span className="absolute bottom-2 left-2 max-w-[calc(100%-4rem)] truncate rounded bg-black/65 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">{type}</span>
+        <button type="button" onClick={() => void handleSave()} disabled={saving} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9a227] disabled:opacity-60" aria-label={saved ? 'Remove from saved homes' : 'Save this property'} aria-pressed={saved}>
           <Bookmark size={17} fill={saved ? '#c9a227' : 'none'} className={saved ? 'text-[#c9a227]' : ''} />
         </button>
       </div>
-      <div className="pt-2.5">
+      <div className="px-2.5 pt-2.5 pb-1 sm:px-0 sm:pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href={'/homes/' + listing.id} className="block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a227]"><h3 className="line-clamp-1 text-sm font-semibold leading-5 text-white transition group-hover:text-[#e4c65d]">{listing.title}</h3></Link>
@@ -72,7 +72,7 @@ export default function PropertyCard({ listing }: PropertyCardProps) {
           </div>
           <div className="shrink-0 text-right"><p className="text-sm font-semibold tabular-nums text-[#e4c65d]">{price}</p><p className="mt-0.5 text-[11px] text-white/40">{period}</p></div>
         </div>
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/[.06] pt-2.5 text-[11px] text-white/55">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-white/[.06] pt-2 text-[10px] text-white/55 sm:text-[11px]">
           <span className="inline-flex items-center gap-1.5"><Bed size={14} /> {listing.bedrooms ?? '—'} beds</span>
           <span className="inline-flex items-center gap-1.5"><Bath size={14} /> {listing.bathrooms ?? '—'} baths</span>
           {listing.furnished && <span>Furnished</span>}
