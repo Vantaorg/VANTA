@@ -308,6 +308,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // lets the sticky header sit flush against the shell's top edge (like Home /
   // Discover) while the Settings content scrolls beneath it.
   const isSettingsRoute = pathname?.startsWith('/settings') || pathname === '/profile/editprofile';
+  // Homes and +Property own their page-specific sticky headers and need the
+  // same flush-to-top, full-bleed scroll surface as Discover without importing
+  // any Discover header content.
+  const isHomesHeaderRoute = pathname === '/homes' || pathname === '/homes/create';
   // Notifications, Bookmarks, Gift Store (canonical route /gifts), Balance and
   // the Live feed render the same Discover-style full-bleed sticky header, so
   // they get the same flush-top treatment as Settings (the shell zeroes its top
@@ -405,7 +409,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               isScrollPage &&
                 !isLiveViewer &&
                 !isConsolePage &&
-                !isReelsPage && cn('px-4 pb-5', isSettingsRoute || isFlushHeaderRoute ? 'pt-0' : 'pt-5'),
+                !isReelsPage && cn(isHomesHeaderRoute ? 'px-0 pb-5' : 'px-4 pb-5', isSettingsRoute || isFlushHeaderRoute || isHomesHeaderRoute ? 'pt-0' : 'pt-5'),
               isScrollPage && isConsolePage && 'px-4 pt-5 pb-24'
             )}>
             <motion.div
