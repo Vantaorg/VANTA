@@ -735,7 +735,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
           <div className="absolute bottom-5 left-4 right-20 z-10 ">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={onCreator} className="flex min-w-0 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
-                <Avatar src={reel.author.avatar} alt={reel.author.username} size="sm" />
+                <Avatar src={reel.author.avatar} alt={reel.author.username} size="sm" verified={Boolean(reel.author.verified && reel.author.verificationType)} verificationType={reel.author.verificationType} />
                 <span className="min-w-0"><span className="flex items-center gap-1 text-sm font-semibold"><span className="truncate">{reel.author.fullName || reel.author.username}</span>{reel.author.verified && reel.author.verificationType && <VerificationBadge verified type={reel.author.verificationType} size="sm" />}</span><small className="block truncate text-[11px] text-white/60">@{reel.author.username}</small></span>
               </button>
               {!isOwn && <button type="button" disabled={followPending} onClick={onFollow} className={cn('min-w-[76px] rounded-md border px-3 py-1.5 text-xs font-semibold transition', followed ? 'border-white/15 bg-white/10 text-white/75' : 'border-white/50 text-white', followPending && 'opacity-60')}>
