@@ -220,18 +220,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
             aria-label={STEP_TITLES[step]}
           >
             <header className="relative flex shrink-0 items-center justify-between border-b border-white/[0.06] px-3 py-1.5">
-              {step === 'editor' ? (
-                <button
-                  type="button"
-                  onClick={requestClose}
-                  aria-label="Go back"
-                  className="grid h-10 w-10 place-items-center rounded-full text-[#c8c8cc] transition hover:bg-white/[0.06] hover:text-white active:scale-95"
-                >
-                  <X size={19} />
-                </button>
-              ) : (
-                <div className="w-10" />
-              )}
+              <div className="w-10" />
               <div className="pointer-events-none min-w-0 flex-1 text-center">
                 <h2 className="truncate text-[15px] font-semibold tracking-tight text-[#f5f5f5]">{STEP_TITLES[step]}</h2>
                 <p className="truncate text-[11px] text-white/40">{STEP_SUBTITLES[step]}</p>
@@ -274,7 +263,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
               )}
 
               {step === 'select' ? (
-                <div className="mx-auto flex w-full max-w-xl flex-col items-start text-left">
+                <div className="flex w-full flex-col items-start text-left">
                   <div className="mt-6 flex items-center gap-3">
                     <Clapperboard className="text-[#dfbd55]" size={22} />
                     <div><h3 className="text-base font-semibold text-white">Choose a video</h3><p className="mt-0.5 text-sm text-white/45">Select a clip, then trim and preview it.</p></div>
@@ -335,7 +324,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-gold mt-4 min-h-11 w-full"
+                    className="btn-gold mt-4 min-h-12 w-full rounded-xl"
                   >
                     <Upload size={15} />
                     Choose Video
@@ -344,7 +333,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#d6a83f]/30 bg-[#d6a83f]/10 text-[#f2c75c] transition hover:bg-[#d6a83f]/20"
+                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm text-white/55 transition hover:bg-white/[0.04] hover:text-white/80"
                   >
                     <Camera size={16} />
                     Capture Video
