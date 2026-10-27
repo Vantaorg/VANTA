@@ -50,9 +50,9 @@ const GOLD_STOPS = [
 ];
 
 const BLUE_STOPS = [
-  { offset: '0%', color: '#7db8f5' },
-  { offset: '55%', color: '#3b82f6' },
-  { offset: '100%', color: '#2456d6' },
+  { offset: '0%', color: '#C7E6FF' },
+  { offset: '55%', color: '#9BD0FF' },
+  { offset: '100%', color: '#78B8F2' },
 ];
 
 export default function VerificationBadge({
@@ -98,20 +98,20 @@ export default function VerificationBadge({
         <polygon
           points={BADGE_POLYGON}
           fill={`url(#${gradientId})`}
-          stroke="rgba(0, 0, 0, 0.65)"
-          strokeWidth="0.55"
+          stroke={isBlue ? "rgba(255, 255, 255, 0.72)" : "rgba(0, 0, 0, 0.65)"}
+          strokeWidth={isBlue ? "0.35" : "0.55"}
           strokeLinejoin="round"
         />
         {/* Subtle top sheen so the seal keeps its premium depth at any size */}
         <polygon
           points="12,1.8 12,3.73 8.6,4.2 9.21,5.69 4.6,5.4 5.93,6.68 6.9,8.2 10.4,4.6"
-          fill="rgba(255, 255, 255, 0.28)"
+          fill={isBlue ? "rgba(255, 255, 255, 0.38)" : "rgba(255, 255, 255, 0.28)"}
         />
       </svg>
       <Check
         size={s.icon}
-        strokeWidth={s.stroke}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shrink-0 text-[#050505]"
+        strokeWidth={isBlue ? Math.min(s.stroke, 2.4) : s.stroke}
+        className={cn("absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shrink-0", isBlue ? "text-[#164E7A]" : "text-[#050505]")}
       />
     </span>
   );

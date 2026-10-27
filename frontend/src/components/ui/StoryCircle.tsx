@@ -23,6 +23,8 @@ export interface StorySegment {
 export interface StoryCircleProps {
   src?: string | null;
   alt?: string;
+  verified?: boolean;
+  verificationType?: import('@/types/verification').VerificationType | null;
   /**
    * Aggregate "has unviewed" flag used only when `segments` is omitted.
    * true = gold ring (unviewed); false = muted seen ring.
@@ -111,6 +113,8 @@ function SegmentedRing({
 export default function StoryCircle({
   src,
   alt = 'Story',
+  verified,
+  verificationType,
   active,
   showDot = false,
   size = 'md',
@@ -155,6 +159,8 @@ export default function StoryCircle({
           size={size === 'sm' ? 'md' : 'lg'}
           wrapperClassName="!h-full !w-full"
           className="!h-full !w-full !rounded-full"
+          verified={verified}
+          verificationType={verificationType}
         />
       </span>
 

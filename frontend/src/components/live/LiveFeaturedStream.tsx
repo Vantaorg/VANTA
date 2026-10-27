@@ -112,7 +112,7 @@ export default function LiveFeaturedStream({ stream }: LiveFeaturedStreamProps) 
             {/* Creator Info */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
               <div className="relative">
-                <Avatar src={host.avatar} alt={host.fullName || host.username || 'Creator'} size="lg" />
+                <Avatar src={host.avatar} alt={host.fullName || host.username || 'Creator'} size="lg" verified={Boolean(host.verified && host.verificationType)} verificationType={host.verificationType} />
               </div>
               <div>
                 <div className="flex items-center gap-2">

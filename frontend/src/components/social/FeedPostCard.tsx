@@ -111,7 +111,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         onClick={() => router.push(profilePath)}
         aria-label={`Open ${creator.username || 'creator'} profile`}
         className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/[.05]"
-      ><Avatar src={creator.avatar} alt={creator.username || 'Creator'} size="md"/></button>
+      ><Avatar src={creator.avatar} alt={creator.username || 'Creator'} size="md" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} /></button>
       <div className="min-w-0 flex flex-col gap-1">
         <div className="flex min-w-0 items-center justify-between gap-x-1.5">
           <button

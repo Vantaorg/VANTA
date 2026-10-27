@@ -3,6 +3,7 @@ import { prisma } from '../prisma';
 import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/api-error';
+import { isBadgeRowActive } from './public-verification';
 
 /**
  * Reject public-profile reads for restricted accounts. The account OWNER
@@ -146,7 +147,10 @@ export class UserService {
       country: profile?.country || null,
       city: profile?.city || null,
       interests: profile?.interests || null,
-      verified: badgeActive || Boolean(user.verified),
+      verified: badgeActive || (Boolean(user.verified) && !user.verificationBadge),
+      verificationType: badgeActive
+        ? user.verificationBadge!.badgeType
+        : Boolean(user.verified) && !user.verificationBadge ? 'GOLD' : null,
       premium: user.premium,
       // Creator Hub fields
       creatorCategory: profile?.creatorCategory || null,
@@ -248,15 +252,13 @@ export class UserService {
     const user = await prisma.user.findUnique({
       where: { username },
       include: {
+        verificationBadge: { select: { badgeType: true, status: true, expiresAt: true } },
         profile: { include: { socialLinks: true, media: { orderBy: { createdAt: 'desc' }, take: 12 } } },
         _count: { select: { followers: true, following: true, posts: true } },
         posts: {
           orderBy: { createdAt: 'desc' },
           take: 6,
-          include: {
-            likes: { select: { id: true } },
-            comments: { select: { id: true } },
-          },
+          include: { likes: { select: { id: true } }, comments: { select: { id: true } } },
         },
       },
     });
@@ -314,7 +316,10 @@ export class UserService {
       country: user.profile?.country || null,
       city: user.profile?.city || null,
       interests: user.profile?.interests || null,
-      verified: user.verified,
+      verified: isBadgeRowActive(user.verificationBadge) || (Boolean(user.verified) && !user.verificationBadge),
+      verificationType: isBadgeRowActive(user.verificationBadge)
+        ? user.verificationBadge.badgeType
+        : Boolean(user.verified) && !user.verificationBadge ? 'GOLD' : null,
       premium: user.premium,
       creatorCategory: user.profile?.creatorCategory || null,
       occupation: user.profile?.occupation || null,

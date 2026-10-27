@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl, DEFAULT_AVATAR } from '@/lib/mediaUrl';
 import { mediaUrlsMatch, PROFILE_MEDIA_EVENT, ProfileMediaUpdate } from '@/lib/profileMedia';
+import VerificationBadge from '@/components/ui/VerificationBadge';
+import type { VerificationType } from '@/types/verification';
 
 export interface AvatarProps {
   src?: string | null;
@@ -17,6 +19,9 @@ export interface AvatarProps {
   wrapperClassName?: string;
   onClick?: () => void;
   fallback?: string;
+  /** Active verification entitlement to display on the avatar circle. */
+  verified?: boolean;
+  verificationType?: VerificationType | null;
 }
 
 const sizeStyles = {
@@ -54,6 +59,8 @@ export default function Avatar({
   wrapperClassName,
   onClick,
   fallback,
+  verified = false,
+  verificationType,
 }: AvatarProps) {
   const [error, setError] = useState(false);
   const [resolvedSrc, setResolvedSrc] = useState(src);
@@ -79,7 +86,7 @@ export default function Avatar({
 
   return (
     <div
-      className={cn('relative inline-flex shrink-0', sizeStyles[size], wrapperClassName, onClick && 'cursor-pointer')}
+      className={cn('relative inline-flex shrink-0 overflow-visible', sizeStyles[size], wrapperClassName, onClick && 'cursor-pointer')}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -109,6 +116,12 @@ export default function Avatar({
           <img src={DEFAULT_AVATAR} alt={alt} className="w-full h-full object-cover" />
         )}
       </div>
+
+      {verified && verificationType && (
+        <span className="pointer-events-none absolute -right-0.5 -top-0.5 z-10 rounded-full bg-[#050505] p-[1px] leading-none" aria-label={verificationType === 'BLUE' ? 'Blue verified' : 'Gold verified'}>
+          <VerificationBadge type={verificationType} size={size === 'xs' || size === 'sm' ? 'xs' : 'sm'} />
+        </span>
+      )}
 
       {status !== 'none' && (
         <span
