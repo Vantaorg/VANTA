@@ -203,8 +203,9 @@ export default function LiveParticipantGrid({ participants }: { participants: St
       if (index === hostIndex) host = p;
       else guests.push(p);
     });
-    return host
-      ? [host, ...guests.filter((p) => p.id !== host.id).slice(0, MAX_STAGE_PARTICIPANTS - 1)]
+    const hostParticipant = host;
+    return hostParticipant
+      ? [hostParticipant, ...guests.filter((p) => p.id !== hostParticipant.id).slice(0, MAX_STAGE_PARTICIPANTS - 1)]
       : participants.slice(0, MAX_STAGE_PARTICIPANTS);
   }, [participants]);
 
