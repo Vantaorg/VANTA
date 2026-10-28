@@ -249,6 +249,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const container = document.querySelector('[data-vanta-scroll]');
     container?.scrollTo({ top: 0 });
+    // The Discover menu is page-scoped. Always dismiss it when navigating so
+    // its drawer can never linger over Home, Reels, Profile, or another route.
+    setMobileMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -262,7 +265,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // overlay button that fought sticky headers and back buttons for the same
   // top-left corner of the shell.
   useEffect(() => {
-    const open = () => setMobileMenuOpen(true);
+    const open = () => {
+      // This three-line drawer belongs to Discover only. Other pages may have
+      // their own leading controls and must not open this Discover drawer.
+      if (window.location.pathname === '/discover') setMobileMenuOpen(true);
+    };
     window.addEventListener('vanta:open-menu', open);
     return () => window.removeEventListener('vanta:open-menu', open);
   }, []);
@@ -472,7 +479,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Menu Drawer */}
         <MobileMenu
-          open={mobileMenuOpen && !isChatPage}
+          open={mobileMenuOpen && isDiscoverPage}
           onClose={() => setMobileMenuOpen(false)}
           pathname={pathname || ''}
           onLogout={handleLogout}
