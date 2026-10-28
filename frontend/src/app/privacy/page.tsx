@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | VANTA",
@@ -16,33 +15,15 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[#07070d] text-white">
-      {/* Header */}
-      <div className="relative border-b border-white/[0.06]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(214,168,63,0.055)_0%,_transparent_60%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 py-16 ">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors mb-6">
-            <ArrowLeft size={14} /> Back to Home
-          </Link>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc] flex items-center justify-center">
-              <Sparkles size={18} className="text-white" />
-            </div>
-            <span className="text-lg font-bold">
-              VANTA
-            </span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight mb-4">Privacy Policy</h1>
-          <p className="text-white/40">Last updated: [INSERT DATE]</p>
+      <PageHeader sticky bleed title="Privacy Policy" back="/" />
+      <div className="w-full px-4 pb-16 pt-5 sm:px-6 lg:px-8">
+        <div className="w-full border-b border-white/[0.08] pb-6">
+          <p className="text-sm leading-relaxed text-white/55">How we handle your data</p>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="space-y-8 text-white/60 leading-relaxed">
+        <div className="w-full space-y-8 text-sm leading-7 text-white/60">
           {/* Intro */}
           <section>
-            <p className="font-semibold text-white/90">Effective Date: [INSERT DATE]</p>
-            <p className="font-semibold text-white/90">Last Updated: [INSERT DATE]</p>
             <p>VANTA (&ldquo;VANTA,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) respects your privacy.</p>
             <p>
               This Privacy Policy explains how VANTA collects, uses, stores, shares, protects, and otherwise processes
