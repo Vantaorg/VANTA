@@ -346,15 +346,13 @@ return (
           <div className="auth-providers">
             <span className="auth-provider-divider">or continue with</span>
             {providerReady.google && (
-              <button type="button" className="auth-provider-btn" disabled={busy || providerBusy !== null} aria-busy={providerBusy === 'google'} data-loading={providerBusy === 'google'} onClick={() => startOAuth('google')}>
-                <span className="auth-provider-icon">{providerBusy === 'google' ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <GoogleIcon />}</span>
-                <span className="auth-provider-label">{providerBusy === 'google' ? 'Connecting to Google…' : 'Continue with Google'}</span>
+              <button type="button" className="auth-provider-btn auth-provider-btn--icon" aria-label="Continue with Google" title="Continue with Google" disabled={busy || providerBusy !== null} aria-busy={providerBusy === 'google'} data-loading={providerBusy === 'google'} onClick={() => startOAuth('google')}>
+                <span className="auth-provider-icon">{providerBusy === 'google' ? <Loader2 className="spin" size={20} aria-hidden="true" /> : <GoogleIcon />}</span>
               </button>
             )}
             {providerReady.telegram && (
-              <button type="button" className="auth-provider-btn auth-provider-btn--telegram" disabled={busy || providerBusy !== null} aria-busy={providerBusy === 'telegram'} data-loading={providerBusy === 'telegram'} onClick={() => startOAuth('telegram')}>
-                <span className="auth-provider-icon">{providerBusy === 'telegram' ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <TelegramIcon />}</span>
-                <span className="auth-provider-label">{providerBusy === 'telegram' ? 'Connecting to Telegram…' : 'Continue with Telegram'}</span>
+              <button type="button" className="auth-provider-btn auth-provider-btn--icon auth-provider-btn--telegram" aria-label="Continue with Telegram" title="Continue with Telegram" disabled={busy || providerBusy !== null} aria-busy={providerBusy === 'telegram'} data-loading={providerBusy === 'telegram'} onClick={() => startOAuth('telegram')}>
+                <span className="auth-provider-icon">{providerBusy === 'telegram' ? <Loader2 className="spin" size={20} aria-hidden="true" /> : <TelegramIcon />}</span>
               </button>
             )}
           </div>
