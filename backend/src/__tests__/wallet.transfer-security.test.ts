@@ -153,7 +153,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     }));
     expect(notificationService.createNotification).toHaveBeenCalled();
     const notificationArgs = (notificationService.createNotification as jest.Mock).mock.calls[0];
-    expect(notificationArgs[3]).not.toMatch(/\\b\\d{6}\\b/);
+    expect(notificationArgs[3]).not.toMatch(/\b\d{6}\b/);
     expect(notificationArgs[3]).toContain('not available in notifications');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
