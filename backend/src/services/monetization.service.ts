@@ -1,18 +1,13 @@
 import { prisma } from '../prisma';
 import { notificationService } from './notification.service';
 import { walletService } from './wallet.service';
+import { calculateCreatorEarningsCents, creatorEarningsCentsToUsd } from '../config/wallet.config';
 import { PurchasePackageNotFoundError } from '../errors/purchase.errors';
 import {
   COIN_PAYMENT_MODE,
   COIN_PAYMENT_STATUS,
   getCoinPaymentMode,
 } from '../config/coin-payments.config';
-
-// Revenue split configuration (configurable via admin)
-const REVENUE_SPLIT = {
-  CREATOR: 0.7,
-  PLATFORM: 0.3,
-};
 
 // Gift combo configuration
 const COMBO_TIMEOUT_MS = 10000; // 10 seconds to combo
@@ -176,8 +171,10 @@ export class MonetizationService {
         },
       });
 
-      // Add earnings to receiver (70% creator share)
-      const earnings = Math.round(finalAmount * REVENUE_SPLIT.CREATOR);
+      // Creator cash earnings follow the explicit 2 cents / 3 eligible coins rule.
+      // Do not apply the legacy 70% coin split a second time to cash earnings.
+      const earningsCents = calculateCreatorEarningsCents(finalAmount);
+      const earnings = creatorEarningsCentsToUsd(earningsCents);
       await tx.wallet.update({
         where: { userId: receiverId },
         data: {
@@ -220,8 +217,9 @@ export class MonetizationService {
           type: 'GIFT_RECEIVED',
           amount: earnings,
           fee: finalAmount - earnings,
-          description: `Received ${gift.name} gift`,
+          description: `Creator earnings from ${gift.name} gift (${earnings.toFixed(2)})`,
           reference: txRecord.id,
+          metadata: JSON.stringify({ giftId, giftCoinValue: finalAmount, creatorEarningsCents: earningsCents, creatorEarningsUsd: earnings, earningsRule: '2 cents per 3 eligible gift coins; floor incomplete groups per transaction' }),
         },
       });
 
