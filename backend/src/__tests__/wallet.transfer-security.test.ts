@@ -11,6 +11,7 @@
 import { WalletService, resolveEffectiveTransferLimits, TRANSFER_OTP_CONSTANTS } from '../services/wallet.service';
 import { PLATFORM_TRANSFER_LIMITS } from '../config/wallet.config';
 import { notificationService } from '../services/notification.service';
+import { emailService } from '../services/email.service';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
 import { describe, expect, test, jest, beforeEach } from '@jest/globals';
@@ -28,6 +29,8 @@ jest.mock('../prisma', () => {
   };
   return { prisma: mock };
 });
+
+jest.mock('../services/email.service', () => ({ emailService: { sendTransferOtpEmail: jest.fn().mockResolvedValue({ delivered: true, transport: 'sendgrid' }) } }));
 
 jest.mock('../services/notification.service', () => ({
   notificationService: {
@@ -50,8 +53,8 @@ const receiverWallet: any = { id: 'wallet2', userId: 'user2', coinBalance: 0, ea
 
 const defaultLimit: any = { id: 'limit1', walletId: 'wallet1', dailyLimit: 10_000_000, dailyUsed: 0, lastResetDate: new Date(), singleTxLimit: 10_000_000, otpThreshold: 10_000 };
 
-const senderInfo = { id: 'user1', username: 'alice', displayName: 'Alice' };
-const receiverInfo = { id: 'user2', username: 'bob', displayName: 'Bob' };
+const senderInfo = { id: 'user1', username: 'alice', displayName: 'Alice', email: 'alice@example.test', emailVerified: true };
+const receiverInfo = { id: 'user2', username: 'bob', displayName: 'Bob', email: 'bob@example.test', emailVerified: true };
 
 function txMock() {
   return {
