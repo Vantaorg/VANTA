@@ -3,6 +3,24 @@ export const VANTA_COINS_PER_USD = 100;
 export const MIN_COIN_PURCHASE_USD = 1;
 export const MAX_COIN_PURCHASE_USD = 100_000;
 export const GIFT_RECIPIENT_SHARE = 0.7;
+
+/**
+ * Creator cash earnings are a separate rule from the coin purchase value and
+ * from the spendable-coin conversion above: 3 eligible gift coins earn $0.02.
+ * Store/compute in integer cents. Incomplete groups of 3 coins are discarded
+ * per gift transaction (round down); never accumulate fractional cents.
+ */
+export const CREATOR_EARNINGS_COINS_PER_STEP = 3;
+export const CREATOR_EARNINGS_CENTS_PER_STEP = 2;
+
+export function calculateCreatorEarningsCents(eligibleGiftCoins: number): number {
+  const coins = Number.isSafeInteger(eligibleGiftCoins) ? Math.max(0, eligibleGiftCoins) : 0;
+  return Math.floor(coins / CREATOR_EARNINGS_COINS_PER_STEP) * CREATOR_EARNINGS_CENTS_PER_STEP;
+}
+
+export function creatorEarningsCentsToUsd(cents: number): number {
+  return Math.max(0, Math.trunc(cents)) / 100;
+}
 export const TRANSFER_FEE_RATE = 0.05;
 export const WITHDRAWAL_FEE_RATE = 0.10;
 export const MIN_WITHDRAWAL_AMOUNT = 10;
