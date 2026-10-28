@@ -2769,3 +2769,35 @@ html.light .card-hover:hover {
 html.light .feed-item:hover {
   background: var(--surface-hover);
 }
+
+/* Full-viewport Admin + Creator workspaces.
+   Intentionally scoped to the content region; fixed shared headers and sidebars
+   retain their existing markup, dimensions, and behavior. */
+.vc-console-section {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+[data-vanta-console-workspace] {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  overscroll-behavior-x: contain;
+}
+[data-vanta-console-workspace] > * {
+  min-width: 0;
+}
+[data-vanta-console-workspace] :where(table) {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  [data-vanta-console-workspace] {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .vc-console-section > :where(div, ul, ol) {
+    min-width: 0;
+  }
+}
