@@ -4,7 +4,7 @@ import { prisma } from "../prisma";
 import { uploadService } from "../services";
 import { contentViewService } from "../services/content-view.service";
 import { buildReelFeed } from "../services/reel-feed.service";
-import { BADGE_USER_SELECT, enrichItemAuthors } from "../services/public-verification";
+import { BADGE_USER_SELECT, enrichItemAuthors, enrichPublicUser } from "../services/public-verification";
 
 const parseLimit = (value: unknown, defaultLimit = 20) => {
   const parsed = typeof value === "string" ? parseInt(value, 10) : NaN;
@@ -161,6 +161,7 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
             fullName: true,
             avatar: true,
             verified: true,
+            ...BADGE_USER_SELECT,
           },
         },
         likes: userId ? { where: { userId }, select: { id: true } } : false,
@@ -190,7 +191,7 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
         isSaved: userId ? reel.saves?.length > 0 : false,
         isFollowing: followedCreators.has(reel.creatorId),
         author: {
-          ...reel.creator,
+          ...enrichPublicUser(reel.creator),
           isFollowing: followedCreators.has(reel.creatorId),
         },
         createdAt: reel.createdAt,
