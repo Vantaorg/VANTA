@@ -51,7 +51,7 @@ export default function CommunityGuidelinesPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#07070d] text-white">
-      <PageHeader sticky bleed title="Community Guidelines" back="/settings/about" />
+      <PageHeader sticky bleed title="Community Guidelines" back />
       <main className="w-full px-4 pb-16 pt-5 sm:px-6 lg:px-8">
         <div className="w-full border-b border-white/[0.08] pb-6">
           <p className="text-sm leading-relaxed text-white/55">What’s allowed on VANTA</p>
