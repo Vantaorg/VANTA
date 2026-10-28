@@ -3,7 +3,7 @@ import { prisma } from '../prisma';
 import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
 import { AppError } from '../utils/api-error';
-import { isBadgeRowActive } from './public-verification';
+import { isBadgeRowActive, BADGE_USER_SELECT, enrichPublicUser } from './public-verification';
 
 /**
  * Reject public-profile reads for restricted accounts. The account OWNER
@@ -1383,7 +1383,7 @@ export class UserService {
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { follower: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, profile: { select: { avatarUrl: true } } } } },
+      include: { follower: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT, profile: { select: { avatarUrl: true } } } } },
     });
     const nextCursor = followers.length > limit ? followers.pop()?.id : undefined;
     const userIds = followers.map(follow => follow.follower.id).filter(id => id !== viewerId);
@@ -1396,7 +1396,7 @@ export class UserService {
     const followedUserIds = new Set(viewerRelationships.map(relationship => relationship.followingId));
     return {
       items: followers.map(f => ({
-        ...f.follower,
+        ...enrichPublicUser(f.follower),
         avatarUrl: f.follower.profile?.avatarUrl || f.follower.avatar || null,
         profile: undefined,
         isFollowing: f.follower.id !== viewerId && followedUserIds.has(f.follower.id),
@@ -1420,7 +1420,7 @@ export class UserService {
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { following: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, profile: { select: { avatarUrl: true } } } } },
+      include: { following: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT, profile: { select: { avatarUrl: true } } } } },
     });
     const nextCursor = following.length > limit ? following.pop()?.id : undefined;
     const userIds = following.map(follow => follow.following.id).filter(id => id !== viewerId);
@@ -1435,7 +1435,7 @@ export class UserService {
     const followedUserIds = new Set(viewerRelationships.map(relationship => relationship.followingId));
     return {
       items: following.map(f => ({
-        ...f.following,
+        ...enrichPublicUser(f.following),
         avatarUrl: f.following.profile?.avatarUrl || f.following.avatar || null,
         profile: undefined,
         isFollowing: f.following.id !== viewerId && followedUserIds.has(f.following.id),
