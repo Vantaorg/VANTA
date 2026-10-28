@@ -4,7 +4,7 @@ import { notificationService } from './notification.service';
 import { emitSocialEvent, emitSocialEventToRoom, emitSocialEventToUser } from './social-events.service';
 import { initialGiftCatalog } from '../data/gift-catalog.data';
 import type { GiftTransaction, Wallet } from '@prisma/client';
-import { calculateGiftRecipientCoins } from '../config/wallet.config';
+import { calculateCreatorEarningsCents, calculateGiftRecipientCoins, creatorEarningsCentsToUsd } from '../config/wallet.config';
 
 export type GiftCatalogInput = {
   slug?: string;
@@ -308,6 +308,10 @@ export class GiftService {
     // authority for this 70% share and always rounds down to whole coins.
     const recipientCoins = calculateGiftRecipientCoins(totalCost);
     const platformCoins = totalCost - recipientCoins;
+    // Cash earnings use the explicit 2-cent-per-3-eligible-coins rule. This is
+    // independent of the spendable-coin share and must not apply the 70% split again.
+    const creatorEarningsCents = calculateCreatorEarningsCents(totalCost);
+    const creatorEarningsUsd = creatorEarningsCentsToUsd(creatorEarningsCents);
 
     // Execute gift atomically
     let result: { transaction: GiftTransaction; updatedSender: Wallet; updatedReceiver: Wallet };
@@ -338,7 +342,8 @@ export class GiftService {
         data: {
           coinBalance: { increment: recipientCoins },
           totalCoinsReceived: { increment: recipientCoins },
-          lifetimeEarnings: { increment: recipientCoins },
+          earningsBalance: { increment: creatorEarningsUsd },
+          lifetimeEarnings: { increment: creatorEarningsUsd },
           totalGiftsReceived: { increment: quantity },
         },
       });
@@ -383,8 +388,8 @@ export class GiftService {
       analyticsDate.setUTCHours(0, 0, 0, 0);
       await tx.creatorDailyAnalytics.upsert({
         where: { creatorId_date: { creatorId: receiverId, date: analyticsDate } },
-        create: { creatorId: receiverId, date: analyticsDate, giftRevenue: recipientCoins, totalEarnings: recipientCoins },
-        update: { giftRevenue: { increment: recipientCoins }, totalEarnings: { increment: recipientCoins } },
+        create: { creatorId: receiverId, date: analyticsDate, giftRevenue: creatorEarningsUsd, totalEarnings: creatorEarningsUsd },
+        update: { giftRevenue: { increment: creatorEarningsUsd }, totalEarnings: { increment: creatorEarningsUsd } },
       });
       await tx.analyticsEvent.create({
         data: {
@@ -393,7 +398,7 @@ export class GiftService {
           targetType: streamId ? 'LIVE_STREAM' : 'CREATOR',
           targetId: streamId || receiverId,
           value: totalCost,
-          metadata: JSON.stringify({ receiverId, giftId, quantity, recipientCoins, platformCoins, autoConverted: true, isAnon: Boolean(options.isAnon) }),
+          metadata: JSON.stringify({ receiverId, giftId, quantity, recipientCoins, platformCoins, creatorEarningsCents, creatorEarningsUsd, earningsRule: '2 cents per 3 eligible gift coins; floor incomplete groups per transaction', autoConverted: true, isAnon: Boolean(options.isAnon) }),
         },
       });
 
@@ -425,7 +430,7 @@ export class GiftService {
           status: 'COMPLETED',
           description: `Received ${gift.name}; automatically converted to ${recipientCoins} VANTA Coins`,
           reference: transaction.id,
-          metadata: JSON.stringify({ giftId: gift.id, giftName: gift.name, senderId, giftCoinValue: totalCost, recipientCoins, platformCoins, autoConverted: true, quantity, message, isAnon: Boolean(options.isAnon) }),
+          metadata: JSON.stringify({ giftId: gift.id, giftName: gift.name, senderId, giftCoinValue: totalCost, recipientCoins, platformCoins, creatorEarningsCents, creatorEarningsUsd, earningsRule: '2 cents per 3 eligible gift coins; floor incomplete groups per transaction', autoConverted: true, quantity, message, isAnon: Boolean(options.isAnon) }),
         },
       });
 
