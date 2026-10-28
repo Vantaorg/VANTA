@@ -43,6 +43,47 @@ interface TwoFactorSetup {
   backupCodes: string[];
 }
 
+const describeDevice = (ua?: string | null): string => {
+  if (!ua) return 'Unknown device';
+  const browser = /Edg\//.test(ua) ? 'Microsoft Edge'
+    : /Firefox\//.test(ua) ? 'Firefox'
+    : /Chrome\//.test(ua) ? 'Chrome'
+    : /Safari\//.test(ua) && !/Chrome\//.test(ua) ? 'Safari'
+    : 'Browser';
+  const platform = /Android/i.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(ua) ? 'iPhone or iPad'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Mac OS X|Macintosh/i.test(ua) ? 'Mac'
+    : /Linux/i.test(ua) ? 'Linux'
+    : 'device';
+  return `${browser} on ${platform}`;
+};
+
+const displayNetwork = (ip?: string | null): string => {
+  if (!ip) return 'Network address unavailable';
+  // Hosting proxies commonly forward private/shared addresses rather than the
+  // visitor's public IP. Do not present those internal hops as a real location.
+  const normalized = ip.replace(/^::ffff:/i, '');
+  const privateV4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|127\.|169\.254\.)/.test(normalized);
+  if (privateV4 || normalized === '::1' || normalized === '::') return 'Network address unavailable';
+  return normalized;
+};
+
+const isLoginActivity = (action: string): boolean =>
+  /^(LOGIN|LOGOUT|SESSION_CREATED|SESSION_REVOKED|SESSION_REMOVED_OLDEST|LOGIN_FAILED|LOGIN_SUSPENDED_SESSION|PASSWORD_CHANGED|TWO_FACTOR_ENABLED|TWO_FACTOR_DISABLED)(_|$)/i.test(action);
+
+const describeActivity = (action: string): string => ({
+  LOGIN: 'Signed in',
+  SESSION_CREATED: 'New session started',
+  SESSION_REVOKED: 'Session ended',
+  SESSION_REMOVED_OLDEST: 'Older session ended automatically',
+  LOGIN_FAILED: 'Failed sign-in attempt',
+  LOGIN_SUSPENDED_SESSION: 'Sign-in restricted',
+  PASSWORD_CHANGED: 'Password changed',
+  TWO_FACTOR_ENABLED: 'Two-factor authentication enabled',
+  TWO_FACTOR_DISABLED: 'Two-factor authentication disabled',
+} as Record<string, string>)[action] || 'Account security event';
+
 export default function SecuritySettingsPage() {
   const { token } = useAuth();
   const toast = useToast();
@@ -410,8 +451,8 @@ export default function SecuritySettingsPage() {
                     <Laptop size={17} strokeWidth={1.9} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-white">{session.userAgent || `Session ${index + 1}`}</p>
-                    <p className="mt-0.5 truncate text-xs text-white/30">{session.ipAddress || 'IP hidden'} · {formatDate(session.createdAt)}</p>
+                    <p className="truncate text-sm font-medium text-white">{describeDevice(session.userAgent)}</p>
+                    <p className="mt-0.5 truncate text-xs text-white/30">{displayNetwork(session.ipAddress)} · Signed in {formatDate(session.createdAt)}</p>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -435,7 +476,7 @@ export default function SecuritySettingsPage() {
             {logs.length === 0 ? (
               <p className="px-4 py-4 text-sm text-white/30">No recent login activity.</p>
             ) : (
-              logs.slice(0, 10).map((log) => (
+              logs.filter((log) => isLoginActivity(log.action)).slice(0, 10).map((log) => (
                 <div key={log.id} className="flex items-center gap-3.5 px-4 py-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] text-white/40">
                     <EyeOff size={17} strokeWidth={1.9} />
