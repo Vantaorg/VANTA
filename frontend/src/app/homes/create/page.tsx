@@ -246,30 +246,56 @@ function CreateHomeContent() {
   const handleSave = async () => { await save(); };
 
   const handlePhotos = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    if (!token) return;
-    // Photos can only attach to a persisted listing, so create the draft first.
-    const targetId = editId || (await save());
-    if (!targetId) return;
+    if (!files || files.length === 0 || !token) return;
 
     const remaining = MAX_PHOTOS - photos.length;
     if (remaining <= 0) {
       showToast({ type: 'error', title: 'Photo limit reached', message: `You can upload up to ${MAX_PHOTOS} photos.` });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    const selected = Array.from(files).slice(0, remaining);
 
-    const body = new FormData();
-    selected.forEach((file) => body.append('photos', file));
+    const selected = Array.from(files).slice(0, remaining);
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const invalid = selected.find(file => !allowedTypes.has(file.type) || file.size > 15 * 1024 * 1024);
+    if (invalid) {
+      showToast({ type: 'error', title: 'Unsupported photo', message: 'Choose JPG, PNG or WebP images under 15 MB each.' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Render local object URLs immediately; retain each original File for upload.
+    const previews = selected.map((file, index) => ({
+      id: `local-${Date.now()}-${index}-${file.name}`,
+      previewUrl: URL.createObjectURL(file),
+      localFile: file,
+      isLocalPreview: true,
+    }));
+    setPhotos(previous => [...previous, ...previews]);
 
     setUploading(true);
     try {
+      // Photos can only attach to a persisted listing, so create the draft after
+      // previews are already visible. Temporary blob URLs are never sent to API.
+      const targetId = editId || (await save());
+      if (!targetId) {
+        setPhotos(previous => previous.filter(photo => !previews.some(preview => preview.id === photo.id)));
+        return;
+      }
+
+      const body = new FormData();
+      selected.forEach(file => body.append('photos', file));
       await uploadHomePhotos(targetId, body, token);
       const fresh = await fetchHome(targetId, token);
       setPhotos(Array.isArray(fresh?.media) ? fresh.media : []);
+      previews.forEach(preview => URL.revokeObjectURL(preview.previewUrl));
       showToast({ type: 'success', title: `${selected.length} photo${selected.length === 1 ? '' : 's'} added` });
     } catch (e: any) {
-      showToast({ type: 'error', title: 'Upload failed', message: e?.message || 'Please try again.' });
+      // Keep the real previews visible so the user can see what failed; allow
+      // retrying by selecting the same files again after correcting the issue.
+      showToast({ type: 'error', title: 'Upload failed — retry photos', message: e?.message || 'Your selected photos were not saved. Select them again to retry.' });
+      setPhotos(previous => previous.filter(photo => !previews.some(preview => preview.id === photo.id)));
+      previews.forEach(preview => URL.revokeObjectURL(preview.previewUrl));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -417,7 +443,7 @@ function CreateHomeContent() {
                   <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={e=>void handlePhotos(e.target.files)} className="sr-only" id="home-photos"/>
                   <button type="button" disabled={uploading || photos.length >= MAX_PHOTOS} onClick={()=>fileInputRef.current?.click()} className="mt-4 flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-[#c9a227]/35 bg-[#c9a227]/[.035] px-4 py-8 text-center transition hover:bg-[#c9a227]/[.07] disabled:opacity-50"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#c9a227]/10 text-[#e4c65d]">{uploading ? <UploadCloud size={22} className="animate-pulse"/> : <ImagePlus size={22}/>}</span><span className="mt-3 text-sm font-semibold">{uploading ? 'Uploading photos…' : 'Tap to choose photos'}</span><span className="mt-1 text-xs text-white/40">JPG, PNG or WebP · up to {MAX_PHOTOS} images</span></button>
                 </div>
-                {photos.length>0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map(photo=>{const src=photo?.uploadedFile?.url || photo?.thumbnailUrl || null;return <div key={photo.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-white/[.03]">{src?<img src={src} alt="Property photo" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center"><ImagePlus/></div>}{photo.isCover&&<span className="absolute left-2 top-2 rounded-full bg-[#c9a227] px-2 py-1 text-[10px] font-bold text-black">COVER</span>}<button type="button" onClick={()=>void removePhoto(photo.id)} aria-label="Remove photo" className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/75 text-white hover:bg-red-500"><Trash2 size={14}/></button></div>})}</div>}
+                {photos.length>0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map(photo=>{const src=photo?.previewUrl || photo?.uploadedFile?.url || photo?.thumbnailUrl || null;return <div key={photo.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-white/[.03]">{src?<img src={src} alt="Selected property photo preview" className="h-full w-full object-cover" onError={(event)=>{event.currentTarget.style.visibility='hidden';}}/>:<div className="grid h-full place-items-center"><ImagePlus/></div>}{photo.isLocalPreview&&<span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">Preview</span>}{photo.isCover&&<span className="absolute left-2 top-2 rounded-full bg-[#c9a227] px-2 py-1 text-[10px] font-bold text-black">COVER</span>}{!photo.isLocalPreview&&<button type="button" onClick={()=>void removePhoto(photo.id)} aria-label="Remove photo" className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/75 text-white hover:bg-red-500"><Trash2 size={14}/></button>}</div>})}</div>}
                 <div className="rounded-xl border border-white/[.07] bg-black/20 p-3"><p className="text-xs leading-5 text-white/45">Photos help renters understand the space. Only upload images you have permission to share. You can save your draft and finish later.</p></div>
                 <div><h3 className="mb-3 text-sm font-semibold">Amenities</h3><div className="flex flex-wrap gap-2">{AMENITIES.map(amenity=>{const active=form.amenities.includes(amenity);return <button key={amenity} type="button" onClick={()=>toggleAmenity(amenity)} aria-pressed={active} className={`rounded-full border px-3 py-2 text-xs transition ${active?'border-[#c9a227]/50 bg-[#c9a227]/[.09] text-[#e4c65d]':'border-white/10 bg-white/[.025] text-white/55 hover:text-white'}`}>{active&&<Check size={11} className="mr-1 inline"/>}{AMENITY_LABEL[amenity] || amenity}</button>})}</div></div>
               </div>}
