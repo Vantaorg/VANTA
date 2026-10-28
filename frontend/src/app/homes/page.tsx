@@ -49,11 +49,11 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
   ];
 
   return (
-    <main className="min-h-[var(--vanta-vh,100dvh)] bg-[#080808] text-white">
-      <header className="sticky top-0 z-30 border-b border-white/[.08] bg-[#080808]/95 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+    <main className="relative left-1/2 flex h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[#080808] text-white">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#080808]/90 px-4 backdrop-blur-xl">
+        <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
             <span className="flex items-baseline gap-2">
               <span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span>
               <span className="text-sm font-medium text-white/80">Homes</span>
@@ -66,14 +66,17 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         </div>
       </header>
 
-      <section className="border-b border-white/[.07]">
-        <div className="mx-auto max-w-6xl px-4 pb-7 pt-8 sm:px-6 sm:pb-9 sm:pt-10">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Homes for the way you live.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+
+
+      <section className="border-b border-white/[.06]">
+        <div className="w-full px-3 pb-5 pt-6 sm:px-5 sm:pb-7 sm:pt-8">
+          <div className="w-full">
+            <p className="text-[11px] font-semibold uppercase leading-4 tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
+            <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-[1.15] tracking-tight sm:mt-5 sm:text-4xl">Homes for the way you live.</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55 sm:mt-4 sm:text-base sm:leading-7">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
           </div>
-          <div className="mt-7 max-w-5xl">
+          <div className="mt-5 w-full">
             <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-white/40">
@@ -83,8 +86,8 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-28 pt-7 sm:px-6 sm:pt-9">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <section className="w-full px-0 pb-28 pt-5 sm:pt-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-3 sm:px-5">
           <div>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
             <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'Listings appear here after they pass VANTA review.'}</p>
@@ -109,6 +112,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
           />
         )}
       </section>
+          </div>
     </main>
   );
 }

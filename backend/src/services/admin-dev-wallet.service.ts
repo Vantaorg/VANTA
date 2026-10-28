@@ -60,7 +60,7 @@
  * ────────────────────────────────────────────────────────────────────────────
  */
 /** Canonical CEO/Admin account email. Single source of truth with the seed. */
-export const ADMIN_DEV_EMAIL = ADMIN_EMAIL;
+export const ADMIN_DEV_EMAIL = (process.env.ADMIN_EMAIL || 'vantapp74@gmail.com').trim().toLowerCase();
 
 /** The exact CEO/Admin initial allocation amount in VANTA Coins. */
 export const CEO_ADMIN_ALLOCATION_COINS = 1_000_000;

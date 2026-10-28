@@ -121,7 +121,7 @@ export default function LiveStreamsGrid({ streams = defaultStreams, loading }: L
             </p>
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-2">
-                <Avatar src={stream.creator.avatar} alt={stream.creator.name} size="xs" />
+                <Avatar src={stream.creator.avatar} alt={stream.creator.name} size="xs" verified={Boolean(stream.creator.verified && stream.creator.verificationType)} verificationType={stream.creator.verificationType} />
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-white/50 truncate max-w-[100px]">{stream.creator.name}</span>
                   {stream.creator.verified && stream.creator.verificationType && <VerificationBadge verified type={stream.creator.verificationType} size="xs" />}

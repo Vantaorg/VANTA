@@ -24,7 +24,7 @@ import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
 import { MicOff, VideoOff } from 'lucide-react';
-import { stageLayoutFor } from './liveStageLayout';
+import { MAX_STAGE_PARTICIPANTS, stageLayoutFor } from './liveStageLayout';
 
 export interface StageParticipant {
   id: string;
@@ -138,25 +138,25 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
         </div>
       )}
       {noVideo && (
-        <div className="absolute inset-0 grid place-items-center">
+        <div className="absolute inset-0 grid place-items-center bg-[#0b0b0d]">
           <Avatar src={p.avatar} alt={p.username} size="lg" />
         </div>
       )}
 
       {/* Camera-off chip */}
       {noVideo && (
-        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/55 px-2 py-1 text-[9.5px] font-semibold uppercase tracking-wide text-white/70 backdrop-blur-md">
+        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-medium text-white/75 backdrop-blur-md">
           <VideoOff size={11} aria-hidden /> Camera off
         </span>
       )}
 
       {/* Identity + status chrome over a soft gradient */}
-      <div className="absolute inset-x-0 bottom-0 z-[3] flex items-end gap-2 bg-gradient-to-t from-black/80 via-black/20 to-transparent px-2 pb-2 pt-7 sm:px-3 sm:pb-3">
-        <span className="flex min-w-0 items-center gap-1.5 rounded-lg border border-white/[.08] bg-black/45 px-2 py-1 backdrop-blur-md">
+      <div className="absolute inset-x-0 bottom-0 z-[3] flex items-end gap-2 bg-gradient-to-t from-black/85 via-black/25 to-transparent px-2 pb-2 pt-8 sm:px-3 sm:pb-3">
+        <span className="flex min-w-0 items-center gap-1.5">
           <span className="shrink-0 max-w-[9rem] truncate text-[11px] font-semibold text-white sm:text-xs">{p.username}</span>
           {p.verified && p.verificationType && <VerificationBadge type={p.verificationType} size="xs" />}
           {p.isHost && (
-            <span className="ml-0.5 inline-flex items-center rounded-md bg-[#D6A83F] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide text-black">
+            <span className="ml-0.5 inline-flex items-center rounded-full bg-[#D6A83F] px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-wide text-black">
               Host
             </span>
           )}
@@ -164,7 +164,7 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {p.speaking && (
             <span
-              className="inline-flex h-5 items-center gap-[2px] rounded-md border border-[#D6A83F]/25 bg-black/55 px-1.5 backdrop-blur-md"
+              className="inline-flex h-5 items-center gap-[2px] rounded-full bg-black/55 px-1.5 backdrop-blur-md"
               title="Speaking"
               role="status"
               aria-label={`${p.username} is speaking`}
@@ -176,7 +176,7 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
           )}
           {!p.micOn && (
             <span
-              className="grid h-5 w-5 place-items-center rounded-md border border-white/10 bg-black/60"
+              className="grid h-5 w-5 place-items-center rounded-full bg-black/60"
               role="status"
               aria-label={`${p.username} microphone is muted`}
             >
@@ -190,7 +190,7 @@ function Tile({ p, fit = 'cover' }: { p: StageParticipant; fit?: 'cover' | 'cont
 }
 export default function LiveParticipantGrid({ participants }: { participants: StageParticipant[] }) {
   const tiles = participants.length > 0 ? participants : [];
-  const layout = stageLayoutFor(tiles.length);
+  const layout = stageLayoutFor(Math.min(tiles.length, MAX_STAGE_PARTICIPANTS));
 
   // Order the roster by ROLE: the host always occupies the primary area,
   // guests flow into the remaining areas in their arrival order. This is
@@ -203,7 +203,10 @@ export default function LiveParticipantGrid({ participants }: { participants: St
       if (index === hostIndex) host = p;
       else guests.push(p);
     });
-    return host ? [host, ...guests] : participants;
+    const hostParticipant = host;
+    return hostParticipant
+      ? [hostParticipant, ...guests.filter((p) => p.id !== hostParticipant.id).slice(0, MAX_STAGE_PARTICIPANTS - 1)]
+      : participants.slice(0, MAX_STAGE_PARTICIPANTS);
   }, [participants]);
 
   // Participants are re-built into fresh MediaStreams on every subscription

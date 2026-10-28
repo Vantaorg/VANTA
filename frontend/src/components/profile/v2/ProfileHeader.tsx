@@ -61,7 +61,7 @@ export default function ProfileHeader({ profile, own, onFollow, onMessage, onGif
           disabled={!avatar}
           className="block cursor-zoom-in rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-default"
         >
-          <Avatar src={avatar} alt={`${displayName}'s profile photo`} size="xl" fallback={displayName} />
+          <Avatar src={avatar} alt={`${displayName}'s profile photo`} size="xl" fallback={displayName} verified={Boolean(profile.verified && profile.verificationType)} verificationType={profile.verificationType} />
         </button>
       </div>
 

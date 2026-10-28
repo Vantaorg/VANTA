@@ -13,7 +13,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import ConsolePanel from '@/components/console/Panel';
 import { ConsoleEmptyState, ConsoleLoading } from '@/components/console/States';
-import { RefreshCw, Search, Home, ShieldCheck, Flag, ScrollText, Check, X } from 'lucide-react';
+import { RefreshCw, Search, Home, ShieldCheck, Flag, ScrollText, Check, X, MapPin, Bed, Bath } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/api';
 
 type Tab = 'listings' | 'verifications' | 'reports' | 'audit';
 
@@ -23,6 +24,14 @@ const tabs: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: 'reports', label: 'Reports', icon: Flag },
   { id: 'audit', label: 'Audit history', icon: ScrollText },
 ];
+
+const homeImage = (listing: any) => {
+  const media = Array.isArray(listing?.media) ? [...listing.media].sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)) || (a.order ?? 0) - (b.order ?? 0))[0] : null;
+  const raw = media?.uploadedFile?.url || media?.url || media?.thumbnailUrl || media?.uploadedFile?.thumbnailUrl;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  if (/^(https?:|blob:|data:)/i.test(raw)) return raw;
+  try { return new URL(raw.startsWith('/') ? raw : `/${raw}`, API_BASE_URL).toString(); } catch { return raw; }
+};
 
 const dateLabel = (value?: string) => value ? new Date(value).toLocaleDateString() : '—';
 const statusClass = (status?: string) => {
@@ -89,8 +98,8 @@ export default function AdminHomesPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-console-bg px-4 py-5 text-console-text sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-5">
+    <div className="min-h-dvh w-full bg-console-bg px-3 py-4 text-console-text sm:px-5 lg:px-8">
+      <div className="w-full space-y-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-console-gold">VANTA Admin · Marketplace</p>
@@ -113,7 +122,7 @@ export default function AdminHomesPage() {
         {error && <div role="alert" className="rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-sm text-red-300">{error}</div>}
 
         {tab === 'listings' && (
-          <ConsolePanel title="Property listings" description="Only authorized admins can approve or reject pending listings." actions={<span className="text-xs text-console-text-3">{listings.length} shown</span>}>
+          <ConsolePanel title="Home review queue" description="Inspect the property, photos, owner and pricing before approving or rejecting a listing." actions={<span className="text-xs text-console-text-3">{listings.length} shown</span>}>
             <div className="mb-4 flex flex-col gap-2 sm:flex-row">
               <label className="relative min-w-0 flex-1">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-console-text-3" />
@@ -126,15 +135,20 @@ export default function AdminHomesPage() {
             {loading ? <ConsoleLoading label="Loading listings…" /> : listings.length === 0 ? <ConsoleEmptyState title="No listings found" description="Try another status or search term." /> : (
               <div className="divide-y divide-console-border">
                 {listings.map((listing) => (
-                  <article key={listing.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
+                  <article key={listing.id} className="grid grid-cols-1 gap-4 py-5 first:pt-0 last:pb-0 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-start">
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-white/[.04] md:aspect-[5/4] md:max-w-[180px]">
+                      {homeImage(listing) ? <img src={homeImage(listing) || undefined} alt={listing.title || "Property listing"} className="h-full w-full object-cover" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <div className="flex h-full min-h-24 items-center justify-center text-console-text-3"><Home size={26} /></div>}
+                    </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{listing.title || 'Untitled listing'}</h3><Status value={listing.availabilityStatus} /></div>
-                      <p className="mt-1 text-xs text-console-text-3">{[listing.city, listing.area, listing.country].filter(Boolean).join(', ') || 'Location not provided'} · {listing.propertyType || 'Property'} · {listing.currency || 'NGN'} {Number(listing.rentAmount || 0).toLocaleString()} / {String(listing.rentPeriod || '').toLowerCase()}</p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-console-text-3"><MapPin size={13} /> {[listing.area, listing.city, listing.state, listing.country].filter(Boolean).join(', ') || 'Location not provided'}</p>
+                      <p className="mt-2 text-sm font-semibold text-console-gold">{listing.currency || 'NGN'} {Number(listing.rentAmount || 0).toLocaleString()} <span className="text-xs font-normal text-console-text-3">/ {String(listing.rentPeriod || 'MONTHLY').toLowerCase()}</span></p>
+                      <p className="mt-1 flex flex-wrap gap-3 text-xs text-console-text-3"><span className="inline-flex items-center gap-1"><Bed size={13} /> {listing.bedrooms ?? '—'} beds</span><span className="inline-flex items-center gap-1"><Bath size={13} /> {listing.bathrooms ?? '—'} baths</span><span>{listing.propertyType || 'Property'}</span></p>
                       <p className="mt-1 text-xs text-console-text-3">Owner: @{listing.owner?.username || 'unknown'} · ID: {listing.id} · Submitted: {dateLabel(listing.updatedAt)}</p>
                       {listing.description && <p className="mt-2 max-w-3xl whitespace-pre-wrap text-sm text-console-text-2">{String(listing.description).slice(0, 320)}{String(listing.description).length > 320 ? '…' : ''}</p>}
                     </div>
                     {listing.availabilityStatus === 'PENDING_REVIEW' && (
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex shrink-0 flex-wrap gap-2 md:flex-col">
                         <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => reviewAdminHomeListing(listing.id, { decision: 'APPROVE', reason: 'Approved in Homes admin review.' }, token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 disabled:opacity-50"><Check size={14} /> Approve</button>
                         <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => reviewAdminHomeListing(listing.id, { decision: 'REJECT', reason: 'Rejected in Homes admin review.' }, token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-red-500/10 px-3 text-xs font-semibold text-red-300 disabled:opacity-50"><X size={14} /> Reject</button>
                       </div>
@@ -168,7 +182,7 @@ export default function AdminHomesPage() {
                 {reports.map((report) => (
                   <article key={report.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
                     <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-semibold">{report.type || 'Property report'}</h3><Status value={report.status} /></div><p className="mt-1 text-sm text-console-text-2">{report.reason || report.description || 'No additional details supplied.'}</p><p className="mt-1 text-xs text-console-text-3">Listing: {report.listing?.title || report.listingId} · Reporter: @{report.reporter?.username || 'unknown'} · {dateLabel(report.createdAt)}</p><p className="mt-1 text-xs text-console-text-3">Report ID: {report.id}</p></div>
-                    {(report.status === 'PENDING' || report.status === 'REVIEWING') && <div className="flex shrink-0 gap-2"><button type="button" disabled={!!busyId} onClick={() => void act(report.id, () => resolveHomeReport(report.id, { decision: 'RESOLVED', notes: 'Resolved in Homes admin review.' }, token))} className="vc-focus min-h-9 rounded-[var(--vc-radius)] bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 disabled:opacity-50">Resolve</button><button type="button" disabled={!!busyId} onClick={() => void act(report.id, () => resolveHomeReport(report.id, { decision: 'DISMISSED', notes: 'Dismissed in Homes admin review.' }, token))} className="vc-focus min-h-9 rounded-[var(--vc-radius)] border border-console-border px-3 text-xs font-semibold text-console-text-2 disabled:opacity-50">Dismiss</button></div>}
+                    {(report.status === 'PENDING' || report.status === 'REVIEWING') && <div className="flex shrink-0 flex-wrap gap-2 md:flex-col"><button type="button" disabled={!!busyId} onClick={() => void act(report.id, () => resolveHomeReport(report.id, { decision: 'RESOLVED', notes: 'Resolved in Homes admin review.' }, token))} className="vc-focus min-h-9 rounded-[var(--vc-radius)] bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 disabled:opacity-50">Resolve</button><button type="button" disabled={!!busyId} onClick={() => void act(report.id, () => resolveHomeReport(report.id, { decision: 'DISMISSED', notes: 'Dismissed in Homes admin review.' }, token))} className="vc-focus min-h-9 rounded-[var(--vc-radius)] border border-console-border px-3 text-xs font-semibold text-console-text-2 disabled:opacity-50">Dismiss</button></div>}
                   </article>
                 ))}
               </div>

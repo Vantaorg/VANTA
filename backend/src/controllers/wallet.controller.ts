@@ -316,6 +316,13 @@ export const getWithdrawalHistory = async (req: AuthRequest, res: Response): Pro
 };
 
 // ============================================================================
+function csvCell(value: unknown): string {
+  const raw = String(value ?? '');
+  // Prefix spreadsheet formula-like text before CSV quoting.
+  const safe = /^[\s\u0000-\u001f]*[=+@\-]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 // EXPORT TRANSACTION HISTORY (CSV)
 // ============================================================================
 
@@ -338,7 +345,7 @@ export const exportTransactions = async (req: AuthRequest, res: Response): Promi
     const rows = result.transactions.map((tx: any) => [
       new Date(tx.createdAt).toISOString(),
       tx.type,
-      `"${(tx.description || '').replace(/"/g, '""')}"`,
+      tx.description || '',
       tx.displayAmount ?? tx.amount ?? 0,
       tx.fee ?? 0,
       tx.balance ?? 0,
@@ -346,7 +353,7 @@ export const exportTransactions = async (req: AuthRequest, res: Response): Promi
       tx.reference || '',
     ]);
 
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="vanta-transactions-${new Date().toISOString().slice(0, 10)}.csv"`);

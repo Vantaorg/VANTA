@@ -54,6 +54,8 @@ export default function StoryCard({
               showDot
               segments={stories.length ? segments : undefined}
               size={compact ? 'sm' : 'md'}
+              verified={Boolean(user.verified && user.verificationType)}
+              verificationType={user.verificationType}
             />
           </button>
           {onCreate && (

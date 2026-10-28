@@ -418,6 +418,8 @@ export default function ReelsPage() {
   };
 
   const follow = async (reel: Reel) => {
+    const isOwn = Boolean(user && ((user.id && String(reel.author.id) === String(user.id)) || (user.username && reel.author.username?.toLowerCase() === user.username.toLowerCase())));
+    if (isOwn) { toast.error('That is your own Reel'); return; }
     if (!token) { toast.error('Sign in required'); return; }
     const key = `follow:${reel.author.id}`;
     if (pending[key]) return;
@@ -578,6 +580,7 @@ export default function ReelsPage() {
           <ReelCard
             key={reel.id}
             reel={reel}
+            isOwn={Boolean(user && ((user.id && String(reel.author.id) === String(user.id)) || (user.username && reel.author.username?.toLowerCase() === user.username.toLowerCase())))}
             index={index}
             active={active === index}
             nearby={Math.abs(active - index) <= 1}
@@ -611,7 +614,7 @@ export default function ReelsPage() {
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} close={() => setCommentsFor(null)} />}
         {shareFor && <SharePanel reel={shareFor} share={share} close={() => setShareFor(null)} />}
-        {moreFor && <MorePanel reel={moreFor} isOwn={moreFor.author.id === user?.id} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
+        {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
         {reportFor && <ReportPanel reel={reportFor} pending={!!pending[`report:${reportFor.id}`]} submit={category => void report(reportFor, category)} close={() => setReportFor(null)} />}
         {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift) => { setGiftBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
@@ -620,8 +623,8 @@ export default function ReelsPage() {
   );
 }
 
-function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onMute, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
-  reel: Reel; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onMute, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
+  reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
   followPending: boolean; onPlayToggle: () => void; onMute: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onShare: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
@@ -735,9 +738,9 @@ function ReelCard({ reel, index, active, nearby, muted, paused, videos, sections
                 <Avatar src={reel.author.avatar} alt={reel.author.username} size="sm" />
                 <span className="min-w-0"><span className="flex items-center gap-1 text-sm font-semibold"><span className="truncate">{reel.author.fullName || reel.author.username}</span>{reel.author.verified && reel.author.verificationType && <VerificationBadge verified type={reel.author.verificationType} size="sm" />}</span><small className="block truncate text-[11px] text-white/60">@{reel.author.username}</small></span>
               </button>
-              <button type="button" disabled={followPending} onClick={onFollow} className={cn('min-w-[76px] rounded-md border px-3 py-1.5 text-xs font-semibold transition', followed ? 'border-white/15 bg-white/10 text-white/75' : 'border-white/50 text-white', followPending && 'opacity-60')}>
+              {!isOwn && <button type="button" disabled={followPending} onClick={onFollow} className={cn('min-w-[76px] rounded-md border px-3 py-1.5 text-xs font-semibold transition', followed ? 'border-white/15 bg-white/10 text-white/75' : 'border-white/50 text-white', followPending && 'opacity-60')}>
                 {followPending ? <Loader2 className="mx-auto animate-spin" size={14} /> : followed ? 'Following' : 'Follow'}
-              </button>
+              </button>}
             </div>
             <p className={cn('mt-3 max-w-[44ch] text-sm leading-5 text-white/90', !expanded && 'line-clamp-2')}>{reel.description || reel.title || 'A new Reel on VANTA.'}</p>
             {(reel.description?.length || reel.title?.length || 0) > 110 && <button type="button" onClick={() => setExpanded(value => !value)} className="mt-0.5 text-xs text-white/60">{expanded ? 'less' : 'more'}</button>}

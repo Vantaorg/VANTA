@@ -192,7 +192,7 @@ useEffect(() => {
         {/* Author identity */}
         <header className="flex w-full min-w-0 items-start gap-3">
           <Link href={`/profile/${post.author.username}`} className="grid shrink-0 place-items-center" aria-label={`View ${post.author.username}'s profile`}>
-            <Avatar src={post.author.avatar} alt={post.author.username} size="md" />
+            <Avatar src={post.author.avatar} alt={post.author.username} size="md" verified={Boolean(post.author.verified && post.author.verificationType)} verificationType={post.author.verificationType} />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">

@@ -214,26 +214,13 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
             initial={{ y: '100%' }}
             animate={{ y: 0, transition: { type: 'spring', damping: 30, stiffness: 320 } }}
             exit={{ y: '100%', transition: { duration: 0.2, ease: 'easeIn' } }}
-            className="fixed inset-x-0 bottom-0 z-[101] mx-auto flex h-[94dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-[28px] border border-b-0 border-white/[0.08] bg-[#0d0d0f] shadow-[0_-12px_48px_rgba(0,0,0,0.6)]"
+            className="fixed inset-0 z-[101] mx-auto flex h-[100dvh] w-full max-w-none flex-col overflow-hidden bg-[#080808] text-white shadow-none"
             role="dialog"
             aria-modal="true"
             aria-label={STEP_TITLES[step]}
           >
-            <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/15" />
-
             <header className="relative flex shrink-0 items-center justify-between border-b border-white/[0.06] px-3 py-1.5">
-              {step === 'editor' ? (
-                <button
-                  type="button"
-                  onClick={requestClose}
-                  aria-label="Go back"
-                  className="grid h-10 w-10 place-items-center rounded-full text-[#c8c8cc] transition hover:bg-white/[0.06] hover:text-white active:scale-95"
-                >
-                  <X size={19} />
-                </button>
-              ) : (
-                <div className="w-10" />
-              )}
+              <div className="w-10" />
               <div className="pointer-events-none min-w-0 flex-1 text-center">
                 <h2 className="truncate text-[15px] font-semibold tracking-tight text-[#f5f5f5]">{STEP_TITLES[step]}</h2>
                 <p className="truncate text-[11px] text-white/40">{STEP_SUBTITLES[step]}</p>
@@ -276,12 +263,11 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
               )}
 
               {step === 'select' ? (
-                <div className="flex flex-col items-center text-center">
-                  <div className="mt-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04]">
-                    <Clapperboard className="text-[#b8b8b8]" size={26} />
+                <div className="flex w-full flex-col items-start text-left">
+                  <div className="mt-6 flex items-center gap-3">
+                    <Clapperboard className="text-[#dfbd55]" size={22} />
+                    <div><h3 className="text-base font-semibold text-white">Choose a video</h3><p className="mt-0.5 text-sm text-white/45">Select a clip, then trim and preview it.</p></div>
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-white">Upload Reel</h3>
-                  <p className="mt-1 text-sm text-white/45">Share a short video with your audience</p>
 
                   {loadError && <div className="form-error mt-4 w-full text-left">{loadError}</div>}
 
@@ -297,7 +283,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                       handleFiles(event.dataTransfer?.files);
                     }}
                     className={cn(
-                      'group mt-5 flex w-full cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-6 py-10 transition',
+                      'group mt-5 flex w-full cursor-pointer flex-col items-center rounded-xl border border-dashed px-5 py-8 transition',
                       dragActive ? 'border-[#c9a227]/70 bg-[#c9a227]/10' : 'border-white/[0.12] bg-white/[0.02]'
                     )}
                   >
@@ -308,7 +294,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                     <span className="mt-3 text-sm font-medium text-white/70">Drop a video here or tap to choose</span>
                     <span className="mt-1 text-[11px] text-white/35">MP4 or WebM up to 100MB and 10 minutes</span>
                     <span className="mt-3 rounded-full bg-[#c9a227]/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#dfbd55]">
-                      Time-trim before posting
+                      Trim before posting
                     </span>
                   </label>
 
@@ -338,7 +324,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-gold mt-4 min-h-11 w-full"
+                    className="btn-gold mt-4 min-h-12 w-full rounded-xl"
                   >
                     <Upload size={15} />
                     Choose Video
@@ -347,7 +333,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#d6a83f]/30 bg-[#d6a83f]/10 text-[#f2c75c] transition hover:bg-[#d6a83f]/20"
+                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm text-white/55 transition hover:bg-white/[0.04] hover:text-white/80"
                   >
                     <Camera size={16} />
                     Capture Video

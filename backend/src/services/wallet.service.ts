@@ -4,6 +4,7 @@ import { notificationService } from "./notification.service";
 import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { calculateTransferFee, coinsToUsd, VANTA_COINS_PER_USD, WITHDRAWAL_FEE_RATE, MIN_WITHDRAWAL_AMOUNT, PLATFORM_TRANSFER_LIMITS } from "../config/wallet.config";
+import { validateWithdrawalInput } from "./wallet-input-validation";
 import {
   COIN_PAYMENT_ORDER_TTL_SECONDS,
   COIN_PAYMENT_CREDITABLE_STATUSES,
@@ -1405,15 +1406,11 @@ export class WalletService {
   // ============================================================
 
   async requestWithdrawal(userId: string, amount: number, walletAddress: string) {
-    // Validate amount
-    if (!amount || amount <= 0) {
-      throw new Error("Withdrawal amount must be positive");
-    }
-
-    // Validate wallet address
-    if (!walletAddress || !walletAddress.trim()) {
-      throw new Error("A valid USDT (BEP-20) wallet address is required");
-    }
+    // Validate untrusted request values before any database access or balance mutation.
+    // This remains a request-only/manual settlement flow; it does not initiate a payout.
+    const validated = validateWithdrawalInput(amount, walletAddress);
+    amount = validated.amount;
+    walletAddress = validated.walletAddress;
 
     const wallet = await this.ensureWallet(userId);
 

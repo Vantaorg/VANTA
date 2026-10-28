@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,11 @@ export interface ImageViewerProps {
 export default function ImageViewer({ src, alt = 'Image', onClose }: ImageViewerProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const onCloseRef = useRef(onClose);
+  const historyMarkerRef = useRef<string | null>(null);
+
+  // Keep the latest callback without re-registering the history listener on every render.
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   // Reset per-image state whenever a new source is opened.
   useEffect(() => {
@@ -32,20 +37,38 @@ export default function ImageViewer({ src, alt = 'Image', onClose }: ImageViewer
     setFailed(false);
   }, [src]);
 
-  // Escape to close + prevent background scroll while open.
+  // Escape and the device/browser Back button dismiss the viewer first,
+  // without leaving the profile page. A same-URL history entry makes Back
+  // close the overlay; manual close removes that entry so Back isn't consumed twice.
   useEffect(() => {
     if (!src) return;
+    const marker = `vanta-image-viewer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    historyMarkerRef.current = marker;
+    window.history.pushState({ ...(window.history.state ?? {}), __vantaImageViewer: marker }, '', window.location.href);
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
+      if (event.key === 'Escape') { event.stopPropagation(); onCloseRef.current(); }
+    };
+    const onPopState = () => {
+      if (historyMarkerRef.current === marker) {
+        historyMarkerRef.current = null;
+        onCloseRef.current();
+      }
     };
     document.addEventListener('keydown', onKey);
+    window.addEventListener('popstate', onPopState);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('popstate', onPopState);
       document.body.style.overflow = previousOverflow;
+      if (historyMarkerRef.current === marker) {
+        historyMarkerRef.current = null;
+        if (window.history.state?.__vantaImageViewer === marker) window.history.back();
+      }
     };
-  }, [src, onClose]);
+  }, [src]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 

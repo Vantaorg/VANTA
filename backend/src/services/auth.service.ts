@@ -124,8 +124,16 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string
   ): Promise<AuthResult> {
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Email identifiers are case-insensitive and whitespace-safe at the
+    // authentication boundary. This keeps login consistent with configured
+    // administrator identity without changing normal user auth semantics.
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!normalizedEmail) {
+      throw new Error("Invalid credentials");
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
       include: {
         profile: true,
         wallet: true,
@@ -136,7 +144,7 @@ export class AuthService {
       throw new Error("User not found");
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = !!user.passwordHash && await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       throw new Error("Invalid password");
     }

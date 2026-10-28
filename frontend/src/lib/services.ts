@@ -302,6 +302,8 @@ export const reviewAdminHomeListing = (id: string, data: { decision: 'APPROVE' |
   apiPost<any>(`/api/homes/admin/listings/${id}/review`, data, authToken(token));
 export const fetchAdminHomes = (params?: any, token?: string | null) => {
   const qs = new URLSearchParams();
+  // Admin review queues must always read current server state; the shared API client caches GETs by URL.
+  qs.set('_refresh', String(Date.now()));
   if (params?.cursor) qs.set('cursor', params.cursor);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.status) qs.set('status', params.status);
@@ -313,6 +315,8 @@ export const fetchAdminHomes = (params?: any, token?: string | null) => {
 };
 export const fetchAdminHomeVerifications = (params?: any, token?: string | null) => {
   const qs = new URLSearchParams();
+  // Admin review queues must always read current server state; the shared API client caches GETs by URL.
+  qs.set('_refresh', String(Date.now()));
   if (params?.cursor) qs.set('cursor', params.cursor);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.type) qs.set('type', params.type);
@@ -323,6 +327,8 @@ export const decideHomeVerification = (id: string, data: any, token?: string | n
   apiPost<any>(`/api/homes/admin/verifications/${id}/decide`, data, authToken(token));
 export const fetchAdminHomeReports = (params?: any, token?: string | null) => {
   const qs = new URLSearchParams();
+  // Admin review queues must always read current server state; the shared API client caches GETs by URL.
+  qs.set('_refresh', String(Date.now()));
   if (params?.cursor) qs.set('cursor', params.cursor);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.status) qs.set('status', params.status);
@@ -332,6 +338,8 @@ export const resolveHomeReport = (id: string, data: any, token?: string | null) 
   apiPost<any>(`/api/homes/admin/reports/${id}/resolve`, data, authToken(token));
 export const fetchAdminHomeAuditLogs = (params?: any, token?: string | null) => {
   const qs = new URLSearchParams();
+  // Admin review queues must always read current server state; the shared API client caches GETs by URL.
+  qs.set('_refresh', String(Date.now()));
   if (params?.cursor) qs.set('cursor', params.cursor);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.listingId) qs.set('listingId', params.listingId);
