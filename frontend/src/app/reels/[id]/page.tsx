@@ -346,7 +346,7 @@ export default function ReelDetailPage({ params }: { params: { id: string } }) {
       {/* Bottom-left overlay — creator, caption, compact metadata. */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pr-20">
         <Link href={`/profile/${creator.username}`} className="flex min-w-0 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
-          <Avatar src={creator.avatar} alt={creator.username} size="sm" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} />
+          <Avatar src={creator.avatar} alt={creator.username} size="sm" />
           <span className="min-w-0">
             <span className="flex min-w-0 items-center gap-1 text-sm font-semibold text-white">
               <span className="truncate">{creator.fullName || creator.username}</span>
