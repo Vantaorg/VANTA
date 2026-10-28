@@ -33,6 +33,6 @@ export const VANTA_SOCIAL_LINKS: VantaSocialLink[] = [
   },
 ];
 
-export const VANTA_SUPPORT_EMAIL = "support@vanta.app";
+export const VANTA_SUPPORT_EMAIL = "vantapp74@gmail.com";
 export const VANTA_GENERAL_EMAIL = "hello@vanta.app";
 export const VANTA_WEBSITE_URL = "https://vanta.app";
