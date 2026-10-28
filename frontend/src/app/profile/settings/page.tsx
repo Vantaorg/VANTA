@@ -256,7 +256,7 @@ export default function SettingsPage() {
               description="Your data, your rules"
             />
             <SettingsLink
-              href="/privacy-center"
+              href="/community-guidelines"
               icon={Lock}
               title="Community Guidelines"
               description="What's allowed on VANTA"
