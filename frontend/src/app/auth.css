@@ -220,3 +220,54 @@
 .auth-signup-progress-labels { display: flex; justify-content: space-between; margin-top: 8px; color: var(--auth-silver, #888); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
 .auth-signup-progress-labels .active { color: var(--auth-gold, #d4ad32); }
 .auth-field input[type="date"] { color-scheme: dark; }
+
+/* Compact, fixed-viewport sign-in: no page scrolling on the login screen. */
+.auth-page-login {
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+.auth-page-login .auth-shell {
+  height: 100svh;
+  min-height: 0;
+  justify-content: center;
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+.auth-page-login .auth-header {
+  margin: clamp(18px, 3.6vh, 34px) 0 clamp(16px, 3vh, 26px);
+}
+.auth-page-login .auth-header h1 { font-size: clamp(27px, 5.5vw, 32px); }
+.auth-page-login .auth-form { gap: 14px; }
+.auth-page-login .auth-input { height: 49px; }
+.auth-page-login .auth-password-toggle { top: 4px; }
+.auth-page-login .auth-submit { height: 49px; }
+.auth-page-login .auth-providers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 15px;
+}
+.auth-page-login .auth-provider-divider { grid-column: 1 / -1; margin-bottom: 1px; }
+.auth-page-login .auth-provider-btn--icon {
+  height: 46px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 10px;
+}
+.auth-page-login .auth-provider-btn--icon .auth-provider-icon svg { width: 21px; height: 21px; }
+.auth-page-login .auth-switch {
+  gap: 5px;
+  margin-top: 18px;
+  padding-top: 15px;
+}
+.auth-page-login .auth-legal { margin-top: 15px; }
+@media (max-height: 680px) {
+  .auth-page-login .auth-shell { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .auth-page-login .auth-header { margin-top: 14px; margin-bottom: 14px; }
+  .auth-page-login .auth-header p { margin-top: 7px; line-height: 1.4; }
+  .auth-page-login .auth-kicker { margin-bottom: 8px; }
+  .auth-page-login .auth-providers { margin-top: 10px; padding-top: 10px; gap: 7px; }
+  .auth-page-login .auth-switch { margin-top: 12px; padding-top: 10px; }
+  .auth-page-login .auth-legal { margin-top: 10px; }
+}
