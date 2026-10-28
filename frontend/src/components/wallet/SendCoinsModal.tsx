@@ -29,7 +29,7 @@ interface SendCoinsModalProps {
 
 export default function SendCoinsModal({ open, balance, onClose, onSuccess }: SendCoinsModalProps) {
   const { token, user } = useAuth();
-  const [step, setStep] = useState<'recipient' | 'amount' | 'review' | 'processing' | 'success'>('recipient');
+  const [step, setStep] = useState<'recipient' | 'amount' | 'review' | 'otp' | 'processing' | 'success'>('recipient');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -38,6 +38,10 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [requestId, setRequestId] = useState('');
+  const [resending, setResending] = useState(false);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
 
   const fee = amount > 0 ? Math.ceil(amount * 0.05) : 0;
@@ -53,6 +57,11 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
       setAmount(0);
       setNote('');
       setError('');
+      setChallengeId('');
+      setOtpCode('');
+      setRequestId('');
+      setSending(false);
+      setResending(false);
     }
   }, [open]);
 
@@ -92,17 +101,29 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
   };
 
   const handleSend = async () => {
-    if (!token || !selectedUser) return;
+    if (!token || !selectedUser || sending) return;
     setSending(true);
     setError('');
     setStep('processing');
+    const intentRequestId = requestId || (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `transfer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    if (!requestId) setRequestId(intentRequestId);
 
     try {
-      await apiPost('/api/wallets/transfer', {
+      const result = await apiPost<any>('/api/wallets/transfer', {
         receiverId: selectedUser.id,
         amount,
         note: note || undefined,
+        requestId: intentRequestId,
       }, token);
+      if (result?.requiresOTP) {
+        setChallengeId(String(result.challengeId || ''));
+        setOtpCode('');
+        setStep('otp');
+        setSending(false);
+        return;
+      }
       setStep('success');
       setTimeout(() => {
         onSuccess();
@@ -112,6 +133,59 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
       setError(err.message || 'Failed to send VANTA');
       setStep('review');
       setSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!token || !selectedUser || !challengeId || !/^\\d{6}$/.test(otpCode) || sending) return;
+    setSending(true);
+    setError('');
+    setStep('processing');
+    try {
+      const result = await apiPost<any>('/api/wallets/transfer', {
+        receiverId: selectedUser.id,
+        amount,
+        note: note || undefined,
+        otpCode,
+        challengeId,
+        requestId,
+      }, token);
+      if (result?.requiresOTP || !result?.transfer) {
+        throw new Error('The transfer was not confirmed by the server. Please try again.');
+      }
+      setStep('success');
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'The code is invalid or expired. Check it and try again.');
+      setStep('otp');
+      setSending(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!token || !selectedUser || resending || sending) return;
+    setResending(true);
+    setError('');
+    try {
+      const result = await apiPost<any>('/api/wallets/transfer', {
+        receiverId: selectedUser.id,
+        amount,
+        note: note || undefined,
+        requestId,
+      }, token);
+      if (!result?.requiresOTP || !result?.challengeId) {
+        throw new Error('A new verification code could not be requested. Please try again shortly.');
+      }
+      setChallengeId(String(result.challengeId));
+      setOtpCode('');
+      setError('A new verification code has been sent to your verified email address.');
+    } catch (err: any) {
+      setError(err.message || 'Unable to resend the code. Please wait and try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -150,6 +224,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
                     {step === 'recipient' && 'Who would you like to send to?'}
                     {step === 'amount' && 'How much VANTA?'}
                     {step === 'review' && 'Review and confirm your transfer'}
+                    {step === 'otp' && 'Verify this transfer'}
                     {step === 'processing' && 'Processing transfer'}
                     {step === 'success' && 'Transfer complete'}
                   </p>
@@ -378,7 +453,33 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
                 </div>
               )}
 
-              {/* Step 4: Processing */}
+              {/* Step 4: Email OTP verification */}
+              {step === 'otp' && selectedUser && (
+                <div className="space-y-5">
+                  <div className="text-center">
+                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a45c]/25 bg-[#c9a45c]/10">
+                      <AlertCircle size={23} className="text-[#c9a45c]" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Verify your transfer</h3>
+                    <p className="mt-2 text-sm leading-6 text-white/55">We sent a six-digit verification code to your verified email address. Enter it to send {amount.toLocaleString()} VANTA Coins to @{selectedUser.username}.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs"><span className="text-white/45">Recipient</span><span className="font-medium text-white">@{selectedUser.username}</span></div>
+                    <div className="flex items-center justify-between text-xs"><span className="text-white/45">Transfer amount</span><span className="font-semibold text-white">{amount.toLocaleString()} VANTA</span></div>
+                    <div className="flex items-center justify-between text-xs"><span className="text-white/45">Transfer fee</span><span className="text-white/70">{fee.toLocaleString()} VANTA</span></div>
+                    <div className="flex items-center justify-between border-t border-white/[0.07] pt-2 text-xs"><span className="text-white/45">Total deduction</span><span className="font-semibold text-white">{totalDeduction.toLocaleString()} VANTA</span></div>
+                  </div>
+                  <div>
+                    <label htmlFor="vanta-transfer-otp" className="mb-2 block text-xs font-medium text-white/60">6-digit email code</label>
+                    <input id="vanta-transfer-otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter' && otpCode.length === 6) void handleVerifyOtp(); }} placeholder="000000" aria-describedby="vanta-transfer-otp-help" className="w-full rounded-2xl border border-[#c9a45c]/30 bg-white/[0.04] px-4 py-4 text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/20 outline-none focus:border-[#c9a45c]" />
+                    <p id="vanta-transfer-otp-help" className="mt-2 text-[11px] text-white/35">The code expires after 10 minutes and can only be used once.</p>
+                  </div>
+                  <button onClick={handleVerifyOtp} disabled={sending || otpCode.length !== 6 || !challengeId} className="w-full rounded-2xl bg-[#c9a45c] py-3.5 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-45">{sending ? <Loader2 size={15} className="mx-auto animate-spin" /> : 'Verify and Continue'}</button>
+                  <button type="button" onClick={handleResendOtp} disabled={resending || sending} className="w-full py-2 text-xs font-semibold text-white/60 transition hover:text-white disabled:opacity-40">{resending ? 'Sending new code…' : 'Resend verification code'}</button>
+                </div>
+              )}
+
+              {/* Step 5: Processing */}
               {step === 'processing' && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <motion.div
