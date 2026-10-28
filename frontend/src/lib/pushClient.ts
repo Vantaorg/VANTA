@@ -72,9 +72,12 @@ export const getPushSubscription = async (): Promise<PushSubscription | null> =>
 };
 
 export const getPermissionState = async (): Promise<PushPermissionState> => {
+  // The standard permission source is Notification.permission. PushManager has
+  // no portable "permission" property, so reading it made granted permission
+  // look like "default" again whenever the app resumed.
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const permission = (registration?.pushManager as any)?.permission;
+    if (typeof Notification === "undefined") return "default";
+    const permission = Notification.permission;
     if (permission === "granted" || permission === "denied") return permission;
     return "default";
   } catch {
@@ -125,13 +128,27 @@ export async function subscribeAndRegister(
 
   const manager = registration.pushManager;
 
-  // If permission was previously denied and the user now explicitly opts in,
-  // requestPermissions() re-opens the browser prompt.
-  if (permission === "denied" || permission === "default") {
+  // Permission must be requested through the standard Notifications API from
+  // the user's explicit tap. PushManager.requestPermissions() is non-standard
+  // and is absent in Chrome/Android, which otherwise left the UI to flip back.
+  if (permission === "denied") {
+    return { ok: false, reason: "permission-denied", permission: "denied" };
+  }
+  if (permission === "default") {
+    if (!options.requestPermission || typeof Notification === "undefined") {
+      return { ok: false, reason: "permission-pending", permission: "default" };
+    }
     try {
-      await (manager as any).requestPermissions?.();
+      permission = await Notification.requestPermission();
     } catch {
       return { ok: false, reason: "permission-denied", permission: "denied" };
+    }
+    if (permission !== "granted") {
+      return {
+        ok: false,
+        reason: permission === "denied" ? "permission-denied" : "permission-pending",
+        permission,
+      };
     }
   }
 
