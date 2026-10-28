@@ -4,6 +4,8 @@ import {
   TRANSFER_FEE_RATE,
   calculateTransferFee,
   coinsToUsd,
+  calculateCreatorEarningsCents,
+  creatorEarningsCentsToUsd,
 } from '../config/wallet.config';
 
 describe('wallet monetary configuration', () => {
@@ -19,6 +21,22 @@ describe('wallet monetary configuration', () => {
     for (const coinPackage of VANTA_COIN_PACKAGES) {
       expect(coinPackage.coins / coinPackage.price).toBe(VANTA_COINS_PER_USD);
     }
+  });
+
+  it.each([
+    [3, 2], [30, 20], [300, 200], [3_000, 2_000], [30_000, 20_000],
+  ])('credits %i eligible gift coins as %i integer cents', (coins, cents) => {
+    expect(calculateCreatorEarningsCents(coins)).toBe(cents);
+    expect(creatorEarningsCentsToUsd(cents)).toBe(cents / 100);
+  });
+
+  it('rounds incomplete groups of eligible gift coins down per gift transaction', () => {
+    expect(calculateCreatorEarningsCents(1)).toBe(0);
+    expect(calculateCreatorEarningsCents(2)).toBe(0);
+    expect(calculateCreatorEarningsCents(4)).toBe(2);
+    expect(calculateCreatorEarningsCents(5)).toBe(2);
+    expect(calculateCreatorEarningsCents(0)).toBe(0);
+    expect(calculateCreatorEarningsCents(-3)).toBe(0);
   });
 
   it('charges a rounded-up 5% transfer fee', () => {
