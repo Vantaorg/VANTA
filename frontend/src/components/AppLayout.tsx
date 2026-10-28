@@ -323,7 +323,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname === '/gift-store' ||
     pathname === '/gifts' ||
     pathname === '/balance' ||
-    pathname === '/live';
+    pathname === '/live' ||
+    pathname === '/terms' ||
+    pathname === '/privacy' ||
+    pathname === '/community-guidelines';
 
   const isImmersiveSurface = isChatPage || isHomePage || isDiscoverPage || isStoryPage || isReelsFeed || isReelViewerPage || isGoLivePage;
   const isScrollPage = !isImmersiveSurface;

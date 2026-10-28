@@ -65,7 +65,7 @@ export default function AboutPage() {
           description="How we handle your data"
         />
         <SettingsLink
-          href="/privacy-center"
+          href="/community-guidelines"
           icon={Scale}
           title="Community Guidelines"
           description="What's allowed on VANTA"
