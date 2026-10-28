@@ -46,11 +46,6 @@ const guidelines = [
   },
 ];
 
-export const metadata = {
-  title: 'Community Guidelines | VANTA',
-  description: 'The standards that help keep VANTA welcoming, safe, and respectful.',
-};
-
 export default function CommunityGuidelinesPage() {
   const [showReporting, setShowReporting] = useState(false);
 
