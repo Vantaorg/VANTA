@@ -137,7 +137,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
   };
 
   const handleVerifyOtp = async () => {
-    if (!token || !selectedUser || !challengeId || !/^\\d{6}$/.test(otpCode) || sending) return;
+    if (!token || !selectedUser || !challengeId || !/^\d{6}$/.test(otpCode) || sending) return;
     setSending(true);
     setError('');
     setStep('processing');
@@ -471,7 +471,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
                   </div>
                   <div>
                     <label htmlFor="vanta-transfer-otp" className="mb-2 block text-xs font-medium text-white/60">6-digit email code</label>
-                    <input id="vanta-transfer-otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter' && otpCode.length === 6) void handleVerifyOtp(); }} placeholder="000000" aria-describedby="vanta-transfer-otp-help" className="w-full rounded-2xl border border-[#c9a45c]/30 bg-white/[0.04] px-4 py-4 text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/20 outline-none focus:border-[#c9a45c]" />
+                    <input id="vanta-transfer-otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter' && otpCode.length === 6) void handleVerifyOtp(); }} placeholder="000000" aria-describedby="vanta-transfer-otp-help" className="w-full rounded-2xl border border-[#c9a45c]/30 bg-white/[0.04] px-4 py-4 text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/20 outline-none focus:border-[#c9a45c]" />
                     <p id="vanta-transfer-otp-help" className="mt-2 text-[11px] text-white/35">The code expires after 10 minutes and can only be used once.</p>
                   </div>
                   <button onClick={handleVerifyOtp} disabled={sending || otpCode.length !== 6 || !challengeId} className="w-full rounded-2xl bg-[#c9a45c] py-3.5 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-45">{sending ? <Loader2 size={15} className="mx-auto animate-spin" /> : 'Verify and Continue'}</button>
