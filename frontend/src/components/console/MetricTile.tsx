@@ -25,7 +25,7 @@ export default function MetricTile({
   return (
     <div
       className={cn(
-        'min-w-0 border-t-2 border-console-border pt-3 pr-4',
+        'min-w-0 border-t border-console-border pt-3 pr-3 sm:pr-5',
         accent && 'border-t-console-gold',
         className,
       )}

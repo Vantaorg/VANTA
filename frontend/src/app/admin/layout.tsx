@@ -350,7 +350,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Content region: starts below the fixed header (safe-area inset plus the
           bar height reserved as top padding) and after the desktop rail. */}
       <div className="flex min-h-dvh flex-col lg:pl-[var(--vc-sidebar-w)]">
-        <main className="w-full max-w-none min-w-0 flex-1 px-3 pb-10 pt-[calc(env(safe-area-inset-top)+var(--vc-header-h)+1rem)] sm:px-5 lg:px-7">
+        <main data-vanta-console-workspace="admin" className="w-full max-w-none min-w-0 flex-1 overflow-x-clip px-3 pb-10 pt-[calc(env(safe-area-inset-top)+var(--vc-header-h)+1rem)] sm:px-5 lg:px-7">
           {children}
         </main>
       </div>

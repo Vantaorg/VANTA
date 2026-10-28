@@ -26,9 +26,9 @@ export default function ConsolePanel({
   as?: 'section' | 'div' | 'article';
 }) {
   return (
-    <Tag className={cn('vc-panel overflow-hidden', className)}>
+    <Tag className={cn('vc-console-section w-full min-w-0', className)}>
       {(title || actions) && (
-        <header className="flex flex-wrap items-start justify-between gap-2 border-b border-console-border px-4 py-3 sm:px-5">
+        <header className="flex flex-wrap items-start justify-between gap-3 border-b border-console-border px-0 py-3">
           <div className="min-w-0">
             {title ? <h2 className="truncate text-sm font-semibold text-console-text">{title}</h2> : null}
             {description ? <p className="mt-0.5 text-xs text-console-text-3">{description}</p> : null}
@@ -36,7 +36,7 @@ export default function ConsolePanel({
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </header>
       )}
-      <div className={cn('px-4 py-4 sm:px-5', bodyClassName)}>{children}</div>
+      <div className={cn('min-w-0 py-4', bodyClassName)}>{children}</div>
     </Tag>
   );
 }
