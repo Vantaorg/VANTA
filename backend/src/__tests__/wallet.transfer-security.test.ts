@@ -145,7 +145,16 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     expect(challengeData.otpHash).toBe('hashed_otp'); // never plaintext
     expect(challengeData.receiverId).toBe('user2');
     expect(challengeData.amount).toBe(2100); // 100 + 5% fee — intent bound to total deduction
+    expect(emailService.sendTransferOtpEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'alice@example.test',
+      amount: 2100,
+      recipient: 'alice',
+      expiresInMinutes: 10,
+    }));
     expect(notificationService.createNotification).toHaveBeenCalled();
+    const notificationArgs = (notificationService.createNotification as jest.Mock).mock.calls[0];
+    expect(notificationArgs[3]).not.toMatch(/\\b\\d{6}\\b/);
+    expect(notificationArgs[3]).toContain('not available in notifications');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
