@@ -189,9 +189,10 @@ const token = JSON.stringify({
   );
 
   if (!device) {
-    // The subscription is valid even if the backend is temporarily unreachable;
-    // retried on the next focus / pushsubscriptionchange event.
-    return { ok: true, permission, deviceId: null };
+    // A browser subscription alone is not a completed registration. Keep the
+    // UI out of the enabled state until the authenticated backend confirms the
+    // device record; a later refresh can safely retry this idempotent upsert.
+    return { ok: false, reason: "registration-failed", permission };
   }
 
   try {

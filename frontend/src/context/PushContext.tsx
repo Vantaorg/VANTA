@@ -115,7 +115,11 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setPermission(result.permission || currentPermission);
       if (result.reason === 'permission-denied') setStatus('permission-denied');
       else if (result.reason === 'permission-pending') setStatus('permission-pending');
-      else setStatus('error');
+      else if (result.reason === 'registration-failed' || result.reason === 'subscribe-failed' || result.reason === 'sw-failed') {
+        // Permission can be granted while device registration still fails.
+        // Surface this as an incomplete state, never as successfully enabled.
+        setStatus('network-error');
+      } else setStatus('error');
       return { ok: false, reason: result.reason };
     } finally {
       refreshing.current = false;
