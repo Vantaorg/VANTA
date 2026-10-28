@@ -29,6 +29,14 @@ export interface RecoveryEmailContext {
   expiresInMinutes: number;
 }
 
+export interface TransferOtpEmailContext {
+  to: string;
+  otp: string;
+  amount: number;
+  recipient: string;
+  expiresInMinutes: number;
+}
+
 export interface PasswordChangedEmailContext {
   to: string;
   /** Set when the change was NOT initiated by the account owner (e.g. a reset). */
@@ -76,7 +84,7 @@ export function buildPasswordResetEmailText(ctx: RecoveryEmailContext): string {
     'If you did not request a password reset, no action is needed — you can safely ignore this email and your password will not change.',
     '',
     '© VANTA. Do not reply to this automated email.',
-  ].join('\n');
+    ].join('\n');
 }
 
 export function buildPasswordResetEmailHtml(ctx: RecoveryEmailContext): string {
@@ -295,6 +303,23 @@ export class EmailService {
       html: buildPasswordResetEmailHtml(ctx),
     };
     return this.dispatch(message);
+  }
+
+  async sendTransferOtpEmail(ctx: TransferOtpEmailContext): Promise<SendResult> {
+    const text = [
+      'VANTA — Confirm your coin transfer',
+      '',
+      `A transfer of ${ctx.amount.toLocaleString()} VANTA Coins to ${ctx.recipient} requires verification.`,
+      '',
+      `Your one-time verification code is: ${ctx.otp}`,
+      `This code expires in ${ctx.expiresInMinutes} minutes and can be used only once for this transfer.`,
+      '',
+      'If you did not request this transfer, do not share this code and secure your VANTA account.',
+      '',
+      '© VANTA. Do not reply to this automated email.',
+    ].join('\n');
+    const html = `<!DOCTYPE html><html lang="en"><body style="margin:0;padding:24px;background:#0b0b0d;font-family:Arial,sans-serif;color:#f3f3f1"><main style="max-width:520px;margin:auto;background:#111114;padding:24px"><p style="color:#c7a447;font-weight:700;letter-spacing:.18em">VANTA</p><h1 style="font-size:20px">Confirm your coin transfer</h1><p>A transfer of <strong>${ctx.amount.toLocaleString()} VANTA Coins</strong> to <strong>${escapeHtml(ctx.recipient)}</strong> requires verification.</p><p>Your one-time verification code:</p><p style="font-size:28px;letter-spacing:.25em;font-weight:700">${escapeHtml(ctx.otp)}</p><p>This code expires in ${ctx.expiresInMinutes} minutes and can be used only once for this transfer.</p><p style="color:#aaa9a5;font-size:12px">If you did not request this transfer, do not share this code and secure your VANTA account.</p></main></body></html>`;
+    return this.dispatch({ to: ctx.to, subject: 'VANTA — Confirm your coin transfer', text, html });
   }
 
   async sendPasswordChangedEmail(ctx: PasswordChangedEmailContext): Promise<SendResult> {
