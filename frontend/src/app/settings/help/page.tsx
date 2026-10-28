@@ -10,7 +10,7 @@ import { ChevronDown, HelpCircle, Mail } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import { SettingsGroup } from '@/components/settings/SettingsUI';
 import { SocialLinks } from '@/components/ui/SocialLinks';
-import { VANTA_SOCIAL_LINKS, VANTA_SUPPORT_EMAIL } from '@/lib/socialLinks';
+import { VANTA_SUPPORT_EMAIL } from '@/lib/socialLinks';
 import { cn } from '@/lib/utils';
 
 const FAQS = [
@@ -104,17 +104,6 @@ export default function HelpCenterPage() {
               <Mail size={14} aria-hidden="true" />
               Email Support
             </a>
-            {VANTA_SOCIAL_LINKS.map((link) => (
-              <a
-                key={link.platform}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-[10px] border border-white/[0.08] px-3 py-2 text-xs text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white"
-              >
-                {link.label}
-              </a>
-            ))}
           </div>
           <div className="mt-2">
             <SocialLinks iconSize="sm" />
