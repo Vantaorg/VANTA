@@ -479,7 +479,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Menu Drawer */}
         <MobileMenu
-          open={mobileMenuOpen && !isChatPage}
+          open={mobileMenuOpen && isDiscoverPage}
           onClose={() => setMobileMenuOpen(false)}
           pathname={pathname || ''}
           onLogout={handleLogout}
