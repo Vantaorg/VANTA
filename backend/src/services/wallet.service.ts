@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { PaymentProviderFactory } from "./payment-provider.interface";
 import { notificationService } from "./notification.service";
+import { emailService } from "./email.service";
 import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { calculateTransferFee, coinsToUsd, VANTA_COINS_PER_USD, WITHDRAWAL_FEE_RATE, MIN_WITHDRAWAL_AMOUNT, PLATFORM_TRANSFER_LIMITS } from "../config/wallet.config";
@@ -1219,19 +1220,53 @@ export class WalletService {
       },
     });
 
-    // Delivery channel only — metadata carries the challenge reference, NOT the
-    // OTP, so the code is never written to notification metadata/logs.
+    const { userId, sessionId, receiverId, amount, ipAddress, deviceFingerprint } = input;
+    // OTPs are sent only to the account's verified email. Notification text is
+    // API-visible and must never be used as a secret-delivery channel.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerified: true, username: true },
+    });
+    if (!user?.email || !user.emailVerified) {
+      throw new Error("A verified email address is required to authorize this transfer");
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + TRANSFER_OTP_CONSTANTS.expiryMs);
+
+    const challenge = await prisma.transferOtpChallenge.create({
+      data: {
+        userId,
+        sessionId: sessionId || null,
+        receiverId,
+        amount,
+        otpHash,
+        expiresAt,
+        maxAttempts: TRANSFER_OTP_CONSTANTS.maxAttempts,
+        ipAddress: ipAddress || null,
+        deviceFingerprint: deviceFingerprint || null,
+      },
+    });
+
+    const delivery = await emailService.sendTransferOtpEmail({
+      to: user.email,
+      otp,
+      amount,
+      recipient: user.username,
+      expiresInMinutes: TRANSFER_OTP_CONSTANTS.expiryMs / 60000,
+    });
+    if (!delivery.delivered) {
+      await prisma.transferOtpChallenge.deleteMany({ where: { id: challenge.id, consumedAt: null } });
+      throw new Error("Transfer verification is temporarily unavailable. Please try again later.");
+    }
+
     await notificationService.createNotification(
       userId,
       "WALLET_OTP",
-      "Transfer OTP",
-      `Your OTP for transferring ${amount.toLocaleString()} coins is ${otp}. Valid for ${TRANSFER_OTP_CONSTANTS.expiryMs / 60000} minutes.`,
-      {
-        challengeId: challenge.id,
-        receiverId,
-        amount,
-        flows: ["transfer"],
-      }
+      "Transfer verification requested",
+      "A transfer verification code was sent to your verified email address. The code is not available in notifications.",
+      { challengeId: challenge.id, receiverId, amount, flows: ["transfer"] }
     );
 
     await this.logAudit(userId, "OTP_SENT", {
