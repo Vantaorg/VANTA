@@ -86,7 +86,7 @@ export class CreatorService {
         role: true,
         coins: true,
         earnings: true,
-        wallet: { select: { coinBalance: true, earningsBalance: true } },
+        wallet: { select: { coinBalance: true, earningsBalance: true, lifetimeEarnings: true } },
         _count: {
           select: {
             posts: true,
@@ -140,7 +140,7 @@ export class CreatorService {
 
       giftsReceived: user._count.receivedGifts,
       coins: user.coins ?? user.wallet?.coinBalance ?? 0,
-      earnings: user.earnings ?? 0,
+      earnings: user.wallet?.lifetimeEarnings ?? user.earnings ?? 0,
       earningsBalance: user.wallet?.earningsBalance ?? 0,
     };
   }
