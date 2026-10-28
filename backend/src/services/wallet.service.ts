@@ -1202,25 +1202,6 @@ export class WalletService {
     deviceFingerprint?: string;
   }) {
     const { userId, sessionId, receiverId, amount, ipAddress, deviceFingerprint } = input;
-    const otp = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + TRANSFER_OTP_CONSTANTS.expiryMs);
-
-    const challenge = await prisma.transferOtpChallenge.create({
-      data: {
-        userId,
-        sessionId: sessionId || null,
-        receiverId,
-        amount,
-        otpHash,
-        expiresAt,
-        maxAttempts: TRANSFER_OTP_CONSTANTS.maxAttempts,
-        ipAddress: ipAddress || null,
-        deviceFingerprint: deviceFingerprint || null,
-      },
-    });
-
-    const { userId, sessionId, receiverId, amount, ipAddress, deviceFingerprint } = input;
     // OTPs are sent only to the account's verified email. Notification text is
     // API-visible and must never be used as a secret-delivery channel.
     const user = await prisma.user.findUnique({
