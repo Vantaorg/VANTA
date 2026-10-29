@@ -215,15 +215,11 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   }
 
   return <AnimatePresence><motion.div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} /><motion.section role="dialog" aria-modal="true" aria-labelledby="comments-title" initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ duration: .22, ease: 'easeOut' }} className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-[80] mx-auto flex h-[var(--vanta-vh,100dvh)] w-full max-w-[760px] flex-col overflow-hidden border border-white/[0.09] bg-[#0b0b0d] shadow-[0_24px_100px_rgba(0,0,0,.6)] sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[min(86dvh,820px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-[#0b0b0d]/95 px-4 py-4 sm:px-6">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[#c9a227]/20 bg-[#c9a227]/[0.08]"><MessageCircle size={16} className="text-[#c8c8cc]" /></span>
-        <div className="min-w-0">
-          <h2 id="comments-title" className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#f5f5f5]">Comments <span className="ml-1 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 align-middle text-[11px] font-medium text-white/55">{initialCount}</span></h2>
-          <p className="mt-0.5 truncate text-[11px] text-white/40">{postAuthor?.fullName ? `@${postAuthor.username || 'VANTA'}` : 'Join the conversation'}</p>
-        </div>
+    <header className="flex h-14 max-h-14 min-h-14 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-[var(--header-surface)] px-4 sm:px-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <h2 id="comments-title" className="min-w-0 truncate text-base font-semibold leading-none tracking-[-0.02em] text-[#f5f5f5]">Comments <span className="ml-1 text-sm font-normal text-white/45">· {initialCount}</span></h2>
       </div>
-      <button onClick={onClose} aria-label="Close comments" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] text-[#b8b8b8] transition hover:bg-white/[0.06] hover:text-white"><X size={17} /></button>
+      <button onClick={onClose} aria-label="Close comments" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[#b8b8b8] transition hover:bg-white/[0.06] hover:text-white"><X size={17} /></button>
     </header>
     <div className="flex shrink-0 items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.012] px-4 py-3 sm:px-6">
       <span className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-1">
