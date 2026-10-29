@@ -484,8 +484,10 @@ export default function ReelsPage() {
       setComments(items => items.filter(item => item.id !== comment.id));
       patch(commentsFor.id, { comments: Math.max(0, commentsFor.comments - 1) });
       setCommentsFor(current => current ? { ...current, comments: Math.max(0, current.comments - 1) } : current);
+      return true;
     } catch (reason: any) {
       toast.error('Comment not deleted', reason?.message);
+      return false;
     }
   };
 
@@ -769,7 +771,18 @@ function Action({ icon, label, ariaLabel, onClick, active }: { icon: ReactNode; 
   return <button type="button" onClick={onClick} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')} aria-label={ariaLabel} aria-pressed={active}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">{icon}</span><span>{label}</span></button>;
 }
 
-function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => void; close: () => void }) {
+function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => Promise<boolean>; close: () => void }) {
+  const [deleteFor, setDeleteFor] = useState<ReelComment | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const confirmRemove = async () => {
+    if (!deleteFor || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      if (await remove(deleteFor)) setDeleteFor(null);
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
   // Track the on-screen keyboard via the visual viewport so the sheet pins
   // itself above it (and never lets the keyboard cover the composer).
   const [keyboard, setKeyboard] = useState({ open: false, bottom: 0, viewHeight: typeof window !== 'undefined' ? window.innerHeight : 0 });
@@ -846,7 +859,7 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
               <p className="mt-1 break-words text-sm leading-5 text-white/75">{renderTextWithLinks(item.content, 'linkify')}</p>
             </div>
             {currentUserId && (item.userId === currentUserId || item.user?.id === currentUserId) && (
-              <button type="button" onClick={() => remove(item)} className="-mr-1 grid h-7 w-7 shrink-0 place-items-center self-center rounded-lg text-white/30 transition hover:text-white" aria-label="Delete your comment"><Trash2 size={14} /></button>
+              <button type="button" onClick={() => setDeleteFor(item)} className="-mr-1 grid h-7 w-7 shrink-0 place-items-center self-center rounded-lg text-white/30 transition hover:text-white" aria-label="Delete your comment"><Trash2 size={14} /></button>
             )}
           </article>
         )) : (
@@ -872,6 +885,7 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
         <button type="button" disabled={!text.trim() || sending} onClick={submit} aria-label="Send comment" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition disabled:opacity-40"><Send size={15} /></button>
       </div>
     </motion.section>
+    {deleteFor && <DeleteConfirmDialog title="Delete this comment?" description="This cannot be undone. The comment will be removed permanently." confirmLabel="Delete comment" busy={deleteBusy} onCancel={() => { if (!deleteBusy) setDeleteFor(null); }} onConfirm={() => void confirmRemove()} />}
   </>;
 }
 
