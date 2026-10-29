@@ -39,7 +39,7 @@ export default function StoryCard({
 
   if (isOwn) {
     return (
-      <div className="flex w-[74px] shrink-0 flex-col items-center gap-1.5" data-story-card="own">
+      <div className="flex w-[82px] shrink-0 flex-col items-center gap-1.5" data-story-card="own">
         <span className="group relative">
           <button
             type="button"
@@ -53,7 +53,7 @@ export default function StoryCard({
               active={hasUnviewed}
               showDot
               segments={stories.length ? segments : undefined}
-              size={compact ? 'sm' : 'md'}
+              size={compact ? 'sm' : 'lg'}
               verified={Boolean(user.verified && user.verificationType)}
               verificationType={user.verificationType}
             />
@@ -69,7 +69,7 @@ export default function StoryCard({
             </button>
           )}
         </span>
-        <span className="max-w-[74px] truncate text-[11px] leading-tight text-[#8a8a8a]">
+        <span className="max-w-[82px] truncate text-[11px] leading-tight text-[#8a8a8a]">
           {stories.length ? 'Your Status' : 'Add Status'}
         </span>
       </div>
