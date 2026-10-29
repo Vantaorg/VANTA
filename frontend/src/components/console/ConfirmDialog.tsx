@@ -58,7 +58,7 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="vc-confirm-title"
         aria-describedby="vc-confirm-message"
-        className="vc-panel my-auto max-h-[calc(100dvh-32px)] w-full max-w-[360px] overflow-y-auto p-4 shadow-[0_20px_48px_rgba(0,0,0,0.45)]"
+        className="vc-panel my-auto max-h-[calc(100dvh_-_32px)] w-full max-w-[360px] overflow-y-auto p-4 shadow-[0_20px_48px_rgba(0,0,0,0.45)]"
       >
         <div className="flex items-start gap-3">
           <span className={cn(
