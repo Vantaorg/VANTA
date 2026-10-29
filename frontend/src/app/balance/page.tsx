@@ -234,8 +234,13 @@ export default function BalancePage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `vanta-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      // Android/Chrome may begin consuming the blob after the click handler
+      // returns. Revoking immediately can produce a missing/empty download.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch {
       // Fallback: client-side CSV
       const headers = ['Date', 'Type', 'Description', 'Amount', 'Fee', 'Balance', 'Status', 'Reference'];
@@ -255,8 +260,13 @@ export default function BalancePage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `vanta-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      // Android/Chrome may begin consuming the blob after the click handler
+      // returns. Revoking immediately can produce a missing/empty download.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } finally {
       setExporting(false);
     }
@@ -660,7 +670,7 @@ export default function BalancePage() {
               </div>
               <button
                 onClick={handleExport}
-                disabled={exporting || transactions.length === 0}
+                disabled={exporting}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] text-[#8A8A8A] hover:text-white disabled:opacity-50 transition-all"
               >
                 {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
