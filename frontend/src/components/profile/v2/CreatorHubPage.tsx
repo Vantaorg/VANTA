@@ -262,5 +262,5 @@ function ConfirmDialog({ username, onCancel, onConfirm }: { username: string; on
 }
 
 function DeleteDialog({ label, onCancel, onConfirm }: { label: string; onCancel: () => void; onConfirm: () => void }) {
-  return <><button className="dialog-backdrop" aria-label="Cancel delete" onClick={onCancel} /><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><header><h2 id="delete-title">Delete this {label.toLowerCase()}?</h2><button className="profile-icon" aria-label="Close" onClick={onCancel}><X size={18} /></button></header><p>This cannot be undone. The {label.toLowerCase()} will be removed from your profile.</p><footer><button className="profile-button" onClick={onCancel}>Cancel</button><button className="profile-button danger-action" onClick={onConfirm}>Delete {label.toLowerCase()}</button></footer></section></>;
+  return <DeleteConfirmDialog title={`Delete this ${label.toLowerCase()}?`} description={`This cannot be undone. The ${label.toLowerCase()} will be removed from your profile.`} confirmLabel={`Delete ${label.toLowerCase()}`} onCancel={onCancel} onConfirm={onConfirm} />;
 }
