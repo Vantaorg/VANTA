@@ -109,6 +109,7 @@ export default function AccountSettingsPage() {
   };
 
   return (
+    <>
     <div className="space-y-8 pb-24">
       <PageHeader
         sticky
@@ -283,5 +284,6 @@ export default function AccountSettingsPage() {
       )}
     </div>
       {deleteConfirmOpen && <DeleteConfirmDialog title="Delete your VANTA account?" description="Your profile and account data will be permanently removed. This action cannot be undone." confirmLabel="Delete account" busy={deleteBusy} onCancel={() => { if (!deleteBusy) setDeleteConfirmOpen(false); }} onConfirm={() => void confirmDelete()} />}
+    </>
   );
 }
