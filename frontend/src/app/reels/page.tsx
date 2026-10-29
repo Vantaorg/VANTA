@@ -886,7 +886,7 @@ function MorePanel({ reel, isOwn, save, follow, profile, report, remove, close }
 }
 
 function DeleteReelDialog({ reel, sending, onCancel, onConfirm }: { reel: Reel; sending: boolean; onCancel: () => void; onConfirm: () => void }) {
-  return <Dialog title="Delete Reel" close={onCancel}><p className="mb-3 text-sm text-white/50">This cannot be undone. The Reel will be removed from VANTA immediately.</p><div className="flex items-center justify-end gap-2"><button type="button" disabled={sending} onClick={onCancel} className="min-h-11 rounded-lg border border-white/10 px-4 text-sm text-white/70 hover:bg-white/[.05]">Cancel</button><button type="button" disabled={sending} onClick={onConfirm} className="min-h-11 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a] disabled:opacity-40">{sending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}Delete Reel</button></div></Dialog>;
+  return <DeleteConfirmDialog title="Delete this Reel?" description="This cannot be undone. The Reel will be removed from VANTA immediately." confirmLabel="Delete Reel" busy={sending} onCancel={onCancel} onConfirm={onConfirm} />;
 }
 
 function ReportPanel({ reel, pending, submit, close }: { reel: Reel; pending: boolean; submit: (category: string) => void; close: () => void }) {
