@@ -50,7 +50,7 @@ export default function DeleteConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative my-auto w-full max-w-[360px] max-h-[calc(100dvh-32px)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 text-white shadow-xl shadow-black/40"
+        className="relative my-auto w-full max-w-[360px] max-h-[calc(100dvh_-_32px)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 text-white shadow-xl shadow-black/40"
       >
         <header className="flex items-start gap-3">
           <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-500/[0.10] text-red-300">
