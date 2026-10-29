@@ -801,10 +801,10 @@ export default function PrivacyCenterPage() {
 
   function renderDeactivationModal() {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/65 px-4 py-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-[2px]">
         <div className="bg-gray-900 rounded-3xl p-6 max-w-md w-full mx-4 border border-white/10 shadow-2xl">
-          <h3 className="text-lg font-semibold text-white mb-2">Deactivate Account</h3>
-          <p className="text-sm text-gray-400 mb-4">
+          <h3 className="mb-2 text-[15px] font-semibold text-white">Deactivate Account</h3>
+          <p className="mb-4 text-[13px] leading-5 text-white/55">
             Your profile, content, and data will be hidden. You can reactivate by logging in within 30 days.
           </p>
           <select
@@ -818,7 +818,7 @@ export default function PrivacyCenterPage() {
             <option value="platform_migration">Moving to another platform</option>
             <option value="other">Other</option>
           </select>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="ghost"
               size="md"
@@ -851,16 +851,16 @@ export default function PrivacyCenterPage() {
   function renderDeletionModal() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="bg-gray-900 rounded-3xl p-6 max-w-md w-full mx-4 border border-red-500/20 shadow-2xl">
+        <div className="my-auto max-h-[calc(100dvh-32px)] w-full max-w-[360px] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 shadow-xl shadow-black/40">
           <h3 className="text-lg font-semibold text-white mb-2">Delete Account</h3>
           <p className="text-sm text-gray-400 mb-4">
             This will permanently delete your account. You can schedule deletion for a future date.
           </p>
-          <div className="space-y-4 mb-4">
+          <div className="mb-4 space-y-3">
             <select
               value={deletionReason}
               onChange={(e) => setDeletionReason(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-red-400/50"
+              className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-black/25 px-3 py-2.5 text-[13px] text-white outline-none focus:border-red-400/40"
             >
               <option value="">Select a reason...</option>
               <option value="privacy_concerns">Privacy concerns</option>
