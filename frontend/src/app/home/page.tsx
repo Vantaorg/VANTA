@@ -99,6 +99,7 @@ export default function HomePage() {
   const [shareFor, setShareFor] = useState<Item>();
   const [moreFor, setMoreFor] = useState<Item>();
   const [deletePostFor, setDeletePostFor] = useState<Item>();
+  const [deletePostSending, setDeletePostSending] = useState(false);
   const [gifts, setGifts] = useState<GiftCatalogItem[]>([]);
   const [balance, setBalance] = useState(0);
   const [giftLoading, setGiftLoading] = useState(false);
@@ -156,25 +157,28 @@ export default function HomePage() {
   // Delete a post/reel from the â€¢â€¢â€¢ menu (own content only). Removes the item
   // from the local feed immediately after the server confirms.
   const confirmDeletePost = async () => {
-    if (!token || !deletePostFor) return;
+    if (!token || !deletePostFor || deletePostSending) return;
     const item = deletePostFor;
-    setDeletePostFor(undefined);
     const endpoint = isVideoItem(item) ? `/api/reels/${cleanId(item)}` : `/api/feed/${cleanId(item)}`;
+    setDeletePostSending(true);
     try {
       await apiDelete(endpoint, token);
       setItems(previous => previous.filter(entry => entry.id !== item.id));
       setStoryRefreshKey(key => key + 1);
       setLive(previous => previous.filter(stream => stream.id !== item.id));
       setTrending(previous => previous.filter(entry => entry.id !== item.id));
+      setDeletePostFor(undefined);
       toast.success(isVideoItem(item) ? 'Reel deleted' : 'Post deleted');
     } catch (reason: any) {
-      toast.error('Content not deleted', reason?.message);
+      toast.error('Content not deleted', reason?.message || 'Please try again.');
+    } finally {
+      setDeletePostSending(false);
     }
   };
 
   const openShare = (item: Item) => setShareFor(item);
   const openPostMore = (item: Item) => setMoreFor(item);
-  const requestDelete = (item: Item) => setDeletePostFor(item);
+  const requestDelete = (item: Item) => { setMoreFor(undefined); setDeletePostFor(item); };
 
   const optimistic = async (item: Item, mode: 'like' | 'save') => {
     if (!token || item.type === 'live') return;
@@ -236,7 +240,7 @@ export default function HomePage() {
   return <div className="relative left-1/2 flex h-[100dvh] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshFeed}>
     <div className="w-full max-w-none px-0 pb-24 pt-3">
-      <main className="min-w-0">
+      <main className="mx-auto w-full max-w-3xl min-w-0">
         <div className="mb-5 hidden items-center justify-between "><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-[#666]">Home</p><h1 className="mt-1 text-xl font-semibold text-[#f5f5f5]">What&apos;s happening on VANTA</h1></div><button type="button" onClick={() => void refreshFeed()} aria-label="Refresh feed" className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] transition hover:bg-white/[.05] hover:text-white"><RefreshCw size={16}/></button></div>
         <StoryTray scrollRef={pageScrollRef} onCreate={openStoryModal} refreshKey={storyRefreshKey} className="mb-2" />
         <LiveStrip streams={live} openStream={stream => router.push(`/live/${cleanId(stream)}`)} openAll={() => router.push('/live')}/>
@@ -247,7 +251,7 @@ export default function HomePage() {
       </main>
       </div>
     </PullToRefresh>
-    <AnimatePresence>{commentsFor && token && <CommentPanel kind={isVideoItem(commentsFor) ? 'reel' : 'post'} postId={cleanId(commentsFor)} postAuthor={getAuthor(commentsFor)} initialCount={commentsFor.comments || 0} token={token} currentUser={user} onClose={() => setCommentsFor(undefined)} onCountChange={count => setItems(previous => previous.map(item => item.id === commentsFor.id ? { ...item, comments: count } : item))}/>} {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {shareFor && <FeedPostShareSheet close={() => setShareFor(undefined)} share={share}/>} {moreFor && <FeedPostMoreSheet item={moreFor} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmation item={deletePostFor} onCancel={() => setDeletePostFor(undefined)} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
+    <AnimatePresence>{commentsFor && token && <CommentPanel kind={isVideoItem(commentsFor) ? 'reel' : 'post'} postId={cleanId(commentsFor)} postAuthor={getAuthor(commentsFor)} initialCount={commentsFor.comments || 0} token={token} currentUser={user} onClose={() => setCommentsFor(undefined)} onCountChange={count => setItems(previous => previous.map(item => item.id === commentsFor.id ? { ...item, comments: count } : item))}/>} {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {shareFor && <FeedPostShareSheet close={() => setShareFor(undefined)} share={share}/>} {moreFor && <FeedPostMoreSheet item={moreFor} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmation item={deletePostFor} sending={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
   </div>;
 }
 
@@ -262,7 +266,7 @@ function SuggestedRow({ profile, follow, open }: { profile: Item; follow: () => 
 function SmallEmpty({ text }: { text: string }) { return <p className="px-1 py-4 text-xs leading-5 text-[#666]">{text}</p>; }
 function ErrorState({ retry }: { retry: () => void }) { return <div className="border-y border-white/[.08] px-4 py-16 text-center"><RefreshCw className="mx-auto text-[#666]"/><h2 className="mt-4 text-base font-semibold">Couldn&apos;t load your feed.</h2><p className="mt-2 text-sm text-[#666]">VANTA could not reach the feed service.</p><button type="button" onClick={retry} className="mt-5 rounded-lg bg-[#f5f5f5] px-4 py-2.5 text-sm font-semibold text-black">Try again</button></div>; }
 function EmptyFeed({ discover }: { discover: () => void }) { return <div className="border-y border-white/[.08] px-4 py-16 text-center"><Sparkles className="mx-auto text-[#8a8a8a]"/><h2 className="mt-4 text-lg font-semibold">Nothing here yet.</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#666]">Discover creators and communities to start building your VANTA feed.</p><button type="button" onClick={discover} className="mt-5 rounded-lg bg-[#f5f5f5] px-4 py-2.5 text-sm font-semibold text-black">Discover</button></div>; }
-function DeleteConfirmation({ item, onCancel, onConfirm }: any) {
+function DeleteConfirmation({ item, sending, onCancel, onConfirm }: any) {
   const kind = isVideoItem(item) ? 'Reel' : 'Post';
-  return <><motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} aria-label="Cancel delete" className="fixed inset-0 z-[60] bg-black/70"/><motion.section role="alertdialog" aria-modal="true" aria-label={`Delete ${kind}`} initial={{ opacity: 0, scale: .97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} className="fixed left-1/2 top-1/2 z-[65] w-[min(400px,calc(100%-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/[.1] bg-[#161616] p-5 shadow-2xl"><header className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Delete this {kind.toLowerCase()}?</h2><button type="button" onClick={onCancel} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full text-[#8a8a8a] hover:bg-white/[.05]"><X size={18}/></button></header><p className="mb-5 text-sm leading-6 text-[#c8c8cc]/60">This cannot be undone. The {kind.toLowerCase()} will be removed from VANTA immediately.</p><div className="flex items-center justify-end gap-2"><button type="button" onClick={onCancel} className="min-h-11 rounded-lg border border-white/[.08] px-4 text-sm text-[#d8d8d8] hover:bg-white/[.05]">Cancel</button><button type="button" onClick={onConfirm} className="min-h-11 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a]">Delete {kind.toLowerCase()}</button></div></motion.section></>;
+  return <><motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} aria-label="Cancel delete" className="fixed inset-0 z-[60] bg-black/70"/><motion.section role="alertdialog" aria-modal="true" aria-label={`Delete ${kind}`} initial={{ opacity: 0, scale: .97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} className="fixed left-1/2 top-1/2 z-[65] w-[min(400px,calc(100%-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/[.1] bg-[#161616] p-5 shadow-2xl"><header className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Delete this {kind.toLowerCase()}?</h2><button type="button" onClick={onCancel} disabled={sending} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full text-[#8a8a8a] hover:bg-white/[.05] disabled:opacity-40"><X size={18}/></button></header><p className="mb-5 text-sm leading-6 text-[#c8c8cc]/60">This cannot be undone. The {kind.toLowerCase()} will be removed from VANTA immediately.</p><div className="flex items-center justify-end gap-2"><button type="button" onClick={onCancel} disabled={sending} className="min-h-11 rounded-lg border border-white/[.08] px-4 text-sm text-[#d8d8d8] hover:bg-white/[.05] disabled:opacity-40">Cancel</button><button type="button" onClick={onConfirm} disabled={sending} className="flex min-h-11 items-center gap-2 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a] disabled:cursor-wait disabled:opacity-60">{sending && <Loader2 size={15} className="animate-spin" />}{sending ? "Deleting…" : `Delete ${kind.toLowerCase()}`}</button></div></motion.section></>;
 }
