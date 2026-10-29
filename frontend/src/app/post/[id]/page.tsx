@@ -156,7 +156,7 @@ useEffect(() => {
     return <main className="min-w-0 w-full text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-        sticky bleed className="mb-1 px-4"
+        sticky bleed className="h-14 min-h-14 px-4"
         actions={<span className="grid h-10 w-10 place-items-center rounded-lg text-white/25"><MoreHorizontal size={19} /></span>}
       />
       <PostDetailSkeleton />
@@ -180,7 +180,7 @@ useEffect(() => {
     <PageHeader
       title="Post"
       back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-      sticky bleed className="px-4"
+      sticky bleed className="h-14 min-h-14 px-4"
       actions={
         <button type="button" onClick={() => setMoreOpen(true)} aria-label="More post options" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[#8a8a8a] transition hover:bg-white/[0.05] hover:text-white">
           <MoreHorizontal size={19} />
@@ -219,7 +219,7 @@ useEffect(() => {
 
         {/* Engagement toolbar — lightweight, evenly distributed icon actions
             with the VANTA gold accent on active states. */}
-        <footer className="mt-2 flex w-full min-w-0 items-center justify-between gap-1 border-b border-white/[0.08] pb-2">
+        <footer className="mt-2 flex w-full min-w-0 items-center justify-between gap-1 pb-2">
           <button onClick={() => void toggleLike()} className={toolClass(liked ? '!text-[#c9a227]' : 'text-[#8a8a8a]')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
             <Heart size={20} className={liked ? 'fill-current' : ''} />
             <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
@@ -239,7 +239,7 @@ useEffect(() => {
         </footer>
 
         {/* View count + post metadata — compact, visually secondary. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-white/[0.08] py-2.5 text-xs text-[#8a8a8a]">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-2.5 text-xs text-[#8a8a8a]">
           {typeof post.views === 'number' && <span className="inline-flex items-center gap-1"><Eye size={13} /><span className="tabular-nums">{formatCount(post.views)} views</span></span>}
           <span className="tabular-nums">{new Date(post.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
         </div>
