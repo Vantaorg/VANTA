@@ -266,9 +266,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // top-left corner of the shell.
   useEffect(() => {
     const open = () => {
-      // This three-line drawer belongs to Discover only. Other pages may have
-      // their own leading controls and must not open this Discover drawer.
-      if (window.location.pathname === '/discover') setMobileMenuOpen(true);
+      // Discover and Live both expose the shared three-line app menu.
+      // Keep this scoped to those routes so unrelated page controls stay isolated.
+      if (window.location.pathname === '/discover' || window.location.pathname === '/live') {
+        setMobileMenuOpen(true);
+      }
     };
     window.addEventListener('vanta:open-menu', open);
     return () => window.removeEventListener('vanta:open-menu', open);
