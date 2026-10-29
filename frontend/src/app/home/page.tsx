@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Bell, Bookmark, ChevronRight, Eye, Gift, Heart, Image as ImageIcon, Loader2,
-  MessageCircle, MoreHorizontal, Radio, RefreshCw, Search, Share2,
+  Bookmark, ChevronRight, Eye, Gift, Heart, Image as ImageIcon, Loader2,
+  MessageCircle, MoreHorizontal, Radio, RefreshCw, Share2,
   Sparkles, Trash2, Users, WifiOff, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useNotifications } from '@/context/NotificationContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
@@ -17,7 +16,6 @@ import { useToast } from '@/components/ui/Toast';
 import Avatar from '@/components/ui/Avatar';
 import StoryTray from '@/components/story/StoryTray';
 import VerificationBadge from '@/components/ui/VerificationBadge';
-import VantaLogo from '@/components/ui/VantaLogo';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import CommentPanel from '@/components/social/CommentPanel';
 import PostMedia from '@/components/social/PostMedia';
@@ -87,7 +85,6 @@ export default function HomePage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { unreadCount: notificationUnread } = useNotifications();
   const { chatUnreadCount: chatUnread } = useChatUnread();
   const { openPostModal, openStoryModal } = useContentCreation();
   const [tab, setTab] = useState<FeedTab>('forYou');
@@ -243,10 +240,10 @@ export default function HomePage() {
   };
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'reels') return base.filter(isVideoItem); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
-  return <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--background)] text-white">
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[var(--header-surface)] px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl"><div className="ml-auto flex min-w-0 items-center gap-1"><button type="button" onClick={() => router.push('/discover')} aria-label="Search VANTA" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Search size={18}/></button><button type="button" onClick={() => router.push('/notifications')} aria-label="Open notifications" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Bell size={18}/>{notificationUnread > 0 && <HeaderBadge value={notificationUnread}/>}</button><button type="button" onClick={() => router.push('/chat')} aria-label="Open chat" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><MessageCircle size={18}/>{chatUnread > 0 && <HeaderBadge value={chatUnread}/>}</button><button type="button" onClick={() => router.push('/profile')} aria-label="Open your profile" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"><Avatar src={user?.avatar || user?.avatarUrl || (user?.profile as any)?.avatar || (user?.profile as any)?.avatarUrl} alt="Your profile" size="sm" /></button></div></header>
+  return <div className="relative left-1/2 flex h-[100dvh] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[var(--header-surface)] px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl"><div className="ml-auto flex min-w-0 items-center gap-1"><button type="button" onClick={() => router.push('/chat')} aria-label="Open chat" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><MessageCircle size={18}/>{chatUnread > 0 && <HeaderBadge value={chatUnread}/>}</button></div></header>
     <PullToRefresh onRefresh={refreshFeed}>
-    <div className="mx-auto w-full max-w-2xl px-4 pb-24 pt-3">
+    <div className="w-full max-w-none px-0 pb-24 pt-3">
       <main className="min-w-0">
         <div className="mb-5 hidden items-center justify-between "><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-[#666]">Home</p><h1 className="mt-1 text-xl font-semibold text-[#f5f5f5]">What&apos;s happening on VANTA</h1></div><button type="button" onClick={() => void refreshFeed()} aria-label="Refresh feed" className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] transition hover:bg-white/[.05] hover:text-white"><RefreshCw size={16}/></button></div>
         <StoryTray onCreate={openStoryModal} refreshKey={storyRefreshKey} className="mb-2" />
