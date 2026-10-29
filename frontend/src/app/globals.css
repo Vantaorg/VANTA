@@ -58,7 +58,7 @@
     --overlay: rgba(10, 15, 22, 0.64);
 
     /* Fixed chrome surfaces (app shell, page headers, bottom nav, drawers) */
-    --header-surface: rgba(31, 38, 48, 0.94);
+    --header-surface: #1f2630;
     --nav-surface: #1f2630;
 
     /* ─── Gold — the ACTIVE / SELECTED indicator. ─────────────────
@@ -2857,5 +2857,33 @@ html.light .feed-item:hover {
   [class~="bg-[#202020]"],
   [class~="bg-[#202023]"] {
     background-color: var(--surface) !important;
+  }
+}
+
+
+/* App-wide slate chrome compatibility: legacy page headers and full-screen
+   shells still contain arbitrary near-black Tailwind classes. Keep their
+   existing geometry/opacity behavior while aligning their base hue to the
+   screenshot reference. Media pixels themselves are not recolored. */
+@layer utilities {
+  [class*="bg-[#080808]"],
+  [class*="bg-[#050505]"],
+  [class*="bg-[#050506]"],
+  [class*="bg-[#050507]"],
+  [class*="bg-[#070708]"],
+  [class*="bg-[#07070d]"],
+  [class*="bg-[#0a0a0a]"],
+  [class*="bg-[#0a0a0c]"],
+  [class*="bg-[#0b0b0e]"],
+  [class*="bg-[#0d0d0d]"],
+  [class*="bg-[#0e0e0e]"],
+  [class*="bg-[#0e0e16]"],
+  [class*="bg-[#101010]"],
+  [class*="bg-[#111111]"],
+  [class*="bg-[#121216]"],
+  [class*="bg-[#151517]"],
+  [class*="bg-[#161616]"],
+  [class*="bg-[#18181b]"] {
+    background-color: var(--header-surface) !important;
   }
 }

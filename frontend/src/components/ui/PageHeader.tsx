@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import VantaLogo from '@/components/ui/VantaLogo';
 
 export interface PageHeaderProps {
   /** Primary title. Long titles truncate instead of pushing actions off-screen. */
@@ -17,7 +15,7 @@ export interface PageHeaderProps {
    * `true` to call `router.back()`. Not rendered when `home` is set.
    */
   back?: boolean | string | (() => void);
-  /** Render a compact VANTA wordmark as the leading element (primary feed/home). */
+  /** Render a compact leading spacer for the primary feed/home header (no wordmark). */
   home?: boolean;
   /** Render a menu/drawer toggle as the leading element. */
   onMenu?: () => void;
@@ -66,7 +64,7 @@ export default function PageHeader({
         'relative flex min-h-14 w-full shrink-0 items-center gap-2',
         bleed && '-mx-4 w-[calc(100%+2rem)]',
         sticky
-          ? 'sticky top-0 z-30 border-b border-white/[0.08] bg-[#080808]/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl'
+          ? 'sticky top-0 z-30 border-b border-white/[0.08] bg-[var(--header-surface)] pt-[env(safe-area-inset-top)] backdrop-blur-xl'
           : 'border-b border-white/[0.08]',
         className,
       )}
@@ -74,10 +72,7 @@ export default function PageHeader({
       {(showBack || showMenu || home) && (
         <div className="flex shrink-0 items-center gap-1">
           {home ? (
-            <Link href="/home" aria-label="VANTA home" className="flex shrink-0 items-center gap-2">
-              <VantaLogo size={34} variant="monochrome" />
-              <span className="text-base font-bold tracking-[.14em] text-white">VANTA</span>
-            </Link>
+            <span className="h-10 w-10 shrink-0" aria-hidden="true" />
           ) : (
             <>
               {showMenu ? (
