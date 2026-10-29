@@ -1,5 +1,7 @@
 'use client';
 
+import { resolveMediaUrl } from '@/lib/mediaUrl';
+
 export const PROFILE_MEDIA_EVENT = 'vanta:profile-media-updated';
 
 export type ProfileMediaUpdate = {
