@@ -82,7 +82,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
 
   if (loading) {
     return (
-      <main className="min-h-[100dvh] w-full bg-[#050505] px-4 py-5 text-white">
+      <main className="min-h-[100dvh] w-full bg-[#050505] text-white">
         <div className="grid min-h-[70dvh] place-items-center"><Loader2 className="mx-auto animate-spin text-[#666]" size={34} /></div>
       </main>
     );
@@ -90,9 +90,9 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
 
   if (error || !community) {
     return (
-      <main className="min-h-[100dvh] w-full bg-[var(--background)] px-4 py-5 text-[var(--text-primary)]">
-        <div className="mx-auto w-full min-w-0 max-w-3xl">
-          <Link href="/discover" className="mb-5 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"><ArrowLeft size={17} />Back to Discover</Link>
+      <main className="min-h-[100dvh] w-full bg-[#050505] text-[var(--text-primary)]">
+        <div className="mx-auto w-full min-w-0 max-w-3xl px-4">
+          <header className="sticky top-0 z-30 -mx-4 flex h-14 min-h-14 items-center gap-3 border-b border-white/[.08] bg-[#080808]/95 px-4 backdrop-blur-xl"><Link href="/discover" aria-label="Back to Discover" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/60 hover:bg-white/[.05] hover:text-white"><ArrowLeft size={19} /></Link><span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">Discover community</span></header>
           <div className="rounded-lg border border-white/[.08] bg-[#101010] px-5 py-14 text-center">
             <Users className="mx-auto text-[#666]" size={28} />
             <h1 className="mt-4 text-base font-semibold">Community not found</h1>
@@ -111,17 +111,17 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
     <main className="min-h-[100dvh] w-full bg-[var(--background)] px-4 py-5 text-[var(--text-primary)]">
       <div className="mx-auto w-full min-w-0 max-w-3xl">
         <Link href="/discover" className="mb-5 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"><ArrowLeft size={17} />Back to Discover</Link>
-        <section className="overflow-hidden rounded-2xl border border-white/[.1] bg-[#101010]">
-          <div className="border-b border-white/[.08] px-5 py-6 text-center">
-            <span className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-white/[.08] bg-[#1c1c1c] text-[#8a8a8a]">
+        <section className="overflow-hidden">
+          <div className="border-b border-white/[.06] px-4 py-6 text-left">
+            <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-white/[.05] text-[#8a8a8a]">
               {community.avatar ? <img src={resolveMediaUrl(community.avatar)} alt="" loading="lazy" className="h-full w-full object-cover" /> : channel ? <Hash size={28} /> : <Users size={28} />}
             </span>
-            <h1 className="mt-3 flex items-center gap-1.5 text-lg font-semibold">{community.name}{channel ? <Hash size={14} className="shrink-0 text-[#c9a227]" /> : <Users size={14} className="shrink-0 text-[#c9a227]" />}</h1>
+            <h1 className="mt-3 flex items-center gap-1.5 text-base font-semibold">{community.name}{channel ? <Hash size={14} className="shrink-0 text-[#c9a227]" /> : <Users size={14} className="shrink-0 text-[#c9a227]" />}</h1>
             <p className="mt-1 text-xs text-[#8a8a8a]"><span className="font-semibold uppercase tracking-[.14em]">{channel ? 'Channel' : 'Group'}</span>{handle ? ` · ${handle}` : ''}{community._count ? ` · ${countLabel(community._count.members)} members` : ''}</p>
-            <p className="mt-3 max-w-md break-words whitespace-pre-wrap text-sm leading-6 text-[#b8b8b8]">{community.description || community.category || (channel ? 'A public channel on VANTA — join to follow along.' : 'A public group on VANTA — join to take part.')}</p>
+            <p className="mt-2 max-w-md break-words whitespace-pre-wrap text-sm leading-6 text-[#b8b8b8]">{community.description || community.category || (channel ? 'A public channel on VANTA — join to follow along.' : 'A public group on VANTA — join to take part.')}</p>
             {owner?.username && <p className="mt-3 text-[11px] text-[#666]">Created by @{owner.username}</p>}
           </div>
-          <div className="flex items-center gap-2 px-5 py-4">
+          <div className="flex items-center gap-2 py-4">
             {community.joined ? (
               <button type="button" onClick={() => void toggleJoin()} disabled={joining} className="min-h-11 flex-1 rounded-lg border border-white/[.12] text-sm font-semibold text-[#b8b8b8] hover:bg-white/[.04] disabled:opacity-60">{joining ? 'Working…' : 'Leave'}</button>
             ) : (
@@ -133,7 +133,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
             <button type="button" onClick={() => void copyLink()} aria-label="Copy community link" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Share2 size={17} /></button>
           </div>
         </section>
-        <p className="mt-4 text-center text-[11px] text-[#666]">Share this link to invite people to {community.name}.</p>
+        <p className="mt-3 text-[11px] text-[#666]">Share this link to invite people to {community.name}.</p>
       </div>
     </main>
   );
