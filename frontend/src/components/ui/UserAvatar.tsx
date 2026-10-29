@@ -89,10 +89,10 @@ export default function UserAvatar({
           'relative overflow-hidden rounded-full flex items-center justify-center font-bold text-white',
           sizeMap[size],
           story && 'm-[3px]',
-          !src && 'bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc]'
+          !resolvedSrc && 'bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc]'
         )}
       >
-        {src ? (
+        {resolvedSrc ? (
           <img src={resolvedSrc} alt={alt} className="h-full w-full object-cover" onError={() => setResolvedSrc('')} />
         ) : (
           <span>{initials}</span>
