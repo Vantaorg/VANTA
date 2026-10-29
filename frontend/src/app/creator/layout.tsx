@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home, FileText, Radio, DollarSign, Crown, Users, BarChart3,
+  Home, FileText, Radio, DollarSign, Crown, Users, BarChart3, Megaphone,
   MessageCircle, Wallet, Gift, Bell, Shield, BadgeCheck,
   X, LogOut, Menu, BellRing,
 } from 'lucide-react';
@@ -36,7 +36,7 @@ interface NavSection {
 const navSections: NavSection[] = [
   { label: 'Overview', items: [{ href: '/creator', label: 'Overview', icon: Home }] },
   { label: 'Content', items: [{ href: '/creator/content', label: 'Content Manager', icon: FileText }] },
-  { label: 'Insights', items: [{ href: '/creator/analytics', label: 'Analytics', icon: BarChart3 }] },
+  { label: 'Insights', items: [{ href: '/creator/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/creator/amplifier', label: 'Amplifier', icon: Megaphone }] },
   { label: 'Live', items: [{ href: '/creator/live', label: 'Live Studio', icon: Radio }] },
   {
     label: 'Monetization',
