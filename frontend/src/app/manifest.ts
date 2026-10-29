@@ -22,8 +22,6 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#050505",
     theme_color: "#050505",
     icons: [
-      { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
     ],
   };
