@@ -167,7 +167,7 @@ useEffect(() => {
     return <main className="min-w-0 w-full text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-        sticky bleed className="mb-1 px-4"
+        sticky bleed className="h-14 min-h-14 px-4"
       />
       <PostErrorState onRetry={loadPost} />
     </main>;
@@ -188,7 +188,7 @@ useEffect(() => {
       }
     />
 
-    <div className="mx-auto w-full min-w-0 max-w-[640px] px-4 pb-8">
+    <div className="mx-auto w-full min-w-0 max-w-[640px] px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
       {/* Original post — flows straight from the header, no card wrapper. */}
       <article className="w-full min-w-0 pt-3">
         {/* Author identity */}
@@ -215,7 +215,7 @@ useEffect(() => {
         )}
 
         {/* Media — full content width, same PostMedia renderer as the feed */}
-        {media && <div className="mt-3 w-full overflow-hidden rounded-xl border border-white/[0.07] bg-[#080808]"><PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" /></div>}
+        {media && <div className="mt-3 w-full min-w-0 overflow-hidden rounded-lg bg-[#080808]"><PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" /></div>}
 
         {/* Engagement toolbar — lightweight, evenly distributed icon actions
             with the VANTA gold accent on active states. */}
@@ -313,7 +313,7 @@ function PostDetailSkeleton() {
         <Skeleton className="w-3/4" />
       </div>
       <Skeleton variant="rectangular" height={240} className="mt-4 rounded-xl" />
-      <div className="mt-4 flex items-center justify-between border-b border-white/[0.08] pb-3">
+      <div className="mt-4 flex items-center justify-between pb-2">
         <Skeleton className="w-14" />
         <Skeleton className="w-14" />
         <Skeleton className="w-14" />
