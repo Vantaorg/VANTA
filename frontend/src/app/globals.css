@@ -7,12 +7,12 @@
 @layer base {
   :root {
     /* ─── Core palette — deep space ─────────────────────────── */
-    --vanta-black: #050505;
-    --vanta-obsidian: #0d0d0f;
-    --vanta-panel: #111113;
-    --vanta-surface: #151517;
-    --vanta-elevated: #1a1a1d;
-    --vanta-graphite: #222225;
+    --vanta-black: #1f2630;
+    --vanta-obsidian: #252d38;
+    --vanta-panel: #27303b;
+    --vanta-surface: #2b3541;
+    --vanta-elevated: #313b48;
+    --vanta-graphite: #3a4552;
     --vanta-gray: #666666;
     --vanta-gray-light: #8a8a8a;
     --vanta-silver: #b8b8b8;
@@ -55,11 +55,11 @@
     --text-primary: #f5f5f7;
     --text-secondary: rgba(255, 255, 255, 0.66);
     --text-muted: rgba(255, 255, 255, 0.4);
-    --overlay: rgba(0, 0, 0, 0.6);
+    --overlay: rgba(10, 15, 22, 0.64);
 
     /* Fixed chrome surfaces (app shell, page headers, bottom nav, drawers) */
-    --header-surface: rgba(8, 8, 8, 0.9);
-    --nav-surface: #080808;
+    --header-surface: rgba(31, 38, 48, 0.94);
+    --nav-surface: #1f2630;
 
     /* ─── Gold — the ACTIVE / SELECTED indicator. ─────────────────
        Gold never decorates every button. It marks the control that
@@ -74,7 +74,7 @@
     --active-glow: 0 8px 24px rgba(201, 162, 39, 0.14);
 
     /* Glass surfaces — VisionOS inspired */
-    --glass-bg: #151517;
+    --glass-bg: #2b3541;
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-hover: rgba(255, 255, 255, 0.08);
     --glass-strong: rgba(255, 255, 255, 0.08);
@@ -2301,13 +2301,13 @@ html.light .text-gray-300 { color: var(--text-secondary); }
    Tailwind aliases (see tailwind.config.ts) or `var(--vc-*)` directly.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --vc-bg: #09090b;             /* console canvas */
-  --vc-bg-secondary: #101114;   /* sidebar / chrome */
-  --vc-surface: #16171b;        /* panels, cards, tables */
-  --vc-surface-2: #1d1f24;      /* elevated / hover surface */
-  --vc-surface-3: #24262c;      /* active surface */
-  --vc-border: #292b31;         /* hairline borders, dividers */
-  --vc-border-strong: #35383f;  /* input borders, emphasized edges */
+  --vc-bg: #1f2630;             /* console canvas */
+  --vc-bg-secondary: #252d38;   /* sidebar / chrome */
+  --vc-surface: #2b3541;        /* panels, cards, tables */
+  --vc-surface-2: #313b48;      /* elevated / hover surface */
+  --vc-surface-3: #3a4552;      /* active surface */
+  --vc-border: #3a4552;         /* hairline borders, dividers */
+  --vc-border-strong: #4a5664;  /* input borders, emphasized edges */
   --vc-text: #f5f5f5;           /* primary text */
   --vc-text-2: #a5a7ae;         /* secondary text */
   --vc-text-3: #777b85;         /* muted text, table meta */
@@ -2799,5 +2799,63 @@ html.light .feed-item:hover {
   }
   .vc-console-section > :where(div, ul, ol) {
     min-width: 0;
+  }
+}
+
+
+/* VANTA global slate-background rollout (reference screenshot: #1F2630).
+   Keep media and overlay transparency, but replace black-tinted utility surfaces
+   with the same slate family so page backgrounds, controls, and app chrome agree. */
+@layer utilities {
+  [class~="bg-black"] {
+    background-color: var(--background) !important;
+  }
+  [class~="bg-black/5"] { background-color: color-mix(in srgb, var(--background) 5%, transparent) !important; }
+  [class~="bg-black/10"] { background-color: color-mix(in srgb, var(--background) 10%, transparent) !important; }
+  [class~="bg-black/20"] { background-color: color-mix(in srgb, var(--background) 20%, transparent) !important; }
+  [class~="bg-black/25"] { background-color: color-mix(in srgb, var(--background) 25%, transparent) !important; }
+  [class~="bg-black/30"] { background-color: color-mix(in srgb, var(--background) 30%, transparent) !important; }
+  [class~="bg-black/40"] { background-color: color-mix(in srgb, var(--background) 40%, transparent) !important; }
+  [class~="bg-black/50"] { background-color: color-mix(in srgb, var(--background) 50%, transparent) !important; }
+  [class~="bg-black/55"] { background-color: color-mix(in srgb, var(--background) 55%, transparent) !important; }
+  [class~="bg-black/60"] { background-color: color-mix(in srgb, var(--background) 60%, transparent) !important; }
+  [class~="bg-black/65"] { background-color: color-mix(in srgb, var(--background) 65%, transparent) !important; }
+  [class~="bg-black/70"] { background-color: color-mix(in srgb, var(--background) 70%, transparent) !important; }
+  [class~="bg-black/75"] { background-color: color-mix(in srgb, var(--background) 75%, transparent) !important; }
+  [class~="bg-black/80"] { background-color: color-mix(in srgb, var(--background) 80%, transparent) !important; }
+
+  /* Existing hard-coded near-black utility surfaces, now mapped to slate. */
+  [class~="bg-[#050505]"],
+  [class~="bg-[#050506]"],
+  [class~="bg-[#050507]"],
+  [class~="bg-[#07070F]"],
+  [class~="bg-[#07070d]"],
+  [class~="bg-[#080808]"],
+  [class~="bg-[#0a0a0a]"],
+  [class~="bg-[#0a0a0c]"],
+  [class~="bg-[#0a0a0f]"],
+  [class~="bg-[#0b0b0e]"],
+  [class~="bg-[#0d0d0d]"],
+  [class~="bg-[#0d0d0f]"],
+  [class~="bg-[#0e0e0e]"],
+  [class~="bg-[#0e0e16]"],
+  [class~="bg-[#101010]"],
+  [class~="bg-[#101012]"],
+  [class~="bg-[#101013]"],
+  [class~="bg-[#101014]"],
+  [class~="bg-[#111]"],
+  [class~="bg-[#111111]"],
+  [class~="bg-[#111113]"],
+  [class~="bg-[#111114]"],
+  [class~="bg-[#121216]"],
+  [class~="bg-[#151517]"],
+  [class~="bg-[#161616]"],
+  [class~="bg-[#161618]"],
+  [class~="bg-[#18181b]"],
+  [class~="bg-[#1a1a1d]"],
+  [class~="bg-[#1c1c1c]"],
+  [class~="bg-[#202020]"],
+  [class~="bg-[#202023]"] {
+    background-color: var(--surface) !important;
   }
 }
