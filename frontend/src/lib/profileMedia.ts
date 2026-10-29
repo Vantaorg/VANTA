@@ -30,7 +30,11 @@ export function versionMediaUrl(url?: string | null, version = Date.now()): stri
 }
 
 export function mediaUrlsMatch(left?: string | null, right?: string | null): boolean {
-  return stripMediaVersion(left) === stripMediaVersion(right);
+  if (!left || !right) return !left && !right;
+  // Compare the same canonical form used by avatar renderers. Without this,
+  // an absolute resolved URL never matches its relative database URL, so an
+  // uploaded profile photo stays stale in existing circles throughout the app.
+  return stripMediaVersion(resolveMediaUrl(left)) === stripMediaVersion(resolveMediaUrl(right));
 }
 
 export function emitProfileMediaUpdate(detail: ProfileMediaUpdate) {
