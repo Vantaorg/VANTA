@@ -11,9 +11,28 @@ import { imageOptimizer } from "./image-optimizer.service";
 const configuredUploadDir = process.env.UPLOAD_STORAGE_DIR;
 // Resolve relative storage paths against the backend project, not process.cwd().
 // This keeps `npm --prefix backend ...`, Docker and direct starts consistent.
+const defaultUploadDir = path.resolve(__dirname, "../../public/uploads");
 const uploadDir = configuredUploadDir
   ? (path.isAbsolute(configuredUploadDir) ? configuredUploadDir : path.resolve(__dirname, "../..", configuredUploadDir))
-  : path.resolve(__dirname, "../../public/uploads");
+  : defaultUploadDir;
+
+// If production is switching from ephemeral local storage to a mounted volume,
+// preserve any still-present uploads before the service starts writing to the
+// new directory. Never overwrite files already on the persistent volume.
+if (configuredUploadDir && path.resolve(uploadDir) !== defaultUploadDir && fs.existsSync(defaultUploadDir)) {
+  try {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    fs.cpSync(defaultUploadDir, uploadDir, {
+      recursive: true,
+      force: false,
+      errorOnExist: false,
+      filter: (source) => !source.split(path.sep).includes(".chunks"),
+    });
+  } catch (error) {
+    console.warn("[UploadStorage] Could not migrate remaining local uploads to configured storage.");
+  }
+}
+
 // The HTTP server mounts this same directory at /uploads. Keeping the storage
 // path exported prevents custom persistent volumes from producing dead URLs.
 export const uploadStorageDir = uploadDir;
