@@ -851,7 +851,7 @@ export default function PrivacyCenterPage() {
   function renderDeletionModal() {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/65 px-4 py-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-[2px]">
-        <div className="my-auto max-h-[calc(100dvh-32px)] w-full max-w-[360px] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 shadow-xl shadow-black/40">
+        <div className="my-auto max-h-[calc(100dvh_-_32px)] w-full max-w-[360px] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 shadow-xl shadow-black/40">
           <h3 className="mb-2 text-[15px] font-semibold text-white">Delete Account</h3>
           <p className="mb-4 text-[13px] leading-5 text-white/55">
             This will permanently delete your account. You can schedule deletion for a future date.
