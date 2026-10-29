@@ -477,8 +477,8 @@ export default function ReelsPage() {
     }
   };
 
-  const deleteComment = async (comment: ReelComment) => {
-    if (!token || !commentsFor) return;
+  const deleteComment = async (comment: ReelComment): Promise<boolean> => {
+    if (!token || !commentsFor) return false;
     try {
       await apiDelete(`/api/reels/${commentsFor.id}/comments/${comment.id}`, token);
       setComments(items => items.filter(item => item.id !== comment.id));
