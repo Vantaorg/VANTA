@@ -37,11 +37,11 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
-      { url: "/branding/vanta-icon-32.png", type: "image/png", sizes: "32x32" },
-      { url: "/branding/vanta-icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/branding/vanta-app-icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/branding/vanta-app-icon.svg", type: "image/svg+xml", sizes: "any" },
     ],
     apple: [
-      { url: "/branding/vanta-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
   openGraph: {
