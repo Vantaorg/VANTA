@@ -17,7 +17,7 @@ const createWindow = async () => {
     minHeight: 720,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#07070F',
+    backgroundColor: '#1F2630',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
