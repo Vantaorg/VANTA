@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 import {
-  Bell, MessageCircle, Search, Compass, Plus, Radio, House,
+  Bell, MessageCircle, Search, Compass, Plus, Radio, House, Clapperboard,
   Send, Paperclip, Check, CheckCheck,
   Loader2, Users, Hash, ArrowLeft, X, UserPlus, Camera, BellOff,
   Pin, Image as ImageIcon, FileText, Info, ChevronRight, Flag, Ban, Pencil, RefreshCw,
