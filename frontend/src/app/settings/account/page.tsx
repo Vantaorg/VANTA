@@ -1,5 +1,7 @@
 'use client';
 
+import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
+
 /* ═══════════════════════════════════════════════════════════════
    Account Settings — new focused page
    Profile identity, sign-in info and account lifecycle.
@@ -42,6 +44,8 @@ export default function AccountSettingsPage() {
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const [email, setEmail] = useState('');
   const [savingEmail, setSavingEmail] = useState(false);
@@ -87,13 +91,21 @@ export default function AccountSettingsPage() {
   };
 
   const handleDelete = () => {
-    const confirmed = window.confirm(
-      'Delete your VANTA account? Your profile and account data will be permanently removed. This cannot be undone.'
-    );
-    if (!confirmed || !token) return;
-    apiDelete('/api/settings/account', token)
-      .then(() => logout())
-      .catch((err: Error) => toast.error('Could not delete account', err?.message));
+    if (token) setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!token || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      await apiDelete('/api/settings/account', token);
+      setDeleteConfirmOpen(false);
+      logout();
+    } catch (err) {
+      toast.error('Could not delete account', (err as Error)?.message);
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
@@ -270,5 +282,6 @@ export default function AccountSettingsPage() {
         </div>
       )}
     </div>
+      {deleteConfirmOpen && <DeleteConfirmDialog title="Delete your VANTA account?" description="Your profile and account data will be permanently removed. This action cannot be undone." confirmLabel="Delete account" busy={deleteBusy} onCancel={() => { if (!deleteBusy) setDeleteConfirmOpen(false); }} onConfirm={() => void confirmDelete()} />}
   );
 }
