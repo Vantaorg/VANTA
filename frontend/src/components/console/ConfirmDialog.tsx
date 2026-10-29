@@ -50,7 +50,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/65 px-4 py-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-[2px]"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel(); }}
     >
       <div
@@ -58,11 +58,11 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="vc-confirm-title"
         aria-describedby="vc-confirm-message"
-        className="vc-panel w-full max-w-md overflow-hidden p-5 shadow-[0_24px_64px_rgba(0,0,0,0.55)]"
+        className="vc-panel my-auto max-h-[calc(100dvh-32px)] w-full max-w-[360px] overflow-y-auto p-4 shadow-[0_20px_48px_rgba(0,0,0,0.45)]"
       >
         <div className="flex items-start gap-3">
           <span className={cn(
-            'grid h-10 w-10 shrink-0 place-items-center rounded-xl',
+            'grid h-9 w-9 shrink-0 place-items-center rounded-lg',
             tone === 'danger' ? 'bg-console-danger-soft text-console-danger' : 'bg-console-gold-soft text-console-gold',
           )}>
             <AlertTriangle size={19} aria-hidden />
@@ -73,7 +73,7 @@ export default function ConfirmDialog({
             {details ? <div className="mt-2 rounded-[var(--vc-radius)] border border-console-border bg-console-bg2 p-2.5 text-xs text-console-text-3">{details}</div> : null}
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             ref={cancelRef}
             type="button"
