@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Trash2, Calendar, Clock, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 interface Draft {
   id: string;
@@ -45,17 +46,25 @@ interface DraftManagerProps {
 
 export default function DraftManager({ onSelectDraft, onClose, className }: DraftManagerProps) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [deleteDraftFor, setDeleteDraftFor] = useState<Draft | null>(null);
 
   useEffect(() => {
     setDrafts(loadDrafts());
   }, []);
 
   const handleDelete = useCallback((id: string, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    const updated = drafts.filter((d) => d.id !== id);
+    setDeleteDraftFor(drafts.find((draft) => draft.id === id) || null);
+  }, [drafts]);
+
+  const confirmDeleteDraft = useCallback(() => {
+    if (!deleteDraftFor) return;
+    const updated = drafts.filter((draft) => draft.id !== deleteDraftFor.id);
     setDrafts(updated);
     saveDrafts(updated);
-  }, [drafts]);
+    setDeleteDraftFor(null);
+  }, [drafts, deleteDraftFor]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -151,6 +160,7 @@ export default function DraftManager({ onSelectDraft, onClose, className }: Draf
           </div>
         )}
       </div>
+      {deleteDraftFor && <DeleteConfirmDialog title="Delete this draft?" description="This saved draft will be removed from this device. This cannot be undone." confirmLabel="Delete draft" onCancel={() => setDeleteDraftFor(null)} onConfirm={confirmDeleteDraft} />}
     </motion.div>
   );
 }
