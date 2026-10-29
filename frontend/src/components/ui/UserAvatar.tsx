@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion';
 import { cn, getInitials } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
+import { mediaUrlsMatch, PROFILE_MEDIA_EVENT, type ProfileMediaUpdate } from '@/lib/profileMedia';
+import { useEffect, useState } from 'react';
 
 interface UserAvatarProps {
   src?: string | null;
@@ -46,6 +48,21 @@ export default function UserAvatar({
   onClick,
 }: UserAvatarProps) {
   const initials = getInitials(alt || '?');
+  const [resolvedSrc, setResolvedSrc] = useState(src ? resolveMediaUrl(src) : '');
+
+  useEffect(() => {
+    setResolvedSrc(src ? resolveMediaUrl(src) : '');
+  }, [src]);
+
+  useEffect(() => {
+    const handleProfileMediaUpdate = (event: Event) => {
+      const update = (event as CustomEvent<ProfileMediaUpdate>).detail;
+      if (!mediaUrlsMatch(resolvedSrc, update.previousAvatar)) return;
+      setResolvedSrc(update.avatar ? resolveMediaUrl(update.avatar) : '');
+    };
+    window.addEventListener(PROFILE_MEDIA_EVENT, handleProfileMediaUpdate);
+    return () => window.removeEventListener(PROFILE_MEDIA_EVENT, handleProfileMediaUpdate);
+  }, [resolvedSrc]);
 
   return (
     <motion.div
@@ -76,7 +93,7 @@ export default function UserAvatar({
         )}
       >
         {src ? (
-          <img src={resolveMediaUrl(src)} alt={alt} className="h-full w-full object-cover" />
+          <img src={resolvedSrc} alt={alt} className="h-full w-full object-cover" onError={() => setResolvedSrc('')} />
         ) : (
           <span>{initials}</span>
         )}
