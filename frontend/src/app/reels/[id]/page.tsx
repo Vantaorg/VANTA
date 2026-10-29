@@ -427,22 +427,8 @@ export default function ReelDetailPage({ params }: { params: { id: string } }) {
       )}
     </AnimatePresence>
 
-    {deleteConfirm && (
-      <div className="fixed inset-0 z-[90]" role="alertdialog" aria-modal="true" aria-label="Delete reel">
-        <button type="button" aria-label="Cancel delete" onClick={() => setDeleteConfirm(false)} className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
-        <div className="absolute left-1/2 top-1/2 w-[min(380px,calc(100%-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#151517] p-5 shadow-2xl">
-          <header className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">Delete this reel?</h2>
-            <button type="button" onClick={() => setDeleteConfirm(false)} className="grid h-9 w-9 place-items-center rounded-full text-[#c8c8cc]" aria-label="Close"><X size={18} /></button>
-          </header>
-          <p className="mb-5 text-sm leading-6 text-[#c8c8cc]/65">This cannot be undone. The Reel will be removed from VANTA immediately.</p>
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setDeleteConfirm(false)} disabled={deleting} className="min-h-11 rounded-lg border border-white/10 px-4 text-sm text-[#c8c8cc] transition hover:bg-white/[0.05]">Cancel</button>
-            <button type="button" onClick={() => void confirmDelete()} disabled={deleting} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a] disabled:opacity-40">{deleting ? <Loader2 size={15} className="animate-spin" /> : <><Trash2 size={15} /> Delete reel</>}</button>
-          </div>
-        </div>
-      </div>
-    )}
+    {deleteConfirm && <DeleteConfirmDialog title="Delete this Reel?" description="This cannot be undone. The Reel will be removed from VANTA immediately." confirmLabel="Delete Reel" busy={deleting} onCancel={() => { if (!deleting) setDeleteConfirm(false); }} onConfirm={() => void confirmDelete()} />}
+
   </main>;
 }
 function ReelDetailSkeleton() {
