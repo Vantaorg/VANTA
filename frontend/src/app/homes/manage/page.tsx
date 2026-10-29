@@ -145,7 +145,7 @@ export default function ManageHomesPage() {
   if (authLoading || (!user && !loading)) {
     return (
       <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
-        <header className="relative z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
+        <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 backdrop-blur-xl sm:px-5">
           <div className="flex h-full items-center justify-between gap-3">
             <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
             <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>
@@ -162,7 +162,7 @@ export default function ManageHomesPage() {
 
   return (
     <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
-      <header className="relative z-50 h-14 border-b border-white/[.08] bg-[#080808]/90 px-3 backdrop-blur-xl sm:px-5">
+      <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 backdrop-blur-xl sm:px-5">
         <div className="flex h-full items-center justify-between gap-3">
           <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
           <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>

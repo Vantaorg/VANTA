@@ -31,10 +31,9 @@ export interface PageHeaderProps {
 /**
  * Canonical VANTA page header.
  *
- * One compact, mobile-first header used across the application. Rich typographic
- * eyebrows and oversized desktop bars belong to specialized surfaces; standard
- * pages share this single consistent row (h-14 / 56px) with a subtle border,
- * consistent leading button (back or wordmark) and a `shrink-0` action slot.
+ * Discover is the sizing reference: standard page headers are exactly 56px tall.
+ * Titles and optional eyebrow labels stay on one line; no extra safe-area padding
+ * or stacked text is allowed to make this shared header taller.
  */
 export default function PageHeader({
   title,
@@ -61,10 +60,10 @@ export default function PageHeader({
   return (
     <header
       className={cn(
-        'relative flex min-h-14 w-full shrink-0 items-center gap-2',
+        'relative flex h-14 max-h-14 min-h-14 w-full shrink-0 items-center gap-2 overflow-hidden',
         bleed && '-mx-4 w-[calc(100%+2rem)]',
         sticky
-          ? 'sticky top-0 z-30 border-b border-white/[0.08] bg-[var(--header-surface)] pt-[env(safe-area-inset-top)] backdrop-blur-xl'
+          ? 'sticky top-0 z-30 border-b border-white/[0.08] bg-[var(--header-surface)] backdrop-blur-xl'
           : 'border-b border-white/[0.08]',
         className,
       )}
@@ -101,14 +100,14 @@ export default function PageHeader({
         </div>
       )}
       {(title || eyebrow) && (
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {eyebrow && (
-            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A8A8A]">
+            <span className="shrink-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8A8A8A]">
               {eyebrow}
-            </p>
+            </span>
           )}
           {title && (
-            <h1 className="truncate text-lg font-semibold text-[#F5F5F5]">{title}</h1>
+            <h1 className="min-w-0 truncate text-base font-semibold leading-none text-[#F5F5F5]">{title}</h1>
           )}
         </div>
       )}
