@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import StoryCard from '@/components/story/StoryCard';
@@ -98,7 +98,6 @@ export default function StoryTray({
     group => String(group.user.id) !== String(user?.id)
   );
 
-  const holdEmpty = !ownGroup && otherGroups.length === 0;
 
   return (
     <section
@@ -168,19 +167,6 @@ export default function StoryTray({
             })
           )}
 
-          {!loading && holdEmpty && (
-            <button
-              type="button"
-              onClick={onCreate}
-              className="flex w-[74px] shrink-0 flex-col items-center gap-1.5 outline-none"
-              aria-label="Share your first story"
-            >
-              <span className="grid h-[66px] w-[66px] place-items-center rounded-full border border-dashed border-white/[0.16] bg-white/[0.02] text-[#8a8a8a] transition hover:border-[#c9a227]/50 hover:text-[#dfbd55]">
-                <Sparkles size={22} />
-              </span>
-              <span className="text-[11px] text-[#666]">First story</span>
-            </button>
-          )}
         </div>
       )}
 
