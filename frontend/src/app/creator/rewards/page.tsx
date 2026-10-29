@@ -199,12 +199,10 @@ export default function CreatorRewardsPage() {
   }
 return (
     <div className="mx-auto w-full max-w-2xl px-4">
-      <header className="flex items-center justify-between gap-3 pt-6 pb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">Follower Rewards</h1>
-          <p className="text-sm text-[var(--text-secondary)]">Reserve coins or gifts for your followers — claims are immutable and fully ledgered.</p>
-        </div>
+      <header className="flex h-14 max-h-14 items-center justify-between gap-3 overflow-hidden border-b border-white/[0.08]">
+        <h1 className="truncate text-base font-semibold text-[var(--text-primary)]">Follower Rewards</h1>
       </header>
+      <p className="mb-4 mt-2 text-xs leading-5 text-[var(--text-secondary)]">Reserve coins or gifts for your followers — claims are immutable and fully ledgered.</p>
 
       <section className="mb-4 grid grid-cols-3 gap-2">
         <StatCard label="Available" value={coin(wallet.availableCoins)} accent />
