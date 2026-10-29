@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 import {
-  MessageCircle, Search,
+  Bell, MessageCircle, Search,
   Send, Paperclip, Check, CheckCheck,
   Loader2, Users, Hash, ArrowLeft, X, UserPlus, Camera, BellOff,
   Pin, Image as ImageIcon, FileText, Info, ChevronRight, Flag, Ban, Pencil, RefreshCw,
@@ -24,6 +24,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import { useCalls } from '@/context/CallContext';
 import { useChatUnread } from '@/context/ChatUnreadContext';
+import { useNotifications } from '@/context/NotificationContext';
 import VideoTrimModal from '@/components/video/VideoTrimModal';
 import type { VideoTrimResult } from '@/components/video/VideoTrimEditor';
 import { VoiceNotePlayer, VideoFullscreenPlayer } from '@/components/messages/ChatMediaPlayer';
@@ -223,6 +224,7 @@ export default function MessagesPage() {
   const { token, user } = useAuth();
   const { showToast } = useToast();
   const { setChatUnread } = useChatUnread();
+  const { unreadCount: notificationUnread } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1800,8 +1802,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             <div className="w-8 h-8 rounded-lg border border-white/[0.12] bg-[#161616] flex items-center justify-center">
               <MessageCircle size={16} className="text-white" />
             </div>
-            <h1 className="text-lg font-semibold text-white">CHATS</h1>
+            <h1 className="text-lg font-semibold text-white">Chats</h1>
           </div>
+          <button type="button" onClick={() => router.push('/notifications')} aria-label="Open notifications" className="relative grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/65 transition hover:bg-white/[.06] hover:text-white">
+            <Bell size={18} />
+            {notificationUnread > 0 && <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#d6a83f] px-1 text-[9px] font-bold leading-none text-black">{notificationUnread > 99 ? '99+' : notificationUnread}</span>}
+          </button>
         </div>
 
         {/* Search */}
