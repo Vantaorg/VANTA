@@ -525,6 +525,17 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Reject malformed live transaction hashes immediately. A syntactically
+    // valid hash is still not proof of payment: only the authenticated provider
+    // webhook can verify the network, asset, amount, recipient and finality.
+    if (typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
+      res.status(400).json({
+        error: 'Invalid transaction hash. Enter the complete transaction hash from the correct network explorer.',
+        code: 'INVALID_TRANSACTION_HASH',
+      });
+      return;
+    }
+
     // LIVE mode — coin crediting belongs exclusively to the trusted provider
     // webhook (POST /api/payments/webhook) after server-side verification of
     // amount, asset, destination and finality. A client-submitted transaction
