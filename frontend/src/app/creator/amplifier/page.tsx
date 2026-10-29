@@ -19,7 +19,7 @@ type ContentItem = {
 };
 
 export default function CreatorAmplifierPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
