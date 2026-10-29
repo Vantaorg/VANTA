@@ -937,22 +937,8 @@ const creator = current.group.user || {};
       )}
 
       {/* Delete story confirmation (owner only) */}
-      {deleteConfirmOpen && (
-        <>
-          <button type="button" onClick={() => { setDeleteConfirmOpen(false); resumeStory('delete'); }} aria-label="Cancel delete" className="fixed inset-0 z-[70] bg-black/65 backdrop-blur-sm" />
-          <section role="alertdialog" aria-modal="true" aria-label="Delete story" className="fixed z-[80] top-1/2 left-1/2 w-[min(400px,calc(100%-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#151517] p-5 shadow-2xl">
-            <header className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold">Delete this story?</h2>
-              <button type="button" onClick={() => { setDeleteConfirmOpen(false); resumeStory('delete'); }} className="grid h-9 w-9 place-items-center rounded-full text-[#c8c8cc]" aria-label="Close"><X size={18}/></button>
-            </header>
-            <p className="mb-5 text-sm text-[#c8c8cc]/65">This cannot be undone. The story will be removed from your Status immediately.</p>
-            <div className="flex items-center justify-end gap-2">
-              <button type="button" disabled={deleteSending} onClick={() => { setDeleteConfirmOpen(false); resumeStory('delete'); }} className="min-h-11 rounded-lg border border-white/10 px-4 text-sm text-[#c8c8cc] transition hover:bg-white/[0.05]">Cancel</button>
-              <button type="button" disabled={deleteSending} onClick={() => void confirmDeleteStory()} className="min-h-11 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a] disabled:opacity-40">{deleteSending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}Delete story</button>
-            </div>
-          </section>
-        </>
-      )}
+      {deleteConfirmOpen && <DeleteConfirmDialog title="Delete this story?" description="This cannot be undone. The story will be removed from your Status immediately." confirmLabel="Delete story" busy={deleteSending} onCancel={() => { if (!deleteSending) { setDeleteConfirmOpen(false); resumeStory('delete'); } }} onConfirm={() => void confirmDeleteStory()} />}
+
     </main>
   );
 }
