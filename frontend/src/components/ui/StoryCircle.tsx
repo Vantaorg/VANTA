@@ -44,11 +44,11 @@ export interface StoryCircleProps {
 
 const SIZES = {
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
-  sm: { outer: 'h-12 w-12', pad: 'p-[3px]', stroke: 5 },
-  compactStatus: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 5 },
-  md: { outer: 'h-[66px] w-[66px]', pad: 'p-[3px]', stroke: 6 },
-  lg: { outer: 'h-[83px] w-[83px]', pad: 'p-[3px]', stroke: 6 },
-  xl: { outer: 'h-[83px] w-[83px]', pad: 'p-[3px]', stroke: 6 },
+  sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
+  compactStatus: { outer: 'h-[55px] w-[55px]', pad: 'p-px', stroke: 3 },
+  md: { outer: 'h-[76px] w-[76px]', pad: 'p-[2px]', stroke: 5 },
+  lg: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
+  xl: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
 } as const;
 
 // Center of the SVG (viewBox 0 0 100 100).
@@ -169,10 +169,10 @@ export default function StoryCircle({
 
       {showDot && anyUnviewed && (
         <span
-          className="absolute -bottom-0.5 -right-0.5 grid h-[18px] w-[18px] place-items-center rounded-full border-2 border-[#0a0a0f] bg-emerald-500"
+          className="absolute -bottom-0.5 -right-0.5 grid h-[15px] w-[15px] place-items-center rounded-full border-2 border-[#0a0a0f] bg-emerald-500"
           aria-hidden="true"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+          <span className="h-1 w-1 rounded-full bg-white/90" />
         </span>
       )}
     </span>
