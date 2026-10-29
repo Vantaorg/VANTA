@@ -38,7 +38,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/branding/vanta-app-icon.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/branding/vanta-app-icon.svg", type: "image/svg+xml", sizes: "any" },
     ],
     apple: [
       { url: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml" },
