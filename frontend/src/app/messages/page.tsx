@@ -1919,7 +1919,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         {activeConversation && activeConv ? (
           <>
             {/* Chat Header */}
-             <header className="relative z-20 flex min-h-[68px] shrink-0 items-center justify-between border-b border-[#d6a83f]/10 bg-[#0d0d0f]/95 px-3 pb-1 pt-[max(4px,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur-xl">
+             <header className="relative z-20 flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0d0d0f]/95 px-3 backdrop-blur-xl">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={handleCloseConversation}
@@ -2055,8 +2055,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <div className={cn(
                         'chat-bubble-text w-fit max-w-full overflow-hidden text-[14px] leading-[1.45]',
                         msg.isOwn
-                           ? 'rounded-2xl rounded-br-sm bg-[#171717] text-[#f5f5f5]'
-                           : 'rounded-2xl rounded-bl-sm bg-[#101010] text-[#d4d4d8]'
+                           ? 'rounded-2xl rounded-br-sm bg-[#191919] text-[#f5f5f5]'
+                           : 'rounded-2xl rounded-bl-sm bg-[#121212] text-[#dedee2]'
                       )}>
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
                           <span className="flex items-center justify-center gap-1.5 whitespace-nowrap py-0.5 px-3 text-xs text-white/50">
@@ -2284,7 +2284,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     }}
                     disabled={recordingState !== 'idle'}
                     placeholder="Message..."
-                    className="max-h-[120px] w-full resize-none overflow-y-auto rounded-xl border border-white/[0.09] bg-[#151517] px-4 py-2.5 text-sm leading-relaxed text-white outline-none transition-all placeholder:text-white/30 focus:border-[#d6a83f]/55 focus:shadow-[0_0_0_2px_rgba(214,168,63,.06)]"
+                    className="max-h-[120px] w-full resize-none overflow-y-auto rounded-xl border border-white/[0.08] bg-[#141414] px-4 py-2.5 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-white/30 focus:border-white/25"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
                     }}
@@ -2304,7 +2304,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     animate={{ scale: 1 }}
                     type="button"
                     onClick={() => void startVoiceRecording()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/40 bg-[#d6a83f]/10 text-[#f2c75c] transition-all hover:bg-[#d6a83f]/20"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
                     aria-label="Record voice note"
                     title="Record voice note"
                   >
