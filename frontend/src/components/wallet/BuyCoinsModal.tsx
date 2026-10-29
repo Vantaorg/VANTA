@@ -179,12 +179,23 @@ export default function BuyCoinsModal({ open, onClose, onSuccess }: BuyCoinsModa
     const effectiveTxHash = isTestMode && !enteredTxHash ? `0xTEST-${orderId}-${Date.now()}` : enteredTxHash;
 
     try {
-      const result = await apiPost<any>('/api/wallets/verify-payment', {
+      // Never leave the confirmation screen spinning forever if the network
+      // request stalls. A timeout means the result is unknown, not that payment
+      // failed; the user must check the order status before attempting payment again.
+      const verificationRequest = apiPost<any>('/api/wallets/verify-payment', {
         orderId,
         txHash: effectiveTxHash,
         testConfirmation: isTestMode,
         simulateToken: isTestMode ? simulateToken : undefined,
       }, token);
+      const result = await Promise.race([
+        verificationRequest,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(
+            'Verification is taking longer than expected. Your payment status is unknown. Check your Balance and transaction history before trying again.'
+          )), 30_000);
+        }),
+      ]);
 
       if (result?.success) {
         setStep('success');
@@ -232,7 +243,11 @@ export default function BuyCoinsModal({ open, onClose, onSuccess }: BuyCoinsModa
       setError(result?.message || 'Payment could not be completed. Your coins were not charged.');
       setStep('payment');
     } catch (err: any) {
-      setError(err.message || 'Payment could not be completed. Your coins were not charged.');
+      const message = typeof err?.message === 'string' ? err.message : '';
+      const statusUnknown = message.includes('status is unknown');
+      setError(statusUnknown
+        ? message
+        : (message || 'We could not confirm the payment response. Check your Balance and transaction history before trying again.'));
       setStep('payment');
     } finally {
       setConfirming(false);
@@ -263,7 +278,7 @@ export default function BuyCoinsModal({ open, onClose, onSuccess }: BuyCoinsModa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md"
-            onClick={handleClose}
+            onClick={step === 'confirming' ? undefined : handleClose}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 30 }}
@@ -291,7 +306,7 @@ export default function BuyCoinsModal({ open, onClose, onSuccess }: BuyCoinsModa
                   </p>
                 </div>
               </div>
-              <button onClick={handleClose} className="rounded-xl p-2 text-gray-400 hover:text-white hover:bg-white/[0.05] transition" aria-label="Close">
+              <button onClick={handleClose} disabled={step === 'confirming'} className="rounded-xl p-2 text-gray-400 hover:text-white hover:bg-white/[0.05] transition disabled:cursor-not-allowed disabled:opacity-40" aria-label="Close" title={step === 'confirming' ? 'Please wait for the verification result' : 'Close'}>
                 <X size={18} />
               </button>
             </div>
