@@ -2419,43 +2419,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </motion.section>
           </motion.div>;
         })()}
-        {deleteConfirmMessage && (
-          <motion.div
-            role="presentation"
-            aria-hidden="true"
-            className="fixed inset-0 z-[95] bg-black/65 backdrop-blur-[2px]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setDeleteConfirmMessage(null)}
-            aria-label="Cancel delete"
-          />
-        )}
-        {deleteConfirmMessage && (
-          <motion.div
-            role="alertdialog"
-            aria-modal="true"
-            aria-label="Delete message"
-            initial={{ opacity: 0, scale: .97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: .97 }}
-            className="fixed inset-0 z-[96] grid place-items-center overflow-hidden"
-          >
-            <motion.section
-              initial={{ opacity: 0, y: 8, scale: .97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: .97 }}
-              className="w-[min(380px,calc(100vw-40px))] max-h-[calc(100dvh-56px-var(--safe-inset,0px))] overflow-y-auto rounded-[22px] border border-white/[0.1] bg-[#151517] p-5 shadow-2xl"
-            >
-              <header className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Delete this message for everyone?</h2><button type="button" onClick={() => setDeleteConfirmMessage(null)} className="grid h-9 w-9 place-items-center rounded-full text-[#c8c8cc]" aria-label="Close"><X size={18} /></button></header>
-              <p className="mb-5 text-sm leading-6 text-[#c8c8cc]/65">This cannot be undone. The message will be removed for everyone in this conversation.</p>
-              <div className="flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setDeleteConfirmMessage(null)} className="min-h-11 rounded-lg border border-white/10 px-4 text-sm text-[#c8c8cc] transition hover:bg-white/[0.05]">Cancel</button>
-                <button type="button" onClick={() => void confirmDeleteMessage()} className="min-h-11 rounded-lg bg-[#b4232f] px-4 text-sm font-semibold text-white transition hover:bg-[#9f1d2a]">Delete for everyone</button>
-              </div>
-            </motion.section>
-          </motion.div>
-        )}
+        {deleteConfirmMessage && <DeleteConfirmDialog title="Delete this message for everyone?" description="This cannot be undone. The message will be removed for everyone in this conversation." confirmLabel="Delete for everyone" onCancel={() => setDeleteConfirmMessage(null)} onConfirm={() => void confirmDeleteMessage()} />}
         {editEntityOpen && activeConv && activeConv.type !== 'direct' && (<>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeChatSubview(() => setEditEntityOpen(false))} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" aria-label="Close management" />
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] pointer-events-none"><motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} className="pointer-events-auto ml-auto h-[var(--chat-viewport-height,100dvh)] w-full max-w-[720px] overflow-y-auto overscroll-contain border-l border-white/[0.08] bg-[#0d0d0f] pb-[max(16px,env(safe-area-inset-bottom))] md:max-w-[540px]">
