@@ -20,6 +20,8 @@ export interface StoryTrayProps {
   onStoriesChange?: (groups: StoryGroup[]) => void;
   compact?: boolean;
   className?: string;
+  /** Scroll container used to collapse the user's own Status while browsing. */
+  scrollRef?: { current: HTMLElement | null };
 }
 
 const SKELETON = [0, 1, 2, 3, 4];
@@ -38,12 +40,14 @@ export default function StoryTray({
   onStoriesChange,
   compact = false,
   className,
+  scrollRef,
 }: StoryTrayProps) {
   const { token, user } = useAuth();
   const router = useRouter();
   const [groups, setGroups] = useState<StoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [statusCollapsed, setStatusCollapsed] = useState(false);
   const mountedRef = useRef(true);
 
   const load = useCallback(async () => {
@@ -67,6 +71,15 @@ export default function StoryTray({
       if (mountedRef.current) setLoading(false);
     }
   }, [token, onStoriesChange]);
+
+  useEffect(() => {
+    const scroller = scrollRef?.current;
+    if (!scroller) return;
+    const onScroll = () => setStatusCollapsed(scroller.scrollTop > 84);
+    onScroll();
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [scrollRef]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -123,7 +136,7 @@ export default function StoryTray({
       ) : (
         <div className={cn('flex gap-4 overflow-x-auto pb-1 scrollbar-hide', compact ? 'px-1' : 'px-3')}>
           {/* Own Status card — always present */}
-          <StoryCard
+          {!statusCollapsed && <StoryCard
             user={{
               id: user?.id || 'me',
               username: user?.username || 'you',
@@ -140,7 +153,7 @@ export default function StoryTray({
               openViewer({ id: user?.id }, opener?.id);
             }}
             compact={compact}
-          />
+          />}
 
           {loading ? (
             SKELETON.map(index => (
@@ -167,6 +180,19 @@ export default function StoryTray({
             })
           )}
 
+        </div>
+      )}
+      {statusCollapsed && !error && (
+        <div className="fixed left-3 top-[max(8px,env(safe-area-inset-top))] z-50 rounded-full bg-[#080808]/95 p-1.5 shadow-lg shadow-black/40 ring-1 ring-white/10 backdrop-blur-xl [&_[data-story-card=own]>span:last-child]:hidden">
+          <StoryCard
+            user={{ id: user?.id || 'me', username: user?.username || 'you', fullName: user?.fullName, avatar: user?.avatar || null, verified: Boolean(user?.verified) }}
+            stories={ownGroup?.stories || []}
+            hasUnviewed={Boolean(ownGroup?.hasUnviewed)}
+            isOwn
+            onCreate={onCreate}
+            onOpen={() => { const opener = ownGroup?.stories.find(s => !s.viewed) || ownGroup?.stories[0]; openViewer({ id: user?.id }, opener?.id); }}
+            compact
+          />
         </div>
       )}
 
