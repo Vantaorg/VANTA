@@ -117,7 +117,7 @@ export default function StoryTray({
       aria-label="Stories and Status"
       className={cn(
         'border-b border-white/[0.07]',
-        compact ? 'py-2' : 'px-0 py-3',
+        compact ? 'py-1.5' : 'px-0 py-2',
         className
       )}
     >
@@ -134,7 +134,7 @@ export default function StoryTray({
           </button>
         </div>
       ) : (
-        <div className={cn('flex gap-4 overflow-x-auto pb-1 scrollbar-hide', compact ? 'px-1' : 'px-3')}>
+        <div className={cn('flex gap-3 overflow-x-auto pb-1 scrollbar-hide', compact ? 'px-1' : 'px-3')}>
           {/* Own Status card — always present */}
           {!statusCollapsed && <StoryCard
             user={{
@@ -183,7 +183,7 @@ export default function StoryTray({
         </div>
       )}
       {statusCollapsed && !error && (
-        <div className="fixed left-3 top-[max(8px,env(safe-area-inset-top))] z-50 rounded-full bg-[#080808]/95 p-1.5 shadow-lg shadow-black/40 ring-1 ring-white/10 backdrop-blur-xl [&_[data-story-card=own]>span:last-child]:hidden">
+        <div className="fixed left-2 top-[max(6px,env(safe-area-inset-top))] z-50 rounded-full bg-[#080808]/95 p-0.5 shadow-md shadow-black/30 ring-1 ring-white/[0.06] backdrop-blur-xl [&_[data-story-card=own]>span:last-child]:hidden">
           <StoryCard
             user={{ id: user?.id || 'me', username: user?.username || 'you', fullName: user?.fullName, avatar: user?.avatar || null, verified: Boolean(user?.verified) }}
             stories={ownGroup?.stories || []}
