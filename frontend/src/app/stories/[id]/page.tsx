@@ -96,6 +96,8 @@ export default function StoryViewerPage({ params }: { params: { id: string } }) 
   // the server and then pops it out of the local viewer state.
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteSending, setDeleteSending] = useState(false);
+  const [deleteCommentFor, setDeleteCommentFor] = useState<StoryComment | null>(null);
+  const [deleteCommentSending, setDeleteCommentSending] = useState(false);
   // Where to resume an IMAGE story's progress after the comment/reply composer
   // pauses it — keeps the "resume from where it stopped" behavior smooth.
   const resumeOffsetRef = useRef(0);
@@ -408,11 +410,13 @@ const creator = current.group.user || {};
   };
 
   const deleteStoryComment = async (comment: StoryComment) => {
-    if (!current || !token || !comment?.id) return;
+    if (!current || !token || !comment?.id || deleteCommentSending) return;
     const storyId = current.story.id;
+    setDeleteCommentSending(true);
     try {
       const result = await apiDelete<{ deleted: boolean; commentCount: number }>(`/api/stories/${encodeURIComponent(storyId)}/comments/${encodeURIComponent(comment.id)}`, token);
       setComments(items => items.filter(item => item.id !== comment.id));
+      setDeleteCommentFor(null);
       if (typeof result?.commentCount === 'number') {
         setGroups(groups => groups.map(group => ({
           ...group,
@@ -421,6 +425,8 @@ const creator = current.group.user || {};
       }
     } catch (reason: any) {
       toast.error('Comment not deleted', reason?.message);
+    } finally {
+      setDeleteCommentSending(false);
     }
   };
 
@@ -853,7 +859,7 @@ const creator = current.group.user || {};
                       <time className="text-[11px] text-[#c8c8cc]/45">{new Date(comment.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
                     </div>
                     {(comment.user.id === user?.id || isOwner) && (
-                      <button type="button" onClick={() => void deleteStoryComment(comment)} aria-label="Delete comment" className="-mr-1 grid h-8 w-8 shrink-0 place-items-center self-center rounded-lg text-[#c8c8cc]/50 transition hover:bg-white/[0.06] hover:text-white">
+                      <button type="button" onClick={() => setDeleteCommentFor(comment)} aria-label="Delete comment" className="-mr-1 grid h-8 w-8 shrink-0 place-items-center self-center rounded-lg text-[#c8c8cc]/50 transition hover:bg-white/[0.06] hover:text-white">
                         <Trash2 size={14}/>
                       </button>
                     )}
@@ -936,6 +942,7 @@ const creator = current.group.user || {};
         </>
       )}
 
+      {deleteCommentFor && <DeleteConfirmDialog title="Delete this comment?" description="This cannot be undone. The comment will be removed permanently." confirmLabel="Delete comment" busy={deleteCommentSending} onCancel={() => { if (!deleteCommentSending) setDeleteCommentFor(null); }} onConfirm={() => void deleteStoryComment(deleteCommentFor)} />}
       {/* Delete story confirmation (owner only) */}
       {deleteConfirmOpen && <DeleteConfirmDialog title="Delete this story?" description="This cannot be undone. The story will be removed from your Status immediately." confirmLabel="Delete story" busy={deleteSending} onCancel={() => { if (!deleteSending) { setDeleteConfirmOpen(false); resumeStory('delete'); } }} onConfirm={() => void confirmDeleteStory()} />}
 
