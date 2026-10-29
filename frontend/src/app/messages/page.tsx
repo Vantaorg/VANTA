@@ -1799,7 +1799,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         !showMobileList && 'hidden md:flex'
       )}>
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
+        <div className="flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] px-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg border border-white/[0.12] bg-[#161616] flex items-center justify-center">
               <MessageCircle size={16} className="text-white" />
@@ -1827,7 +1827,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           <div className="mt-3 flex gap-1 overflow-x-auto scrollbar-hide" aria-label="Chat filters">
             {(['all','direct','group','channel','unread'] as const).map(value => <button key={value} onClick={() => setFilter(value)} className={cn('whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[10px] capitalize transition', filter === value ? 'border-[#d6a83f]/50 bg-[#d6a83f]/15 text-[#f2c75c]' : 'border-transparent bg-white/[0.04] text-white/50 hover:bg-white/[0.08]')}>{value === 'group' ? 'Groups' : value === 'channel' ? 'Channels' : value}</button>)}
           </div>
-          <p className="mt-4 text-[9px] font-semibold uppercase tracking-[.18em] text-white/30">Chat list</p>
+          
         </div>
 
         {/* Conversation List */}
@@ -1928,7 +1928,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   <ArrowLeft size={18} />
                 </button>
                 <button onClick={openConversationInfo} className="flex min-w-0 items-center gap-3 text-left" aria-label={`Open ${activeConv.name} information`}>
-                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" className="ring-2 ring-[#d6a83f]/20" />
+                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" />
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
@@ -2053,10 +2053,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </div>
                         )}
                       <div className={cn(
-                        'chat-bubble-text w-fit max-w-full overflow-hidden border text-[14px] leading-[1.45] shadow-[0_1px_3px_rgba(0,0,0,.22)]',
+                        'chat-bubble-text w-fit max-w-full overflow-hidden text-[14px] leading-[1.45]',
                         msg.isOwn
-                           ? 'rounded-[15px] rounded-br-[4px] border-white/[0.08] bg-[#050505] text-[#f5f5f5]'
-                           : 'rounded-[15px] rounded-bl-[4px] border-white/[0.08] bg-[#151517] text-[#d4d4d8]'
+                           ? 'rounded-2xl rounded-br-sm bg-[#171717] text-[#f5f5f5]'
+                           : 'rounded-2xl rounded-bl-sm bg-[#101010] text-[#d4d4d8]'
                       )}>
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
                           <span className="flex items-center justify-center gap-1.5 whitespace-nowrap py-0.5 px-3 text-xs text-white/50">
@@ -2165,7 +2165,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
 
             {/* Message Input */}
-            {canPublish ? <div className="relative z-20 shrink-0 border-t border-[#d6a83f]/10 bg-[#0d0d0f]/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_32px_rgba(0,0,0,.34)] backdrop-blur-xl">
+            {canPublish ? <div className="relative z-20 shrink-0 border-t border-white/[0.08] bg-[#080808]/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
