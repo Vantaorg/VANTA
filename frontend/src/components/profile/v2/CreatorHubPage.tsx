@@ -1,5 +1,7 @@
 'use client';
 
+import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
