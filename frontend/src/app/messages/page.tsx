@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 import {
-  Bell, MessageCircle, Search, Compass, Plus, Radio, House, Clapperboard,
+  Bell, MessageCircle, Search, Compass, Plus, Radio, House, Clapperboard, User,
   Send, Paperclip, Check, CheckCheck,
   Loader2, Users, Hash, ArrowLeft, X, UserPlus, Camera, BellOff,
   Pin, Image as ImageIcon, FileText, Info, ChevronRight, Flag, Ban, Pencil, RefreshCw,
@@ -2758,7 +2758,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             { label: 'Discover', icon: Compass, href: '/discover' },
             { label: 'Create', icon: Plus, href: '/create' },
             { label: 'Reels', icon: Clapperboard, href: '/reels' },
-            { label: 'Amplifier', icon: Radio, href: '/amplifier' },
+            { label: 'Profile', icon: User, href: '/profile' },
           ].map(({ label, icon: Icon, href }) => (
             <button key={label} type="button" onClick={() => router.push(href)} aria-label={label} className="flex min-h-14 flex-col items-center justify-center gap-1 text-white/55 transition hover:text-[#d6b34a]">
               <Icon size={20} strokeWidth={1.8} />
