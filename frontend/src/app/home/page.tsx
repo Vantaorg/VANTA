@@ -4,12 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bookmark, ChevronRight, Eye, Gift, Heart, Image as ImageIcon, Loader2,
-  MessageCircle, MoreHorizontal, Radio, RefreshCw, Share2,
+  MoreHorizontal, Radio, RefreshCw, Share2,
   Sparkles, Trash2, Users, WifiOff, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useChatUnread } from '@/context/ChatUnreadContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
 import { useToast } from '@/components/ui/Toast';
@@ -38,12 +37,6 @@ const formatCount = (value = 0) => value >= 1e6 ? `${(value / 1e6).toFixed(1)}M`
 const unwrap = (data: any): Item[] => Array.isArray(data) ? data : data?.items || data?.data || data?.streams || data?.stories || data?.gifts || [];
 const getAuthor = (item: Item) => item.author || item.user || item.creator || item.host || {};
 const mediaUrl = (item: Item) => resolveMediaUrl(item.media || item.mediaUrl || item.image || item.thumbnail || item.coverUrl || item.playbackUrl);
-
-/** Compact gold unread badge for shell header icons. */
-function HeaderBadge({ value }: { value: number }) {
-  if (!value || value <= 0) return null;
-  return <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[#050505]">{value > 99 ? '99+' : value}</span>;
-}
 
 /**
  * Normalize the `/api/stories` response into per-user groups. A user must have
@@ -85,7 +78,6 @@ export default function HomePage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { chatUnreadCount: chatUnread } = useChatUnread();
   const { openPostModal, openStoryModal } = useContentCreation();
   const [tab, setTab] = useState<FeedTab>('forYou');
   const [items, setItems] = useState<Item[]>([]);
@@ -241,7 +233,6 @@ export default function HomePage() {
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'reels') return base.filter(isVideoItem); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
   return <div className="relative left-1/2 flex h-[100dvh] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[var(--header-surface)] px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl"><div className="ml-auto flex min-w-0 items-center gap-1"><button type="button" onClick={() => router.push('/chat')} aria-label="Open chat" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><MessageCircle size={18}/>{chatUnread > 0 && <HeaderBadge value={chatUnread}/>}</button></div></header>
     <PullToRefresh onRefresh={refreshFeed}>
     <div className="w-full max-w-none px-0 pb-24 pt-3">
       <main className="min-w-0">
