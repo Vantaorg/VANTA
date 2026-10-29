@@ -885,7 +885,7 @@ function MorePanel({ reel, isOwn, save, follow, profile, report, remove, close }
   return <Dialog title="Reel options" close={close}><div className="space-y-1"><MenuButton icon={<User size={17} />} label="View creator profile" onClick={profile} /><MenuButton icon={<Bookmark size={17} />} label={reel.isSaved ? 'Remove save' : 'Save Reel'} onClick={save} />{isOwn ? <MenuButton icon={<Trash2 size={17} />} label="Delete Reel" onClick={remove} /> : <MenuButton icon={followed ? <X size={17} /> : <Check size={17} />} label={followed ? 'Unfollow creator' : 'Follow creator'} onClick={follow} />}<MenuButton icon={<Flag size={17} />} label="Report Reel" onClick={report} /></div></Dialog>;
 }
 
-function DeleteReelDialog({ reel, sending, onCancel, onConfirm }: { reel: Reel; sending: boolean; onCancel: () => void; onConfirm: () => void }) {
+function DeleteReelDialog({ sending, onCancel, onConfirm }: { reel: Reel; sending: boolean; onCancel: () => void; onConfirm: () => void }) {
   return <DeleteConfirmDialog title="Delete this Reel?" description="This cannot be undone. The Reel will be removed from VANTA immediately." confirmLabel="Delete Reel" busy={sending} onCancel={onCancel} onConfirm={onConfirm} />;
 }
 
