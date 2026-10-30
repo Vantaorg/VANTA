@@ -93,7 +93,7 @@ export const CREATE_STATUS_CHOICES: MenuChoiceCard[] = [
  */
 export default function StoryComposer({ open, onClose }: StoryComposerProps) {
   const { user, token } = useAuth();
-  const [mode, setMode] = useState<StoryComposerMode>('menu');
+  const [mode, setMode] = useState<StoryComposerMode>('media');
   const [mediaSource, setMediaSource] = useState<MediaStorySource>('gallery-mixed');
   const [usage, setUsage] = useState<StoryUsage | null>(null);
   const wasOpenRef = useRef(false);
@@ -115,7 +115,9 @@ export default function StoryComposer({ open, onClose }: StoryComposerProps) {
     }
     if (wasOpenRef.current) return;
     wasOpenRef.current = true;
-    setMode('menu');
+    // Open the device media picker on the very first frame of the Story flow.
+    // Text remains available as a direct shortcut inside the media surface.
+    setMode('media');
     setMediaSource('gallery-mixed');
     setUsage(null);
     if (token) {
@@ -214,6 +216,7 @@ return (
                 <StoryMediaEditor
                   source={mediaSource}
                   onBack={() => setMode('menu')}
+                  onText={() => setMode('text')}
                   onClose={handleClose}
                 />
               </motion.div>
