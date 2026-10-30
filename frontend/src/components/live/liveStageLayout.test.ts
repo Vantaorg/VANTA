@@ -132,6 +132,6 @@ describe('stageLayoutFor', () => {
     const layout = stageLayoutFor(5);
     // Four guests max; the equal-width grid remains readable on phones.
     expect(layout.guestAreas).toHaveLength(4);
-    expect(layout.rows.match(/minmax\(0, 1fr\)/g)).toHaveLength(3);
+    expect(layout.rows).toBe('repeat(3, minmax(0, 1fr))');
   });
 });
