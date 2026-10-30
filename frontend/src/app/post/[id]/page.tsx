@@ -200,9 +200,9 @@ useEffect(() => {
           <article className="w-full min-w-0">
             <header className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5">
               <Link
-                href={\`/profile/\${post.author.username}\`}
+                href={`/profile/${post.author.username}`}
                 className="grid shrink-0 place-items-center"
-                aria-label={\`View \${post.author.username}'s profile\`}
+                aria-label={`View ${post.author.username}'s profile`}
               >
                 <Avatar
                   src={post.author.avatar}
@@ -215,7 +215,7 @@ useEffect(() => {
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <Link
-                    href={\`/profile/\${post.author.username}\`}
+                    href={`/profile/${post.author.username}`}
                     className="truncate text-[14px] font-semibold text-white hover:underline"
                   >
                     {post.author.fullName || post.author.username}
@@ -239,7 +239,7 @@ useEffect(() => {
 
             {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
               <p className="px-4 pb-4 text-[13px] font-medium leading-6 text-[#d2ad35] sm:px-5">
-                {post.hashtags.map(tag => \`#\${tag}\`).join(' ')}
+                {post.hashtags.map(tag => `#${tag}`).join(' ')}
               </p>
             )}
 
@@ -247,7 +247,7 @@ useEffect(() => {
               <div className="relative w-full min-w-0 overflow-hidden bg-[#080808]">
                 <PostMedia
                   src={media}
-                  alt={post.author.username ? \`Post by \${post.author.username}\` : 'Post media'}
+                  alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'}
                   autoplayOnView={false}
                   preload="metadata"
                 />
@@ -347,7 +347,7 @@ useEffect(() => {
             item={{ saved: savedState }}
             isOwn={isOwn}
             close={() => setMoreOpen(false)}
-            openProfile={() => { setMoreOpen(false); router.push(\`/profile/\${post.author.username}\`); }}
+            openProfile={() => { setMoreOpen(false); router.push(`/profile/${post.author.username}`); }}
             save={() => { void toggleSave(); setMoreOpen(false); }}
             remove={() => { setMoreOpen(false); setDeleteConfirm(true); }}
           />
