@@ -1,54 +1,57 @@
-# Android Stage 3 — Hosted Runtime and Native Bridge Proof of Concept
+# Android Stage 3 — Native WebView and File Chooser Proof of Concept
 
-Status: design gate completed; implementation/build gate still pending.
+Status: architecture decision updated; native project implementation and build are pending.
 
 Branch: `feat/unified-media-picker-vanta`
 
-## Findings verified against the repository
+## Verified repository facts
 
-- The frontend is a Next.js 14 server-rendered application. It is not configured as a static export.
-- The root npm workspace owns the root `package-lock.json`; the lockfile is v3 and currently contains no `@capacitor/*` packages.
-- There is no Android project in the repository tree.
-- VANTA registers `/vanta-sw.js` from `frontend/src/lib/pushClient.ts`. It uses Web Push subscriptions and backend device registration. The service worker also handles push events, notification taps, and incoming-call actions.
-- The Next.js response headers include `X-Frame-Options: DENY` and a restrictive Permissions-Policy. These must remain intact.
-- The app uses authenticated backend APIs and realtime features; these need device-level validation in the Android WebView.
+- Frontend: Next.js 14 server-rendered app; no static export.
+- Canonical production frontend origin: `https://vanta-nu.vercel.app`, explicitly defined in backend code.
+- Root npm workspace lockfile is v3; no Capacitor dependencies are present.
+- No Android project exists in the repository.
+- `/vanta-sw.js` handles VANTA Web Push, notification taps, and incoming-call actions.
+- Next.js sets `X-Frame-Options: DENY`; do not weaken it.
+- Chat/story use HTML file inputs; story already has a multi-file editor and upload pipeline.
+- Comments have no media persistence yet.
 
-## Stage 3 architecture decision
+## Architecture decision
 
-Use a Capacitor Android shell around the first-party hosted VANTA origin only after validating the exact production origin and runtime behavior. Do not iframe VANTA. Do not package the Next.js app as a static export. Do not set a production `server.url` or broaden `allowNavigation` as a shortcut without a verified origin/bridge security design.
+Use a native Android WebView host loading `https://vanta-nu.vercel.app` as its top-level document. Do not use Capacitor `server.url` for production: the official configuration describes it as a live-reload setting and explicitly says it is not intended for production. Do not statically export the Next.js application as a shortcut.
 
-The native bridge must be exposed only to the exact trusted VANTA origin. External links should leave the app through the system browser; untrusted origins and frames must not receive native plugin access.
+For the first proof of concept, do not expose a JavaScript-to-native bridge. Android WebView's `WebChromeClient.onShowFileChooser` callback can intercept existing HTML file inputs and launch a native chooser. This preserves the current frontend upload APIs and avoids granting remotely served JavaScript a general native interface.
 
-## Service worker and bridge compatibility
+Restrict top-level in-app navigation to the exact production origin. Open external HTTPS destinations in the system browser. Reject non-HTTPS and untrusted top-level navigation. Do not add `addJavascriptInterface`. Keep `X-Frame-Options: DENY` and all existing backend auth controls unchanged.
 
-Keep VANTA's existing web service worker and browser Push API path. Capacitor's Android configuration documents `resolveServiceWorkerRequests` (introduced in Capacitor 7; default true) to route service-worker requests through the Capacitor bridge. The proof of concept must verify this behavior on the selected Capacitor version and current Android System WebView. Do not disable VANTA's service worker or silently replace web push behavior.
+If later functionality genuinely requires a JS bridge, use AndroidX WebKit `WebViewCompat.addWebMessageListener` with an exact origin allowlist, strict schema validation, and narrowly scoped methods. No wildcard origin and no raw filesystem paths.
 
-Capacitor's Android troubleshooting guide warns that service workers can interfere with plugin injection and links a legacy workaround. That workaround is not adopted blindly: the current Capacitor bridge has its own service-worker request handling, and the actual deployed combination must be tested. A successful page load alone is not proof that plugin calls work.
+## Service worker handling
 
-## Proof-of-concept gates (must pass before picker implementation)
+Do not disable or replace `/vanta-sw.js`. Verify registration, controlled reload, notification click routing, and existing browser/PWA push subscription behavior. The native shell's notification strategy is a separate decision; a successful WebView load does not prove push delivery.
 
-1. Load the authenticated, first-party VANTA origin as the Android WebView's top-level document.
-2. Verify the native bridge is available after startup and after a service-worker-controlled reload.
-3. Verify plugin calls fail closed on untrusted origins, external pages, and iframe contexts.
-4. Verify login, refresh, logout, cookie/session behavior, and authenticated API requests.
-5. Verify Socket.IO/realtime connections, deep links, and external-link routing.
-6. Verify existing web push registration and notification handling remain functional in browser/PWA contexts; document the Android-native push decision separately if Web Push is unsupported in the selected shell.
-7. Test Android permission prompts and resume/relaunch behavior on a physical device.
+## Proof-of-concept gates
 
-## Implementation sequence after gates
+1. Build and launch a minimal Android application with a WebView loading the exact VANTA production origin.
+2. Verify top-level navigation restrictions and external-browser handoff.
+3. Verify login, cookie/session persistence, refresh, logout, and authenticated backend API requests.
+4. Verify Socket.IO/realtime behavior and deep links.
+5. Verify the VANTA service worker registers and controls reloads without breaking the page.
+6. Intercept a file input with `onShowFileChooser`; verify cancellation and photo/video selection callbacks.
+7. Verify behavior on a physical Android device and more than one Android System WebView version where practical.
 
-1. Pin a Capacitor major compatible with the repository's Node engine and Android toolchain; add dependencies to the root workspace and regenerate the root lockfile with npm, never hand-edit lockfile entries.
-2. Generate and commit the Android project from the pinned CLI.
-3. Add a small native diagnostic plugin first. It should expose only a harmless capability/version check and report no secrets or file paths.
-4. Add origin-guarded native media picker APIs: Android Photo Picker/MediaStore selection, camera capture, multi-select, and safe content-URI streaming. Avoid broad storage permissions.
-5. Connect the frontend through a typed adapter with a browser/PWA fallback.
-6. Reuse the adapter in chat and status/story first, preserving the existing upload and publishing flows.
-7. Implement comment media end-to-end only after backend schema, authenticated upload, validation, moderation, persistence, and rendering are complete.
+## Implementation sequence
 
-## Security and release rules
+1. Create a minimal native Android project and a reproducible CI debug-build workflow.
+2. Add a hardened WebView host and an `onShowFileChooser` proof of concept.
+3. Add a native unified picker sheet with a camera tile and photo/video selection; return safe content URIs via the file chooser callback.
+4. Reuse the native picker automatically across existing chat, story, post, reel, profile, and Homes file inputs.
+5. Preserve the browser/PWA file-input behavior as fallback.
+6. Implement comment media separately across frontend, authenticated upload API, schema, validation, moderation, persistence, and rendering.
 
-- Never log auth tokens, raw media, or private content URIs.
-- Validate MIME type, size, ownership, and upload authorization on the backend.
-- Keep current Next.js security headers; do not weaken iframe restrictions.
-- No production deployment, Play Store release, APK, or AAB claim until CI build, automated tests, and physical-device tests pass.
-- Keep all work on `feat/unified-media-picker-vanta`; do not merge or promote automatically.
+## Release rules
+
+- Do not use Capacitor's production `server.url` configuration.
+- Do not add a general JS bridge unless a concrete feature requires it and origin isolation is verified.
+- Never log credentials, media bytes, or private content URIs.
+- Do not request broad storage access when system Photo Picker is sufficient.
+- No production deployment, Play Store release, or signed AAB claim until CI, automated tests, and physical-device tests pass.
