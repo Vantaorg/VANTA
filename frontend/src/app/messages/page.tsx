@@ -436,7 +436,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const syncVisualViewport = () => {
       const height = viewport?.height ?? window.innerHeight;
       const offsetTop = viewport?.offsetTop ?? 0;
-      root.style.setProperty('--chat-viewport-height', `${height}px`);
+      // Reserve the fixed 64px mobile navigation (plus the device safe area)
+      // inside Chat's own viewport. Without this, the composer sits underneath
+      // the global z-40 navigation bar on short screens.
+      root.style.setProperty('--chat-viewport-height', `calc(${height}px - 4rem - env(safe-area-inset-bottom))`);
       root.style.setProperty('--chat-viewport-offset', `${offsetTop}px`);
 
       if (document.activeElement === messageInputRef.current) {
@@ -1791,10 +1794,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen relative flex h-[var(--chat-viewport-height,100dvh)] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]',
-        showMobileList
-          ? 'h-[100dvh]'
-          : 'top-[var(--chat-viewport-offset,0px)] h-[var(--chat-viewport-height,100dvh)]'
+        'chat-screen relative flex h-[var(--chat-viewport-height,calc(100dvh-4rem-env(safe-area-inset-bottom)))] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]',
+        !showMobileList && 'top-[var(--chat-viewport-offset,0px)]'
       )}
     >
       {/* Conversation List */}
@@ -1806,7 +1807,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         <div className="flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] px-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg border border-white/[0.12] bg-[#161616] flex items-center justify-center">
-              <MessageCircle size={16} className="text-white" />
+              <MessageCircle size={22} strokeWidth={2.1} className="text-white" />
             </div>
             <h1 className="text-lg font-semibold text-white">Chats</h1>
           </div>
@@ -1855,7 +1856,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 )}
               >
                 <div className="relative shrink-0">
-                  <Avatar src={conv.avatar} alt={conv.name} size="md" />
+                  <Avatar src={conv.avatar} alt={conv.name} size="md" wrapperClassName="!h-11 !w-11" className="!h-11 !w-11" />
                   {conv.type === 'direct' && conv.online && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0a0a0f]" />
                   )}
@@ -1932,7 +1933,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   <ArrowLeft size={18} />
                 </button>
                 <button onClick={openConversationInfo} className="flex min-w-0 items-center gap-3 text-left" aria-label={`Open ${activeConv.name} information`}>
-                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" />
+                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" wrapperClassName="!h-9 !w-9" className="!h-9 !w-9" />
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
