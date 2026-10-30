@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Hash, Loader2, MessageCircle, Share2, Users } from 'lucide-react';
+import { Hash, Loader2, MessageCircle, Share2, Users } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
@@ -83,6 +84,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
   if (loading) {
     return (
       <main className="min-h-[100dvh] w-full bg-[#050505] text-white">
+        <PageHeader title="Community" back={() => router.push('/discover')} sticky className="px-4" />
         <div className="grid min-h-[70dvh] place-items-center"><Loader2 className="mx-auto animate-spin text-[#666]" size={34} /></div>
       </main>
     );
@@ -91,8 +93,8 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
   if (error || !community) {
     return (
       <main className="min-h-[100dvh] w-full bg-[#050505] text-[var(--text-primary)]">
+        <PageHeader title="Community" back={() => router.push('/discover')} sticky className="px-4" />
         <div className="mx-auto w-full min-w-0 max-w-3xl px-4">
-          <header className="sticky top-0 z-30 -mx-4 flex h-14 min-h-14 items-center gap-3 border-b border-white/[.08] bg-[#080808]/95 px-4 backdrop-blur-xl"><Link href="/discover" aria-label="Back to Discover" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/60 hover:bg-white/[.05] hover:text-white"><ArrowLeft size={19} /></Link><span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">Discover community</span></header>
           <div className="rounded-lg border border-white/[.08] bg-[#101010] px-5 py-14 text-center">
             <Users className="mx-auto text-[#666]" size={28} />
             <h1 className="mt-4 text-base font-semibold">Community not found</h1>
@@ -108,11 +110,11 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
   const handle = channel && community.name ? `@${community.name.toLowerCase().replace(/\s+/g, '-')}` : '';
   const owner = community.owner;
   return (
-    <main className="min-h-[100dvh] w-full bg-[var(--background)] px-4 py-5 text-[var(--text-primary)]">
-      <div className="mx-auto w-full min-w-0 max-w-3xl">
-        <Link href="/discover" className="mb-5 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"><ArrowLeft size={17} />Back to Discover</Link>
+    <main className="min-h-[100dvh] w-full bg-[var(--background)] text-[var(--text-primary)]">
+      <PageHeader title={channel ? "Channel" : "Group"} back={() => router.push('/discover')} sticky className="px-4" />
+      <div className="mx-auto w-full min-w-0 max-w-3xl px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
         <section className="overflow-hidden">
-          <div className="border-b border-white/[.06] px-4 py-6 text-left">
+          <div className="px-0 py-5 text-left">
             <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-white/[.05] text-[#8a8a8a]">
               {community.avatar ? <img src={resolveMediaUrl(community.avatar)} alt="" loading="lazy" className="h-full w-full object-cover" /> : channel ? <Hash size={28} /> : <Users size={28} />}
             </span>
