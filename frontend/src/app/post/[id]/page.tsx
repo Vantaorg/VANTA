@@ -188,66 +188,71 @@ useEffect(() => {
       }
     />
 
-    <div className="mx-auto w-full min-w-0 px-3 pb-[max(24px,env(safe-area-inset-bottom))] sm:px-5">
-      {/* Original post — flows straight from the header, no card wrapper. */}
-      <article className="w-full min-w-0 pt-3">
-        {/* Author identity */}
-        <header className="flex w-full min-w-0 items-start gap-3">
+    <div className="w-full min-w-0 pb-[max(24px,env(safe-area-inset-bottom))]">
+      <article className="w-full min-w-0 px-4 pb-4 pt-4 sm:px-6">
+        <header className="flex min-w-0 items-center gap-3">
           <Link href={`/profile/${post.author.username}`} className="grid shrink-0 place-items-center" aria-label={`View ${post.author.username}'s profile`}>
-            <Avatar src={post.author.avatar} alt={post.author.username} size="md" verified={Boolean(post.author.verified && post.author.verificationType)} verificationType={post.author.verificationType} />
+            <Avatar src={post.author.avatar} alt={post.author.username} size="lg" verified={Boolean(post.author.verified && post.author.verificationType)} verificationType={post.author.verificationType} />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
-              <Link href={`/profile/${post.author.username}`} className="min-w-0 truncate text-[15px] font-semibold text-[#f5f5f5] hover:underline">
+              <Link href={`/profile/${post.author.username}`} className="truncate text-[15px] font-semibold text-[#f5f5f5] hover:underline">
                 {post.author.fullName || post.author.username}
               </Link>
               {post.author.verified && post.author.verificationType && <VerificationBadge verified type={post.author.verificationType} size="sm" />}
             </div>
-            <p className="truncate text-[13px] text-[#8a8a8a]">@{post.author.username}</p>
+            <p className="truncate text-[13px] text-[#929292]">@{post.author.username}</p>
           </div>
-          <span className="shrink-0 pt-0.5 text-[13px] text-[#8a8a8a]">{timeAgo(post.createdAt)}</span>
+          <span className="shrink-0 text-xs text-[#858585]">{timeAgo(post.createdAt)}</span>
         </header>
 
-        {/* Post body */}
-        {post.content && <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-6 text-[#e8e8e8]">{renderTextWithLinks(post.content, 'linkify')}</p>}
+        {post.content && (
+          <div className="mt-4 whitespace-pre-wrap break-words text-[16px] leading-[1.65] text-[#ededed]">
+            {renderTextWithLinks(post.content, 'linkify')}
+          </div>
+        )}
         {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
-          <p className="mt-1.5 text-[13px] font-medium text-[#c9a227]">{post.hashtags.map(tag => `#${tag}`).join(' ')}</p>
+          <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[13px] font-medium text-[#d6a83f]">
+            {post.hashtags.map(tag => <span key={tag}>#{tag}</span>)}
+          </p>
         )}
 
-        {/* Media — full content width, same PostMedia renderer as the feed */}
-        {media && <div className="mt-3 w-full min-w-0 overflow-hidden"><PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" /></div>}
+        {media && (
+          <div className="mt-4 w-full min-w-0 overflow-hidden rounded-xl bg-[#111113]">
+            <PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" />
+          </div>
+        )}
 
-        {/* Engagement toolbar — lightweight, evenly distributed icon actions
-            with the VANTA gold accent on active states. */}
-        <footer className="mt-2 flex w-full min-w-0 items-center justify-between gap-1 pb-2">
-          <button onClick={() => void toggleLike()} className={toolClass(liked ? '!text-[#c9a227]' : 'text-[#8a8a8a]')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
-            <Heart size={20} className={liked ? 'fill-current' : ''} />
+        <footer className="mt-4 flex min-h-12 w-full items-center justify-between gap-2 border-y border-white/[0.07] py-1">
+          <button onClick={() => void toggleLike()} className={toolClass(liked ? '!text-[#d6a83f]' : 'text-[#a0a0a0]')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
+            <Heart size={21} className={liked ? 'fill-current' : ''} />
             <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
           </button>
           <button onClick={openComments} className={toolClass()} aria-label="Go to comments">
-            <MessageCircle size={20} />
+            <MessageCircle size={21} />
             <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
           </button>
           <button onClick={() => setShareOpen(true)} className={toolClass()} aria-label="Share post">
-            <Share2 size={20} />
+            <Share2 size={21} />
             <span className="text-xs tabular-nums">{formatCount(shareCount)}</span>
           </button>
-          <button onClick={() => void toggleSave()} className={toolClass(savedState ? 'text-[#f2c75c]' : '')} aria-label={savedState ? 'Remove from saved' : 'Save post'} aria-pressed={savedState}>
-            <Bookmark size={20} className={savedState ? 'fill-current' : ''} />
+          <button onClick={() => void toggleSave()} className={toolClass(savedState ? '!text-[#d6a83f]' : '')} aria-label={savedState ? 'Remove from saved' : 'Save post'} aria-pressed={savedState}>
+            <Bookmark size={21} className={savedState ? 'fill-current' : ''} />
             <span className="sr-only">{savedState ? 'Saved' : 'Save'}</span>
           </button>
         </footer>
 
-        {/* View count + post metadata — compact, visually secondary. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-2.5 text-xs text-[#8a8a8a]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-[11px] text-[#777]">
           {typeof post.views === 'number' && <span className="inline-flex items-center gap-1"><Eye size={13} /><span className="tabular-nums">{formatCount(post.views)} views</span></span>}
-          <span className="tabular-nums">{new Date(post.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+          <span>{new Date(post.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
         </div>
       </article>
 
-      {/* Comments flow naturally beneath the post — one continuous content
-          experience, no nested card. */}
-      <div ref={conversationRef} className="w-full min-w-0 scroll-mt-16 pt-1">
+      <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-14 border-t border-white/[0.07] px-4 pb-8 pt-4 sm:px-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#f0f0f0]">Comments</h2>
+          <span className="text-xs tabular-nums text-[#888]">{formatCount(commentCount)}</span>
+        </div>
         {token ? (
           <CommentPanel
             kind="post"
@@ -261,13 +266,13 @@ useEffect(() => {
             onCountChange={count => setPost(current => current ? { ...current, commentsCount: count, comments: count } : current)}
           />
         ) : (
-          <div className="px-1 py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={20} className="text-white/25" /></div>
-            <p className="mt-3 text-sm font-medium text-white/60">Sign in to join the conversation.</p>
-            <button type="button" onClick={() => router.push('/login')} className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#f5f5f5] px-5 text-sm font-semibold text-black transition hover:bg-white">Sign in</button>
+          <div className="py-12 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={20} className="text-white/30" /></div>
+            <p className="mt-3 text-sm font-medium text-white/65">Sign in to join the conversation.</p>
+            <button type="button" onClick={() => router.push('/login')} className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#d6a83f] px-5 text-sm font-semibold text-black transition hover:bg-[#f2c75c]">Sign in</button>
           </div>
         )}
-      </div>
+      </section>
     </div>
 <AnimatePresence>
       {moreOpen && post && (
