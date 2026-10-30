@@ -184,7 +184,7 @@ useEffect(() => {
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky
         bleed
-        className="h-14 min-h-14 px-4"
+        className="h-14 min-h-14 bg-[#050505]/95 px-4"
         actions={
           <button
             type="button"
@@ -306,7 +306,7 @@ useEffect(() => {
           </div>
         </article>
 
-        <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-16 pt-2">
+        <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-16 pt-0">
           {token ? (
             <CommentPanel
               kind="post"
@@ -368,7 +368,7 @@ const timeAgo = (value?: string) => {
 
 function PostDetailSkeleton() {
   return (
-    <div className="mx-auto w-full min-w-0 px-3 sm:px-5">
+    <div className="mx-auto w-full min-w-0 px-0 sm:px-0">
       <div className="flex items-start gap-3 pt-4">
         <Skeleton variant="circular" width={44} height={44} />
         <div className="flex-1 space-y-2 pt-1">
