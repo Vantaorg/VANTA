@@ -2722,8 +2722,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           {[
             { label: 'Home', icon: House, href: '/home' },
             { label: 'Discover', icon: Compass, href: '/discover' },
-            { label: 'Create', icon: Plus, href: '/create' },
             { label: 'Reels', icon: Clapperboard, href: '/reels' },
+            { label: 'Chat', icon: MessageCircle, href: '/chat' },
             { label: 'Profile', icon: User, href: '/profile' },
           ].map(({ label, icon: Icon, href }) => (
             <button key={label} type="button" onClick={() => router.push(href)} aria-label={label} className="flex min-h-14 flex-col items-center justify-center gap-1 text-white/55 transition hover:text-[#d6b34a]">
