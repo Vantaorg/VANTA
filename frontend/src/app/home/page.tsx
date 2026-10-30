@@ -119,7 +119,7 @@ export default function HomePage() {
       // Only the mixed home feed is seed-rotated; the Following tab is chronological.
       const seedToUse = nextSeed ?? feedSeed;
       if (tab !== 'following') query.set('seed', seedToUse);
-      const endpoint = tab === 'following' ? '/api/feed/following' : '/api/feed/home';
+      const endpoint = tab === 'following' ? '/api/feed' : '/api/feed/home';
       const data = await apiGet<any>(`${endpoint}?${query}`, token, { skipCache: reset });
       const next = unwrap(data);
       setItems(previous => reset ? next : [...previous, ...next.filter(item => !previous.some(existing => existing.id === item.id))]);
