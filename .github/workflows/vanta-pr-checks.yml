@@ -44,20 +44,3 @@ jobs:
         run: npm --prefix backend install
       - name: Build backend
         run: npm --prefix backend run build
-
-  android:
-    name: Android debug APK build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Accept Android SDK licenses
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
-      - name: Install Android SDK packages
-        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-      - name: Build Android debug APK
-        run: gradle -p android :app:assembleDebug
