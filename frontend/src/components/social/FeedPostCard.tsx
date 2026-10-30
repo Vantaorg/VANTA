@@ -104,8 +104,8 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
     router.push(detailPathFor(item));
   };
 
-  return <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .24 }} onClick={openDetail} className="flex flex-col pt-2 pb-0.5 cursor-pointer">
-    <header className="grid grid-cols-[40px_minmax(0,1fr)] items-start gap-2.5">
+  return <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .24 }} onClick={openDetail} className="flex min-w-0 flex-col pt-2 pb-0.5 cursor-pointer">
+    <header className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-start gap-2.5">
       <button
         type="button"
         onClick={() => router.push(profilePath)}
@@ -133,7 +133,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         {/* Media sits INSIDE the content column so it aligns with the caption,
             matching text posts exactly. No full-bleed, no negative margins. */}
         {attachments.length > 0 && (
-          <div className="mt-0.5 overflow-hidden rounded-lg border border-white/[.07] bg-[#080808]">
+          <div className="mt-0.5 w-full min-w-0 overflow-hidden rounded-lg border border-white/[.07] bg-[#080808]">
             {attachments.length > 1 ? (
               <PostMediaCarousel
                 attachments={attachments}
