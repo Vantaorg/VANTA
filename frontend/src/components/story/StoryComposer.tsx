@@ -187,7 +187,7 @@ return (
                 exit={{ opacity: 0, y: 24 }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               >
-                <StoryComposerTextStory onBack={() => setMode('menu')} onClose={handleClose} />
+                <StoryComposerTextStory onBack={() => setMode('media')} onClose={handleClose} />
               </motion.div>
             )}
 
@@ -215,7 +215,7 @@ return (
               >
                 <StoryMediaEditor
                   source={mediaSource}
-                  onBack={() => setMode('menu')}
+                  onBack={handleClose}
                   onText={() => setMode('text')}
                   onClose={handleClose}
                 />
