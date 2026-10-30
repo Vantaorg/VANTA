@@ -3,7 +3,6 @@
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -24,7 +23,6 @@ import {
   MoreHorizontal,
   Pause,
   Play,
-  Plus,
   RefreshCw,
   Send,
   Share2,
@@ -38,7 +36,6 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { useContentPrefs } from '@/lib/useContentPrefs';
 import PullToRefresh from '@/components/ui/PullToRefresh';
-import { useContentCreation } from '@/components/create/ContentCreationContext';
 import { useToast } from '@/components/ui/Toast';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
@@ -547,14 +544,6 @@ export default function ReelsPage() {
       setPending(items => ({ ...items, [key]: false }));
     }
   };
-
-  const nav = [
-    { href: '/home', label: 'Home', icon: Home },
-    { href: '/discover', label: 'Discover', icon: Compass },
-    { href: '', label: 'Create', icon: Plus, create: true },
-    { href: '/chat', label: 'Chat', icon: MessageCircle },
-    { href: '/profile', label: 'Profile', icon: User },
-  ];
 
   if (loading) return <State title="Loading Reels" copy="Preparing your next story." loading />;
   if (loadError) return <State title="Reels need a refresh" copy="We couldn't bring in the latest videos." action="Try again" onAction={() => void load()} />;
