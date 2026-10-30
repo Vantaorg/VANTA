@@ -513,8 +513,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 const Icon = item.icon;
                 const active = item.href === '/chat' ? isChatPage : pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 return (
-                  <Link key={item.href} href={item.href} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? '!text-[#c9a227]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
-                    <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} className={active ? '!text-[#c9a227]' : undefined} />
+                  <Link key={item.href} href={item.href} style={{ color: active ? '#c9a227' : undefined }} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? '!text-[#c9a227]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
+                    <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
                     <span>{item.label}</span>
                   </Link>
                 );
