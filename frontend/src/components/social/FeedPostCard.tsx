@@ -48,6 +48,8 @@ type FeedPostCardProps = {
   onGift: (_item: Item) => void;
   onFollow: (_item: Item) => void;
   onMore: (_item: Item) => void;
+  /** Shorter caption preview for the Home feed only. */
+  compactCaption?: boolean;
 };
 
 const formatCount = (value = 0) => value >= 1e6 ? `${(value / 1e6).toFixed(1)}M` : value >= 1e3 ? `${(value / 1e3).toFixed(1)}K` : String(value);
@@ -80,7 +82,7 @@ const postAttachments = (item: Item): PostAttachment[] => {
   const single = mediaUrl(item);
   return single ? [{ url: single }] : [];
 };
-export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore }: FeedPostCardProps) {
+export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, compactCaption = false }: FeedPostCardProps) {
   const router = useRouter();
   const { prefs: contentPrefs, hydrated: contentPrefsHydrated } = useContentPrefs();
   // Feed video autoplay follows the persisted Video Autoplay preference.
@@ -94,6 +96,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
+  const displayedCaption = compactCaption && typeof caption === 'string' && caption.length > 120 ? `${caption.slice(0, Math.ceil(caption.length * 0.65)).trimEnd()}…` : caption;
 
   // Tapping anywhere on the card (except an interactive control) opens the
   // canonical post/reel detail page — the same single detail route the comment
@@ -105,13 +108,13 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   };
 
   return <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .24 }} onClick={openDetail} className="flex min-w-0 flex-col pt-2 pb-0.5 cursor-pointer">
-    <header className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-start gap-2.5">
+    <header className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)] items-start gap-2.5">
       <button
         type="button"
         onClick={() => router.push(profilePath)}
         aria-label={`Open ${creator.username || 'creator'} profile`}
-        className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/[.05]"
-      ><Avatar src={creator.avatar} alt={creator.username || 'Creator'} size="md" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} /></button>
+        className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white/[.05]"
+      ><Avatar src={creator.avatar} alt={creator.username || 'Creator'} size="md" wrapperClassName="!h-11 !w-11" className="!h-11 !w-11" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} /></button>
       <div className="min-w-0 flex flex-col gap-1">
         <div className="flex min-w-0 items-center justify-between gap-x-1.5">
           <button
@@ -128,7 +131,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
           <button type="button" onClick={() => onMore(item)} aria-label="More post options" className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-[#666] transition hover:bg-white/[.05] hover:text-white"><MoreHorizontal size={17}/></button>
         </div>
         {item.location && <p className="truncate text-[10px] text-[#666]">{item.location}</p>}
-        {caption && <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-[#dedede]">{renderTextWithLinks(caption, 'linkify')}</p>}
+        {displayedCaption && <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-[#dedede]">{renderTextWithLinks(displayedCaption, 'linkify')}</p>}
         {item.hashtags && <p className="text-[11px] text-[#c9a227]">{Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => `#${tag}`).join(' ') : item.hashtags}</p>}
         {/* Media sits INSIDE the content column so it aligns with the caption,
             matching text posts exactly. No full-bleed, no negative margins. */}
