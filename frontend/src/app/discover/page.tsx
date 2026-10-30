@@ -56,8 +56,6 @@ export default function DiscoverPage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { unreadCount: notificationUnread } = useNotifications();
-  const { chatUnreadCount: chatUnread } = useChatUnread();
   const sentinel = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const pageScrollRef = useRef<HTMLDivElement>(null);
@@ -214,7 +212,7 @@ export default function DiscoverPage() {
   const selectTopic = (topic: string) => { setQuery(topic); setSearchFilter('all'); searchRef.current?.focus(); scrollPageTop(pageScrollRef.current); };
 
   return <div className="relative left-1/2 flex h-[100dvh] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[#050505] text-[#f5f5f5]">
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[#080808]/90 px-4 backdrop-blur-xl"><button type="button" onClick={openAppMenu} aria-label="Open menu" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Menu size={20}/></button><div className="ml-auto flex min-w-0 items-center gap-1"><button type="button" onClick={() => { searchRef.current?.focus(); scrollPageTop(pageScrollRef.current); }} aria-label="Search VANTA" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Search size={18}/></button><button type="button" onClick={() => router.push('/notifications')} aria-label="Open notifications" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Bell size={18}/>{notificationUnread > 0 && <Badge value={notificationUnread}/>}</button><button type="button" onClick={() => router.push('/chat')} aria-label="Open chat" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><MessageCircle size={18}/>{chatUnread > 0 && <Badge value={chatUnread}/>}</button><button type="button" onClick={() => router.push('/profile')} aria-label="Open your profile" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"><Avatar src={user?.avatar} alt="Your profile" size="sm" /></button></div></header>
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[#080808]/90 px-4 backdrop-blur-xl"><button type="button" onClick={openAppMenu} aria-label="Open menu" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Menu size={20}/></button><div className="ml-auto flex min-w-0 items-center gap-1"><button type="button" onClick={() => { searchRef.current?.focus(); scrollPageTop(pageScrollRef.current); }} aria-label="Search VANTA" className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Search size={18}/></button></div></header>
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshDiscover}>
     <div className="w-full min-w-0 max-w-none space-y-5 px-0 pb-24 pt-3">
       <main className="mx-auto w-full max-w-6xl min-w-0">
