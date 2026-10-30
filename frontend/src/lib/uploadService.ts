@@ -13,8 +13,8 @@ export const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
 export const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 export const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB
 
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'];
+export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'];
 export const ALLOWED_DOCUMENT_TYPES = [
   'application/pdf',
   'application/msword',
@@ -65,6 +65,20 @@ export interface ValidationOptions {
   maxSize: number;
   allowedTypes: string[];
   fieldName: string;
+}
+
+export function normalizeUploadFile(file: File): File {
+  const extension = (file.name.split('.').pop() || '').toLowerCase();
+  const types: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+    gif: 'image/gif', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff',
+    tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/x-m4v',
+  };
+  const expected = types[extension];
+  const current = String(file.type || '').toLowerCase().split(';')[0].trim();
+  if (!expected || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES].includes(current)) return file;
+  return new File([file], file.name, { type: expected, lastModified: file.lastModified });
 }
 
 export function validateFile(file: File, options: ValidationOptions): string | null {
@@ -212,6 +226,10 @@ const IMAGE_EXTENSION_BY_TYPE: Record<string, string> = {
   'image/webp': 'webp',
   'image/gif': 'gif',
   'image/avif': 'avif',
+  'image/bmp': 'bmp',
+  'image/tiff': 'tiff',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
 };
 
 function createCompressedImageFile(blob: Blob, prefix: string, source: File): File {
@@ -299,6 +317,7 @@ export async function uploadAvatar(
   token: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadResult> {
+  file = normalizeUploadFile(file);
   const validationError = validateFile(file, {
     maxSize: MAX_AVATAR_SIZE,
     allowedTypes: ALLOWED_IMAGE_TYPES,
@@ -346,6 +365,7 @@ export async function uploadBanner(
   token: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadResult> {
+  file = normalizeUploadFile(file);
   const validationError = validateFile(file, {
     maxSize: MAX_BANNER_SIZE,
     allowedTypes: ALLOWED_IMAGE_TYPES,
@@ -399,6 +419,7 @@ export async function uploadMedia(
   } = {}
 ): Promise<UploadResult> {
   const { fieldName = 'file', path = '/api/upload', category = 'generic' } = options;
+  file = normalizeUploadFile(file);
 
   // Validate based on type
   const isImage = file.type.startsWith('image/');
@@ -496,6 +517,7 @@ export async function uploadThumbnail(
   streamId?: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadResult> {
+  file = normalizeUploadFile(file);
   const validationError = validateFile(file, {
     maxSize: MAX_THUMBNAIL_SIZE,
     allowedTypes: ALLOWED_IMAGE_TYPES,
@@ -561,6 +583,7 @@ export async function uploadThumbnail(
 
 // Validate file before upload (sync check for immediate feedback)
 export function validateUploadFile(file: File, type: 'avatar' | 'banner'): string | null {
+  file = normalizeUploadFile(file);
   const maxSize = type === 'avatar' ? MAX_AVATAR_SIZE : MAX_BANNER_SIZE;
   const fieldName = type === 'avatar' ? 'Avatar' : 'Banner';
   return validateFile(file, { maxSize, allowedTypes: ALLOWED_IMAGE_TYPES, fieldName });

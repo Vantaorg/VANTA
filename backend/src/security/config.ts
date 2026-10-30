@@ -106,8 +106,8 @@ export const config = {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),  // 10MB
     maxImageSize: parseInt(process.env.MAX_IMAGE_SIZE || '5242880', 10),  // 5MB
     maxVideoSize: parseInt(process.env.MAX_VIDEO_SIZE || '104857600', 10), // 100MB
-    allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
-    allowedVideoTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
+    allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'],
+    allowedVideoTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'],
     allowedDocumentTypes: ['application/pdf', 'text/plain'],
     blockedExtensions: [
       '.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.js', '.vbs',

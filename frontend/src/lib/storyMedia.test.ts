@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DAILY_STATUS_LIMIT_FRONTEND,
   MAX_STATUS_MEDIA_FILES,
+  normalizeStoryMediaFile,
   storyMediaCapacity,
   storyMediaKindOf,
   toUserFacingStoryError,
@@ -29,6 +30,17 @@ describe('storyMedia multi-file selection rules', () => {
     expect(storyMediaKindOf({ name: 'clip.mp4', type: 'application/octet-stream' })).toBe('video');
     expect(storyMediaKindOf({ name: 'notes.txt', type: 'text/plain' })).toBeNull();
     expect(storyMediaKindOf({ name: 'audio.mp3', type: 'audio/mpeg' })).toBeNull();
+  });
+
+  it('normalizes common Android image/video MIME fallbacks safely', () => {
+    const heic = normalizeStoryMediaFile(new File(['x'], 'camera.heic', { type: 'application/octet-stream' }));
+    const mov = normalizeStoryMediaFile(new File(['x'], 'camera.mov', { type: '' }));
+    const tiff = normalizeStoryMediaFile(new File(['x'], 'scan.tiff', { type: 'application/octet-stream' }));
+    expect(heic.type).toBe('image/heic');
+    expect(mov.type).toBe('video/quicktime');
+    expect(tiff.type).toBe('image/tiff');
+    expect(storyMediaKindOf(heic)).toBe('image');
+    expect(storyMediaKindOf(mov)).toBe('video');
   });
 
   it('accepts valid images and videos', () => {

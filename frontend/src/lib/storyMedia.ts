@@ -19,21 +19,36 @@ export const MAX_STATUS_MEDIA_FILES = 7;
 /** Matches the backend daily Status quota (7 PUBLISHED rows per day). */
 export const DAILY_STATUS_LIMIT_FRONTEND = 7;
 
-export const STORY_ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-export const STORY_ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+export const STORY_ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'];
+export const STORY_ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'];
 export const STORY_MAX_IMAGE_BYTES = 15 * 1024 * 1024; // matches backend UPLOAD_LIMITS.IMAGE
 export const STORY_MAX_VIDEO_BYTES = 100 * 1024 * 1024; // matches backend UPLOAD_LIMITS.VIDEO
 
 export type StoryMediaKind = 'image' | 'video';
+/** Normalize Android/document-provider generic MIME values from a known safe extension. */
+export function normalizeStoryMediaFile(file: File): File {
+  const extension = (file.name.split('.').pop() || '').toLowerCase();
+  const types: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+    gif: 'image/gif', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff',
+    tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/x-m4v',
+  };
+  const expected = types[extension];
+  const current = String(file.type || '').toLowerCase().split(';')[0].trim();
+  if (!expected || [...STORY_ACCEPTED_IMAGE_TYPES, ...STORY_ACCEPTED_VIDEO_TYPES].includes(current)) return file;
+  return new File([file], file.name, { type: expected, lastModified: file.lastModified });
+}
+
 
 /** Return the media kind for a file, or null when the file type is unsupported. */
 export function storyMediaKindOf(file: Pick<File, 'name' | 'type'>): StoryMediaKind | null {
   const mime = String(file.type || '').toLowerCase().split(';')[0].trim();
   const extension = (file.name.split('.').pop() || '').toLowerCase();
-  if (STORY_ACCEPTED_IMAGE_TYPES.includes(mime) || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(extension)) {
+  if (STORY_ACCEPTED_IMAGE_TYPES.includes(mime) || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'tif', 'tiff', 'heic', 'heif'].includes(extension)) {
     return 'image';
   }
-  if (STORY_ACCEPTED_VIDEO_TYPES.includes(mime) || ['mp4', 'webm', 'mov', 'quicktime'].includes(extension)) {
+  if (STORY_ACCEPTED_VIDEO_TYPES.includes(mime) || ['mp4', 'webm', 'mov', 'm4v'].includes(extension)) {
     return 'video';
   }
   return null;
@@ -48,7 +63,7 @@ export function validateStoryMediaFile(file: File | null | undefined): string | 
   if (!file) return 'No file was selected.';
   const kind = storyMediaKindOf(file);
   if (!kind) {
-    return 'Unsupported file. Choose a photo (JPG, PNG, WebP, GIF, AVIF) or a short video (MP4, WebM, MOV).';
+    return 'Unsupported file. Choose a photo (JPG, PNG, WebP, GIF, AVIF, BMP, TIFF, HEIC) or a short video (MP4, WebM, MOV, M4V).';
   }
   if (kind === 'image' && file.size > STORY_MAX_IMAGE_BYTES) {
     return 'This image is larger than the 15MB limit. Please choose a smaller photo.';

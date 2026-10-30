@@ -16,7 +16,7 @@
 
 export const VIDEO_MAX_DURATION_SECONDS = 600; // matches backend MAX_VIDEO_DURATION_SECONDS
 export const VIDEO_MAX_SIZE_BYTES = 100 * 1024 * 1024; // matches backend UPLOAD_LIMITS.VIDEO
-export const ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
+export const ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v']);
 export const VIDEO_MIN_GAP_SECONDS = 0.5;
 
 /** Format seconds as mm:ss (or h:mm:ss when ≥ 1 hour). */
@@ -81,9 +81,9 @@ export function validateVideoFile(
   const allowed = options.allowedTypes ?? ALLOWED_VIDEO_TYPES;
   const extension = (file.name.split('.').pop() || '').toLowerCase();
   const knownMime = allowed.has(file.type);
-  const knownExtension = extension === 'mp4' || extension === 'webm';
+  const knownExtension = ['mp4', 'webm', 'mov', 'm4v'].includes(extension);
   if (!knownMime && !knownExtension) {
-    return 'Unsupported file type. Please choose an MP4 or WebM video.';
+    return 'Unsupported video type. Choose an MP4, WebM, MOV or M4V file.';
   }
   if (file.size > maxSize) {
     return `This video is larger than the ${maxSize / (1024 * 1024)}MB limit. Please choose a smaller file.`;
@@ -131,7 +131,7 @@ export function normalizeVideoFileForUpload(file: File): File {
   }
 
   const extension = (file.name.split('.').pop() || '').toLowerCase();
-  const correctedType = extension === 'webm' ? 'video/webm' : 'video/mp4';
+  const correctedType = extension === 'webm' ? 'video/webm' : extension === 'mov' ? 'video/quicktime' : extension === 'm4v' ? 'video/x-m4v' : 'video/mp4';
   return new File([file], file.name, { type: correctedType });
 }
 

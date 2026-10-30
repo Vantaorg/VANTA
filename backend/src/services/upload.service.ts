@@ -82,8 +82,13 @@ const MAGIC_SIGNATURES: Record<string, (buffer: Buffer) => boolean> = {
   "image/gif": b => ["GIF87a", "GIF89a"].includes(b.subarray(0, 6).toString("ascii")),
   "image/webp": b => b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP",
   "image/avif": b => b.subarray(4, 12).toString("ascii").includes("ftypavif"),
+  "image/bmp": b => b.subarray(0, 2).toString("ascii") === "BM",
+  "image/tiff": b => b.subarray(0, 4).equals(Buffer.from([0x49, 0x49, 0x2a, 0x00])) || b.subarray(0, 4).equals(Buffer.from([0x4d, 0x4d, 0x00, 0x2a])),
+  "image/heic": b => /hei[cfm]|mif1|msf1/.test(b.subarray(8, 16).toString("ascii")),
+  "image/heif": b => /hei[cfm]|mif1|msf1/.test(b.subarray(8, 16).toString("ascii")),
   "video/mp4": b => b.subarray(4, 8).toString("ascii") === "ftyp",
   "video/quicktime": b => b.subarray(4, 8).toString("ascii") === "ftyp",
+  "video/x-m4v": b => b.subarray(4, 8).toString("ascii") === "ftyp",
   "video/webm": b => b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
   "audio/webm": b => b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) && isAudioWebm(b),
   "audio/ogg": b => b.subarray(0, 4).toString("ascii") === "OggS",
@@ -229,10 +234,10 @@ const probeVideoDuration = async (filePath: string): Promise<number | undefined>
 
 const getAllowedExtensions = (mimetype: string): string[] => {
   if (mimetype.startsWith("image/")) {
-    return [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"];
+    return [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".bmp", ".tif", ".tiff", ".heic", ".heif"];
   }
   if (mimetype.startsWith("video/")) {
-    return [".mp4", ".mov", ".webm", ".m4v", ".avi"];
+    return [".mp4", ".mov", ".webm", ".m4v"];
   }
   if (mimetype.startsWith("audio/")) {
     return [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".webm", ".opus"];
@@ -254,11 +259,11 @@ export const UPLOAD_LIMITS = {
   THUMBNAIL: 5 * 1024 * 1024, // 5MB
 };
 
-export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp", "image/tiff", "image/heic", "image/heif"];
 // Local storage has no transcoding worker. Accept only formats browsers can
 // reliably play from the stored original; Cloudinary deployments can add a
 // conversion worker without changing this upload contract.
-export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
+export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"];
 export const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm"];
 export const ALLOWED_DOC_TYPES = [
   "application/pdf",

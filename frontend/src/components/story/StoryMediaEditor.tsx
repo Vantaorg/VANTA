@@ -44,6 +44,7 @@ import {
   storyMediaKindOf,
   toUserFacingStoryError,
   validateStoryMediaFile,
+  normalizeStoryMediaFile,
 } from '@/lib/storyMedia';
 import { formatFileSize, formatVideoTime, probeDuration } from '@/lib/videoTrim';
 
@@ -73,10 +74,11 @@ export interface DraftMedia {
 /** Resolve the normalized media MIME for the upload pipeline. */
 function resolveStoryMime(item: DraftMedia): string {
   const mime = String(item.file.type || '').toLowerCase().split(';')[0].trim();
-  if (mime) return mime;
+  if (mime && mime !== 'application/octet-stream' && mime !== 'binary/octet-stream') return mime;
   const low = item.file.name.toLowerCase();
-  if (item.kind === 'video') return low.endsWith('.webm') ? 'video/webm' : 'video/mp4';
-  return 'image/jpeg';
+  const extension = low.split('.').pop() || '';
+  const byExtension: Record<string, string> = { mov: 'video/quicktime', m4v: 'video/x-m4v', mp4: 'video/mp4', webm: 'video/webm', heic: 'image/heic', heif: 'image/heif', tif: 'image/tiff', tiff: 'image/tiff', bmp: 'image/bmp', avif: 'image/avif', png: 'image/png', gif: 'image/gif', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+  return byExtension[extension] || (item.kind === 'video' ? 'video/mp4' : 'image/jpeg');
 }
 
 const makeMediaId = () => {
@@ -310,7 +312,8 @@ useEffect(() => {
       const valid: File[] = [];
       for (const file of files) {
         if (!file) continue;
-        const problem = validateStoryMediaFile(file);
+        const normalizedFile = normalizeStoryMediaFile(file);
+        const problem = validateStoryMediaFile(normalizedFile);
         if (problem) {
           if (!issues.includes(problem)) issues.push(problem);
           continue;
@@ -319,7 +322,7 @@ useEffect(() => {
           issues.push(`A Status can include up to ${capacity} photo${capacity === 1 ? '' : 's'} & videos.`);
           break;
         }
-        valid.push(file);
+        valid.push(normalizedFile);
       }
       if (valid.length === 0) {
         if (issues.length > 0) setMediaError(issues.join(' '));

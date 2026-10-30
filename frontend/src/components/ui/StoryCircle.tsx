@@ -45,10 +45,10 @@ export interface StoryCircleProps {
 const SIZES = {
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
   sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
-  compactStatus: { outer: 'h-[63px] w-[63px]', pad: 'p-px', stroke: 3 },
+  compactStatus: { outer: 'h-[69px] w-[69px]', pad: 'p-px', stroke: 3 },
   md: { outer: 'h-[76px] w-[76px]', pad: 'p-[2px]', stroke: 5 },
   lg: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
-  xl: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
+  xl: { outer: 'h-[105px] w-[105px]', pad: 'p-[2px]', stroke: 5 },
 } as const;
 
 // Center of the SVG (viewBox 0 0 100 100).

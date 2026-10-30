@@ -188,7 +188,7 @@ useEffect(() => {
       }
     />
 
-    <div className="mx-auto w-full min-w-0 max-w-[640px] px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+    <div className="mx-auto w-full min-w-0 px-3 pb-[max(24px,env(safe-area-inset-bottom))] sm:px-5">
       {/* Original post — flows straight from the header, no card wrapper. */}
       <article className="w-full min-w-0 pt-3">
         {/* Author identity */}
@@ -215,7 +215,7 @@ useEffect(() => {
         )}
 
         {/* Media — full content width, same PostMedia renderer as the feed */}
-        {media && <div className="mt-3 w-full min-w-0 overflow-hidden rounded-lg bg-[#080808]"><PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" /></div>}
+        {media && <div className="mt-3 w-full min-w-0 overflow-hidden"><PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" /></div>}
 
         {/* Engagement toolbar — lightweight, evenly distributed icon actions
             with the VANTA gold accent on active states. */}
@@ -300,7 +300,7 @@ const timeAgo = (value?: string) => {
 
 function PostDetailSkeleton() {
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[640px] px-4">
+    <div className="mx-auto w-full min-w-0 px-3 sm:px-5">
       <div className="flex items-start gap-3 pt-4">
         <Skeleton variant="circular" width={44} height={44} />
         <div className="flex-1 space-y-2 pt-1">
@@ -325,7 +325,7 @@ function PostDetailSkeleton() {
 
 function PostErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[640px] px-4 py-16 text-center">
+    <div className="mx-auto w-full min-w-0 px-4 py-16 text-center">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white/[0.04]"><RefreshCw size={22} className="text-white/40" /></div>
       <h1 className="mt-4 text-lg font-semibold text-white">Couldn&apos;t load this post.</h1>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/50">It may have been deleted or VANTA couldn&apos;t reach it. Try again in a moment.</p>

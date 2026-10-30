@@ -11,12 +11,12 @@ import { apiDelete } from '@/lib/apiClient';
 import VideoTrimModal from '@/components/video/VideoTrimModal';
 import type { VideoTrimResult } from '@/components/video/VideoTrimEditor';
 
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
-const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'];
+const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'];
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (matches backend)
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB
 
-const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|avif)$/i;
+const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|avif|bmp|tiff?|heic|heif)$/i;
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)$/i;
 
 /**
@@ -25,6 +25,21 @@ const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)$/i;
  * providers return "" or "application/octet-stream"). Never trusts the
  * extension when a trustworthy MIME type is already present.
  */
+function normalizeMediaFile(file: File, kind: 'image' | 'video'): File {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const types: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff',
+    tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/x-m4v',
+  };
+  const expected = types[ext];
+  if (!expected || (kind === 'image' ? !expected.startsWith('image/') : !expected.startsWith('video/'))) return file;
+  const mime = (file.type || '').toLowerCase().split(';')[0].trim();
+  if ([...ACCEPTED_IMAGE_TYPES, ...ACCEPTED_VIDEO_TYPES].includes(mime)) return file;
+  return new File([file], file.name, { type: expected, lastModified: file.lastModified });
+}
+
 function resolveMediaKind(file: File): 'image' | 'video' | 'unknown' {
   const mime = (file.type || '').toLowerCase();
   if (ACCEPTED_IMAGE_TYPES.includes(file.type)) return 'image';
@@ -176,8 +191,11 @@ const MediaUploader = forwardRef<MediaUploaderHandle, MediaUploaderProps>(functi
 
     for (let i = 0; i < files.length; i++) {
       if (existingCount + newFiles.length >= maxFiles) break;
-      const file = files[i];
-      const type = resolveMediaKind(file) === 'image' ? 'image' : 'video';
+      const selectedFile = files[i];
+      const detectedKind = resolveMediaKind(selectedFile);
+      if (detectedKind === 'unknown') continue;
+      const type = detectedKind;
+      const file = normalizeMediaFile(selectedFile, type);
 
       if (type === 'video') {
         const error = validateFile(file);
