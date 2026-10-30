@@ -2718,22 +2718,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           rendered inside an open private/group/channel conversation. `showMobileList`
           flips to false the moment a conversation is selected on every breakpoint. */}
       {showMobileList && (
-        <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-white/[0.08] bg-[#080808]/95 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-xl">
-          {[
-            { label: 'Home', icon: House, href: '/home' },
-            { label: 'Discover', icon: Compass, href: '/discover' },
-            { label: 'Reels', icon: Clapperboard, href: '/reels' },
-            { label: 'Chat', icon: MessageCircle, href: '/chat' },
-            { label: 'Profile', icon: User, href: '/profile' },
-          ].map(({ label, icon: Icon, href }) => (
-            <button key={label} type="button" onClick={() => router.push(href)} aria-label={label} className="flex min-h-14 flex-col items-center justify-center gap-1 text-white/55 transition hover:text-[#d6b34a]">
-              <Icon size={20} strokeWidth={1.8} />
-              <span className="text-[10px]">{label}</span>
-            </button>
-          ))}
-        </nav>
-      )}
-      {showMobileList && (
         <MessagesCreateButton
           search={newChatSearch}
           results={newChatResults}
