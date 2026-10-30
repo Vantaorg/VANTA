@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Type,
   Video,
   X,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ export type MediaStorySource = 'camera-photo' | 'camera-video' | 'gallery-image'
 export interface StoryMediaEditorProps {
   source: MediaStorySource;
   onBack?: () => void;
+  onText?: () => void;
   onClose: () => void;
 }
 
@@ -191,7 +193,7 @@ async function buildDraftItems(files: File[]): Promise<DraftMedia[]> {
  *    and uploads only start once every draft exists,
  *  - guards against double-submission with an immediate ref-based lock.
  */
-export default function StoryMediaEditor({ source, onBack, onClose }: StoryMediaEditorProps) {
+export default function StoryMediaEditor({ source, onBack, onText, onClose }: StoryMediaEditorProps) {
   const { token, user } = useAuth();
   const toast = useToast();
 
@@ -582,7 +584,7 @@ const sourceLabel = source === 'camera-video' ? 'Record a video'
           {items.length > 0 ? <Trash2 size={18} /> : <ArrowLeft size={18} />}
         </button>
         <div className="flex min-w-0 flex-col items-center">
-          <h2 className="text-sm font-semibold text-white">Create Status</h2>
+          <h2 className="text-sm font-semibold text-white">Add status</h2>
           <p className="max-w-[220px] truncate text-[10px] text-white/40">{sourceLabel}</p>
         </div>
         <button
@@ -614,6 +616,7 @@ const sourceLabel = source === 'camera-video' ? 'Record a video'
           onGallery={openGalleryPicker}
           onCameraPhoto={openCameraPhoto}
           onCameraVideo={openCameraVideo}
+          onText={onText}
         />
       ) : (
 <>
@@ -993,11 +996,13 @@ function EmptyPicker({
   onGallery,
   onCameraPhoto,
   onCameraVideo,
+  onText,
 }: {
   source: MediaStorySource;
   onGallery: () => void;
   onCameraPhoto: () => void;
   onCameraVideo: () => void;
+  onText?: () => void;
 }) {
   const camera = source === 'camera-photo' || source === 'camera-video';
   const videoCamera = source === 'camera-video';
@@ -1021,6 +1026,16 @@ function EmptyPicker({
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
+        {onText && (
+          <button
+            type="button"
+            onClick={onText}
+            className="flex h-11 items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-4 text-[13px] font-semibold text-white transition hover:bg-white/[0.08] active:scale-[0.98]"
+          >
+            <Type size={15} />
+            Text
+          </button>
+        )}
         {camera ? (
           <>
             <button
