@@ -1791,7 +1791,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen relative flex h-[calc(var(--chat-viewport-height,100dvh)-4rem-env(safe-area-inset-bottom))] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:h-[var(--chat-viewport-height,100dvh)]',
+        'chat-screen relative flex h-[calc(var(--chat-viewport-height,100dvh)_-_4rem_-_env(safe-area-inset-bottom))] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:h-[var(--chat-viewport-height,100dvh)]',
         !showMobileList && 'top-[var(--chat-viewport-offset,0px)]'
       )}
     >
