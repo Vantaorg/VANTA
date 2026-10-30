@@ -7,10 +7,9 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import Avatar from '@/components/ui/Avatar';
-import { validateVideoFile } from '@/lib/videoTrim';
+import { normalizeVideoFileForUpload, probeVideoFileDuration, validateVideoFile, VIDEO_MAX_DURATION_SECONDS } from '@/lib/videoTrim';
 import { createReelDraft } from '@/lib/reelApi';
 import { startUpload } from '@/lib/uploads/store';
-import VideoTrimEditor, { type VideoTrimResult, type VideoTrimReviewContext } from '@/components/video/VideoTrimEditor';
 
 interface ReelUploaderProps {
   open: boolean;
@@ -21,24 +20,22 @@ type Step = 'select' | 'editor';
 
 const STEP_TITLES: Record<Step, string> = {
   select: 'Upload Reel',
-  editor: 'Edit Reel',
+  editor: 'Reel details',
 };
 
 const STEP_SUBTITLES: Record<Step, string> = {
   select: 'Share a short video with your audience',
-  editor: 'Preview, trim the timeline and add a caption',
+  editor: 'Preview your original video and add a caption',
 };
 
 /**
  * VANTA "Upload Reel" flow.
  *
- * Uses the shared <VideoTrimEditor /> for the entire trimming experience —
- * the same component that powers Post, Story, Chat and any future video
- * upload flow. Reel-specific metadata (title + description) is injected into
- * the shared review step via `reviewExtras`.
+ * Reels are uploaded exactly as selected. There is no crop, trim or re-encode
+ * step; the original video is previewed and sent to the background uploader.
  *
  * Publishing is NON-BLOCKING: "Post Reel" creates an instant Reel draft, then
- * hands the trimmed file to the background upload manager. The editor closes
+ * hands the original file to the background upload manager. The editor closes
  * immediately and the real byte-based transfer continues (with the global
  * upload indicator) while the user navigates anywhere in VANTA. The Reel only
  * becomes visible (PUBLISHED) after its media actually reaches storage.
@@ -49,6 +46,9 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
 
   const [step, setStep] = useState<Step>('select');
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [duration, setDuration] = useState(0);
+  const [probing, setProbing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -66,6 +66,9 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
   const resetAll = useCallback(() => {
     setStep('select');
     setFile(null);
+    setPreviewUrl('');
+    setDuration(0);
+    setProbing(false);
     setLoadError(null);
     setFormError(null);
     setTitle('');
@@ -84,27 +87,36 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
 
   // ---- File selection -----------------------------------------------------
 
-  const handleFiles = (files: FileList | null) => {
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  const handleFiles = async (files: FileList | null) => {
     const candidate = files?.[0];
-    if (!candidate) return;
+    if (!candidate || probing) return;
     setLoadError(null);
     setFormError(null);
     const validation = validateVideoFile(candidate);
-    if (validation) {
-      setLoadError(validation);
-      return;
-    }
-    setFile(candidate);
-    setStep('editor');
+    if (validation) { setLoadError(validation); return; }
+    setProbing(true);
+    try {
+      const original = normalizeVideoFileForUpload(candidate);
+      const actualDuration = await probeVideoFileDuration(original);
+      if (!actualDuration) { setLoadError('This video could not be previewed. Please choose another MP4 or WebM file.'); return; }
+      if (actualDuration > VIDEO_MAX_DURATION_SECONDS) { setLoadError('Reels can be up to 10 minutes long. Choose a shorter video.'); return; }
+      setFile(original);
+      setDuration(actualDuration);
+      setPreviewUrl(URL.createObjectURL(original));
+      setStep('editor');
+    } finally { setProbing(false); }
   };
 
   // ---- Publish ------------------------------------------------------------
 
-  const handleSubmit = async (result: VideoTrimResult) => {
+  const handleSubmit = async () => {
     if (!token) {
       setFormError('You need to be signed in to post a Reel.');
       return;
     }
+    if (!file) { setFormError('Choose a video before posting.'); return; }
     setSubmitting(true);
     setFormError(null);
     try {
@@ -112,21 +124,19 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
       const reelDescription = description.trim() || undefined;
       const draft = await createReelDraft(token, { title: reelTitle, description: reelDescription });
 
-      // Hand the trimmed file to the reusable background upload manager. The
-      // editor closes right away; the upload runs (with real byte progress) in
+      // Hand the untouched original file to the background upload manager.
+      // The editor closes right away; the upload runs with real byte progress in
       // the global indicator while the user continues using VANTA.
       startUpload({
         kind: 'reel',
-        file: result.file,
+        file,
         draftId: draft.video.id,
         token,
         meta: {
           title: reelTitle,
           description: reelDescription,
-          duration: result.duration,
-          mimeType:
-            result.file.type ||
-            (result.file.name.toLowerCase().endsWith('.mp4') ? 'video/mp4' : 'video/webm'),
+          duration,
+          mimeType: file.type || (file.name.toLowerCase().endsWith('.mp4') ? 'video/mp4' : 'video/webm'),
         },
       });
 
@@ -151,46 +161,6 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
     const seconds = rounded % 60;
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
   };
-
-  const reviewExtras = useCallback(
-    (context: VideoTrimReviewContext) => (
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="reel-title" className="form-label">Title</label>
-          <input
-            id="reel-title"
-            type="text"
-            maxLength={120}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Give your Reel a title"
-            className="form-input"
-          />
-          <p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{title.length}/120</p>
-        </div>
-        <div>
-          <label htmlFor="reel-description" className="form-label">Description</label>
-          <textarea
-            id="reel-description"
-            rows={3}
-            maxLength={1000}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Add a description (optional)"
-            className="form-textarea !min-h-[84px]"
-          />
-          <p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{description.length}/1000</p>
-        </div>
-        {context.isTrimmed && (
-          <p className="text-[11px] text-emerald-400/80">
-            This Reel contains only {formatSeconds(context.trimStart)} → {formatSeconds(context.trimEnd)} — the
-            original {formatSeconds(context.originalDuration)} clip was cut down before uploading.
-          </p>
-        )}
-      </div>
-    ),
-    [title, description]
-  );
 
   // ============================================================================
   // Render
@@ -266,7 +236,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                 <div className="flex w-full flex-col items-start text-left">
                   <div className="mt-6 flex items-center gap-3">
                     <Clapperboard className="text-[#dfbd55]" size={22} />
-                    <div><h3 className="text-base font-semibold text-white">Choose a video</h3><p className="mt-0.5 text-sm text-white/45">Select a clip, then trim and preview it.</p></div>
+                    <div><h3 className="text-base font-semibold text-white">Choose a video</h3><p className="mt-0.5 text-sm text-white/45">Select a clip to preview before posting.</p></div>
                   </div>
 
                   {loadError && <div className="form-error mt-4 w-full text-left">{loadError}</div>}
@@ -293,9 +263,6 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                     />
                     <span className="mt-3 text-sm font-medium text-white/70">Drop a video here or tap to choose</span>
                     <span className="mt-1 text-[11px] text-white/35">MP4 or WebM up to 100MB and 10 minutes</span>
-                    <span className="mt-3 rounded-full bg-[#c9a227]/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#dfbd55]">
-                      Trim before posting
-                    </span>
                   </label>
 
                   <input
@@ -304,7 +271,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                     accept="video/mp4,video/webm"
                     className="sr-only"
                     onChange={(event) => {
-                      handleFiles(event.target.files);
+                      void handleFiles(event.target.files);
                       event.target.value = '';
                     }}
                   />
@@ -316,7 +283,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                     capture="environment"
                     className="sr-only"
                     onChange={(event) => {
-                      handleFiles(event.target.files);
+                      void handleFiles(event.target.files);
                       event.target.value = '';
                     }}
                   />
@@ -324,30 +291,32 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-gold mt-4 min-h-12 w-full rounded-xl"
+                    disabled={probing}
+                    className="btn-gold mt-4 min-h-12 w-full rounded-xl disabled:opacity-50"
                   >
-                    <Upload size={15} />
-                    Choose Video
+                    {probing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                    {probing ? 'Checking video…' : 'Choose Video'}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm text-white/55 transition hover:bg-white/[0.04] hover:text-white/80"
+                    disabled={probing}
+                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm text-white/55 transition hover:bg-white/[0.04] hover:text-white/80 disabled:opacity-50"
                   >
                     <Camera size={16} />
                     Capture Video
                   </button>
                 </div>
               ) : (
-                <VideoTrimEditor
-                  file={file}
-                  onConfirm={(result) => void handleSubmit(result)}
-                  reviewExtras={reviewExtras}
-                  confirmLabel="Post Reel"
-                  trimActionLabel="Preview Reel"
-                  className="pt-3"
-                />
+                <div className="space-y-4 pt-4">
+                  {previewUrl && <div className="overflow-hidden rounded-xl bg-black"><video src={previewUrl} controls playsInline preload="metadata" className="max-h-[46dvh] w-full object-contain" /></div>}
+                  <div className="flex items-center justify-between gap-3 text-xs text-white/45"><span className="min-w-0 truncate">{file?.name}</span><span className="shrink-0 tabular-nums">{formatSeconds(duration)}</span></div>
+                  <div><label htmlFor="reel-title" className="form-label">Title</label><input id="reel-title" type="text" maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Give your Reel a title" className="form-input" /><p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{title.length}/120</p></div>
+                  <div><label htmlFor="reel-description" className="form-label">Description</label><textarea id="reel-description" rows={3} maxLength={1000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Add a description (optional)" className="form-textarea !min-h-[84px]" /><p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{description.length}/1000</p></div>
+                  <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !file} className="btn-gold min-h-12 w-full rounded-xl disabled:opacity-50">{submitting ? <><Loader2 size={16} className="animate-spin" /> Preparing Reel…</> : 'Post Reel'}</button>
+                  <button type="button" onClick={() => { setFile(null); setPreviewUrl(''); setDuration(0); setStep('select'); }} disabled={submitting} className="min-h-10 w-full text-sm text-white/50 hover:text-white disabled:opacity-40">Choose a different video</button>
+                </div>
               )}
             </div>
           </motion.div>
