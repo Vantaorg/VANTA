@@ -45,7 +45,7 @@ export interface StoryCircleProps {
 const SIZES = {
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
   sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
-  compactStatus: { outer: 'h-[55px] w-[55px]', pad: 'p-px', stroke: 3 },
+  compactStatus: { outer: 'h-[63px] w-[63px]', pad: 'p-px', stroke: 3 },
   md: { outer: 'h-[76px] w-[76px]', pad: 'p-[2px]', stroke: 5 },
   lg: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
   xl: { outer: 'h-[95px] w-[95px]', pad: 'p-[2px]', stroke: 5 },
@@ -136,7 +136,7 @@ export default function StoryCircle({
 
   return (
     <span
-      className={cn('relative block flex-none rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.35)]', outer, className)}
+      className={cn('relative block flex-none rounded-full', outer, className)}
       role={alt ? 'img' : undefined}
       aria-label={alt ? label : undefined}
     >
