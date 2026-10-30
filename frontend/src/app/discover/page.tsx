@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ArrowRight, Bell, Bookmark, Check, ChevronRight, CircleAlert, Compass, Eye,
+  ArrowRight, Bookmark, Check, ChevronRight, CircleAlert, Compass, Eye,
   Flame, Hash, Heart, Loader2, Menu, MessageCircle, Play, Radio, RefreshCw, Search,
   Share2, Users, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useNotifications } from '@/context/NotificationContext';
-import { useChatUnread } from '@/context/ChatUnreadContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
@@ -47,10 +45,6 @@ const profileFollowers = (profile: Item) => Number(profile.followersCount ?? pro
 const isVideo = (item: Item) => item.type === 'video' || item.type === 'reel' || Boolean(item.videoUrl || item.playbackUrl || item.duration);
 const categoryName = (value: any) => typeof value === 'string' ? value : value?.name || '';
 const scrollPageTop = (el: HTMLDivElement | null) => el?.scrollTo?.({ top: 0, behavior: 'smooth' });
-function Badge({ value }: { value: number }) {
-  if (!value || value <= 0) return null;
-  return <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[#050505]">{value > 99 ? '99+' : value}</span>;
-}
 
 export default function DiscoverPage() {
   const { token, user } = useAuth();
