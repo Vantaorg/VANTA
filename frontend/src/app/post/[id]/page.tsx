@@ -352,7 +352,8 @@ useEffect(() => {
 
     {deleteConfirm && <DeleteConfirmDialog title="Delete this post?" description="This cannot be undone. The post will be removed from VANTA immediately." confirmLabel="Delete post" busy={deleting} onCancel={() => { if (!deleting) setDeleteConfirm(false); }} onConfirm={() => void confirmDelete()} />}
 
-  </main>;
+  </main>
+  );
 }
 
 const formatCount = (value: number) => value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M` : value >= 1_000 ? `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}K` : String(value);
