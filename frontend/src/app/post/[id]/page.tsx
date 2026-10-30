@@ -157,6 +157,7 @@ useEffect(() => {
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         title="Post"
+        title="Post"
         sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
         actions={<span className="grid h-10 w-10 place-items-center rounded-lg text-white/25"><MoreHorizontal size={19} /></span>}
       />
@@ -165,7 +166,7 @@ useEffect(() => {
   }
 
   if (unavailable || !post) {
-    return <main className="min-w-0 w-full text-white">
+    return <main className="min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
@@ -196,7 +197,7 @@ useEffect(() => {
         }
       />
 
-      <div className="w-full min-w-0 pb-[max(24px,env(safe-area-inset-bottom))]">
+      <div className="w-full min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         <article className="w-full min-w-0">
           <header className="flex min-w-0 items-center gap-3 px-4 py-3">
             <Link
