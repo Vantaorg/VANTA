@@ -486,6 +486,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           user={user}
         />
 
+        {(isHomePage || isDiscoverPage || pathname === '/profile' || pathname?.startsWith('/profile/')) && (
+          <button type="button" onClick={openCreateHub} aria-label="Create" className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#c9a227] text-black shadow-[0_8px_28px_rgba(201,162,39,0.28)] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+            <Plus size={25} strokeWidth={2.5} />
+          </button>
+        )}
         <AnimatePresence initial={false}>
           {!isChatPage && !isReelsPage && !isLiveViewer && !isStoryPage && !isGoLivePage && (
           <motion.nav
@@ -500,19 +505,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {[
                 { href: '/home', icon: Home, label: 'Home' },
                 { href: '/discover', icon: Compass, label: 'Discover' },
-                { href: '', icon: Plus, label: 'Create', create: true },
                 { href: '/reels', icon: Clapperboard, label: 'Reels' },
+                { href: '/chat', icon: MessageCircle, label: 'Chat' },
                 { href: '/profile', icon: User, label: 'Profile' },
               ].map((item) => {
                 const Icon = item.icon;
-                const active = !item.create && (pathname === item.href || pathname?.startsWith(`${item.href}/`));
-                if (item.create) {
-                  return (
-                    <button key={item.label} type="button" onClick={openCreateHub} className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#c9a227] text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50" aria-label="Create">
-                      <Icon size={22} strokeWidth={2.5} />
-                    </button>
-                  );
-                }
+                const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 return (
                   <Link key={item.href} href={item.href} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? 'text-[var(--active-bright)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
                     <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
