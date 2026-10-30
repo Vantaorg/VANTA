@@ -607,13 +607,7 @@ export default function ReelsPage() {
         ))}
       </PullToRefresh>
 
-      <nav className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-30 grid h-[calc(60px+env(safe-area-inset-bottom))] grid-cols-5 border-t border-white/[.06] bg-[#080808]/95 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
-        {nav.map(item => item.create ? (
-          <button key={item.label} type="button" onClick={openCreateHub} className="mx-auto grid h-12 w-12 place-items-center self-center rounded-full bg-[#c9a227] text-black" aria-label="Create"><Plus size={22} /></button>
-        ) : (
-          <Link key={item.href} href={item.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] text-white/45 transition hover:text-white"><item.icon size={19} /><span>{item.label}</span></Link>
-        ))}
-      </nav>
+      
 
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} close={() => setCommentsFor(null)} />}
