@@ -157,7 +157,6 @@ useEffect(() => {
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         title="Post"
-        title="Post"
         sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
         actions={<span className="grid h-10 w-10 place-items-center rounded-lg text-white/25"><MoreHorizontal size={19} /></span>}
       />
@@ -169,6 +168,7 @@ useEffect(() => {
     return <main className="min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
+        title="Post"
         sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
       />
       <PostErrorState onRetry={loadPost} />
