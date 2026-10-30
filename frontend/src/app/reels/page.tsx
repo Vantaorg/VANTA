@@ -9,13 +9,11 @@ import {
   Bookmark,
   Check,
   Clapperboard,
-  Compass,
   Copy,
   ExternalLink,
   Flag,
   Gift,
   Heart,
-  Home,
   Eye,
   Loader2,
   Maximize,
@@ -37,6 +35,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useContentPrefs } from '@/lib/useContentPrefs';
 import PullToRefresh from '@/components/ui/PullToRefresh';
 import { useToast } from '@/components/ui/Toast';
+import { useContentCreation } from '@/components/create/ContentCreationContext';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -104,7 +103,7 @@ export default function ReelsPage() {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
-  const { openCreateHub, openReelUploader } = useContentCreation();
+  const { openReelUploader } = useContentCreation();
   const [feed, setFeed] = useState<Feed>('for-you');
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
