@@ -361,8 +361,12 @@ class MainActivity : Activity() {
         try {
             startActivityForResult(intent, requestCode)
         } catch (_: ActivityNotFoundException) {
+            pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            pendingCameraUri = null
             completeFileSelection(null)
         } catch (_: SecurityException) {
+            pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            pendingCameraUri = null
             completeFileSelection(null)
         }
     }
@@ -427,8 +431,10 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         pendingFileCallback?.onReceiveValue(null)
         pendingFileCallback = null
-        pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
-        pendingCameraUri = null
+        if (isFinishing) {
+            pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            pendingCameraUri = null
+        }
         if (::webView.isInitialized) {
             webView.stopLoading()
             webView.webChromeClient = null
