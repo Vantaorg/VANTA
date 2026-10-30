@@ -153,10 +153,11 @@ useEffect(() => {
   };
 
   if (loading) {
-    return <main className="min-w-0 w-full text-white">
+    return <main className="min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-        sticky bleed className="h-14 min-h-14 px-4"
+        title="Post"
+        sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
         actions={<span className="grid h-10 w-10 place-items-center rounded-lg text-white/25"><MoreHorizontal size={19} /></span>}
       />
       <PostDetailSkeleton />
@@ -167,7 +168,7 @@ useEffect(() => {
     return <main className="min-w-0 w-full text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-        sticky bleed className="h-14 min-h-14 px-4"
+        sticky bleed className="h-14 min-h-14 bg-[#050505]/95 px-4"
       />
       <PostErrorState onRetry={loadPost} />
     </main>;
@@ -176,7 +177,7 @@ useEffect(() => {
   const media = mediaSrc(post.mediaUrl);
   const isOwn = post.author.id === user?.id;
   return (
-    <main data-post-detail className="min-h-full min-w-0 w-full text-white">
+    <main data-post-detail data-post-detail-version="2" className="min-h-full min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         title="Post"
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
@@ -197,7 +198,7 @@ useEffect(() => {
 
       <div className="w-full min-w-0 pb-[max(24px,env(safe-area-inset-bottom))]">
         <article className="w-full min-w-0">
-          <header className="flex min-w-0 items-center gap-3 px-4 py-4">
+          <header className="flex min-w-0 items-center gap-3 px-4 py-3">
             <Link
               href={`/profile/${post.author.username}`}
               className="grid shrink-0 place-items-center"
@@ -229,8 +230,8 @@ useEffect(() => {
           </header>
 
           {post.content && (
-            <div className="px-4 pb-3">
-              <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.65] text-[#ededed]">
+            <div className="px-4 pb-4 pt-1">
+              <p className="whitespace-pre-wrap break-words text-[16px] leading-[1.7] text-[#ededed]">
                 {renderTextWithLinks(post.content, 'linkify')}
               </p>
             </div>
@@ -253,8 +254,8 @@ useEffect(() => {
             </div>
           )}
 
-          <div className="mx-4 border-b border-white/[0.08]">
-            <footer className="flex min-h-14 w-full min-w-0 items-center justify-between gap-1 py-1">
+          <div className="px-4">
+            <footer className="flex min-h-14 w-full min-w-0 items-center justify-between gap-1 border-y border-white/[0.07] py-1">
               <button
                 type="button"
                 onClick={() => void toggleLike()}
@@ -304,7 +305,7 @@ useEffect(() => {
           </div>
         </article>
 
-        <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-16 pt-3">
+        <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-16 pt-2">
           {token ? (
             <CommentPanel
               kind="post"
