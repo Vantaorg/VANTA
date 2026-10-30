@@ -1422,10 +1422,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const file = event.target.files?.[0];
     if (!file || !token || !createType) return;
 
-    const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+    const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif'];
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    const imageTypes: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff', heic: 'image/heic', heif: 'image/heif' };
+    const expectedType = imageTypes[extension];
+    const uploadFile = expectedType && !ACCEPTED.includes(file.type) ? new File([file], file.name, { type: expectedType, lastModified: file.lastModified }) : file;
     const MAX_SIZE = 5 * 1024 * 1024;
-    if (!ACCEPTED.includes(file.type)) {
-      setCreateAvatarError('Please choose a JPG, PNG, WebP, GIF or AVIF image.');
+    if (!ACCEPTED.includes(uploadFile.type)) {
+      setCreateAvatarError('Please choose a JPG, PNG, WebP, GIF, AVIF, BMP, TIFF or HEIC image.');
       return;
     }
     if (file.size > MAX_SIZE) {
@@ -1437,7 +1441,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setIsUploadingAvatar(true);
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('avatar', uploadFile);
       formData.append('entityType', createType === 'group' ? 'group' : 'channel');
       const uploadResult = await apiUpload<{ url: string; id?: string; file?: { id?: string } }>(
         '/api/upload/entity-avatar',

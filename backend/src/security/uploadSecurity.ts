@@ -50,9 +50,9 @@ export class UploadSecurity {
 
     // Only allow known safe extensions
     const safeExtensions = [
-      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif',
-      '.mp4', '.webm', '.mov', '.pdf', '.txt',
-      '.svg', '.ico',
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.bmp', '.tif', '.tiff', '.heic', '.heif',
+      '.mp4', '.webm', '.mov', '.m4v', '.pdf', '.txt',
+      '.ico',
     ];
 
     return safeExtensions.includes(ext);

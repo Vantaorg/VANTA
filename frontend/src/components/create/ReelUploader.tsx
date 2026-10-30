@@ -50,6 +50,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
   const [duration, setDuration] = useState(0);
   const [probing, setProbing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
@@ -70,6 +71,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
     setDuration(0);
     setProbing(false);
     setLoadError(null);
+    setPreviewFailed(false);
     setFormError(null);
     setTitle('');
     setDescription('');
@@ -100,9 +102,12 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
     try {
       const original = normalizeVideoFileForUpload(candidate);
       const actualDuration = await probeVideoFileDuration(original);
-      if (!actualDuration) { setLoadError('This video could not be previewed. Please choose another MP4 or WebM file.'); return; }
+      // Some valid containers/codecs cannot be previewed by the current browser.
+      // Keep the original uploadable; the backend checks duration with ffprobe.
+      if (!actualDuration) { setDuration(0); }
       if (actualDuration > VIDEO_MAX_DURATION_SECONDS) { setLoadError('Reels can be up to 10 minutes long. Choose a shorter video.'); return; }
       setFile(original);
+      setPreviewFailed(false);
       setDuration(actualDuration);
       setPreviewUrl(URL.createObjectURL(original));
       setStep('editor');
@@ -262,13 +267,13 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                       className={cn('transition', dragActive ? 'text-[#dfbd55]' : 'text-white/35 group-hover:text-white/60')}
                     />
                     <span className="mt-3 text-sm font-medium text-white/70">Drop a video here or tap to choose</span>
-                    <span className="mt-1 text-[11px] text-white/35">MP4 or WebM up to 100MB and 10 minutes</span>
+                    <span className="mt-1 text-[11px] text-white/35">MP4, WebM, MOV or M4V · up to 100MB · 10 minutes</span>
                   </label>
 
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="video/mp4,video/webm"
+                    accept="video/*,.mp4,.webm,.mov,.m4v"
                     className="sr-only"
                     onChange={(event) => {
                       void handleFiles(event.target.files);
@@ -279,7 +284,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                   <input
                     ref={cameraInputRef}
                     type="file"
-                    accept="video/mp4,video/webm,image/*"
+                    accept="video/*,.mp4,.webm,.mov,.m4v"
                     capture="environment"
                     className="sr-only"
                     onChange={(event) => {
@@ -310,12 +315,12 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
                 </div>
               ) : (
                 <div className="space-y-4 pt-4">
-                  {previewUrl && <div className="overflow-hidden rounded-xl bg-black"><video src={previewUrl} controls playsInline preload="metadata" className="max-h-[46dvh] w-full object-contain" /></div>}
-                  <div className="flex items-center justify-between gap-3 text-xs text-white/45"><span className="min-w-0 truncate">{file?.name}</span><span className="shrink-0 tabular-nums">{formatSeconds(duration)}</span></div>
+                  {previewUrl && <div className="overflow-hidden rounded-xl bg-white/[0.025]"><video src={previewUrl} controls playsInline preload="metadata" onError={() => setPreviewFailed(true)} onLoadedData={() => setPreviewFailed(false)} className="max-h-[46dvh] w-full object-contain" />{previewFailed && <p className="px-3 py-2 text-xs text-white/50">Preview is not supported by this browser for this video. You can still upload the original file; VANTA will check it on upload.</p>}</div>}
+                  <div className="flex items-center justify-between gap-3 text-xs text-white/45"><span className="min-w-0 truncate">{file?.name}</span><span className="shrink-0 tabular-nums">{duration > 0 ? formatSeconds(duration) : 'Duration checked on upload'}</span></div>
                   <div><label htmlFor="reel-title" className="form-label">Title</label><input id="reel-title" type="text" maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Give your Reel a title" className="form-input" /><p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{title.length}/120</p></div>
                   <div><label htmlFor="reel-description" className="form-label">Description</label><textarea id="reel-description" rows={3} maxLength={1000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Add a description (optional)" className="form-textarea !min-h-[84px]" /><p className="mt-1 text-right text-[10px] tabular-nums text-white/25">{description.length}/1000</p></div>
                   <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !file} className="btn-gold min-h-12 w-full rounded-xl disabled:opacity-50">{submitting ? <><Loader2 size={16} className="animate-spin" /> Preparing Reel…</> : 'Post Reel'}</button>
-                  <button type="button" onClick={() => { setFile(null); setPreviewUrl(''); setDuration(0); setStep('select'); }} disabled={submitting} className="min-h-10 w-full text-sm text-white/50 hover:text-white disabled:opacity-40">Choose a different video</button>
+                  <button type="button" onClick={() => { setFile(null); setPreviewUrl(''); setDuration(0); setPreviewFailed(false); setStep('select'); }} disabled={submitting} className="min-h-10 w-full text-sm text-white/50 hover:text-white disabled:opacity-40">Choose a different video</button>
                 </div>
               )}
             </div>

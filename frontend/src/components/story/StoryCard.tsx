@@ -39,7 +39,7 @@ export default function StoryCard({
 
   if (isOwn) {
     return (
-      <div className="flex w-[106px] shrink-0 flex-col items-center gap-1.5" data-story-card="own">
+      <div className="flex w-[94px] shrink-0 flex-col items-center gap-1.5" data-story-card="own">
         <span className="group relative">
           <button
             type="button"
@@ -69,8 +69,8 @@ export default function StoryCard({
             </button>
           )}
         </span>
-        <span className="max-w-[106px] truncate text-[11px] leading-tight text-[#8a8a8a]">
-          {stories.length ? 'Your Status' : 'Add Status'}
+        <span className="max-w-[94px] truncate text-[11px] leading-tight text-[#8a8a8a]">
+          {stories.length ? 'My Story' : 'My Story'}
         </span>
       </div>
     );
@@ -86,7 +86,7 @@ export default function StoryCard({
       type="button"
       aria-label={`${user.username || 'User'} — ${stories.length} active story${stories.length === 1 ? '' : 's'}${hasUnviewed ? ', unseen' : ''}`}
       onClick={onOpen}
-      className="group flex w-[84px] shrink-0 flex-col items-center gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-[#dfbd55]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0d0f] data-[story-card=card]:transition"
+      className="group flex w-[78px] shrink-0 flex-col items-center gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-[#dfbd55]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0d0f] data-[story-card=card]:transition"
     >
       <span className="relative">
         <StoryCircle
@@ -108,7 +108,7 @@ export default function StoryCard({
           </span>
         )}
       </span>
-      <span className="flex max-w-[84px] items-center gap-0.5 text-[11px] leading-tight text-[#8a8a8a]">
+      <span className="flex max-w-[78px] items-center gap-0.5 text-[11px] leading-tight text-[#8a8a8a]">
         <span className={cn('truncate transition-colors', hasUnviewed ? 'font-semibold text-[#e8e8e8]' : 'group-hover:text-[#c8c8cc]')}>
           {name}
         </span>
