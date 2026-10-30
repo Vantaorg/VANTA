@@ -45,7 +45,7 @@ const creationOptions = [
   {
     id: 'story',
     icon: Zap,
-    label: 'Create Story',
+    label: '+ Story',
     description: 'Share a moment',
     accent: 'bg-[#f2dfb1] text-[#5a3a00]',
   },
