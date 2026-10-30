@@ -5,8 +5,8 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Bookmark, ChevronRight, Eye, Gift, Heart, Image as ImageIcon, Loader2,
-  MoreHorizontal, Radio, RefreshCw, Share2,
+  Bell, Bookmark, ChevronRight, Eye, Gift, Heart, Image as ImageIcon, Loader2,
+  MoreHorizontal, Plus, Radio, RefreshCw, Share2,
   Sparkles, Trash2, Users, WifiOff, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
 import { useToast } from '@/components/ui/Toast';
 import Avatar from '@/components/ui/Avatar';
+import VantaLogo from '@/components/ui/VantaLogo';
 import StoryTray from '@/components/story/StoryTray';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import GlobalSearch from '@/components/search/GlobalSearch';
@@ -80,7 +81,7 @@ export default function HomePage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { openPostModal, openStoryModal } = useContentCreation();
+  const { openPostModal, openStoryModal, openCreateHub } = useContentCreation();
   const [tab, setTab] = useState<FeedTab>('forYou');
   const [items, setItems] = useState<Item[]>([]);
   const [live, setLive] = useState<Item[]>([]);
@@ -239,12 +240,24 @@ export default function HomePage() {
   };
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'reels') return base.filter(isVideoItem); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
-  return <div className="relative left-1/2 flex h-[100dvh] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
+  const unreadNotifications = Number((user as any)?.unreadNotificationsCount ?? (user as any)?.unreadCount ?? 0);
+
+  return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-white">
+    <header className="relative z-30 flex h-12 shrink-0 items-center justify-between border-b border-white/[.07] bg-[var(--background)]/95 px-3 backdrop-blur-xl">
+      <VantaLogo size={25} variant="monochrome" showText textSize="sm" />
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => router.push('/notifications')} aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-full text-[#a0a0a0] transition hover:bg-white/[.05] hover:text-white">
+          <Bell size={19} />
+          {unreadNotifications > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#c9a227] ring-2 ring-[#101010]" aria-hidden="true" />}
+        </button>
+        <button type="button" onClick={openCreateHub} aria-label="Create content" className="flex h-10 w-10 items-center justify-center rounded-full text-[#c9a227] transition hover:bg-[#c9a227]/10"><Plus size={21} /></button>
+      </div>
+    </header>
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshFeed}>
-    <div className="w-full max-w-none px-0 pb-20 pt-1">
-      <main className="mx-auto w-full max-w-[680px] min-w-0 sm:px-2 lg:px-0">
+    <div className="w-full min-w-0 px-0 pb-28 pt-1">
+      <main className="mx-auto w-full max-w-[720px] min-w-0 sm:px-2 lg:px-0">
         <div className="mb-5 hidden items-center justify-between "><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-[#666]">Home</p><h1 className="mt-1 text-xl font-semibold text-[#f5f5f5]">What&apos;s happening on VANTA</h1></div><button type="button" onClick={() => void refreshFeed()} aria-label="Refresh feed" className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] transition hover:bg-white/[.05] hover:text-white"><RefreshCw size={16}/></button></div>
-        <StoryTray scrollRef={pageScrollRef} onCreate={openStoryModal} refreshKey={storyRefreshKey} className="mb-2" />
+        <StoryTray scrollRef={pageScrollRef} onCreate={openStoryModal} refreshKey={storyRefreshKey} compact className="mb-2" />
         <LiveStrip streams={live} openStream={stream => router.push(`/live/${cleanId(stream)}`)} openAll={() => router.push('/live')}/>
         <div className="mb-2 grid grid-cols-4 gap-1 rounded-lg border border-white/[.06] bg-[#0a0a0a] p-0.5" role="tablist" aria-label="Feed filters">{([['forYou', 'For you'], ['following', 'Following'], ['latest', 'Latest'], ['reels', 'Reels']] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={cn('min-h-9 min-w-0 rounded-md px-1 text-xs font-medium transition sm:text-sm', tab === id ? 'bg-[#c9a227] text-black shadow-sm' : 'text-[#858585] hover:bg-white/[.04] hover:text-white')}>{label}</button>)}</div>
         <button type="button" onClick={openPostModal} className="mb-4 hidden w-full items-center gap-3 rounded-lg border border-white/[.08] bg-[#0d0d0f] px-4 py-3 text-left text-sm text-[#666] transition hover:border-white/[.14] hover:bg-[#151517] hover:text-[#b8b8b8] "><Avatar src={user?.avatar || user?.avatarUrl || (user?.profile as any)?.avatar || (user?.profile as any)?.avatarUrl} alt={user?.username || 'You'} size="md"/><span className="flex-1">Share something with VANTA...</span><span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[.08] text-[#b8b8b8]"><ImageIcon size={17}/></span></button>
