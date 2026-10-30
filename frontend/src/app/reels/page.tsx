@@ -3,20 +3,17 @@
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bookmark,
   Check,
   Clapperboard,
-  Compass,
   Copy,
   ExternalLink,
   Flag,
   Gift,
   Heart,
-  Home,
   Eye,
   Loader2,
   Maximize,
@@ -24,7 +21,6 @@ import {
   MoreHorizontal,
   Pause,
   Play,
-  Plus,
   RefreshCw,
   Send,
   Share2,
@@ -38,8 +34,8 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { useContentPrefs } from '@/lib/useContentPrefs';
 import PullToRefresh from '@/components/ui/PullToRefresh';
-import { useContentCreation } from '@/components/create/ContentCreationContext';
 import { useToast } from '@/components/ui/Toast';
+import { useContentCreation } from '@/components/create/ContentCreationContext';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -107,7 +103,7 @@ export default function ReelsPage() {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
-  const { openCreateHub, openReelUploader } = useContentCreation();
+  const { openReelUploader } = useContentCreation();
   const [feed, setFeed] = useState<Feed>('for-you');
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -548,14 +544,6 @@ export default function ReelsPage() {
     }
   };
 
-  const nav = [
-    { href: '/home', label: 'Home', icon: Home },
-    { href: '/discover', label: 'Discover', icon: Compass },
-    { href: '', label: 'Create', icon: Plus, create: true },
-    { href: '/chat', label: 'Chat', icon: MessageCircle },
-    { href: '/profile', label: 'Profile', icon: User },
-  ];
-
   if (loading) return <State title="Loading Reels" copy="Preparing your next story." loading />;
   if (loadError) return <State title="Reels need a refresh" copy="We couldn't bring in the latest videos." action="Try again" onAction={() => void load()} />;
   if (!reels.length) return <State title={feed === 'following' ? 'Your Following feed is empty.' : 'Nothing to watch yet.'} copy={feed === 'following' ? 'Follow creators to see their Reels here.' : 'Follow creators or share your first Reel with VANTA.'} action={feed === 'following' ? 'Discover Creators' : 'Create Reel'} secondaryAction={feed === 'following' ? 'Create Reel' : 'Discover Creators'} onAction={feed === 'following' ? () => router.push('/discover') : openReelUploader} onSecondary={feed === 'following' ? openReelUploader : () => router.push('/discover')} />;
@@ -607,13 +595,7 @@ export default function ReelsPage() {
         ))}
       </PullToRefresh>
 
-      <nav className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-30 grid h-[calc(60px+env(safe-area-inset-bottom))] grid-cols-5 border-t border-white/[.06] bg-[#080808]/95 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
-        {nav.map(item => item.create ? (
-          <button key={item.label} type="button" onClick={openCreateHub} className="mx-auto grid h-12 w-12 place-items-center self-center rounded-full bg-[#c9a227] text-black" aria-label="Create"><Plus size={22} /></button>
-        ) : (
-          <Link key={item.href} href={item.href} className="flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] text-white/45 transition hover:text-white"><item.icon size={19} /><span>{item.label}</span></Link>
-        ))}
-      </nav>
+      
 
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} close={() => setCommentsFor(null)} />}
