@@ -334,10 +334,11 @@ export const commentOnReel = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-export const getReelComments = async (req: Request, res: Response): Promise<void> => {
+export const getReelComments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
     const limit = parseLimit(req.query.limit, 20);
+    const userId = req.user?.userId;
 
     const comments = await prisma.videoComment.findMany({
       where: { videoId: req.params.id },
@@ -345,12 +346,54 @@ export const getReelComments = async (req: Request, res: Response): Promise<void
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
-        user: { select: { id: true, username: true, fullName: true, avatar: true } },
+        user: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT } },
+        likes: userId ? { where: { userId }, select: { id: true } } : false,
+        _count: { select: { likes: true } },
       },
     });
 
     const nextCursor = comments.length > limit ? comments.pop()?.id : undefined;
-    res.status(200).json({ items: comments, nextCursor });
+    const items = comments.map((comment: any) => {
+      const { likes, _count, user, ...rest } = comment;
+      return {
+        ...rest,
+        user: enrichPublicUser(user),
+        liked: userId ? Boolean(likes?.length) : false,
+        _count: { likes: _count?.likes ?? 0, replies: 0 },
+      };
+    });
+    res.status(200).json({ items, nextCursor });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    res.status(400).json({ error: message });
+  }
+};
+
+export const likeReelComment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const commentId = req.params.commentId;
+    const comment = await prisma.videoComment.findUnique({
+      where: { id: commentId },
+      select: { id: true, videoId: true },
+    });
+    if (!comment || comment.videoId !== req.params.id) {
+      res.status(404).json({ error: "Comment not found" });
+      return;
+    }
+
+    const existing = await prisma.videoCommentLike.findUnique({
+      where: { userId_commentId: { userId, commentId } },
+    });
+    const liked = !existing;
+    if (existing) {
+      await prisma.videoCommentLike.delete({ where: { id: existing.id } });
+    } else {
+      await prisma.videoCommentLike.create({ data: { userId, commentId } });
+    }
+    const count = await prisma.videoCommentLike.count({ where: { commentId } });
+    res.status(200).json({ liked, likes: count });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     res.status(400).json({ error: message });
