@@ -106,3 +106,17 @@ export const ACTIVE_BADGE_STATUSES: readonly string[] = Object.freeze(['ACTIVE']
 export function isVerifiedBadgePlanId(value: unknown): value is string {
   return typeof value === 'string' && BADGE_PLAN_BY_ID.has(value);
 }
+
+/** Dedicated receiving wallet for live Verified Badge purchases (BSC BEP-20 and Base USDC). */
+export const OFFICIAL_VANTA_BADGE_RECEIVING_WALLET = '0x6a6251f0732730e1bfe0051a54b2cd2c6412910b';
+
+export function getBadgePaymentDepositAddress(): string {
+  const configured = (process.env.VANTA_BADGE_PAYMENT_ADDRESS || '').trim();
+  if (configured && /^0x[a-fA-F0-9]{40}$/.test(configured) && configured.toLowerCase() === OFFICIAL_VANTA_BADGE_RECEIVING_WALLET.toLowerCase()) {
+    return configured;
+  }
+  if (configured && configured.toLowerCase() !== OFFICIAL_VANTA_BADGE_RECEIVING_WALLET.toLowerCase()) {
+    console.warn('[BADGE-PAYMENTS] VANTA_BADGE_PAYMENT_ADDRESS differs from the approved badge wallet; using the approved wallet.');
+  }
+  return OFFICIAL_VANTA_BADGE_RECEIVING_WALLET;
+}
