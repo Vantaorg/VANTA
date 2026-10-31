@@ -212,6 +212,24 @@ function gridTileClass(count: number, index: number): string {
   return '';
 }
 
+const formatRelativeChatTime = (value?: string | null): string => {
+  if (!value) return '';
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return '';
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return seconds <= 5 ? 'now' : `${seconds} sec`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'}`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'}`;
+  const years = Math.floor(days / 365);
+  return `${years} ${years === 1 ? 'year' : 'years'}`;
+};
+
 const formatVoiceTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const safe = Math.floor(seconds);
@@ -1893,7 +1911,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     <p className="flex items-center gap-1 text-sm font-semibold text-white truncate">{conv.name}{conv.verified && conv.verificationType && <VerificationBadge verified type={conv.verificationType} size="xs" className="shrink-0" />}</p>
                     {conv.lastMessage && (
                       <span className="text-[10px] text-gray-500 shrink-0 ml-2">
-                        {new Date(conv.lastMessage.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {formatRelativeChatTime(conv.lastMessage.timestamp)}
                       </span>
                     )}
                   </div>
@@ -2303,7 +2321,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </section>
                 </>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-[#141414] px-2 py-1.5 shadow-sm">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
                 <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
@@ -2369,7 +2387,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     animate={{ scale: 1 }}
                     type="button"
                     onClick={() => void startVoiceRecording()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
                     aria-label="Record voice note"
                     title="Record voice note"
                   >
