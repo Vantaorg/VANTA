@@ -29,6 +29,7 @@ import {
   // Admin
   adminGetListings,
   adminReviewListing,
+  adminSetListingAvailability,
   adminGetVerifications,
   adminDecideVerification,
   adminGetReports,
@@ -63,6 +64,7 @@ router.get('/rent-periods', getRentPeriods);
 router.get('/admin', authenticate, requireAdmin, adminGetListings);
 router.get('/admin/listings', authenticate, requireAdmin, adminGetListings);
 router.post('/admin/listings/:id/review', authenticate, requireAdmin, adminReviewListing);
+router.post('/admin/listings/:id/status', authenticate, requireAdmin, adminSetListingAvailability);
 router.get('/admin/verifications', authenticate, requireAdmin, adminGetVerifications);
 router.post('/admin/verifications/:id/decide', authenticate, requireAdmin, adminDecideVerification);
 router.get('/admin/reports', authenticate, requireAdmin, adminGetReports);

@@ -317,7 +317,7 @@ export default function ManageHomesPage() {
                           confirmLabel: 'Mark rented',
                         })}
                       >
-                        Rented
+                        Mark taken
                       </Button>
                     )}
                     {listing.availabilityStatus !== 'ARCHIVED' && (
@@ -328,12 +328,12 @@ export default function ManageHomesPage() {
                         onClick={() => setPending({
                           kind: 'archive',
                           id: listing.id,
-                          title: 'Archive this listing?',
-                          body: 'It will be removed from VANTA Homes. You can still find it here.',
-                          confirmLabel: 'Archive',
+                          title: 'Cancel this listing?',
+                          body: 'It will be removed from public VANTA Homes browsing and kept in your account history.',
+                          confirmLabel: 'Cancel listing',
                         })}
                       >
-                        <Archive size={14} />
+                        <Archive size={14} /> <span className="ml-1">Cancel listing</span>
                       </Button>
                     )}
                   </div>

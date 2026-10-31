@@ -56,7 +56,7 @@ export interface UserPage {
   pages: number;
 }
 
-export const getUsers = (token: string, params?: {
+export const getUsers = async (token: string, params?: {
   search?: string;
   status?: string;
   role?: string;
@@ -65,7 +65,41 @@ export const getUsers = (token: string, params?: {
   limit?: number;
 }): Promise<UserPage> => {
   const query = new URLSearchParams((params || {}) as any).toString();
-  return apiGet<UserPage>(`/api/admin/users/manage?${query}`, token);
+  const response = await apiGet<any>(`/api/admin/users/manage?${query}`, token);
+  // Accept the direct API shape and common proxy/envelope shapes. This avoids
+  // rendering a false empty state when the backend response is wrapped.
+  let payload = response?.data?.users ? response.data : response?.result?.users ? response.result : response;
+  let users = Array.isArray(payload) ? payload : Array.isArray(payload?.users) ? payload.users : [];
+  // Compatibility fallback to the legacy list endpoint if the management
+  // endpoint returns an empty collection unexpectedly with no filters.
+  if (!users.length && !params?.search && (!params?.status || params.status === 'ALL') &&
+      (!params?.role || params.role === 'ALL') && (!params?.verified || params.verified === 'ALL')) {
+    const limit = Number(params?.limit || 25);
+    const offset = Math.max(0, (Number(params?.page || 1) - 1) * limit);
+    const legacy = await apiGet<any>(`/api/admin/users?limit=${limit}&offset=${offset}`, token, { skipCache: true });
+    const legacyPayload = legacy?.data ?? legacy?.result ?? legacy;
+    users = Array.isArray(legacyPayload) ? legacyPayload : Array.isArray(legacyPayload?.users) ? legacyPayload.users : [];
+    payload = { ...payload, users, total: legacyPayload?.total ?? users.length };
+  }
+  return {
+    users: users.map((user: any) => ({
+      ...user,
+      fullName: user.fullName ?? user.profile?.fullName ?? null,
+      avatar: user.avatar ?? user.profile?.avatar ?? null,
+      status: user.status ?? 'ACTIVE',
+      role: user.role ?? 'USER',
+      verified: Boolean(user.verified),
+      premium: Boolean(user.premium),
+      coins: Number(user.coins ?? 0),
+      earnings: Number(user.earnings ?? 0),
+      lastLoginAt: user.lastLoginAt ?? null,
+      createdAt: user.createdAt ?? new Date(0).toISOString(),
+    })),
+    total: Number(payload?.total ?? users.length),
+    page: Number(payload?.page ?? params?.page ?? 1),
+    pageSize: Number(payload?.pageSize ?? params?.limit ?? users.length),
+    pages: Number(payload?.pages ?? Math.max(1, Math.ceil(users.length / Math.max(1, Number(params?.limit || users.length || 1))))),
+  };
 };
 
 export const suspendUser = (token: string, userId: string, reason?: string, until?: string): Promise<any> => {

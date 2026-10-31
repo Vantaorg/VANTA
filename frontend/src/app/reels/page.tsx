@@ -189,6 +189,31 @@ export default function ReelsPage() {
     await load(0, false, true);
   }, [load]);
 
+  // Re-shuffle when a user returns to the Reels experience after leaving the
+  // app/page in the background (including mobile app task switching).
+  useEffect(() => {
+    let wasHidden = document.visibilityState === 'hidden';
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = true;
+        return;
+      }
+      if (wasHidden) {
+        wasHidden = false;
+        void refreshReels();
+      }
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void refreshReels();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [refreshReels]);
+
   useEffect(() => {
     // Each feed tab gets its own stable but distinct session seed so the random
     // order doesn't repeat identically across For You / Following / Trending.

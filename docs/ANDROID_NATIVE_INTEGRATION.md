@@ -10,7 +10,8 @@ Ship VANTA as an Android application while preserving the existing Next.js web a
 - Production frontend origin is explicitly defined in backend code as `https://vanta-nu.vercel.app`.
 - The Next.js configuration sets `X-Frame-Options: DENY`; the production app must be loaded as the WebView's top-level document, never embedded in an iframe.
 - The existing PWA service worker is `/vanta-sw.js` and supports Web Push, notifications, and incoming-call actions.
-- There is no Android project in the repository yet.
+- The repository now contains a native Android WebView shell at `android/`.
+- `MainActivity` handles trusted-origin navigation and routes HTML file inputs through `WebChromeClient.onShowFileChooser`.
 - Chat and story flows already use browser file inputs. The story flow has a multi-file editor/upload pipeline that must be preserved.
 - Comments are currently text-only in UI and backend persistence. Media comments require a separate full-stack implementation.
 
@@ -42,7 +43,7 @@ Implement one reusable Android picker surface with:
 - Cancellation, rotation, process recreation, and revoked-permission handling.
 - MIME/size validation and bounded streaming; do not base64-encode large videos into JavaScript memory.
 
-The initial proof of concept may use the Android system picker through `onShowFileChooser`; the custom unified grid follows only after the WebView, session, and file callback are proven.
+The Android shell now presents a native unified Camera / Photos / Files sheet from `onShowFileChooser`. Photos use Android Photo Picker on Android 13+ with a system-picker fallback on older versions; Files use the document provider; Camera capture returns a content URI to the original web upload input.
 
 ## Integration points
 
@@ -63,6 +64,8 @@ The initial proof of concept may use the Android system picker through `onShowFi
 ## Delivery gates
 
 - Android debug build compiles.
+- Native Camera / Photos / Files sheet returns content URIs to the existing chat upload input.
+- Photo/video multi-select and document selection are verified on a physical Android device.
 - WebView loads VANTA as a top-level document.
 - External/untrusted navigation is rejected or handed to the system browser.
 - Login, refresh, logout, cookies, authenticated APIs, realtime connections, and deep links are verified on device.

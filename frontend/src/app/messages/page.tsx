@@ -1033,30 +1033,40 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (files.length === 0) return;
 
     const imageInputs: { file: File; fileType: 'IMAGE' }[] = [];
+    const documentInputs: { file: File; fileType: 'FILE' }[] = [];
     const videosToTrim: File[] = [];
+    const documentTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ];
+
     for (const file of files) {
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        showToast?.({ type: 'error', title: 'Unsupported attachment', message: 'Choose supported images or videos.' });
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      const isDocument = documentTypes.includes(file.type) || /\\.(pdf|doc|docx|txt)$/i.test(file.name);
+      if (!isImage && !isVideo && !isDocument) {
+        showToast?.({ type: 'error', title: 'Unsupported attachment', message: 'Choose an image, video, PDF, DOC, DOCX or TXT file.' });
         continue;
       }
-      const limit = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 15 * 1024 * 1024;
+      const limit = isVideo ? 100 * 1024 * 1024 : isDocument ? 10 * 1024 * 1024 : 15 * 1024 * 1024;
       if (file.size > limit) {
-        showToast?.({ type: 'error', title: 'File too large', message: `${file.type.startsWith('video/') ? 'Videos' : 'Images'} must be ${limit / 1024 / 1024} MB or smaller.` });
+        const kind = isVideo ? 'Videos' : isDocument ? 'Documents' : 'Images';
+        showToast?.({ type: 'error', title: 'File too large', message: `${kind} must be ${limit / 1024 / 1024} MB or smaller.` });
         continue;
       }
-      if (file.type.startsWith('video/')) {
-        // Videos pass through the shared VANTA trimmer so the recipient gets the
-        // real trimmed clip, not a timestamp over the full original. Trim them
-        // one at a time (the trimmer is modal), then append each result.
-        videosToTrim.push(file);
-      } else {
-        imageInputs.push({ file, fileType: 'IMAGE' });
-      }
+      if (isVideo) videosToTrim.push(file);
+      else if (isImage) imageInputs.push({ file, fileType: 'IMAGE' });
+      else documentInputs.push({ file, fileType: 'FILE' });
     }
     if (imageInputs.length) {
       setAttachmentDrafts(previous => addDrafts(previous, imageInputs, file => URL.createObjectURL(file)));
     }
-    // Trim the first video if any; later ones are queued for trim after.
+    if (documentInputs.length) {
+      setAttachmentDrafts(previous => addDrafts(previous, documentInputs, file => URL.createObjectURL(file)));
+    }
+    // Videos pass through the shared trimmer one at a time.
     if (videosToTrim.length) setTrimVideoFile(videosToTrim[0]);
   };
 
@@ -1794,7 +1804,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen relative flex h-[var(--chat-viewport-height,100dvh)] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]',
+        'chat-screen relative flex h-[calc(var(--chat-viewport-height,100dvh)_-_4rem_-_env(safe-area-inset-bottom))] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:h-[var(--chat-viewport-height,100dvh)]',
         !showMobileList && 'top-[var(--chat-viewport-offset,0px)]'
       )}
     >
@@ -1807,7 +1817,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         <div className="flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] px-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg border border-white/[0.12] bg-[#161616] flex items-center justify-center">
-              <MessageCircle size={22} strokeWidth={2.1} className="text-white" />
+              <MessageCircle size={21} strokeWidth={2.1} className="text-white" />
             </div>
             <h1 className="text-lg font-semibold text-white">Chats</h1>
           </div>
@@ -1856,7 +1866,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 )}
               >
                 <div className="relative shrink-0">
-                  <Avatar src={conv.avatar} alt={conv.name} size="md" wrapperClassName="!h-11 !w-11" className="!h-11 !w-11" />
+                  <Avatar src={conv.avatar} alt={conv.name} size="md" wrapperClassName="!h-[44px] !w-[44px]" className="!h-[44px] !w-[44px]" />
                   {conv.type === 'direct' && conv.online && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0a0a0f]" />
                   )}
@@ -1933,7 +1943,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   <ArrowLeft size={18} />
                 </button>
                 <button onClick={openConversationInfo} className="flex min-w-0 items-center gap-3 text-left" aria-label={`Open ${activeConv.name} information`}>
-                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" wrapperClassName="!h-9 !w-9" className="!h-9 !w-9" />
+                 <Avatar src={activeConv.avatar} alt={activeConv.name} size="sm" wrapperClassName="!h-[35px] !w-[35px]" className="!h-[35px] !w-[35px]" />
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
@@ -2243,20 +2253,53 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   })()}
                 </div>
               )}
-              {/* Compact attach sheet: Camera / Photos / Files (native pickers) */}
+              {/* Browser fallback picker. The installed Android app opens the native
+                  Camera / Photos / Files sheet from MainActivity instead. */}
               {showAttachmentSheet && (
-                <div className="mb-2 flex items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#151517] px-1.5 py-1">
-                  <button onClick={() => { setShowAttachmentSheet(false); openCamera(); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.06] disabled:opacity-40" aria-label="Open camera"><Camera size={17} className="text-[#f2c75c]" /><span className="text-[9px] leading-none text-white/60">Camera</span></button>
-                  <button onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.06] disabled:opacity-40" aria-label="Choose photos or videos"><ImageIcon size={17} className="text-emerald-400" /><span className="text-[9px] leading-none text-white/60">Photos</span></button>
-                  <button onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.06] disabled:opacity-40" aria-label="Choose files or documents"><FileText size={17} className="text-white/80" /><span className="text-[9px] leading-none text-white/60">Files</span></button>
-                </div>
+                <>
+                  <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-30 bg-black/45" />
+                  <section role="dialog" aria-label="Choose an attachment" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Share a file</h3>
+                        <p className="mt-1 text-[11px] text-white/45">Choose how you want to attach it</p>
+                      </div>
+                      <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-12 w-12 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={23}/></span>
+                        <span className="text-xs font-semibold text-white">Camera</span>
+                        <span className="text-[10px] text-white/40">Take a photo</span>
+                      </button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><ImageIcon size={23}/></span>
+                        <span className="text-xs font-semibold text-white">Photos</span>
+                        <span className="text-[10px] text-white/40">Images & videos</span>
+                      </button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-12 w-12 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={23}/></span>
+                        <span className="text-xs font-semibold text-white">Files</span>
+                        <span className="text-[10px] text-white/40">PDF & documents</span>
+                      </button>
+                    </div>
+                  </section>
+                </>
               )}
               <div className="flex items-center gap-2">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
-                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleAttachment} />
+                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
-                <button onClick={() => setShowAttachmentSheet(v => !v)} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
+                <button onClick={() => {
+                  const nativeAndroid = typeof navigator !== 'undefined' && navigator.userAgent.includes('VANTAAndroid');
+                  if (nativeAndroid) {
+                    setShowAttachmentSheet(false);
+                    window.requestAnimationFrame(() => attachmentInputRef.current?.click());
+                  } else {
+                    setShowAttachmentSheet(value => !value);
+                  }
+                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
                 <div className="flex-1 relative">
                   <textarea
                     ref={messageInputRef}

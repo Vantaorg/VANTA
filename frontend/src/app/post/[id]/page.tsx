@@ -175,124 +175,200 @@ useEffect(() => {
 
   const media = mediaSrc(post.mediaUrl);
   const isOwn = post.author.id === user?.id;
-  return <main className="min-w-0 w-full text-white">
-    {/* Compact sticky header — back affordance, quiet title, ⋮ menu. */}
-    <PageHeader
-      title="Post"
-      back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
-      sticky bleed className="h-14 min-h-14 px-4"
-      actions={
-        <button type="button" onClick={() => setMoreOpen(true)} aria-label="More post options" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[#8a8a8a] transition hover:bg-white/[0.05] hover:text-white">
-          <MoreHorizontal size={19} />
-        </button>
-      }
-    />
+  return (
+    <main data-post-detail data-post-detail-version="3" className="min-h-dvh w-full min-w-0 bg-[#050505] text-white">
+      <PageHeader
+        title="Post"
+        back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
+        sticky
+        bleed
+        className="h-14 min-h-14 px-4"
+        actions={
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-label="More post options"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            <MoreHorizontal size={22} />
+          </button>
+        }
+      />
 
-    <div className="w-full min-w-0 pb-[max(24px,env(safe-area-inset-bottom))]">
-      <article className="w-full min-w-0 px-4 pb-4 pt-4 sm:px-6">
-        <header className="flex min-w-0 items-center gap-3">
-          <Link href={`/profile/${post.author.username}`} className="grid shrink-0 place-items-center" aria-label={`View ${post.author.username}'s profile`}>
-            <Avatar src={post.author.avatar} alt={post.author.username} size="lg" verified={Boolean(post.author.verified && post.author.verificationType)} verificationType={post.author.verificationType} />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
-              <Link href={`/profile/${post.author.username}`} className="truncate text-[15px] font-semibold text-[#f5f5f5] hover:underline">
-                {post.author.fullName || post.author.username}
+      <div className="grid min-h-[calc(100dvh-3.5rem)] w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
+        <section className="min-w-0">
+          <article className="w-full min-w-0">
+            <header className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5">
+              <Link
+                href={`/profile/${post.author.username}`}
+                className="grid shrink-0 place-items-center"
+                aria-label={`View ${post.author.username}'s profile`}
+              >
+                <Avatar
+                  src={post.author.avatar}
+                  alt={post.author.username}
+                  size="md"
+                  verified={Boolean(post.author.verified && post.author.verificationType)}
+                  verificationType={post.author.verificationType}
+                />
               </Link>
-              {post.author.verified && post.author.verificationType && <VerificationBadge verified type={post.author.verificationType} size="sm" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Link
+                    href={`/profile/${post.author.username}`}
+                    className="truncate text-[14px] font-semibold text-white hover:underline"
+                  >
+                    {post.author.fullName || post.author.username}
+                  </Link>
+                  {post.author.verified && post.author.verificationType && (
+                    <VerificationBadge verified type={post.author.verificationType} size="sm" />
+                  )}
+                </div>
+                <p className="truncate text-[12px] text-white/40">@{post.author.username}</p>
+              </div>
+              <time className="shrink-0 text-[12px] text-white/40">{timeAgo(post.createdAt)}</time>
+            </header>
+
+            {post.content && (
+              <div className="px-4 pb-4 sm:px-5">
+                <p className="whitespace-pre-wrap break-words text-[16px] leading-[1.7] tracking-[0.005em] text-[#f0f0f0] sm:text-[17px]">
+                  {renderTextWithLinks(post.content, 'linkify')}
+                </p>
+              </div>
+            )}
+
+            {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+              <p className="px-4 pb-4 text-[13px] font-medium leading-6 text-[#d2ad35] sm:px-5">
+                {post.hashtags.map(tag => `#${tag}`).join(' ')}
+              </p>
+            )}
+
+            {media && (
+              <div className="relative w-full min-w-0 overflow-hidden bg-[#080808]">
+                <PostMedia
+                  src={media}
+                  alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'}
+                  autoplayOnView={false}
+                  preload="metadata"
+                />
+              </div>
+            )}
+
+            <div className="px-4 pt-2 sm:px-5">
+              <footer className="flex min-h-14 w-full min-w-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void toggleLike()}
+                  className={toolClass(liked ? '!text-[#d2ad35]' : 'text-white/55')}
+                  aria-label={liked ? 'Unlike post' : 'Like post'}
+                  aria-pressed={liked}
+                >
+                  <Heart size={21} className={liked ? 'fill-current' : ''} />
+                  <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
+                </button>
+                <button type="button" onClick={openComments} className={toolClass()} aria-label="Go to comments">
+                  <MessageCircle size={21} />
+                  <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
+                </button>
+                <button type="button" onClick={() => setShareOpen(true)} className={toolClass()} aria-label="Share post">
+                  <Share2 size={21} />
+                  <span className="text-xs tabular-nums">{formatCount(shareCount)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleSave()}
+                  className={toolClass(savedState ? '!text-[#d2ad35]' : 'text-white/55')}
+                  aria-label={savedState ? 'Remove from saved' : 'Save post'}
+                  aria-pressed={savedState}
+                >
+                  <Bookmark size={21} className={savedState ? 'fill-current' : ''} />
+                  <span className="sr-only">{savedState ? 'Saved' : 'Save'}</span>
+                </button>
+              </footer>
+              <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 pb-4 text-[11px] text-white/40">
+                {typeof post.views === 'number' && (
+                  <span className="inline-flex items-center gap-1">
+                    <Eye size={13} />
+                    <span className="tabular-nums">{formatCount(post.views)} views</span>
+                  </span>
+                )}
+                <time className="tabular-nums">
+                  {new Date(post.createdAt).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </time>
+              </div>
             </div>
-            <p className="truncate text-[13px] text-[#929292]">@{post.author.username}</p>
-          </div>
-          <span className="shrink-0 text-xs text-[#858585]">{timeAgo(post.createdAt)}</span>
-        </header>
+          </article>
+        </section>
 
-        {post.content && (
-          <div className="mt-4 whitespace-pre-wrap break-words text-[16px] leading-[1.65] text-[#ededed]">
-            {renderTextWithLinks(post.content, 'linkify')}
-          </div>
-        )}
-        {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
-          <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[13px] font-medium text-[#d6a83f]">
-            {post.hashtags.map(tag => <span key={tag}>#{tag}</span>)}
-          </p>
-        )}
+        <aside
+          ref={conversationRef}
+          aria-label="Post comments"
+          className="min-w-0 scroll-mt-14 bg-[#080808] lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto"
+        >
+          {token ? (
+            <CommentPanel
+              kind="post"
+              postId={id}
+              postAuthor={post.author}
+              initialCount={commentCount}
+              token={token}
+              currentUser={user}
+              inline
+              onClose={() => undefined}
+              onCountChange={count => setPost(current => current ? { ...current, commentsCount: count, comments: count } : current)}
+            />
+          ) : (
+            <div className="px-4 py-14 text-center">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white/[0.04]">
+                <MessageCircle size={20} className="text-white/30" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-white/65">Sign in to join the conversation.</p>
+              <button
+                type="button"
+                onClick={() => router.push('/login')}
+                className="mt-4 inline-flex min-h-10 items-center rounded-full bg-[#c9a227] px-5 text-sm font-semibold text-black transition hover:bg-[#dfbd55]"
+              >
+                Sign in
+              </button>
+            </div>
+          )}
+        </aside>
+      </div>
 
-        {media && (
-          <div className="mt-4 w-full min-w-0 overflow-hidden rounded-xl bg-[#111113]">
-            <PostMedia src={media} alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'} autoplayOnView={false} preload="metadata" />
-          </div>
-        )}
-
-        <footer className="mt-4 flex min-h-12 w-full items-center justify-between gap-2 border-y border-white/[0.07] py-1">
-          <button onClick={() => void toggleLike()} className={toolClass(liked ? '!text-[#d6a83f]' : 'text-[#a0a0a0]')} aria-label={liked ? 'Unlike post' : 'Like post'} aria-pressed={liked}>
-            <Heart size={21} className={liked ? 'fill-current' : ''} />
-            <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
-          </button>
-          <button onClick={openComments} className={toolClass()} aria-label="Go to comments">
-            <MessageCircle size={21} />
-            <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
-          </button>
-          <button onClick={() => setShareOpen(true)} className={toolClass()} aria-label="Share post">
-            <Share2 size={21} />
-            <span className="text-xs tabular-nums">{formatCount(shareCount)}</span>
-          </button>
-          <button onClick={() => void toggleSave()} className={toolClass(savedState ? '!text-[#d6a83f]' : '')} aria-label={savedState ? 'Remove from saved' : 'Save post'} aria-pressed={savedState}>
-            <Bookmark size={21} className={savedState ? 'fill-current' : ''} />
-            <span className="sr-only">{savedState ? 'Saved' : 'Save'}</span>
-          </button>
-        </footer>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-[11px] text-[#777]">
-          {typeof post.views === 'number' && <span className="inline-flex items-center gap-1"><Eye size={13} /><span className="tabular-nums">{formatCount(post.views)} views</span></span>}
-          <span>{new Date(post.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-        </div>
-      </article>
-
-      <section ref={conversationRef} aria-label="Post comments" className="w-full min-w-0 scroll-mt-14 border-t border-white/[0.07] px-4 pb-8 pt-4 sm:px-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[#f0f0f0]">Comments</h2>
-          <span className="text-xs tabular-nums text-[#888]">{formatCount(commentCount)}</span>
-        </div>
-        {token ? (
-          <CommentPanel
-            kind="post"
-            postId={id}
-            postAuthor={post.author}
-            initialCount={commentCount}
-            token={token}
-            currentUser={user}
-            inline
-            onClose={() => undefined}
-            onCountChange={count => setPost(current => current ? { ...current, commentsCount: count, comments: count } : current)}
+      <AnimatePresence>
+        {moreOpen && post && (
+          <FeedPostMoreSheet
+            item={{ saved: savedState }}
+            isOwn={isOwn}
+            close={() => setMoreOpen(false)}
+            openProfile={() => { setMoreOpen(false); router.push(`/profile/${post.author.username}`); }}
+            save={() => { void toggleSave(); setMoreOpen(false); }}
+            remove={() => { setMoreOpen(false); setDeleteConfirm(true); }}
           />
-        ) : (
-          <div className="py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={20} className="text-white/30" /></div>
-            <p className="mt-3 text-sm font-medium text-white/65">Sign in to join the conversation.</p>
-            <button type="button" onClick={() => router.push('/login')} className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#d6a83f] px-5 text-sm font-semibold text-black transition hover:bg-[#f2c75c]">Sign in</button>
-          </div>
         )}
-      </section>
-    </div>
-<AnimatePresence>
-      {moreOpen && post && (
-        <FeedPostMoreSheet
-          item={{ saved: savedState }}
-          isOwn={isOwn}
-          close={() => setMoreOpen(false)}
-          openProfile={() => { setMoreOpen(false); router.push(`/profile/${post.author.username}`); }}
-          save={() => { void toggleSave(); setMoreOpen(false); }}
-          remove={() => { setMoreOpen(false); setDeleteConfirm(true); }}
+        {shareOpen && post && (
+          <FeedPostShareSheet title="Share post" close={() => setShareOpen(false)} share={destination => void share(destination)} />
+        )}
+      </AnimatePresence>
+
+      {deleteConfirm && (
+        <DeleteConfirmDialog
+          title="Delete this post?"
+          description="This cannot be undone. The post will be removed from VANTA immediately."
+          confirmLabel="Delete post"
+          busy={deleting}
+          onCancel={() => { if (!deleting) setDeleteConfirm(false); }}
+          onConfirm={() => void confirmDelete()}
         />
       )}
-      {shareOpen && post && (
-        <FeedPostShareSheet title="Share post" close={() => setShareOpen(false)} share={destination => void share(destination)} />
-      )}
-    </AnimatePresence>
-
-    {deleteConfirm && <DeleteConfirmDialog title="Delete this post?" description="This cannot be undone. The post will be removed from VANTA immediately." confirmLabel="Delete post" busy={deleting} onCancel={() => { if (!deleting) setDeleteConfirm(false); }} onConfirm={() => void confirmDelete()} />}
-
-  </main>;
+    </main>
+  );
 }
 
 const formatCount = (value: number) => value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M` : value >= 1_000 ? `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}K` : String(value);

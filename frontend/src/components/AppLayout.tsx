@@ -278,7 +278,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Chat is a separate application surface. Keep the legacy /messages entry
   // point in the same shell while its canonical links continue to use /chat.
   const isChatPage = pathname?.startsWith('/chat') || pathname?.startsWith('/messages');
-  const isPostDetailRoute = pathname?.startsWith('/post/');
+  const isPostDetailPage = Boolean(pathname && /^\/post\/[^/]+/.test(pathname));
   const isReelsPage = pathname?.startsWith('/reels');
   const isHomePage = pathname === '/home';
   // Discover is a primary tab like Home — it renders its own full-bleed,
@@ -420,7 +420,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               isScrollPage &&
                 !isLiveViewer &&
                 !isConsolePage &&
-                !isReelsPage && cn((isHomesHeaderRoute || isPostDetailRoute) ? 'px-0 pb-0' : 'px-4 pb-5', isSettingsRoute || isFlushHeaderRoute || isHomesHeaderRoute || isPostDetailRoute ? 'pt-0' : 'pt-5'),
+                !isReelsPage && cn(isHomesHeaderRoute || isPostDetailPage ? 'px-0 pb-0' : 'px-4 pb-5', isSettingsRoute || isFlushHeaderRoute || isHomesHeaderRoute || isPostDetailPage ? 'pt-0' : 'pt-5'),
               isScrollPage && isConsolePage && 'px-4 pt-5 pb-24'
             )}>
             <motion.div
@@ -513,8 +513,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 const Icon = item.icon;
                 const active = item.href === '/chat' ? isChatPage : pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 return (
-                  <Link key={item.href} href={item.href} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? 'text-[#d6a83f]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
-                    <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
+                  <Link key={item.href} href={item.href} style={{ color: active ? '#c9a227' : undefined }} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? '!text-[#c9a227]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
+                    <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
                     <span>{item.label}</span>
                   </Link>
                 );

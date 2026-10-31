@@ -7,6 +7,10 @@ android {
     namespace = "com.vanta.app"
     compileSdk = 35
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.vanta.app"
         minSdk = 24
