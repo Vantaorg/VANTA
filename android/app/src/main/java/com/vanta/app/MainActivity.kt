@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
+import android.content.ClipData
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -321,8 +322,22 @@ class MainActivity : Activity() {
             )
             pendingCameraUri?.let { uri ->
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
+                intent.clipData = ClipData.newRawUri("VANTA camera output", uri)
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                // Camera apps often run in a separate package and require an
+                // explicit URI grant to write the full-resolution capture.
+                intent.resolveActivity(packageManager)?.let { resolved ->
+                    grantUriPermission(
+                        resolved.packageName,
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                }
             }
+        } else {
+            // On older Android versions, request a full capture result rather
+            // than allowing a picker-style fallback to satisfy the intent.
+            intent.putExtra("return-data", true)
         }
         launchIntent(intent, CAMERA_REQUEST)
     }
