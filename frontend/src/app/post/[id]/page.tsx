@@ -11,7 +11,7 @@ import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
 import PageHeader from '@/components/ui/PageHeader';
-import PostMedia from '@/components/social/PostMedia';
+import PostMedia, { PostMediaCarousel, type PostAttachment } from '@/components/social/PostMedia';
 import CommentPanel from '@/components/social/CommentPanel';
 import FeedPostMoreSheet from '@/components/social/FeedPostMoreSheet';
 import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
@@ -23,7 +23,7 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { renderTextWithLinks } from '@/lib/linkify';
 
 type Post = {
-  id: string; content: string; mediaUrl?: string | null; createdAt: string;
+  id: string; content: string; mediaUrl?: string | null; attachments?: PostAttachment[]; createdAt: string;
   likesCount?: number; commentsCount?: number; shareCount?: number; views?: number;
   isLiked?: boolean; liked?: boolean; saved?: boolean; shares?: number; likes?: number; comments?: number;
   hashtags?: string[];
@@ -173,7 +173,8 @@ useEffect(() => {
     </main>;
   }
 
-  const media = mediaSrc(post.mediaUrl);
+  const attachments = Array.isArray(post.attachments) ? post.attachments.map((attachment: any) => ({ ...attachment, url: mediaSrc(attachment?.url || attachment?.src || '') })).filter((attachment) => Boolean(attachment.url)) : [];
+  const media = mediaSrc(post.mediaUrl) || attachments[0]?.url;
   const isOwn = post.author.id === user?.id;
   return (
     <main data-post-detail data-post-detail-version="3" className="min-h-dvh w-full min-w-0 bg-[#050505] text-white">
@@ -245,12 +246,21 @@ useEffect(() => {
 
             {media && (
               <div className="relative w-full min-w-0 overflow-hidden bg-[#080808]">
-                <PostMedia
-                  src={media}
-                  alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'}
-                  autoplayOnView={false}
-                  preload="metadata"
-                />
+                {attachments.length > 1 ? (
+                  <PostMediaCarousel
+                    attachments={attachments}
+                    alt={post.content || `Post by ${post.author.username || 'creator'}`}
+                    autoplayOnView={false}
+                  />
+                ) : (
+                  <PostMedia
+                    src={media}
+                    isVideo={Boolean((attachments[0] as any)?.type?.toLowerCase?.().includes('video'))}
+                    alt={post.author.username ? `Post by ${post.author.username}` : 'Post media'}
+                    autoplayOnView={false}
+                    preload="metadata"
+                  />
+                )}
               </div>
             )}
 
