@@ -212,24 +212,6 @@ function gridTileClass(count: number, index: number): string {
   return '';
 }
 
-const formatRelativeChatTime = (value?: string | null): string => {
-  if (!value) return '';
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return '';
-  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return seconds <= 5 ? 'now' : `${seconds} sec`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'}`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'}`;
-  const years = Math.floor(days / 365);
-  return `${years} ${years === 1 ? 'year' : 'years'}`;
-};
-
 const formatVoiceTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const safe = Math.floor(seconds);
