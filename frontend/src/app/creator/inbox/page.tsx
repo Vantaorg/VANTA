@@ -94,7 +94,7 @@ return (
           <h2 className="text-base font-bold text-white">Inbox</h2>
           <p className="mt-0.5 text-[11px] text-white/40">{unreadTotal > 0 ? `${unreadTotal} unread across ${conversations.length} conversations` : `${conversations.length} conversations`}</p>
         </div>
-        <Link href="/messages" className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
+        <Link href="/chat" className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
           Open Messages <ArrowUpRight size={13} />
         </Link>
       </div>
@@ -104,7 +104,7 @@ return (
           <MessageCircle size={28} className="mx-auto mb-3 text-white/15" />
           <p className="text-sm text-white/50">No conversations yet</p>
           <p className="mx-auto mt-1 max-w-xs text-xs text-white/30">Messages from followers and collaborators will appear here.</p>
-          <Link href="/messages" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
+          <Link href="/chat" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
             Start a conversation <ArrowUpRight size={13} />
           </Link>
         </section>
@@ -116,7 +116,7 @@ return (
             return (
               <Link
                 key={c.id}
-                href="/messages"
+                href="/chat"
                 className="flex items-center gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 transition-colors hover:border-white/[0.12] hover:bg-white/[0.04]"
               >
                 {c.type === 'DIRECT' && c.partner ? (
