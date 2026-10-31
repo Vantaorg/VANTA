@@ -1238,6 +1238,29 @@ export async function adminReviewListing(listingId: string, adminId: string, dec
   return { success: true, listingId, decision };
 }
 
+export async function adminSetListingAvailability(listingId: string, adminId: string, status: string, reason?: string) {
+  requireActiveUser(adminId);
+  const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { role: true } });
+  requireAdmin(admin?.role);
+  const validStatuses = ['PAUSED', 'RESERVED', 'RENTED', 'PUBLISHED', 'ARCHIVED'];
+  if (!validStatuses.includes(status)) throw new Error('Invalid availability status');
+  const listing = await prisma.propertyListing.findUnique({ where: { id: listingId } });
+  if (!listing) throw new Error('Listing not found');
+  if (listing.availabilityStatus === 'ARCHIVED' && status !== 'PUBLISHED') throw new Error('Archived listings must be restored before another status change');
+  const updated = await prisma.propertyListing.update({
+    where: { id: listingId },
+    data: { availabilityStatus: status as any, ...(status === 'PUBLISHED' ? { publishedAt: new Date() } : {}) },
+    select: LISTING_PUBLIC_SELECT,
+  });
+  await auditLog.log({
+    userId: adminId,
+    action: `HOMES_ADMIN_LISTING_${status}`,
+    metadata: { listingId, previousStatus: listing.availabilityStatus, reason },
+    severity: status === 'ARCHIVED' ? 'WARNING' : 'INFO',
+  });
+  return { success: true, listing: updated };
+}
+
 export async function adminGetVerifications(params: { cursor?: string; limit?: number; type?: string; status?: string }) {
   const take = Math.min(Math.max(1, Number(params.limit || 20)), 50);
   const where: Prisma.PropertyVerificationWhereInput = {};
@@ -1396,6 +1419,7 @@ export const homesService = {
   createReport,
   adminGetListings,
   adminReviewListing,
+  adminSetListingAvailability,
   adminGetVerifications,
   adminDecideVerification,
   adminGetReports,
