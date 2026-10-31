@@ -212,6 +212,24 @@ function gridTileClass(count: number, index: number): string {
   return '';
 }
 
+const formatRelativeChatTime = (value?: string | null): string => {
+  if (!value) return '';
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return '';
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return seconds <= 5 ? 'now' : `${seconds} sec`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'min' : 'mins'}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'}`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? 'month' : 'months'}`;
+  const years = Math.floor(days / 365);
+  return `${years} ${years === 1 ? 'year' : 'years'}`;
+};
+
 const formatVoiceTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const safe = Math.floor(seconds);
@@ -1874,7 +1892,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     <p className="flex items-center gap-1 text-sm font-semibold text-white truncate">{conv.name}{conv.verified && conv.verificationType && <VerificationBadge verified type={conv.verificationType} size="xs" className="shrink-0" />}</p>
                     {conv.lastMessage && (
                       <span className="text-[10px] text-gray-500 shrink-0 ml-2">
-                        {new Date(conv.lastMessage.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {formatRelativeChatTime(conv.lastMessage.timestamp)}
                       </span>
                     )}
                   </div>
@@ -1944,7 +1962,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
-                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${new Date(activeConv.lastSeen).toLocaleString()}` : 'Offline'}
+                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${formatRelativeChatTime(activeConv.lastSeen)} ago` : 'Offline'}
                   </p>
                 </div></button>
               </div>
@@ -2143,9 +2161,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         </>)}
                       </div>
                       <div className={cn('flex items-center gap-1 mt-0.5', msg.isOwn ? 'justify-end mr-1' : 'justify-start ml-1')}>
-                        <span className="text-[9px] text-gray-500">
-                          {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        {(() => {
+                          const previous = messages[index - 1];
+                          const sameMinute = previous
+                            && previous.sender.id === msg.sender.id
+                            && Math.floor(new Date(previous.timestamp).getTime() / 60000) === Math.floor(new Date(msg.timestamp).getTime() / 60000);
+                          return !sameMinute ? <span className="text-[9px] text-gray-500">{formatRelativeChatTime(msg.timestamp)} ago</span> : null;
+                        })()}
                         {msg.pinnedAt && <Pin size={9} className="text-white/40" />}
                         {msg.isOwn && (
                           msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-400">Failed to send · Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin text-[#8a94a6]" /> : msg.read ? <CheckCheck size={10} className="text-[#6aa5ff]" /> : <Check size={10} className="text-[#9aa6b2]" />
@@ -2283,21 +2305,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </section>
                 </>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-[#141414] px-2 py-1.5 shadow-sm">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
                 <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
-                <button onClick={() => {
-                  const nativeAndroid = typeof navigator !== 'undefined' && navigator.userAgent.includes('VANTAAndroid');
-                  if (nativeAndroid) {
-                    setShowAttachmentSheet(false);
-                    window.requestAnimationFrame(() => attachmentInputRef.current?.click());
-                  } else {
-                    setShowAttachmentSheet(value => !value);
-                  }
-                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
-                <div className="flex-1 relative">
+                <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-40" aria-label="Take photo or video" title="Camera"><Camera size={17} /></button>
+                <button type="button" onClick={() => attachmentInputRef.current?.click()} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-40" aria-label="Choose photos and videos" title="Photos"><ImageIcon size={17} /></button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-40" aria-label="Choose files" title="Files"><FileText size={17} /></button>
+                <div className="min-w-0 flex-1 relative">
                   <textarea
                     ref={messageInputRef}
                     rows={1}
@@ -2329,7 +2345,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     }}
                     disabled={recordingState !== 'idle'}
                     placeholder="Message..."
-                    className="max-h-[120px] w-full resize-none overflow-y-auto rounded-xl border border-white/[0.08] bg-[#141414] px-4 py-2.5 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-white/30 focus:border-white/25"
+                    className="max-h-[96px] min-h-[38px] w-full resize-none overflow-y-auto rounded-full border-0 bg-transparent px-2.5 py-2 text-sm leading-relaxed text-white outline-none placeholder:text-white/35 focus:ring-0"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
                     }}
@@ -2338,7 +2354,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 {messageInput.trim() || attachmentDrafts.length ? (
                   <button
                     onClick={sendComposer}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/60 bg-[#d6a83f] text-black transition-all hover:bg-[#f2c75c]"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/60 bg-[#d6a83f] text-black transition-all hover:bg-[#f2c75c]"
                     aria-label="Send message"
                   >
                     <Send size={16} />
@@ -2349,7 +2365,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     animate={{ scale: 1 }}
                     type="button"
                     onClick={() => void startVoiceRecording()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
                     aria-label="Record voice note"
                     title="Record voice note"
                   >
