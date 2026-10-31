@@ -105,8 +105,25 @@ export class PostService {
 
     if (!post) throw new Error("Post not found");
 
+    // Match Home feed serialization: include every linked upload in its
+    // original selection order, while retaining mediaUrl for legacy clients.
+    const files = await prisma.uploadedFile.findMany({
+      where: { recordType: "Post", recordId: post.id, deletedAt: null },
+      select: { id: true, url: true, mimeType: true, fileType: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const attachments = files.map((file) => ({
+      id: file.id,
+      url: file.url,
+      type: file.fileType,
+      mimeType: file.mimeType,
+    }));
+    const mediaUrl = attachments[0]?.url || (post as any).mediaUrl || null;
+
     return enrichItemAuthors({
       ...post,
+      mediaUrl,
+      attachments: attachments.length > 0 ? attachments : mediaUrl ? [{ url: mediaUrl }] : [],
       isLiked: userId ? (post as any).likes?.length > 0 : false,
       isSaved: userId ? (post as any).saves?.length > 0 : false,
       likes: undefined,

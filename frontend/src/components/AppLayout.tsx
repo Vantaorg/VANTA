@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -206,6 +206,7 @@ const MobileMenu = memo(function MobileMenu({
 // Main AppLayout component — V2 Redesign
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, logout } = useAuth();
   const { unreadCount: notificationUnread } = useNotifications();
@@ -279,6 +280,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isAuthPage = ['/login', '/register', '/forgot-password', '/'].includes(pathname || '');
   // Chat is a separate application surface with /chat as its only route.
   const isChatPage = pathname?.startsWith('/chat');
+  // Conversation view (direct, group, or channel) is immersive; keep the
+  // bottom navigation only on the Chat inbox/list surface.
+  const isChatConversation = isChatPage && Boolean(searchParams.get('conversation'));
   const isPostDetailPage = Boolean(pathname && /^\/post\/[^/]+/.test(pathname));
   const isReelsPage = pathname?.startsWith('/reels');
   const isHomePage = pathname === '/home';
@@ -494,7 +498,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         )}
         <AnimatePresence initial={false}>
-          {(!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && (
+          {(!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation && (
           <motion.nav
             initial={{ y: 64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
