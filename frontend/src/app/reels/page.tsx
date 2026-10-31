@@ -80,6 +80,8 @@ type ReelComment = {
   userId?: string;
   content: string;
   createdAt?: string;
+  liked?: boolean;
+  _count?: { likes: number; replies?: number };
   user?: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null };
 };
 
