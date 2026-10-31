@@ -243,7 +243,7 @@ const formatRelativePresenceTime = (value?: string | Date | null): string => {
   if (!value) return 'recently';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return 'recently';
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
 export default function MessagesPage() {
