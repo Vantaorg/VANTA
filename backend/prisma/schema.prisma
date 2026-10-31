@@ -83,6 +83,7 @@ model User {
   videos            Video[]                  @relation("CreatorVideos")
   videoLikes        VideoLike[]
   videoComments     VideoComment[]
+  videoCommentLikes VideoCommentLike[]
   videoSaves        VideoSave[]
   watchHistory      WatchHistory[]
   contentViews      ContentView[]
@@ -678,9 +679,23 @@ model VideoComment {
   content   String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  likes     VideoCommentLike[]
   createdAt DateTime @default(now())
 
   @@index([videoId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model VideoCommentLike {
+  id        String       @id @default(cuid())
+  userId    String
+  commentId String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   VideoComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId, createdAt])
   @@index([userId, createdAt])
 }
 

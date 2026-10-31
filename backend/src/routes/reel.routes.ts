@@ -6,6 +6,7 @@ import {
   likeReel,
   commentOnReel,
   getReelComments,
+  likeReelComment,
   saveReel,
   incrementReelViews,
   deleteReelComment,
@@ -21,7 +22,7 @@ const router = Router();
 // Public routes
 router.get("/", optionallyAuthenticateJWT, getReels);
 router.get("/:id", optionallyAuthenticateJWT, getReelById);
-router.get("/:id/comments", getReelComments);
+router.get("/:id/comments", optionallyAuthenticateJWT, getReelComments);
 router.post("/:id/views", authenticateJWT, incrementReelViews);
 
 // Background-publish lifecycle (registered before the `/:id` routes so the
@@ -35,6 +36,7 @@ router.post("/:id/fail", authenticateJWT, failReel);
 router.post("/:id/like", authenticateJWT, likeReel);
 router.post("/:id/save", authenticateJWT, saveReel);
 router.post("/:id/comments", authenticateJWT, commentOnReel);
+router.post("/:id/comments/:commentId/like", authenticateJWT, likeReelComment);
 router.delete("/:id/comments/:commentId", authenticateJWT, deleteReelComment);
 router.delete("/:id", authenticateJWT, deleteReel);
 
