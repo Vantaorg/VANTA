@@ -2066,7 +2066,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   const currentDate = new Date(msg.timestamp);
                   const previousDate = index > 0 ? new Date(messages[index - 1].timestamp) : null;
                   const showDate = !previousDate || currentDate.toDateString() !== previousDate.toDateString();
-                  const dateLabel = currentDate.toDateString() === new Date().toDateString() ? 'Today' : currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                  const dateLabel = currentDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
                   const senderRole = activeConv.participants?.find((participant: any) => (participant.id ?? participant.userId) === msg.sender.id)?.role;
                   const senderName = msg.sender.fullName || msg.sender.username || 'Unknown user';
                   const previousMessage = index > 0 ? messages[index - 1] : null;
@@ -2079,7 +2079,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   // Group/channel conversations retain sender identity for each run.
                   const isGroupLike = activeConv?.type === 'group' || activeConv?.type === 'channel';
                   const showSenderIdentity = isGroupLike ? senderChanged : (!msg.isOwn && senderChanged);
-                  return <div key={msg.id}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full border border-white/[0.06] bg-[#0d0d0f] px-3 py-1 text-[9px] text-white/35">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
+                  return <div key={msg.id}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full bg-[#202126] px-3 py-1.5 text-[11px] font-medium text-white/65">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
                   <div
                     id={`message-${msg.id}`}
                     className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start')}
@@ -2097,7 +2097,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                             <button
                               type="button"
                               onClick={() => msg.sender.username && router.push(`/profile/${encodeURIComponent(msg.sender.username)}`)}
-                              className="truncate text-[11px] font-medium text-[#c8c8cc] transition hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                              className="truncate text-[10px] font-semibold uppercase tracking-[.08em] text-[#c8c8cc] transition hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                             >
                               {senderName}
                             </button>
@@ -2107,7 +2107,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <div className={cn(
                         'chat-bubble-text w-fit max-w-full overflow-hidden text-[14px] leading-[1.45]',
                         msg.isOwn
-                           ? 'rounded-2xl rounded-br-sm bg-[#191919] text-[#f5f5f5]'
+                           ? 'rounded-2xl rounded-br-sm bg-[#1E9DE9] text-white'
                            : 'rounded-2xl rounded-bl-sm bg-[#121212] text-[#dedee2]'
                       )}>
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
@@ -2181,13 +2181,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
                           {msg.uploading && <div className="mt-1 flex items-center gap-1.5 px-3 pb-2 text-[10px] text-[#6aa5ff]"><Loader2 size={10} className="animate-spin" /><span className="tabular-nums">Uploading {msg.uploadProgress ?? 0}%</span></div>}
                         </>)}
+                        {showMessageTime && !msg.deletedAt && (
+                          <div className={cn('flex items-center justify-end gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>
+                            <span>{currentDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                            {msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : msg.read ? <CheckCheck size={11} /> : <Check size={11} />)}
+                          </div>
+                        )}
                       </div>
                       <div className={cn('flex items-center gap-1 mt-0.5', msg.isOwn ? 'justify-end mr-1' : 'justify-start ml-1')}>
-                        {showMessageTime && <span className="text-[9px] text-gray-500">{formatRelativeChatTime(msg.timestamp)}</span>}
                         {msg.pinnedAt && <Pin size={9} className="text-white/40" />}
-                        {msg.isOwn && (
-                          msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-400">Failed to send · Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin text-[#8a94a6]" /> : msg.read ? <CheckCheck size={10} className="text-[#6aa5ff]" /> : <Check size={10} className="text-[#9aa6b2]" />
-                        )}
                       </div>
                       {msg.reactions && msg.reactions.length > 0 && <div className={cn('mt-1 flex flex-wrap gap-1', msg.isOwn && 'justify-end')}>{Array.from(new Set(msg.reactions.map(item => item.reaction))).map(reaction => <button key={reaction} onClick={() => reactToMessage(msg, reaction)} className="rounded-full border border-white/10 bg-[#161616] px-2 py-0.5 text-xs">{reaction} {msg.reactions?.filter(item => item.reaction === reaction).length}</button>)}</div>}
                     </div>
@@ -2366,7 +2368,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       }, 1500);
                     }}
                     disabled={recordingState !== 'idle'}
-                    placeholder="Message..."
+                    placeholder="Message"
                     className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-[22px] border-0 bg-[#19191c] px-4 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#202024]"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
@@ -2376,7 +2378,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 {messageInput.trim() || attachmentDrafts.length ? (
                   <button
                     onClick={sendComposer}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d6a83f] text-black transition-colors hover:bg-[#f2c75c]"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1E9DE9] text-white transition-colors hover:bg-[#168bd0]"
                     aria-label="Send message"
                   >
                     <Send size={16} />
@@ -2387,7 +2389,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     animate={{ scale: 1 }}
                     type="button"
                     onClick={() => void startVoiceRecording()}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition-colors hover:bg-white/[0.12] hover:text-white"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1E9DE9] text-white transition-colors hover:bg-[#168bd0]"
                     aria-label="Record voice note"
                     title="Record voice note"
                   >
