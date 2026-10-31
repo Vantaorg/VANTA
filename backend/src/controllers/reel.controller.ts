@@ -323,11 +323,13 @@ export const commentOnReel = async (req: AuthRequest, res: Response): Promise<vo
         content: content.trim(),
       },
       include: {
-        user: { select: { id: true, username: true, fullName: true, avatar: true } },
+        user: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT } },
+        _count: { select: { likes: true } },
       },
     });
 
-    res.status(201).json(comment);
+    const { user, _count, ...rest } = comment as any;
+    res.status(201).json({ ...rest, user: enrichPublicUser(user), liked: false, _count: { likes: _count.likes, replies: 0 } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     res.status(400).json({ error: message });
