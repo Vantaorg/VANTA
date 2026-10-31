@@ -166,8 +166,10 @@ export async function buildReelFeed(input: {
     const viewRecencyPenalty =
       lastViewed === undefined ? 0 : Math.max(0, 12 - (now - lastViewed) / (6 * 60 * 60 * 1000));
 
-    const jitter = rand() * 6;
-    const score = viewRecencyPenalty * 8 - engagementScore - recencyBoost + jitter;
+    // Randomize the eligible pool strongly enough that each new session seed
+    // changes the order instead of letting popularity make it effectively FCFS.
+    const jitter = rand() * 36;
+    const score = viewRecencyPenalty * 5 - engagementScore * 0.35 - recencyBoost * 0.5 + jitter;
     return { c, score };
   });
 

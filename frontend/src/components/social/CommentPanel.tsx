@@ -195,7 +195,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
         {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
         {/* Inline composer — sticks above the mobile bottom navigation so it
             stays reachable during long threads and never hides behind the nav. */}
-        <form onSubmit={submit} className={`relative shrink-0 px-1 pb-3 pt-2 ${isInline ? 'sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 border-t border-white/[0.06] bg-[var(--background)]/95 backdrop-blur-xl' : ''}`}>
+        <form onSubmit={submit} className={`relative shrink-0 px-1 pb-3 pt-2 ${isInline ? 'z-10 border-t border-white/[0.06] bg-[var(--background)]' : ''}`}>
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
