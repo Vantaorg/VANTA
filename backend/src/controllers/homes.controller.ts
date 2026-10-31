@@ -291,6 +291,15 @@ export const adminReviewListing = wrap(async (req: AuthRequest, res: Response) =
   res.status(200).json(result);
 });
 
+export const adminSetListingAvailability = wrap(async (req: AuthRequest, res: Response) => {
+  const adminId = req.user?.userId;
+  if (!adminId) throw new Error('Authentication required');
+  const listingId = getParamString(req.params.id);
+  const { status, reason } = req.body || {};
+  const result = await homesService.adminSetListingAvailability(listingId, adminId, status, reason);
+  res.status(200).json(result);
+});
+
 export const adminGetVerifications = wrap(async (req: AuthRequest, res: Response) => {
   const { cursor, limit, type, status } = req.query;
   const result = await homesService.adminGetVerifications({
