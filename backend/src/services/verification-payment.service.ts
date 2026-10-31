@@ -6,7 +6,6 @@ import {
   getCoinPaymentMode,
   getTestPaymentDepositAddress,
   getCoinPaymentWebhookSecret,
-  getCoinPaymentDepositAddress,
   createCoinPaymentSimulateToken,
   verifyCoinPaymentSimulateToken,
   isValidTransactionHash,
@@ -19,6 +18,7 @@ import {
   BlockchainTxVerificationError,
 } from './blockchain-verifier.service';
 import {
+  getBadgePaymentDepositAddress,
   VERIFIED_BADGE_PLANS,
   BADGE_PLAN_BY_ID,
   VERIFICATION_PURCHASE_TTL_SECONDS,
@@ -177,7 +177,7 @@ export class VerificationPaymentService {
           'Verification purchases are temporarily unavailable. Please try again later.'
         );
       }
-      address = config.depositAddress;
+      address = getBadgePaymentDepositAddress();
     }
 
     const amount = catalogPlan.priceUSD;
@@ -652,7 +652,7 @@ export class VerificationPaymentService {
     // transferred amount must match the order, and the transaction must have
     // enough confirmations on the expected network. Any failure — or an RPC
     // outage — blocks activation (fail closed).
-    const verifyingRecipient = getCoinPaymentDepositAddress();
+    const verifyingRecipient = getBadgePaymentDepositAddress();
     if (!verifyingRecipient) {
       await markEvent('FAILED', 'Receiving wallet is not configured');
       return { received: true, result: 'failed', orderId: order.id, eventId };
