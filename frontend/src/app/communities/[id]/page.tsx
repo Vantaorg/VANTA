@@ -130,7 +130,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
               <button type="button" onClick={() => void toggleJoin()} disabled={joining} className="min-h-11 flex-1 rounded-lg bg-[#f5f5f5] text-sm font-semibold text-black hover:bg-white disabled:opacity-60">{joining ? 'Joining…' : 'Join'}</button>
             )}
             {community.joined && community.conversationId && (
-              <button type="button" onClick={() => router.push(`/messages?conversation=${encodeURIComponent(community.conversationId || '')}`)} className="min-h-11 flex-1 rounded-lg border border-white/[.12] text-sm font-semibold text-[#f5f5f5] hover:bg-white/[.05]"><MessageCircle size={16} className="mr-1.5" />Open in Chat</button>
+              <button type="button" onClick={() => router.push(`/chat?conversation=${encodeURIComponent(community.conversationId || '')}`)} className="min-h-11 flex-1 rounded-lg border border-white/[.12] text-sm font-semibold text-[#f5f5f5] hover:bg-white/[.05]"><MessageCircle size={16} className="mr-1.5" />Open in Chat</button>
             )}
             <button type="button" onClick={() => void copyLink()} aria-label="Copy community link" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><Share2 size={17} /></button>
           </div>
