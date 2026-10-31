@@ -6,7 +6,6 @@ import {
   getCoinPaymentMode,
   getTestPaymentDepositAddress,
   getCoinPaymentWebhookSecret,
-  getCoinPaymentDepositAddress,
   createCoinPaymentSimulateToken,
   verifyCoinPaymentSimulateToken,
   isValidTransactionHash,
