@@ -4,6 +4,7 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bookmark,
@@ -79,7 +80,7 @@ type ReelComment = {
   userId?: string;
   content: string;
   createdAt?: string;
-  user?: { id: string; username: string; fullName?: string; avatar?: string };
+  user?: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null };
 };
 
 const formatCount = (value = 0) => value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(1)}K` : String(value);
@@ -512,6 +513,25 @@ export default function ReelsPage() {
     }
   };
 
+  const toggleCommentLike = async (comment: ReelComment) => {
+    if (!token || !commentsFor) { toast.error('Sign in to like comments'); return; }
+    const wasLiked = Boolean(comment.liked);
+    const previousCount = Number(comment._count?.likes || 0);
+    const optimisticLiked = !wasLiked;
+    const optimisticCount = Math.max(0, previousCount + (wasLiked ? -1 : 1));
+    const apply = (items: ReelComment[], liked: boolean, count: number) => items.map(item => item.id === comment.id
+      ? { ...item, liked, _count: { likes: count, replies: 0 } }
+      : item);
+    setComments(items => apply(items, optimisticLiked, optimisticCount));
+    try {
+      const result = await apiPost<{ liked: boolean; likes: number }>(`/api/reels/${commentsFor.id}/comments/${comment.id}/like`, {}, token);
+      setComments(items => apply(items, result.liked, result.likes));
+    } catch (reason: any) {
+      setComments(items => apply(items, wasLiked, previousCount));
+      toast.error('Comment like failed', reason?.message);
+    }
+  };
+
   const share = async (reel: Reel, mode: 'copy' | 'native') => {
     const url = `${location.origin}/reels/${reel.id}`;
     try {
@@ -623,7 +643,7 @@ export default function ReelsPage() {
       
 
       <AnimatePresence>
-        {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} close={() => setCommentsFor(null)} />}
+        {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} toggleLike={toggleCommentLike} close={() => setCommentsFor(null)} />}
         {shareFor && <SharePanel reel={shareFor} share={share} close={() => setShareFor(null)} />}
         {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
@@ -778,7 +798,7 @@ function Action({ icon, label, ariaLabel, onClick, active }: { icon: ReactNode; 
   return <button type="button" onClick={onClick} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')} aria-label={ariaLabel} aria-pressed={active}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">{icon}</span><span>{label}</span></button>;
 }
 
-function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => Promise<boolean>; close: () => void }) {
+function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, toggleLike, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => Promise<boolean>; toggleLike: (comment: ReelComment) => void; close: () => void }) {
   const [deleteFor, setDeleteFor] = useState<ReelComment | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const confirmRemove = async () => {
@@ -857,13 +877,21 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
           <div className="grid h-full place-items-center"><Loader2 className="animate-spin text-white/40" /></div>
         ) : items.length ? items.map(item => (
           <article key={item.id} className="flex gap-3 py-3">
-            <Avatar src={item.user?.avatar} alt={item.user?.username || ''} size="sm" />
+            <Link href={item.user?.username ? `/profile/${encodeURIComponent(item.user.username)}` : '/profile'} aria-label={`Open ${item.user?.username ? '@' + item.user.username : 'commenter'} profile`} className="h-9 w-9 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a227]">
+              <Avatar src={item.user?.avatar} alt={item.user?.username || ''} size="sm" />
+            </Link>
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <b className="truncate text-[13px] font-semibold text-[#f5f5f5]">{item.user?.fullName || item.user?.username || 'VANTA user'}</b>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <b className="inline-flex min-w-0 items-center gap-1 text-[13px] font-semibold text-[#f5f5f5]">
+                  <Link href={item.user?.username ? `/profile/${encodeURIComponent(item.user.username)}` : '/profile'} className="truncate hover:underline">{item.user?.fullName || item.user?.username || 'VANTA user'}</Link>
+                  {item.user?.verified && item.user?.verificationType && <VerificationBadge verified type={item.user.verificationType} size="xs" className="shrink-0 align-[-1px]" />}
+                </b>
                 {item.createdAt && <time className="shrink-0 text-[11px] leading-none text-white/35">{timeAgo(item.createdAt)}</time>}
               </div>
               <p className="mt-1 break-words text-sm leading-5 text-white/75">{renderTextWithLinks(item.content, 'linkify')}</p>
+              <button type="button" onClick={() => toggleLike(item)} aria-label={item.liked ? 'Unlike comment' : 'Like comment'} aria-pressed={Boolean(item.liked)} className={cn('mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] transition hover:bg-white/[.06]', item.liked ? 'text-[#c9a227]' : 'text-white/45 hover:text-white')}>
+                <Heart size={13} fill={item.liked ? 'currentColor' : 'none'} /> Like {item._count?.likes || 0}
+              </button>
             </div>
             {currentUserId && (item.userId === currentUserId || item.user?.id === currentUserId) && (
               <button type="button" onClick={() => setDeleteFor(item)} className="-mr-1 grid h-7 w-7 shrink-0 place-items-center self-center rounded-lg text-white/30 transition hover:text-white" aria-label="Delete your comment"><Trash2 size={14} /></button>
