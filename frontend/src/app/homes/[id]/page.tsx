@@ -321,8 +321,7 @@ export default function HomeDetailPage() {
       const result = await contactHomeListing(id, prefill, token);
       const conversationId = result?.conversationId;
       if (conversationId) {
-        // `/chat/[id]` is the canonical conversation route; `/messages/[id]`
-        // is only a legacy redirect to it.
+        // Open the conversation through VANTA's single canonical chat route.
         router.push(`/chat/${encodeURIComponent(conversationId)}`);
       } else {
         showToast({ type: 'success', title: 'Message sent', message: 'The owner has been notified.' });

@@ -275,9 +275,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isAuthPage = ['/login', '/register', '/forgot-password', '/'].includes(pathname || '');
-  // Chat is a separate application surface. Keep the legacy /messages entry
-  // point in the same shell while its canonical links continue to use /chat.
-  const isChatPage = pathname?.startsWith('/chat') || pathname?.startsWith('/messages');
+  // Chat is a separate application surface with /chat as its only route.
+  const isChatPage = pathname?.startsWith('/chat');
   const isPostDetailPage = Boolean(pathname && /^\/post\/[^/]+/.test(pathname));
   const isReelsPage = pathname?.startsWith('/reels');
   const isHomePage = pathname === '/home';

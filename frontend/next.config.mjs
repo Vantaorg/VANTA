@@ -100,8 +100,6 @@ const nextConfig = {
 
   async redirects() {
     return [
-      { source: '/chat', destination: '/messages', permanent: false },
-      { source: '/chat/:conversationId', destination: '/messages?conversation=:conversationId', permanent: false },
       { source: '/wallet', destination: '/balance', permanent: false },
       { source: '/wallet/transactions', destination: '/balance/transactions', permanent: false },
       { source: '/wallet/withdraw', destination: '/balance/withdraw', permanent: false },
