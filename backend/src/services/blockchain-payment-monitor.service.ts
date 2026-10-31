@@ -15,7 +15,9 @@ import { verificationPaymentService } from './verification-payment.service';
  * credited; they are logged for operator reconciliation.
  */
 const POLL_MS = Math.max(10_000, Number(process.env.VANTA_CHAIN_WATCH_POLL_MS || 30_000));
-const CHUNK_BLOCKS = Math.max(1, Math.min(2_000, Number(process.env.VANTA_CHAIN_WATCH_CHUNK_BLOCKS || 500)));
+// Public BSC/Base RPCs commonly reject large eth_getLogs ranges. Keep the
+// default deliberately small; operators with a dedicated RPC can raise it.
+const CHUNK_BLOCKS = Math.max(1, Math.min(500, Number(process.env.VANTA_CHAIN_WATCH_CHUNK_BLOCKS || 50)));
 const LOOKBACK_BLOCKS = Math.max(100, Number(process.env.VANTA_CHAIN_WATCH_LOOKBACK_BLOCKS || 2_000));
 const TOLERANCE_USD = 0.005;
 const cursors = new Map<BlockchainNetworkId, number>();
@@ -88,6 +90,26 @@ async function fulfill(network: BlockchainNetworkId, txHash: string, amount: num
   console.info('[CHAIN-WATCH] Matched and processed payment', { network, txHash, orderId: order.id, kind: isCoin ? 'coin' : 'badge' });
 }
 
+async function getTransferLogs(network: BlockchainNetworkId, filter: Record<string, unknown>, fromBlock: number, toBlock: number): Promise<any[]> {
+  try {
+    const logs = await rpc(network, 'eth_getLogs', [filter]);
+    return Array.isArray(logs) ? logs : [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const rangeSize = toBlock - fromBlock + 1;
+    // Providers use different wording for eth_getLogs range/result caps.
+    // Split the request and retry each half instead of abandoning the entire
+    // network scan. A one-block failure is allowed to bubble to the poll retry.
+    if (rangeSize > 1 && /limit exceeded|too many results|block range|query returned more than|response size/i.test(message)) {
+      const midpoint = Math.floor((fromBlock + toBlock) / 2);
+      const left = await getTransferLogs(network, filter, fromBlock, midpoint);
+      const right = await getTransferLogs(network, filter, midpoint + 1, toBlock);
+      return left.concat(right);
+    }
+    throw error;
+  }
+}
+
 async function scanNetwork(network: BlockchainNetworkId): Promise<void> {
   const config = BLOCKCHAIN_NETWORKS[network];
   const latest = fromHex(await rpc(network, 'eth_blockNumber', []));
@@ -101,13 +123,13 @@ async function scanNetwork(network: BlockchainNetworkId): Promise<void> {
   while (cursor <= safeHead) {
     const end = Math.min(safeHead, cursor + CHUNK_BLOCKS - 1);
     for (const [kind, wallet] of [['coin', getCoinPaymentDepositAddress()], ['badge', getBadgePaymentDepositAddress()]] as const) {
-      const logs = await rpc(network, 'eth_getLogs', [{
+      const filter = {
         fromBlock: '0x' + cursor.toString(16),
         toBlock: '0x' + end.toString(16),
         address: config.tokenContract,
         topics: [ERC20_TRANSFER_EVENT_SIGNATURE, null, topicAddress(wallet)],
-      }]);
-      if (!Array.isArray(logs)) continue;
+      };
+      const logs = await getTransferLogs(network, filter, cursor, end);
       for (const log of logs) {
         const txHash = String(log.transactionHash || '');
         if (!isValidTransactionHash(txHash)) continue;
