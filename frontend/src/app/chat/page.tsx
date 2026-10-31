@@ -2059,9 +2059,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   const senderName = msg.sender.fullName || msg.sender.username || 'Unknown user';
                   const previousMessage = index > 0 ? messages[index - 1] : null;
                   const senderChanged = !previousMessage || previousMessage.sender.id !== msg.sender.id || new Date(previousMessage.timestamp).toDateString() !== currentDate.toDateString();
-                  // Keep rapid consecutive messages visually grouped: one relative
-                  // timestamp per minute-sized run instead of a time label per bubble.
-                  const showMessageTime = !previousMessage || currentDate.getTime() - new Date(previousMessage.timestamp).getTime() >= 60_000;
+                  // Outgoing bubbles show their own time. Incoming runs show one
+                  // timestamp beneath the final bubble in each sender/minute group.
+                  const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+                  const nextDate = nextMessage ? new Date(nextMessage.timestamp) : null;
+                  const endsIncomingGroup = !nextMessage
+                    || nextMessage.sender.id !== msg.sender.id
+                    || nextDate!.toDateString() !== currentDate.toDateString()
+                    || nextDate!.getTime() - currentDate.getTime() >= 60_000;
+                  const showMessageTime = msg.isOwn || endsIncomingGroup;
                   // Direct chats stay private and compact: no role badges, and
                   // show the other person's avatar only at the start of a run.
                   // Group/channel conversations retain sender identity for each run.
