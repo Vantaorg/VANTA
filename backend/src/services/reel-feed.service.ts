@@ -4,7 +4,7 @@ import { prisma } from "../prisma";
 // ============================================================================
 // Reel Feed (short-form / randomized)
 // ----------------------------------------------------------------------------
-// Deterministic-but-randomized Reel feed. The order is seeded per browsing
+// Randomized Reel feed. The order is seeded per browsing
 // session so it stays stable while the user scrolls, but varies between sessions
 // and does not collapse to first-created/first-served.
 //
@@ -18,7 +18,7 @@ import { prisma } from "../prisma";
 // No AI/ML — a solid deterministic recommendation approach as required.
 // ============================================================================
 
-const MAX_CANDIDATES = 500;
+const MAX_CANDIDATES = 2000;
 
 /** Small, fast, seedable PRNG (mulberry32). Deterministic for a given seed. */
 function mulberry32(seed: number): () => number {
@@ -155,29 +155,21 @@ export async function buildReelFeed(input: {
     createdAt: reel.createdAt,
   }));
 
-  // Score each candidate. Lower score = surface first.
-  const scored = candidates.map((c) => {
-    const ageDays = Math.max(0, (now - c.createdAt.getTime()) / (24 * 60 * 60 * 1000));
-    const engagement = c.likes * 3 + c.comments * 4 + c.saves * 2 + Math.min(c.views / 50, 5);
-    const engagementScore = Math.min(engagement, 20);
-    const recencyBoost = Math.max(0, 4 - ageDays);
+  // Shuffle the complete eligible candidate pool for this seed. Avoid a
+  // popularity-weighted score here: it can keep a small handful of Reels near
+  // the top across refreshes and make the feed feel like only two items rotate.
+  // Fisher-Yates gives every candidate a randomized position while the seed
+  // keeps pagination stable for the lifetime of this feed session.
+  const ordered = candidates.slice();
+  for (let i = ordered.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+  }
+  // Preserve creator variety without dropping or duplicating any candidate.
+  const diversified = interleaveCreators(ordered, rand);
 
-    const lastViewed = viewedMeta.get(c.id);
-    const viewRecencyPenalty =
-      lastViewed === undefined ? 0 : Math.max(0, 12 - (now - lastViewed) / (6 * 60 * 60 * 1000));
-
-    // Randomize the eligible pool strongly enough that each new session seed
-    // changes the order instead of letting popularity make it effectively FCFS.
-    const jitter = rand() * 36;
-    const score = viewRecencyPenalty * 5 - engagementScore * 0.35 - recencyBoost * 0.5 + jitter;
-    return { c, score };
-  });
-
-  scored.sort((a, b) => a.score - b.score);
-  const ordered = interleaveCreators(scored.map((s) => s.c), rand);
-
-  const page = ordered.slice(start, start + limit);
-  const nextStart = start + page.length < ordered.length ? start + page.length : null;
+  const page = diversified.slice(start, start + limit);
+  const nextStart = start + page.length < diversified.length ? start + page.length : null;
 
   return {
     seed: effectiveSeed,
