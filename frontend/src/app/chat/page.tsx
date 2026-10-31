@@ -238,8 +238,8 @@ const formatVoiceTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-/** Compact relative timestamps shared by chat presence and message metadata. */
-const formatRelativeChatTime = (value?: string | Date | null): string => {
+/** Compact relative timestamps for presence metadata. */
+const formatRelativePresenceTime = (value?: string | Date | null): string => {
   if (!value) return 'recently';
   const timestamp = new Date(value).getTime();
   if (!Number.isFinite(timestamp)) return 'recently';
@@ -1981,7 +1981,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
-                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${formatRelativeChatTime(activeConv.lastSeen)}` : 'Offline'}
+                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${formatRelativePresenceTime(activeConv.lastSeen)}` : 'Offline'}
                   </p>
                 </div></button>
               </div>
