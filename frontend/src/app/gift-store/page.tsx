@@ -290,17 +290,17 @@ export default function GiftStorePage() {
 
             {/* Gift grid — artwork is the hero. No frames, borders or card
                 backgrounds; ~4 per row, adapting to the mobile shell width. */}
-            <div className="grid w-full min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
+            <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-2.5 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10">
               {filteredGifts.map((gift) => (
                 <button
                   key={gift.id}
                   onClick={() => setSendingGift(gift)}
                   aria-label={`Send ${gift.name} for ${gift.price.toLocaleString()} coins`}
-                  className="group relative flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-1.5 text-center transition active:scale-[.94]"
+                  className="group relative flex min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-xl border border-white/[.09] bg-[linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)_58%,rgba(0,0,0,.18))] px-1.5 pb-2.5 pt-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.035)] transition duration-200 hover:border-[#d8b44b]/35 hover:bg-[linear-gradient(180deg,rgba(214,177,73,.09),rgba(255,255,255,.018)_58%,rgba(0,0,0,.2))] active:scale-[.97]"
                 >
-                  <div className="relative flex aspect-square w-full items-center justify-center">
+                  <div className="relative flex aspect-square w-full max-h-[112px] items-center justify-center">
                     <div className="absolute inset-3 rounded-full opacity-25 blur-2xl transition-opacity group-active:opacity-40" style={{ backgroundColor: gift.glowColor || 'transparent' }} />
-                    <GiftArtwork slug={gift.slug} name={gift.name} artworkType={gift.artworkType} assetUrl={gift.thumbnailUrl || gift.image} size={62} animate={false} quality={giftVisualQuality(gift)} />
+                    <GiftArtwork slug={gift.slug} name={gift.name} artworkType={gift.artworkType} assetUrl={gift.thumbnailUrl || gift.image} size={88} animate={false} quality={giftVisualQuality(gift)} />
                     {(gift.isLegendary || gift.isLimited) && (
                       <span
                         title={gift.isLegendary ? 'Exclusive' : 'Limited'}
@@ -311,7 +311,7 @@ export default function GiftStorePage() {
                       </span>
                     )}
                   </div>
-                  <h3 className="w-full truncate text-[11px] font-medium leading-tight text-white/90">{gift.name}</h3>
+                  <h3 className="w-full truncate text-[10px] font-semibold leading-tight text-white/90 sm:text-[11px]">{gift.name}</h3>
                   <span className="flex min-w-0 items-center justify-center gap-0.5 text-[11px] font-semibold">
                     <VantaCoinIcon size={11} className={gift.isLegendary ? 'text-[var(--vanta-gold)]' : 'text-[#c8a24a]'} />
                     <span className="truncate text-white">{gift.price.toLocaleString()}</span>

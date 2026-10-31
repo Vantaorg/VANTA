@@ -110,15 +110,15 @@ export default function GiftPicker({ gifts, balance, recipient, token, streamId,
               </div>
             </div>
           </motion.div>}
-          <div className="grid grid-cols-5 gap-x-1.5 gap-y-2.5 sm:gap-x-2 sm:gap-y-3">
+          <div className="grid grid-cols-5 gap-2 sm:grid-cols-6 sm:gap-2.5">
             {visible.map(gift => {
               const active = selected?.id === gift.id;
-              return <button key={gift.id} aria-pressed={active} onClick={() => setSelected(gift)} className={`group relative flex min-w-0 flex-col items-center rounded-2xl border px-1 pb-2 pt-2 text-center transition-all duration-200 ease-out select-none ${active ? 'border-[#e2bf4d]/65 bg-[linear-gradient(180deg,rgba(213,176,65,.16),rgba(213,176,65,.045))] shadow-[inset_0_0_0_1px_rgba(228,195,94,.08),0_6px_20px_rgba(201,162,39,.08)]' : 'border-transparent bg-white/[0.018] hover:border-white/[0.09] hover:bg-white/[0.045] active:scale-[0.97]'}`}>
+              return <button key={gift.id} aria-pressed={active} onClick={() => setSelected(gift)} className={`group relative flex min-w-0 flex-col items-center overflow-hidden rounded-xl border px-1 pb-2.5 pt-2 text-center transition-all duration-200 ease-out select-none ${active ? 'border-[#e2bf4d]/65 bg-[linear-gradient(180deg,rgba(213,176,65,.16),rgba(213,176,65,.045))] shadow-[inset_0_0_0_1px_rgba(228,195,94,.08),0_6px_20px_rgba(201,162,39,.08)]' : 'border-white/[.075] bg-[linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012))] hover:border-white/[.15] hover:bg-white/[.045] active:scale-[0.97]'}`}>
                 {active && <span className="absolute right-0 top-0 z-20 grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-[#dfbd55] to-[#9d7d1e] text-black shadow-[0_2px_10px_rgba(201,162,39,0.55)]"><Check size={11} strokeWidth={3} /></span>}
-                <span className="relative mb-1 flex h-[62px] w-full items-center justify-center sm:h-[70px]">
+                <span className="relative mb-1 flex h-[74px] w-full items-center justify-center sm:h-[82px]">
                   {active && <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[52px] w-[52px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#c9a227]/20 blur-xl" />}
                   <span className={`relative z-10 flex h-[62px] w-full items-center justify-center sm:h-[70px] ${active ? 'drop-shadow-[0_0_15px_rgba(231,195,80,.55)]' : 'group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,.14)]'}`}>
-                    <Visual gift={gift} size={62} />
+                    <Visual gift={gift} size={80} />
                   </span>
                 </span>
                 <b className="max-w-full truncate text-[10px] font-bold leading-tight text-white sm:text-[11px]">{gift.name}</b>
