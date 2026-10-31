@@ -241,20 +241,9 @@ const formatVoiceTime = (seconds: number): string => {
 /** Compact relative timestamps for presence metadata. */
 const formatRelativePresenceTime = (value?: string | Date | null): string => {
   if (!value) return 'recently';
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return 'recently';
-  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return Math.max(1, seconds) + ' sec ago';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return minutes + ' min' + (minutes === 1 ? '' : 's') + ' ago';
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours + ' hour' + (hours === 1 ? '' : 's') + ' ago';
-  const days = Math.floor(hours / 24);
-  if (days < 30) return days + ' day' + (days === 1 ? '' : 's') + ' ago';
-  const months = Math.floor(days / 30);
-  if (months < 12) return months + ' month' + (months === 1 ? '' : 's') + ' ago';
-  const years = Math.floor(days / 365);
-  return years + ' year' + (years === 1 ? '' : 's') + ' ago';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'recently';
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
 export default function MessagesPage() {
@@ -1838,8 +1827,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen relative flex h-[calc(var(--chat-viewport-height,100dvh)_-_4rem_-_env(safe-area-inset-bottom))] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:h-[var(--chat-viewport-height,100dvh)]',
-        !showMobileList && 'top-[var(--chat-viewport-offset,0px)]'
+        'chat-screen fixed inset-x-0 top-[var(--chat-viewport-offset,0px)] z-10 flex h-[var(--chat-viewport-height,100dvh)] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]'
       )}
     >
       {/* Conversation List */}
@@ -1962,7 +1950,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
       {/* Chat Window */}
       <div className={cn(
-        'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#050505]',
+        'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#050505]',
         showMobileList && 'hidden md:flex'
       )}>
         {activeConversation && activeConv ? (
@@ -2071,9 +2059,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   const senderName = msg.sender.fullName || msg.sender.username || 'Unknown user';
                   const previousMessage = index > 0 ? messages[index - 1] : null;
                   const senderChanged = !previousMessage || previousMessage.sender.id !== msg.sender.id || new Date(previousMessage.timestamp).toDateString() !== currentDate.toDateString();
-                  // Keep rapid consecutive messages visually grouped: one relative
-                  // timestamp per minute-sized run instead of a time label per bubble.
-                  const showMessageTime = !previousMessage || currentDate.getTime() - new Date(previousMessage.timestamp).getTime() >= 60_000;
+                  // Outgoing bubbles show their own time. Incoming runs show one
+                  // timestamp beneath the final bubble in each sender/minute group.
+                  const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+                  const nextDate = nextMessage ? new Date(nextMessage.timestamp) : null;
+                  const endsIncomingGroup = !nextMessage
+                    || nextMessage.sender.id !== msg.sender.id
+                    || nextDate!.toDateString() !== currentDate.toDateString()
+                    || nextDate!.getTime() - currentDate.getTime() >= 60_000;
+                  const showMessageTime = msg.isOwn || endsIncomingGroup;
                   // Direct chats stay private and compact: no role badges, and
                   // show the other person's avatar only at the start of a run.
                   // Group/channel conversations retain sender identity for each run.
@@ -2105,10 +2099,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </div>
                         )}
                       <div className={cn(
-                        'chat-bubble-text w-fit max-w-full overflow-hidden text-[14px] leading-[1.45]',
+                        'chat-bubble-text w-fit max-w-full overflow-hidden text-[15px] leading-[1.45]',
                         msg.isOwn
                            ? 'rounded-2xl rounded-br-sm bg-[#1E9DE9] text-white'
-                           : 'rounded-2xl rounded-bl-sm bg-[#121212] text-[#dedee2]'
+                           : 'rounded-2xl rounded-bl-md bg-[#121212] text-[#dedee2]'
                       )}>
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
                           <span className="flex items-center justify-center gap-1.5 whitespace-nowrap py-0.5 px-3 text-xs text-white/50">
@@ -2181,13 +2175,18 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
                           {msg.uploading && <div className="mt-1 flex items-center gap-1.5 px-3 pb-2 text-[10px] text-[#6aa5ff]"><Loader2 size={10} className="animate-spin" /><span className="tabular-nums">Uploading {msg.uploadProgress ?? 0}%</span></div>}
                         </>)}
-                        {showMessageTime && !msg.deletedAt && (
-                          <div className={cn('flex items-center justify-end gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>
-                            <span>{currentDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                            {msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : msg.read ? <CheckCheck size={11} /> : <Check size={11} />)}
+                        {showMessageTime && msg.isOwn && !msg.deletedAt && (
+                          <div className="flex items-center justify-end gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums text-white/75">
+                            <span>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                            {msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />}
                           </div>
                         )}
                       </div>
+                      {showMessageTime && !msg.isOwn && !msg.deletedAt && (
+                        <div className="ml-1 mt-1 text-[10px] tabular-nums text-white/40">
+                          {currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        </div>
+                      )}
                       <div className={cn('flex items-center gap-1 mt-0.5', msg.isOwn ? 'justify-end mr-1' : 'justify-start ml-1')}>
                         {msg.pinnedAt && <Pin size={9} className="text-white/40" />}
                       </div>
@@ -2217,7 +2216,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
 
             {/* Message Input */}
-            {canPublish ? <div className="relative z-20 shrink-0 border-t border-white/[0.06] bg-[#080808]/95 px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+            {canPublish ? <div className="sticky bottom-0 z-30 shrink-0 border-t border-white/[0.06] bg-[#080808]/95 px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
