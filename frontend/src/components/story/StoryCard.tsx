@@ -63,7 +63,7 @@ export default function StoryCard({
               type="button"
               aria-label="Add a Status or Story"
               onClick={onCreate}
-              className="absolute -bottom-1 -right-1 grid h-[26px] w-[26px] place-items-center rounded-full border-2 border-[#0d0d0f] bg-[#c9a227] text-black shadow-[0_2px_10px_rgba(201,162,39,0.45)] transition-transform active:scale-90"
+              className="absolute -bottom-1 -right-1 grid h-[26px] w-[26px] place-items-center rounded-full border-2 border-[#0d0d0f] bg-[#c9a227] text-black  transition-transform active:scale-90"
             >
               <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true"><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
             </button>
