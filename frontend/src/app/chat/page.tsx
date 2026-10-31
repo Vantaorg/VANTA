@@ -2171,14 +2171,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         </>)}
                         {showMessageTime && msg.isOwn && !msg.deletedAt && (
                           <div className="flex items-center justify-end gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums text-white/75">
-                            <span>{currentDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                            <span>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                             {msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />}
                           </div>
                         )}
                       </div>
                       {showMessageTime && !msg.isOwn && !msg.deletedAt && (
                         <div className="ml-1 mt-1 text-[10px] tabular-nums text-white/40">
-                          {currentDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
+                          {currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                       )}
                       <div className={cn('flex items-center gap-1 mt-0.5', msg.isOwn ? 'justify-end mr-1' : 'justify-start ml-1')}>
