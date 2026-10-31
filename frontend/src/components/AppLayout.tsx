@@ -208,6 +208,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { unreadCount: notificationUnread } = useNotifications();
+  const { chatUnreadCount: chatUnread } = useChatUnread();
   const { chatCalls } = useCalls();
   const { activeFlow, createHubOpen, openCreateHub, closeCreateHub, closeAll } = useContentCreation();
   const { latestNotification: notificationToast, dismissLatestNotification } = useNotifications();
@@ -513,7 +515,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 const active = item.href === '/chat' ? isChatPage : pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 return (
                   <Link key={item.href} href={item.href} style={{ color: active ? '#c9a227' : undefined }} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? '!text-[#c9a227]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
-                    <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
+                    <span className="relative inline-flex">
+                      <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
+                      {item.href === '/chat' && (notificationUnread > 0 || chatUnread > 0) && (
+                        <span className="absolute -right-3 -top-2 flex items-center gap-0.5" aria-label={`${notificationUnread} unread notifications, ${chatUnread} unread messages`}>
+                          {notificationUnread > 0 && <span title={`${notificationUnread} unread notifications`} className="grid h-4 min-w-4 place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[#080808]">{notificationUnread > 99 ? '99+' : notificationUnread}</span>}
+                          {chatUnread > 0 && <span title={`${chatUnread} unread messages`} className="grid h-4 min-w-4 place-items-center rounded-full bg-[#4f9cf9] px-1 text-[9px] font-bold leading-none text-white ring-2 ring-[#080808]">{chatUnread > 99 ? '99+' : chatUnread}</span>}
+                        </span>
+                      )}
+                    </span>
                     <span>{item.label}</span>
                   </Link>
                 );
