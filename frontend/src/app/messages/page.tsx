@@ -220,6 +220,25 @@ const formatVoiceTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+/** Compact relative timestamps shared by chat presence and message metadata. */
+const formatRelativeChatTime = (value?: string | Date | null): string => {
+  if (!value) return 'recently';
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return 'recently';
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return Math.max(1, seconds) + ' sec ago';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' min' + (minutes === 1 ? '' : 's') + ' ago';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' hour' + (hours === 1 ? '' : 's') + ' ago';
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days + ' day' + (days === 1 ? '' : 's') + ' ago';
+  const months = Math.floor(days / 30);
+  if (months < 12) return months + ' month' + (months === 1 ? '' : 's') + ' ago';
+  const years = Math.floor(days / 365);
+  return years + ' year' + (years === 1 ? '' : 's') + ' ago';
+};
+
 export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1944,7 +1963,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 <div className="min-w-0">
                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f5f5f5]">{activeConv.name}{activeConv.verified && activeConv.verificationType && <VerificationBadge verified type={activeConv.verificationType} size="sm" className="shrink-0" />}</p>
                   <p className="truncate text-[10px] text-white/40">
-                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${new Date(activeConv.lastSeen).toLocaleString()}` : 'Offline'}
+                    {activeConv.type === 'channel' ? `${activeConv.memberCount || 1} subscribers · broadcast` : activeConv.type === 'group' ? (typingUserId ? `${activeConv.participants?.find((p: any) => p.id === typingUserId)?.fullName || 'Someone'} is typing…` : `${activeConv.memberCount || 1} members${activeConv.onlineMemberCount ? ` · ${activeConv.onlineMemberCount} online` : ''}`) : typingUserId ? 'Typing…' : activeConv.online ? 'Online' : activeConv.lastSeen ? `Last seen ${formatRelativeChatTime(activeConv.lastSeen)}` : 'Offline'}
                   </p>
                 </div></button>
               </div>
@@ -2034,6 +2053,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   const senderName = msg.sender.fullName || msg.sender.username || 'Unknown user';
                   const previousMessage = index > 0 ? messages[index - 1] : null;
                   const senderChanged = !previousMessage || previousMessage.sender.id !== msg.sender.id || new Date(previousMessage.timestamp).toDateString() !== currentDate.toDateString();
+                  // Keep rapid consecutive messages visually grouped: one relative
+                  // timestamp per minute-sized run instead of a time label per bubble.
+                  const showMessageTime = !previousMessage || currentDate.getTime() - new Date(previousMessage.timestamp).getTime() >= 60_000;
                   // Direct chats stay private and compact: no role badges, and
                   // show the other person's avatar only at the start of a run.
                   // Group/channel conversations retain sender identity for each run.
@@ -2143,9 +2165,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         </>)}
                       </div>
                       <div className={cn('flex items-center gap-1 mt-0.5', msg.isOwn ? 'justify-end mr-1' : 'justify-start ml-1')}>
-                        <span className="text-[9px] text-gray-500">
-                          {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        {showMessageTime && <span className="text-[9px] text-gray-500">{formatRelativeChatTime(msg.timestamp)}</span>}
                         {msg.pinnedAt && <Pin size={9} className="text-white/40" />}
                         {msg.isOwn && (
                           msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-400">Failed to send · Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin text-[#8a94a6]" /> : msg.read ? <CheckCheck size={10} className="text-[#6aa5ff]" /> : <Check size={10} className="text-[#9aa6b2]" />
@@ -2177,7 +2197,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
 
             {/* Message Input */}
-            {canPublish ? <div className="relative z-20 shrink-0 border-t border-white/[0.08] bg-[#080808]/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+            {canPublish ? <div className="relative z-20 shrink-0 border-t border-white/[0.06] bg-[#080808]/95 px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
@@ -2296,7 +2316,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   } else {
                     setShowAttachmentSheet(value => !value);
                   }
-                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
+                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-9 w-9 shrink-0 rounded-full bg-white/[0.045] disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
                 <div className="flex-1 relative">
                   <textarea
                     ref={messageInputRef}
@@ -2329,7 +2349,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     }}
                     disabled={recordingState !== 'idle'}
                     placeholder="Message..."
-                    className="max-h-[120px] w-full resize-none overflow-y-auto rounded-xl border border-white/[0.08] bg-[#141414] px-4 py-2.5 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-white/30 focus:border-white/25"
+                    className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-[22px] border-0 bg-[#19191c] px-4 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#202024]"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
                     }}
@@ -2338,7 +2358,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 {messageInput.trim() || attachmentDrafts.length ? (
                   <button
                     onClick={sendComposer}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/60 bg-[#d6a83f] text-black transition-all hover:bg-[#f2c75c]"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d6a83f] text-black transition-colors hover:bg-[#f2c75c]"
                     aria-label="Send message"
                   >
                     <Send size={16} />
