@@ -228,14 +228,27 @@ export default function LiveParticipantGrid({ participants }: { participants: St
     return stream;
   };
 
-  const gridStyle = {
+  // Two-person rooms use a portrait-friendly stacked layout on phones so
+  // neither participant is squeezed into a narrow half-width column. On
+  // larger screens the same room becomes a side-by-side split.
+  const isTwoPerson = layout.arrangement === 'split';
+  const gridStyle = isTwoPerson ? undefined : {
     gridTemplateAreas: layout.areas.join(' '),
     gridTemplateColumns: layout.columns,
     gridTemplateRows: layout.rows,
   };
 
   return (
-    <div className={layout.containerClass} style={gridStyle} role="group" aria-label="Live participants">
+    <>
+    <div
+      className={cn(
+        layout.containerClass,
+        isTwoPerson && 'live-stage-two-person grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1'
+      )}
+      style={gridStyle}
+      role="group"
+      aria-label="Live participants"
+    >
       <AnimatePresence initial={false}>
         {ordered.map((p, index) => {
           const area = index === 0 ? layout.hostArea : layout.guestAreas[index - 1];
@@ -248,8 +261,13 @@ export default function LiveParticipantGrid({ participants }: { participants: St
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.86, y: 6 }}
               transition={{ type: 'spring', stiffness: 300, damping: 28, mass: 0.9 }}
-              style={{ gridArea: area, position: 'relative' }}
-              className={cn(layout.tileClass, index === 0 && layout.hostTileClass, 'will-change-transform')}
+              style={{ ...(isTwoPerson ? {} : { gridArea: area }), position: 'relative' }}
+              className={cn(
+                layout.tileClass,
+                isTwoPerson && (index === 0 ? 'row-start-1 col-start-1' : 'row-start-2 col-start-1 sm:row-start-1 sm:col-start-2'),
+                index === 0 && layout.hostTileClass,
+                'will-change-transform'
+              )}
               data-host={p.isHost ? 'true' : undefined}
               data-speaking={p.speaking ? 'true' : undefined}
             >
@@ -259,5 +277,12 @@ export default function LiveParticipantGrid({ participants }: { participants: St
         })}
       </AnimatePresence>
     </div>
+    <style jsx>{`
+      .live-stage-two-person { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+      @media (min-width: 640px) {
+        .live-stage-two-person { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+      }
+    `}</style>
+    </>
   );
 }
