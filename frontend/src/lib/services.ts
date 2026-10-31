@@ -300,6 +300,8 @@ export const createHomeReport = (data: any, token?: string | null) => apiPost<an
 // ==========================================
 export const reviewAdminHomeListing = (id: string, data: { decision: 'APPROVE' | 'REJECT'; reason?: string }, token?: string | null) =>
   apiPost<any>(`/api/homes/admin/listings/${id}/review`, data, authToken(token));
+export const setAdminHomeListingStatus = (id: string, status: 'PUBLISHED' | 'PAUSED' | 'RESERVED' | 'RENTED' | 'ARCHIVED', reason?: string, token?: string | null) =>
+  apiPost<any>(`/api/homes/admin/listings/${id}/status`, { status, reason }, authToken(token));
 export const fetchAdminHomes = (params?: any, token?: string | null) => {
   const qs = new URLSearchParams();
   // Admin review queues must always read current server state; the shared API client caches GETs by URL.

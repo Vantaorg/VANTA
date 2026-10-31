@@ -195,17 +195,17 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
         {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
         {/* Inline composer — sticks above the mobile bottom navigation so it
             stays reachable during long threads and never hides behind the nav. */}
-        <form onSubmit={submit} className={`relative shrink-0 px-1 pb-3 pt-2 ${isInline ? 'z-10 border-t border-white/[0.06] bg-[var(--background)]' : ''}`}>
+        <form onSubmit={submit} className={`relative shrink-0 px-1 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))] ${isInline ? 'sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[60] border-t border-white/[0.04] bg-[var(--background)]' : ''}`}>
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
           </div>
           <div className="flex items-center gap-2">
             <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />
-            <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-2xl border border-white/[0.09] bg-white/[0.035] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#c9a227]/40 focus:bg-white/[0.05]" />
+            <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-full border-0 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:bg-white/[0.07]" />
             <button type="button" onClick={() => setEmojiOpen(value => !value)} aria-label="Add emoji" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white"><Smile size={17} /></button>
             <button type="button" onClick={() => setText(value => `${value}${value ? ' ' : ''}@`)} aria-label="Mention a user" className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white sm:grid"><AtSign size={17} /></button>
-            <button type="submit" aria-label="Send comment" disabled={!text.trim() || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-[#c9a227]/60 bg-[#c9a227] text-black transition hover:bg-[#f2c75c] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
+            <button type="submit" aria-label="Send comment" disabled={!text.trim() || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#d7b548] transition hover:bg-white/[.06] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
           </div>
           {emojiOpen && <div className="absolute bottom-16 right-4 grid w-64 max-w-[calc(100vw-2rem)] grid-cols-8 gap-1 rounded-lg border border-white/10 bg-[#151517] p-3 shadow-2xl">{EMOJIS.map(emoji => <button type="button" key={emoji} onClick={() => setText(value => value + emoji)} className="rounded-md p-1 text-lg hover:bg-white/10" aria-label={`Add ${emoji}`}>{emoji}</button>)}</div>}
         </form>

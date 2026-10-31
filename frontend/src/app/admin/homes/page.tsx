@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   fetchAdminHomes,
   reviewAdminHomeListing,
+  setAdminHomeListingStatus,
   fetchAdminHomeVerifications,
   decideHomeVerification,
   fetchAdminHomeReports,
@@ -147,12 +148,16 @@ export default function AdminHomesPage() {
                       <p className="mt-1 text-xs text-console-text-3">Owner: @{listing.owner?.username || 'unknown'} · ID: {listing.id} · Submitted: {dateLabel(listing.updatedAt)}</p>
                       {listing.description && <p className="mt-2 max-w-3xl whitespace-pre-wrap text-sm text-console-text-2">{String(listing.description).slice(0, 320)}{String(listing.description).length > 320 ? '…' : ''}</p>}
                     </div>
-                    {listing.availabilityStatus === 'PENDING_REVIEW' && (
-                      <div className="flex shrink-0 flex-wrap gap-2 md:flex-col">
+                    <div className="flex shrink-0 flex-wrap gap-2 md:flex-col">
+                      {listing.availabilityStatus === 'PENDING_REVIEW' && <>
                         <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => reviewAdminHomeListing(listing.id, { decision: 'APPROVE', reason: 'Approved in Homes admin review.' }, token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 disabled:opacity-50"><Check size={14} /> Approve</button>
                         <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => reviewAdminHomeListing(listing.id, { decision: 'REJECT', reason: 'Rejected in Homes admin review.' }, token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-red-500/10 px-3 text-xs font-semibold text-red-300 disabled:opacity-50"><X size={14} /> Reject</button>
-                      </div>
-                    )}
+                      </>}
+                      {listing.availabilityStatus === 'PUBLISHED' && <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => setAdminHomeListingStatus(listing.id, 'PAUSED', 'Unpublished by VANTA admin.', token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] border border-console-border px-3 text-xs font-semibold text-console-text-2 disabled:opacity-50">Unpublish</button>}
+                      {['PUBLISHED', 'PAUSED', 'RESERVED'].includes(listing.availabilityStatus) && <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => setAdminHomeListingStatus(listing.id, 'RENTED', 'Marked as taken by VANTA admin.', token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-sky-500/10 px-3 text-xs font-semibold text-sky-300 disabled:opacity-50">Mark taken</button>}
+                      {listing.availabilityStatus !== 'ARCHIVED' && <button type="button" disabled={!!busyId} onClick={() => { if (window.confirm('Archive this property listing? It will be removed from public Homes browsing.')) void act(listing.id, () => setAdminHomeListingStatus(listing.id, 'ARCHIVED', 'Archived by VANTA admin.', token)); }} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-red-500/10 px-3 text-xs font-semibold text-red-300 disabled:opacity-50">Archive listing</button>}
+                      {listing.availabilityStatus === 'ARCHIVED' && <button type="button" disabled={!!busyId} onClick={() => void act(listing.id, () => setAdminHomeListingStatus(listing.id, 'PUBLISHED', 'Restored by VANTA admin.', token))} className="vc-focus inline-flex min-h-9 items-center gap-1 rounded-[var(--vc-radius)] bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 disabled:opacity-50">Restore</button>}
+                    </div>
                   </article>
                 ))}
               </div>
