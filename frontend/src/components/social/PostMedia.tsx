@@ -212,11 +212,13 @@ export function PostMediaCarousel({
   alt,
   onDoubleClick,
   autoplayOnView,
+  feedCompact = false,
 }: {
   attachments: PostAttachment[];
   alt: string;
   onDoubleClick?: () => void;
   autoplayOnView?: boolean;
+  feedCompact?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const count = attachments.length;
