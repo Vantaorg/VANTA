@@ -25,7 +25,7 @@ export const createReelDraft = async (req: AuthRequest, res: Response): Promise<
   try {
     const userId = req.user?.userId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) : "Untitled Reel";
+    const title = typeof req.body?.title === "string" && req.body.title.trim() ? req.body.title.trim().slice(0, 120) : "Reel";
     const description = typeof req.body?.description === "string" ? req.body.description.trim() : undefined;
     if (!title) { res.status(400).json({ error: "Reel title is required" }); return; }
 

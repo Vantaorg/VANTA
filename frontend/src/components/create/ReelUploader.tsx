@@ -125,7 +125,7 @@ export default function ReelUploader({ open, onClose }: ReelUploaderProps) {
     setSubmitting(true);
     setFormError(null);
     try {
-      const reelTitle = title.trim() || 'Untitled Reel';
+      const reelTitle = title.trim() || 'Reel';
       const reelDescription = description.trim() || undefined;
       const draft = await createReelDraft(token, { title: reelTitle, description: reelDescription });
 

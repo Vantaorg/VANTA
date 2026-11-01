@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckCheck, Pin, Trash2, Edit3, Copy, Forward, MoreHorizontal, MessageCircle } from 'lucide-react';
+import { Check, CheckCheck, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Avatar from '@/components/ui/Avatar';
 
@@ -27,7 +27,6 @@ interface ChatMessagesProps {
 
 export default function ChatMessages({ messages, currentUserId, onLoadMore, hasMore }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -37,7 +36,7 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const groupByDate = (msgs: Message[]) => {
@@ -69,7 +68,7 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
   const grouped = groupByDate(messages);
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
       {hasMore && (
         <div className="flex justify-center">
           <button
@@ -97,6 +96,7 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
             {group.messages.map((msg, mi) => {
               const isOwn = msg.sender.id === currentUserId;
               const showAvatar = mi === 0 || group.messages[mi - 1]?.sender.id !== msg.sender.id;
+              const isLastOfRun = mi === group.messages.length - 1 || group.messages[mi + 1]?.sender.id !== msg.sender.id;
 
               return (
                 <motion.div
@@ -120,12 +120,12 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
 
                   {/* Message Bubble */}
                   <div className={cn(
-                    'max-w-[70%] relative',
+                    'max-w-[70%] relative flex flex-col',
                     isOwn ? 'items-end' : 'items-start'
                   )}>
                     {/* Sender Name (for group chats) */}
                     {showAvatar && !isOwn && (
-                      <p className="text-[10px] text-white/30 mb-1 ml-1">{msg.sender.name}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-white/30 mb-1 ml-1">{msg.sender.name}</p>
                     )}
 
                     {/* Reply Indicator */}
@@ -139,32 +139,32 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
                       </div>
                     )}
 
-                    {/* Bubble */}
-                    <div className={cn(
-                      'px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
-                      isOwn
-                        ? 'bg-[#202020] border border-white/[0.12] text-white rounded-br-md'
-                        : 'bg-white/[0.04] border border-white/[0.06] text-white/80 rounded-bl-md'
-                    )}>
-                      {msg.content}
-                    </div>
-
-                    {/* Time & Status */}
-                    <div className={cn(
-                      'flex items-center gap-1 mt-0.5',
-                      isOwn ? 'justify-end' : 'justify-start'
-                    )}>
-                      <span className="text-[9px] text-white/20">{formatTime(msg.timestamp)}</span>
+                    {/* Bubble with inline time for own messages */}
+                    <div
+                      className={cn(
+                        'flex items-end gap-1.5 px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
+                        isOwn
+                          ? 'bg-[#1E9DE9] text-white rounded-br-md'
+                          : 'bg-[#202020] border border-white/[0.12] text-white/90 rounded-bl-md'
+                      )}
+                    >
+                      <span>{msg.content}</span>
                       {isOwn && (
-                        msg.isRead ? (
-                          <CheckCheck size={11} className="text-white/70" />
-                        ) : msg.isDelivered ? (
-                          <CheckCheck size={11} className="text-white/20" />
-                        ) : (
-                          <Check size={11} className="text-white/20" />
-                        )
+                        <span className="flex items-center gap-0.5 shrink-0 translate-y-0.5">
+                          <span className="text-[9px] text-white/70">{formatTime(msg.timestamp)}</span>
+                          {msg.isRead || msg.isDelivered ? (
+                            <CheckCheck size={11} className={msg.isRead ? 'text-white' : 'text-white/60'} />
+                          ) : (
+                            <Check size={11} className="text-white/60" />
+                          )}
+                        </span>
                       )}
                     </div>
+
+                    {/* Time under incoming group */}
+                    {!isOwn && isLastOfRun && (
+                      <span className="text-[9px] text-white/20 mt-0.5 ml-1">{formatTime(msg.timestamp)}</span>
+                    )}
                   </div>
                 </motion.div>
               );

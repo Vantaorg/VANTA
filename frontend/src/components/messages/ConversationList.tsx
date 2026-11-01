@@ -56,14 +56,10 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
   const timeAgo = (timestamp: string) => {
     const now = new Date();
     const date = new Date(timestamp);
-    const diff = now.getTime() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d`;
+    const sameDay = date.toDateString() === now.toDateString();
+    if (sameDay) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const yesterday = new Date(now.getTime() - 86400000);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString();
   };
 

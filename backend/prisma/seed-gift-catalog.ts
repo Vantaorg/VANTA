@@ -11,6 +11,12 @@ export async function seedGiftCatalog() {
       update: { ...gift, sortOrder: index + 1, isActive: true },
     });
   }
+  // The catalog is the 70-gift list above: retire anything not in it so the
+  // picker counts stay exact. Existing transactions keep their gift relation.
+  await prisma.gift.updateMany({
+    where: { slug: { notIn: initialGiftCatalog.map((gift) => gift.slug) }, isActive: true },
+    data: { isActive: false },
+  });
   return prisma.gift.count({ where: { isActive: true } });
 }
 

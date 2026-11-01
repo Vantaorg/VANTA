@@ -552,7 +552,7 @@ export const uploadReel = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const title = typeof req.body.title === "string" ? req.body.title.trim().slice(0, 120) : "Untitled Reel";
+    const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim().slice(0, 120) : "Reel";
     const description = typeof req.body.description === "string" ? req.body.description.trim() : undefined;
 
     // Upload video
@@ -600,7 +600,7 @@ export const uploadReelWithThumbnail = async (req: AuthRequest, res: Response): 
       return;
     }
 
-    const title = typeof req.body.title === "string" ? req.body.title.trim().slice(0, 120) : "Untitled Reel";
+    const title = typeof req.body.title === "string" && req.body.title.trim() ? req.body.title.trim().slice(0, 120) : "Reel";
     const description = typeof req.body.description === "string" ? req.body.description.trim() : undefined;
 
     // Upload video
