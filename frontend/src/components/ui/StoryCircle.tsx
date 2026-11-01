@@ -45,6 +45,7 @@ export interface StoryCircleProps {
 const SIZES = {
   xs: { outer: 'h-[44px] w-[44px]', pad: 'p-px', stroke: 3 },
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
+  tiny: { outer: 'h-11 w-11', pad: 'p-px', stroke: 3 },
   sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
   compactStatus: { outer: 'h-[69px] w-[69px]', pad: 'p-px', stroke: 3 },
   md: { outer: 'h-[76px] w-[76px]', pad: 'p-[2px]', stroke: 5 },

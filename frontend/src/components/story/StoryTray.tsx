@@ -158,8 +158,8 @@ export default function StoryTray({
 
           {loading ? (
             SKELETON.map(index => (
-              <div key={index} className="flex w-[74px] shrink-0 flex-col items-center gap-1.5">
-                <span className={cn('block animate-pulse rounded-full bg-white/[0.05]', compact ? 'h-[52px] w-[52px]' : 'h-[66px] w-[66px]')} />
+              <div key={index} className={cn("flex shrink-0 flex-col items-center transition-all duration-300", statusCollapsed ? "w-14 gap-0.5" : "w-[74px] gap-1.5")}>
+                <span className={cn('block animate-pulse rounded-full bg-white/[0.05]', statusCollapsed ? 'h-11 w-11' : compact ? 'h-[52px] w-[52px]' : 'h-[66px] w-[66px]')} />
                 <span className="h-2.5 w-12 animate-pulse rounded bg-white/[0.04]" />
               </div>
             ))
