@@ -108,8 +108,8 @@ export function VoiceNotePlayer({ src, name, sentAt }: { src: string; name?: str
           ))}
         </div>
         <div className="mt-0.5 flex items-center justify-between text-[9px] leading-none">
-          {(!sentAt || duration > 0) && <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
-            {sentAt ? formatVoiceTime(duration) : formatVoiceTime(progress)}
+          {duration > 0 && <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
+            {formatVoiceTime(duration)}
           </span>}
           {sentAt
             ? <span className="tabular-nums text-white/55">{sentAt}</span>

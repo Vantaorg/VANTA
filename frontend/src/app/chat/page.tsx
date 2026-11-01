@@ -48,6 +48,7 @@ interface Conversation {
     timestamp: string;
     read: boolean;
     type?: string;
+    hasAttachments?: boolean;
   };
   unread: number;
   online: boolean;
@@ -580,6 +581,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           timestamp: conv.lastMessage.createdAt ?? conv.lastMessage.timestamp,
           read: conv.lastMessage.read ?? false,
           type: conv.lastMessage.type ?? 'TEXT',
+          hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0,
         } : undefined,
         unread: conv.unreadCount ?? conv.unread ?? 0,
         online: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toUpperCase() === 'DIRECT'
@@ -617,7 +619,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       const data = await apiGet<any>(`/api/messages?limit=25&cursor=${encodeURIComponent(conversationCursor)}`, token);
       const next = (data?.conversations ?? []).map((conv: any) => ({
         id: conv.id, type: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toLowerCase(), name: conv.name || conv.partner?.fullName || conv.partner?.username || 'Conversation', avatar: conv.partner?.avatar || conv.avatar,
-        lastMessage: conv.lastMessage ? { text: conv.lastMessage.content ?? '', sender: conv.lastMessage.sender?.username ?? 'Unknown', timestamp: conv.lastMessage.createdAt, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT' } : undefined,
+        lastMessage: conv.lastMessage ? { text: conv.lastMessage.content ?? conv.lastMessage.text ?? '', sender: conv.lastMessage.sender?.username ?? 'Unknown', timestamp: conv.lastMessage.createdAt, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT', hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0 } : undefined,
         unread: conv.unreadCount ?? 0, online: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toUpperCase() === 'DIRECT' ? Boolean(conv.partner?.userPresence?.isOnline ?? conv.partner?.isOnline ?? conv.online) : false, onlineMemberCount: typeof conv.onlineMemberCount === 'number' ? conv.onlineMemberCount : undefined, username: conv.partner?.username, verified: Boolean(conv.partner?.verified), verificationType: conv.partner?.verificationType || undefined, lastSeen: conv.partner?.userPresence?.lastActive, partnerId: conv.partner?.id, memberCount: conv.memberCount, currentRole: conv.currentRole, entityId: conv.entityId,
       }));
       setConversations(previous => [...previous, ...next.filter((item: Conversation) => !previous.some(existing => existing.id === item.id))]);
@@ -2049,7 +2051,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                             {(conv.type === 'group' || conv.type === 'channel') && conv.lastMessage.sender && conv.lastMessage.sender !== 'Unknown' && (
                               <span className="font-medium text-white/60">{conv.lastMessage.sender === user?.username ? 'You' : conv.lastMessage.sender}: </span>
                             )}
-                            {conv.lastMessage.text}
+                            {conv.lastMessage.text.trim() || (conv.lastMessage.hasAttachments ? (conv.lastMessage.type === 'AUDIO' ? 'Voice message' : 'Attachment') : conv.lastMessage.type === 'SYSTEM' ? 'System message' : conv.lastMessage.type === 'AUDIO' ? 'Voice message' : conv.lastMessage.type === 'CALL' ? 'Call' : conv.lastMessage.type === 'WALLET' ? 'Wallet update' : conv.lastMessage.type === 'POLL' ? 'Poll' : 'Message')}
                           </p>
                         ) : (
                           <p className="text-xs text-gray-500 truncate flex-1">{conv.type === 'group' ? 'Group created' : conv.type === 'channel' ? 'Channel created' : 'No chats yet'}</p>
