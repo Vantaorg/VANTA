@@ -130,7 +130,7 @@ export default function PostMedia({
     return (
       <div
         ref={frameRef}
-        className="relative mx-auto w-full bg-black pt-10"
+        className="relative mx-auto w-full bg-black pt-14"
       >
         <video
           ref={videoRef}
