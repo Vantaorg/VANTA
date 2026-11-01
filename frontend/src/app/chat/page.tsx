@@ -12,7 +12,7 @@ import {
   Send, Paperclip, Check, CheckCheck,
   Loader2, Users, Hash, ArrowLeft, X, UserPlus, Camera, BellOff,
   Pin, Image as ImageIcon, FileText, Info, ChevronRight, Flag, Ban, Pencil, RefreshCw,
-  Shield, Trash2, Crown, Globe2, Lock, UserMinus, Copy, Forward, Smile, MoreVertical,
+  Shield, Trash2, Crown, Globe2, Lock, UserMinus, Copy, Forward, Smile, MoreVertical, MapPin, BarChart3, Music2, Wallet as WalletIcon,
   Mic, Square, Phone, Video, Play,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
@@ -263,6 +263,16 @@ export default function MessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
+  // Rich attachment features (telegram-style): polls, shared location, contacts,
+  // music files and a wallet balance card. Polls ride on message reactions
+  // (reaction = option index), the rest are typed messages rendered client-side.
+  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[] } | null>(null);
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactResults, setContactResults] = useState<any[]>([]);
+  const [contactSearching, setContactSearching] = useState(false);
+  const [specialSending, setSpecialSending] = useState(false);
+  const musicInputRef = useRef<HTMLInputElement>(null);
   const [createName, setCreateName] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createHandle, setCreateHandle] = useState('');
@@ -1001,6 +1011,110 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       const updated = normalizeMessage(result.data ?? result);
       setMessages(previous => previous.map(item => item.id === updated.id ? updated : item));
     } catch (err: any) { showToast?.({ type: 'error', title: 'Reaction failed', message: errorMessage(err, { action: 'add the reaction', fallback: 'Please try again.' }) }); }
+  };
+
+  // Telegram-style rich messages (location / poll / contact / wallet) travel as
+  // typed messages with a JSON payload in `content`. Rendering is client-side.
+  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string) => {
+    if (!token || !user || !activeConversation || specialSending) return;
+    setSpecialSending(true);
+    const pendingId = `pending-${Date.now()}`;
+    const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, createdAt: new Date().toISOString(), pending: true, pendingLabel });
+    setMessages(previous => [...previous, pending]);
+    try {
+      const result = await apiPost<any>('/api/messages/send', { conversationId: activeConversation, content: JSON.stringify(payload), type }, token);
+      const saved = normalizeMessage(result.data ?? result.message ?? result);
+      setMessages(previous => [...previous.filter(item => item.id !== pendingId && item.id !== saved.id), saved]);
+      fetchConversations();
+    } catch (err: any) {
+      setMessages(previous => previous.map(item => item.id === pendingId ? { ...item, pending: false, failed: true } : item));
+      showToast?.({ type: 'error', title: 'Message not sent', message: errorMessage(err, { action: 'send it', fallback: 'Try again.' }) });
+    }
+    setSpecialSending(false);
+  };
+
+  const sendLocationMessage = () => {
+    if (!navigator.geolocation) {
+      showToast?.({ type: 'error', title: 'Location unavailable', message: 'This device or browser cannot share a location.' });
+      return;
+    }
+    showToast?.({ type: 'info', title: 'Getting location', message: 'Sharing your current location...' });
+    navigator.geolocation.getCurrentPosition(
+      position => void sendSpecialMessage('LOCATION', { lat: position.coords.latitude, lng: position.coords.longitude }, 'Location'),
+      () => showToast?.({ type: 'error', title: 'Location unavailable', message: 'Could not read your location. Check that location access is allowed.' }),
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  const sendWalletMessage = async () => {
+    if (!token) return;
+    try {
+      const wallet = await apiGet<any>('/api/wallets/me', token, { skipCache: true });
+      const balance = wallet?.balance ?? wallet?.data?.balance ?? wallet?.availableBalance ?? wallet?.coins ?? wallet?.data?.coins ?? 0;
+      await sendSpecialMessage('WALLET', { balance, currency: wallet?.currency ?? wallet?.data?.currency ?? 'VNT' }, 'Wallet balance');
+      setShowAttachmentSheet(false);
+    } catch (err: any) {
+      showToast?.({ type: 'error', title: 'Balance unavailable', message: 'Could not load your wallet balance. Try again.' });
+    }
+  };
+
+  const submitPoll = async () => {
+    if (!pollDraft) return;
+    const question = pollDraft.question.trim();
+    const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
+    if (!question || options.length < 2) {
+      showToast?.({ type: 'error', title: 'Poll needs more', message: 'Add a question and at least 2 options.' });
+      return;
+    }
+    setShowAttachmentSheet(false);
+    const payload = { question, options };
+    setPollDraft(null);
+    await sendSpecialMessage('POLL', payload, 'Poll');
+  };
+
+  const searchContacts = async (query: string) => {
+    setContactSearch(query);
+    if (query.trim().length < 2) { setContactResults([]); return; }
+    setContactSearching(true);
+    try {
+      const result = await apiGet<any>(`/api/users/search?query=${encodeURIComponent(query.trim())}`, token as string)
+      setContactResults((Array.isArray(result) ? result : result?.data ?? result?.users ?? []).slice(0, 10));
+    } catch { setContactResults([]); }
+    setContactSearching(false);
+  };
+
+  const sendContactMessage = async (person: any) => {
+    setContactPickerOpen(false);
+    setShowAttachmentSheet(false);
+    setContactSearch(''); setContactResults([]);
+    await sendSpecialMessage('CONTACT', { username: person.username, name: person.fullName || person.username }, person.fullName || 'Contact');
+  };
+
+  const handleMusicAttachment = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !token || !activeConversation) return;
+    if (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(file.name)) {
+      showToast?.({ type: 'error', title: 'Unsupported file', message: 'Choose an audio file (mp3, wav, ogg, m4a, flac).' });
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      showToast?.({ type: 'error', title: 'File too large', message: 'Audio must be 30 MB or smaller.' });
+      return;
+    }
+    setShowAttachmentSheet(false);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('conversationId', activeConversation);
+      const uploaded = await apiUpload<any>('/api/upload/message', form, token);
+      const url = uploaded.url ?? uploaded.data?.url;
+      const fileId = uploaded.fileId ?? uploaded.id ?? uploaded.data?.fileId;
+      if (!url || !fileId) throw new Error('Upload did not return a usable attachment');
+      await sendCurrentMessage('', [{ fileId, url, fileType: 'AUDIO', fileName: file.name, fileSize: file.size }]);
+    } catch (err: any) {
+      showToast?.({ type: 'error', title: 'Music not sent', message: errorMessage(err, { action: 'send the audio', fallback: 'The file could not be uploaded. Try again.' }) });
+    }
   };
 
   const toggleMessagePin = async (message: Message) => {
@@ -2113,7 +2227,58 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                             <Phone size={12} className="text-[#d6a83f]" />
                             {renderTextWithLinks(msg.text || msg.content || '', 'linkify')}
                           </span>
-                        ) : msg.type === 'STORY_REPLY' ? (
+                        ) : msg.type === 'LOCATION' ? (
+                          <button type="button" onClick={() => { try { const loc = JSON.parse(msg.text); window.open(`https://maps.google.com/?q=${loc.lat},${loc.lng}`, '_blank'); } catch {} }} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={19}/></span>
+                            <span className="min-w-0"><span className="block text-sm font-semibold text-white">Location</span><span className="block truncate text-[11px] text-white/45">Tap to open in Google Maps</span></span>
+                          </button>
+                        ) : msg.type === 'CONTACT' ? (() => {
+                          let contact: any = null;
+                          try { contact = JSON.parse(msg.text); } catch {}
+                          const handle = String(contact?.username || 'user');
+                          return (
+                            <button type="button" onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left">
+                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1E9DE9]/15 text-[#6cc4ff]"><User size={19}/></span>
+                              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{String(contact?.name || handle)}</span><span className="block truncate text-[11px] text-white/45">@{handle} · Tap to view profile</span></span>
+                            </button>
+                          );
+                        })() : msg.type === 'WALLET' ? (() => {
+                          let wallet: any = null;
+                          try { wallet = JSON.parse(msg.text); } catch {}
+                          const amount = Number(wallet?.balance ?? 0);
+                          const currency = String(wallet?.currency || 'VNT');
+                          return (
+                            <div className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5">
+                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={19}/></span>
+                              <span className="min-w-0"><span className="block text-[11px] text-white/45">Wallet balance</span><span className="block text-base font-bold tabular-nums text-white">{amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}</span></span>
+                            </div>
+                          );
+                        })() : msg.type === 'POLL' ? (() => {
+                          let poll: any = null;
+                          try { poll = JSON.parse(msg.text); } catch {}
+                          const options: string[] = Array.isArray(poll?.options) ? poll.options.slice(0, 10) : [];
+                          if (!poll?.question || options.length < 2) return <span className="px-3 py-2 text-sm text-white/70">{msg.text}</span>;
+                          const votes = msg.reactions ?? [];
+                          const total = votes.length;
+                          return (
+                            <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
+                              <p className="text-sm font-semibold text-white">{String(poll.question)}</p>
+                              <p className="mt-0.5 text-[10px] text-white/40">{total} vote{total === 1 ? '' : 's'} · tap to vote</p>
+                              <div className="mt-2 flex flex-col gap-1.5">
+                                {options.map((option, optionIndex) => {
+                                  const count = votes.filter(vote => vote.reaction === String(optionIndex)).length;
+                                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                                  return (
+                                    <button key={optionIndex} type="button" onClick={() => void reactToMessage(msg, String(optionIndex))} className="relative w-full overflow-hidden rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-left transition hover:border-[#d6a83f]/40">
+                                      {total > 0 && <span className="absolute inset-y-0 left-0 bg-[#d6a83f]/15" style={{ width: `${pct}%` }} />}
+                                      <span className="relative flex items-center justify-between gap-2"><span className="min-w-0 truncate text-xs text-white/85">{option}</span><span className="shrink-0 text-[10px] tabular-nums text-white/45">{count} · {pct}%</span></span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })() : msg.type === 'STORY_REPLY' ? (
                           <div className="min-w-0 max-w-[min(100%,420px)]">
                             <div className={cn('relative overflow-hidden rounded-[14px] border', msg.isOwn ? 'border-[#d6a83f]/20 bg-[#2a2618]' : 'border-[#d6a83f]/20 bg-[#1d1a12]')}>
                               <div className="flex items-center gap-2 px-3 py-2">
@@ -2300,7 +2465,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                       <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
-                    <div className="flex items-start justify-center gap-4">
+                    <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-3">
                       <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={24}/></span>
                         <span className="text-xs font-semibold text-white">Camera</span>
@@ -2313,6 +2478,74 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={24}/></span>
                         <span className="text-xs font-semibold text-white">Files</span>
                       </button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={24}/></span>
+                        <span className="text-xs font-semibold text-white">Location</span>
+                      </button>
+                      <button type="button" onClick={() => setPollDraft({ question: '', options: ['', ''] })} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/15 text-sky-300"><BarChart3 size={24}/></span>
+                        <span className="text-xs font-semibold text-white">Poll</span>
+                      </button>
+                      <button type="button" onClick={() => { setContactPickerOpen(true); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-violet-500/15 text-violet-300"><User size={24}/></span>
+                        <span className="text-xs font-semibold text-white">Contact</span>
+                      </button>
+                      <button type="button" onClick={() => musicInputRef.current?.click()} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Music2 size={24}/></span>
+                        <span className="text-xs font-semibold text-white">Music</span>
+                      </button>
+                      <button type="button" onClick={() => void sendWalletMessage()} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={24}/></span>
+                        <span className="text-xs font-semibold text-white">Wallet</span>
+                      </button>
+                    </div>
+                  </section>
+                </>
+              )}
+              {pollDraft && (
+                <>
+                  <button type="button" aria-label="Close poll composer" onClick={() => setPollDraft(null)} className="fixed inset-0 z-30 bg-black/45" />
+                  <section role="dialog" aria-label="Create a poll" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-white">Create a poll</h3>
+                      <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
+                    </div>
+                    <input value={pollDraft.question} onChange={event => setPollDraft(draft => draft ? { ...draft, question: event.target.value } : draft)} maxLength={200} placeholder="Ask a question" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                    <div className="mt-2 flex flex-col gap-2">
+                      {pollDraft.options.map((option, optionIndex) => (
+                        <div key={optionIndex} className="flex items-center gap-2">
+                          <input value={option} onChange={event => setPollDraft(draft => draft ? { ...draft, options: draft.options.map((value, index) => index === optionIndex ? event.target.value : value) } : draft)} maxLength={100} placeholder={`Option ${optionIndex + 1}`} className="h-10 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                          {pollDraft.options.length > 2 && <button type="button" onClick={() => setPollDraft(draft => draft ? { ...draft, options: draft.options.filter((_, index) => index !== optionIndex) } : draft)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.06] text-white/50" aria-label="Remove option"><X size={14}/></button>}
+                        </div>
+                      ))}
+                      {pollDraft.options.length < 10 && <button type="button" onClick={() => setPollDraft(draft => draft ? { ...draft, options: [...draft.options, ''] } : draft)} className="self-start text-[11px] font-semibold text-[#f2c75c]">+ Add option</button>}
+                    </div>
+                    <button type="button" onClick={() => void submitPoll()} disabled={specialSending} className="btn-gold mt-3 h-10 w-full text-xs disabled:opacity-50">Create poll</button>
+                  </section>
+                </>
+              )}
+              {contactPickerOpen && (
+                <>
+                  <button type="button" aria-label="Close contact picker" onClick={() => setContactPickerOpen(false)} className="fixed inset-0 z-30 bg-black/45" />
+                  <section role="dialog" aria-label="Share a contact" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-white">Share a contact</h3>
+                      <button type="button" onClick={() => setContactPickerOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
+                    </div>
+                    <div className="relative">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                      <input value={contactSearch} onChange={event => void searchContacts(event.target.value)} placeholder="Search people" autoFocus className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                    </div>
+                    <div className="mt-2 max-h-56 overflow-y-auto scrollbar-hide">
+                      {contactSearching && <p className="px-2 py-3 text-xs text-white/35">Searching...</p>}
+                      {!contactSearching && contactSearch.trim().length >= 2 && contactResults.length === 0 && <p className="px-2 py-3 text-xs text-white/35">No matching users found.</p>}
+                      {contactResults.map(person => (
+                        <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.05]">
+                          <Avatar src={person.avatar} alt={person.username || person.fullName} size="sm" />
+                          <span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{person.fullName || person.username}</span><span className="block truncate text-[11px] text-white/40">@{person.username}</span></span>
+                        </button>
+                      ))}
+                      {contactSearch.trim().length < 2 && <p className="px-2 py-3 text-xs text-white/35">Search for the person you want to share.</p>}
                     </div>
                   </section>
                 </>
@@ -2321,6 +2554,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
                 <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
+                <input ref={musicInputRef} type="file" className="hidden" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" onChange={handleMusicAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
                 <button onClick={() => {
                   const nativeAndroid = typeof navigator !== 'undefined' && navigator.userAgent.includes('VANTAAndroid');
