@@ -144,11 +144,19 @@ export class GiftService {
       this.catalogSync = (async () => {
         const activeCount = await prisma.gift.count({ where: { isActive: true } });
         if (activeCount >= initialGiftCatalog.length) return;
-        await prisma.$transaction(initialGiftCatalog.map((gift, index) => prisma.gift.upsert({
-          where: { slug: gift.slug },
-          create: { id: `gift_${gift.slug.replace(/-/g, '_')}`, ...gift, sortOrder: index + 1, isActive: true },
-          update: { ...gift, sortOrder: index + 1, isActive: true },
-        })));
+        await prisma.$transaction([
+          ...initialGiftCatalog.map((gift, index) => prisma.gift.upsert({
+            where: { slug: gift.slug },
+            create: { id: `gift_${gift.slug.replace(/-/g, '_')}`, ...gift, sortOrder: index + 1, isActive: true },
+            update: { ...gift, sortOrder: index + 1, isActive: true },
+          })),
+          // Retire legacy gifts that are no longer part of the catalog so the
+          // picker shows exactly the curated list.
+          prisma.gift.updateMany({
+            where: { slug: { notIn: initialGiftCatalog.map((gift) => gift.slug) }, isActive: true },
+            data: { isActive: false },
+          }),
+        ]);
       })().catch(error => {
         this.catalogSync = null;
         throw error;

@@ -90,7 +90,7 @@ export default function StoryCard({
       onClick={onOpen}
       className={cn("group flex shrink-0 flex-col items-center outline-none transition-all duration-300 ease-out focus-visible:ring-2 focus-visible:ring-[#dfbd55]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0d0f]", collapsed ? "w-[48px] gap-0" : "w-[78px] gap-1.5")}
     >
-      <span className="relative">
+      <span className={cn('relative block rounded-full transition-all duration-300', collapsed ? 'h-11 w-11' : compact ? 'h-[52px] w-[52px]' : 'h-[66px] w-[66px]')}>
         <StoryCircle
           src={user.avatar}
           alt={user.username || 'Story'}
