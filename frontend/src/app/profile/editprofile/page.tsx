@@ -27,6 +27,7 @@ export default function EditProfilePage() {
   const [availability, setAvailability] = useState<Availability>('idle'); const [progress, setProgress] = useState(''); const [error, setError] = useState(''); const [success, setSuccess] = useState('');
   const [loadAttempt, setLoadAttempt] = useState(0); const [loadFailed, setLoadFailed] = useState(false);
   const profileRequest = useRef(0);
+  const usernameCheck = useRef(0);
 
   useEffect(() => {
     if (!token) {
@@ -59,13 +60,20 @@ export default function EditProfilePage() {
   useEffect(() => () => { if (avatar.file) URL.revokeObjectURL(avatar.preview); if (cover.file) URL.revokeObjectURL(cover.preview); }, [avatar.file, avatar.preview, cover.file, cover.preview]);
 
   useEffect(() => {
+    const checkId = ++usernameCheck.current;
     const username = form.username.trim().toLowerCase();
     if (username === original.username) { setAvailability('idle'); return; }
     if (!/^[a-z0-9_.]{3,30}$/.test(username)) { setAvailability('invalid'); return; }
     setAvailability('checking');
+    let active = true;
     const timer = window.setTimeout(() => apiGet<any>(`/api/auth/check-username?username=${encodeURIComponent(username)}`, token || undefined, { skipCache: true })
-      .then(value => setAvailability(value?.available === true || value?.data?.available === true ? 'available' : 'taken')).catch(() => setAvailability('error')), 450);
-    return () => window.clearTimeout(timer);
+      .then(value => {
+        if (active && checkId === usernameCheck.current) {
+          setAvailability(value?.available === true || value?.data?.available === true ? 'available' : 'taken');
+        }
+      })
+      .catch(() => { if (active && checkId === usernameCheck.current) setAvailability('error'); }), 450);
+    return () => { active = false; window.clearTimeout(timer); usernameCheck.current += 1; };
   }, [form.username, original.username, token]);
 
   const setField = (field: keyof Form, value: string) => { setSuccess(''); setError(''); setForm(current => ({ ...current, [field]: value })); };
