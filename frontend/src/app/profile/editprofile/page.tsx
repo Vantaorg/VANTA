@@ -123,6 +123,7 @@ export default function EditProfilePage() {
       title="Edit Profile"
       back
       sticky
+      className="edit-profile-header"
       actions={
         <button
           type="submit"

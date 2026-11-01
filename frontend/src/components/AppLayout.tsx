@@ -286,6 +286,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isPostDetailPage = Boolean(pathname && /^\/post\/[^/]+/.test(pathname));
   const isReelsPage = pathname?.startsWith('/reels');
   const isHomePage = pathname === '/home';
+  const isEditProfilePage = pathname === '/profile/editprofile';
   // Discover is a primary tab like Home — it renders its own full-bleed,
   // edge-to-edge sticky header (VANTA wordmark) and grabs the whole shell,
   // so it must not be inset by the default `px-4 py-5` page padding.
@@ -492,13 +493,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           user={user}
         />
 
-        {(isHomePage || isDiscoverPage || pathname === '/profile' || pathname?.startsWith('/profile/')) && (
+        {(isHomePage || isDiscoverPage || pathname === '/profile' || (pathname?.startsWith('/profile/') && !isEditProfilePage)) && (
           <button type="button" onClick={openCreateHub} aria-label="Create" className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#c9a227] text-black shadow-[0_8px_28px_rgba(201,162,39,0.28)] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
             <Plus size={25} strokeWidth={2.5} />
           </button>
         )}
         <AnimatePresence initial={false}>
-          {(!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation && (
+          {(!isEditProfilePage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation) && (
           <motion.nav
             initial={{ y: 64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
