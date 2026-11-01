@@ -72,6 +72,7 @@ interface Message {
   id: string;
   text: string;
   type?: string;
+  legacyPoll?: { question: string; options: string[] } | null;
   sender: { id: string; username: string; avatar?: string; verified?: boolean; fullName?: string; };
   timestamp: string;
   read: boolean;
@@ -115,6 +116,18 @@ const normalizeAttachmentType = (value: unknown, url: string): string => {
 
 const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
   const content = msg.content ?? msg.text ?? '';
+  let legacyPoll: { question: string; options: string[] } | null = null;
+  let pollPayload = false;
+  if (typeof content === 'string' && (msg.type == null || ['TEXT', 'POLL'].includes(String(msg.type).toUpperCase()))) {
+    try {
+      const parsed = JSON.parse(content);
+      pollPayload = Boolean(parsed && typeof parsed === 'object' && ('question' in parsed || 'options' in parsed));
+      if (parsed && typeof parsed.question === 'string' && parsed.question.trim() && Array.isArray(parsed.options) && parsed.options.length >= 2 && parsed.options.length <= 10 && parsed.options.every((option: unknown) => typeof option === 'string' && option.trim())) {
+        legacyPoll = { question: parsed.question.trim(), options: parsed.options.map((option: string) => option.trim()) };
+      }
+    } catch { /* ordinary text */ }
+  }
+  const safeLegacyPoll = legacyPoll ?? (msg.type === 'POLL' ? { question: 'Poll', options: [] as string[] } : null);
   const attachments = (msg.attachments ?? []).map((attachment: any) => {
     const source = attachment.url ?? attachment.mediaUrl ?? attachment.path ?? attachment.fileName;
     return {
@@ -137,8 +150,9 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
 
   return {
     ...msg,
+    ...(safeLegacyPoll ? { type: 'POLL', legacyPoll: safeLegacyPoll, text: '' } : (pollPayload || msg.type === 'POLL' || msg.type === 'WALLET' ? { text: '' } : {})),
     id: msg.id,
-    text: content,
+    text: (safeLegacyPoll || pollPayload || msg.type === 'POLL' || msg.type === 'WALLET') ? '' : content,
     sender: msg.sender ?? { id: msg.senderId, username: 'User' },
     senderId: msg.senderId ?? msg.sender?.id,
     conversationId: msg.conversationId,
@@ -263,9 +277,8 @@ export default function MessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
-  // Rich attachment features (telegram-style): polls, shared location, contacts,
-  // music files and a wallet balance card. Polls ride on message reactions
-  // (reaction = option index), the rest are typed messages rendered client-side.
+  // Poll voting is not supported by this backend yet. Keep the attachment sheet
+  // intact, but do not create messages that can only appear as raw JSON.
   const [pollDraft, setPollDraft] = useState<{ question: string; options: string[] } | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
@@ -1035,41 +1048,37 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const sendLocationMessage = () => {
     if (!navigator.geolocation) {
-      showToast?.({ type: 'error', title: 'Location unavailable', message: 'This device or browser cannot share a location.' });
+      showToast?.({ type: 'error', title: 'Location unavailable', message: 'This device or browser cannot share a location. You can type an address in chat instead.' });
+      return;
+    }
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      showToast?.({ type: 'error', title: 'Location unavailable', message: 'Location sharing requires a secure connection. You can type an address in chat instead.' });
       return;
     }
     showToast?.({ type: 'info', title: 'Getting location', message: 'Sharing your current location...' });
     navigator.geolocation.getCurrentPosition(
       position => void sendSpecialMessage('LOCATION', { lat: position.coords.latitude, lng: position.coords.longitude }, 'Location'),
-      () => showToast?.({ type: 'error', title: 'Location unavailable', message: 'Could not read your location. Check that location access is allowed.' }),
+      error => {
+        const message = error.code === error.PERMISSION_DENIED
+          ? 'Location permission was denied. Allow location access in your device or browser settings, or type an address in chat.'
+          : error.code === error.TIMEOUT
+            ? 'Location lookup timed out. Try again, or type an address in chat.'
+            : 'Could not read your location. Check that location access is allowed, or type an address in chat.';
+        showToast?.({ type: 'error', title: 'Location unavailable', message });
+      },
       { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
-  const sendWalletMessage = async () => {
-    if (!token) return;
-    try {
-      const wallet = await apiGet<any>('/api/wallets/me', token, { skipCache: true });
-      const balance = wallet?.balance ?? wallet?.data?.balance ?? wallet?.availableBalance ?? wallet?.coins ?? wallet?.data?.coins ?? 0;
-      await sendSpecialMessage('WALLET', { balance, currency: wallet?.currency ?? wallet?.data?.currency ?? 'VNT' }, 'Wallet balance');
-      setShowAttachmentSheet(false);
-    } catch (err: any) {
-      showToast?.({ type: 'error', title: 'Balance unavailable', message: 'Could not load your wallet balance. Try again.' });
-    }
+  const openWallet = () => {
+    setShowAttachmentSheet(false);
+    router.push('/balance');
   };
 
   const submitPoll = async () => {
-    if (!pollDraft) return;
-    const question = pollDraft.question.trim();
-    const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
-    if (!question || options.length < 2) {
-      showToast?.({ type: 'error', title: 'Poll needs more', message: 'Add a question and at least 2 options.' });
-      return;
-    }
-    setShowAttachmentSheet(false);
-    const payload = { question, options };
     setPollDraft(null);
-    await sendSpecialMessage('POLL', payload, 'Poll');
+    setShowAttachmentSheet(false);
+    showToast?.({ type: 'info', title: 'Polls unavailable', message: 'Polls cannot be created until voting is supported.' });
   };
 
   const searchContacts = async (query: string) => {
@@ -2242,39 +2251,22 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               <span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{String(contact?.name || handle)}</span><span className="block truncate text-[11px] text-white/45">@{handle} · Tap to view profile</span></span>
                             </button>
                           );
-                        })() : msg.type === 'WALLET' ? (() => {
-                          let wallet: any = null;
-                          try { wallet = JSON.parse(msg.text); } catch {}
-                          const amount = Number(wallet?.balance ?? 0);
-                          const currency = String(wallet?.currency || 'VNT');
-                          return (
-                            <div className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5">
-                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={19}/></span>
-                              <span className="min-w-0"><span className="block text-[11px] text-white/45">Wallet balance</span><span className="block text-base font-bold tabular-nums text-white">{amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}</span></span>
-                            </div>
-                          );
-                        })() : msg.type === 'POLL' ? (() => {
-                          let poll: any = null;
-                          try { poll = JSON.parse(msg.text); } catch {}
-                          const options: string[] = Array.isArray(poll?.options) ? poll.options.slice(0, 10) : [];
-                          if (!poll?.question || options.length < 2) return <span className="px-3 py-2 text-sm text-white/70">{msg.text}</span>;
-                          const votes = msg.reactions ?? [];
-                          const total = votes.length;
+                        })() : msg.type === 'WALLET' ? (
+                          <button type="button" onClick={() => router.push('/balance')} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left" aria-label="Open wallet balance">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={19}/></span>
+                            <span className="min-w-0"><span className="block text-[11px] text-white/45">Wallet</span><span className="block text-sm font-semibold text-white">Open balance</span></span>
+                          </button>
+                        ) : msg.type === 'POLL' ? (() => {
+                          const poll = msg.legacyPoll;
+                          if (!poll) return <span className="px-3 py-2 text-sm text-white/60">This poll isn’t available in this version.</span>;
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
-                              <p className="text-sm font-semibold text-white">{String(poll.question)}</p>
-                              <p className="mt-0.5 text-[10px] text-white/40">{total} vote{total === 1 ? '' : 's'} · tap to vote</p>
+                              <p className="text-sm font-semibold text-white">{poll.question}</p>
+                              <p className="mt-0.5 text-[10px] text-white/40">{poll.options.length ? 'Voting isn’t available for this poll.' : 'Poll details aren’t available.'}</p>
                               <div className="mt-2 flex flex-col gap-1.5">
-                                {options.map((option, optionIndex) => {
-                                  const count = votes.filter(vote => vote.reaction === String(optionIndex)).length;
-                                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                                  return (
-                                    <button key={optionIndex} type="button" onClick={() => void reactToMessage(msg, String(optionIndex))} className="relative w-full overflow-hidden rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-left transition hover:border-[#d6a83f]/40">
-                                      {total > 0 && <span className="absolute inset-y-0 left-0 bg-[#d6a83f]/15" style={{ width: `${pct}%` }} />}
-                                      <span className="relative flex items-center justify-between gap-2"><span className="min-w-0 truncate text-xs text-white/85">{option}</span><span className="shrink-0 text-[10px] tabular-nums text-white/45">{count} · {pct}%</span></span>
-                                    </button>
-                                  );
-                                })}
+                                {poll.options.map((option, optionIndex) => (
+                                  <div key={optionIndex} className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs text-white/85">{option}</div>
+                                ))}
                               </div>
                             </div>
                           );
@@ -2494,7 +2486,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Music2 size={24}/></span>
                         <span className="text-xs font-semibold text-white">Music</span>
                       </button>
-                      <button type="button" onClick={() => void sendWalletMessage()} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={openWallet} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={24}/></span>
                         <span className="text-xs font-semibold text-white">Wallet</span>
                       </button>
