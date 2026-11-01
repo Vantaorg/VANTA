@@ -116,7 +116,7 @@ export default function StoryTray({
     <section
       aria-label="Stories and Status"
       className={cn(
-        'sticky top-0 z-30 border-b border-white/[0.07] bg-[var(--background)]/95 shadow-[0_6px_18px_rgba(0,0,0,0.16)] backdrop-blur-md transition-[padding] duration-300 ease-out',
+        'sticky top-0 z-30 border-b border-white/[0.07] bg-[var(--background)]/95 backdrop-blur-md transition-[padding] duration-300',
         compact ? (statusCollapsed ? 'py-0.5' : 'py-1.5') : 'px-0 py-2',
         className
       )}
@@ -134,7 +134,7 @@ export default function StoryTray({
           </button>
         </div>
       ) : (
-        <div className={cn('flex items-start gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide transition-[gap] duration-300', statusCollapsed ? 'gap-1 px-1' : compact ? 'px-1' : 'px-2')}>
+        <div className={cn('flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide', compact ? (statusCollapsed ? 'px-1 gap-1' : 'px-1 gap-1.5') : 'px-2')}>
           {/* Own Status card — always present */}
           {<StoryCard
             user={{

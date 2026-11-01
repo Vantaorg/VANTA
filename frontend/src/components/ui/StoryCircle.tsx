@@ -33,7 +33,7 @@ export interface StoryCircleProps {
   /** Show a small emerald "NEW" dot bottom-right (active only) */
   showDot?: boolean;
   /** Outer diameter: sm = 48px, md = 66px, lg = 72px. */
-  size?: 'tiny' | 'sm' | 'md' | 'lg' | 'compactStatus' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'compactStatus' | 'xl';
   /**
    * Optional per-story viewed segments. When provided the ring is ONE circle
    * divided into one gold/faint arc per story item.
@@ -43,6 +43,7 @@ export interface StoryCircleProps {
 }
 
 const SIZES = {
+  xs: { outer: 'h-[44px] w-[44px]', pad: 'p-px', stroke: 3 },
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
   tiny: { outer: 'h-11 w-11', pad: 'p-px', stroke: 3 },
   sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
@@ -137,7 +138,7 @@ export default function StoryCircle({
 
   return (
     <span
-      className={cn('relative block flex-none rounded-full', outer, className)}
+      className={cn('relative block flex-none rounded-full transition-[width,height] duration-300 ease-out', outer, className)}
       role={alt ? 'img' : undefined}
       aria-label={alt ? label : undefined}
     >
@@ -161,7 +162,7 @@ export default function StoryCircle({
           src={src}
           alt={alt}
           size={size === 'sm' ? 'md' : 'lg'}
-          wrapperClassName="!h-full !w-full"
+          wrapperClassName="!h-full !w-full !rounded-full !overflow-hidden"
           className="!h-full !w-full !rounded-full"
           verified={verified}
           verificationType={verificationType}

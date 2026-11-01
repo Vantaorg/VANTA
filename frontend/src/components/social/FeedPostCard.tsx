@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Bookmark, Gift, Heart, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react';
+import { Bookmark, Gift, Heart, MessageCircle, MoreHorizontal, Repeat2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type MouseEvent as ReactMouseEvent } from 'react';
 import Avatar from '@/components/ui/Avatar';
@@ -50,6 +50,7 @@ type FeedPostCardProps = {
   onMore: (_item: Item) => void;
   /** Shorter caption preview for the Home feed only. */
   compactCaption?: boolean;
+  feedCompactMedia?: boolean;
 };
 
 const formatCount = (value = 0) => value >= 1e6 ? `${(value / 1e6).toFixed(1)}M` : value >= 1e3 ? `${(value / 1e3).toFixed(1)}K` : String(value);
@@ -82,7 +83,7 @@ const postAttachments = (item: Item): PostAttachment[] => {
   const single = mediaUrl(item);
   return single ? [{ url: single }] : [];
 };
-export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, compactCaption = false }: FeedPostCardProps) {
+export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, compactCaption = false, feedCompactMedia = false }: FeedPostCardProps) {
   const router = useRouter();
   const { prefs: contentPrefs, hydrated: contentPrefsHydrated } = useContentPrefs();
   // Feed video autoplay follows the persisted Video Autoplay preference.
@@ -94,9 +95,8 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const source = mediaUrl(item);
   const attachments = postAttachments(item);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
-  const actionClass = 'flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
-  const rawCaption = item.content || item.description;
-  const caption = typeof rawCaption === 'string' && /^untitled\s+reel$/i.test(rawCaption.trim()) ? '' : rawCaption;
+  const actionClass = 'flex min-h-10 items-center gap-1.5 rounded-lg px-1 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
+  const caption = item.content || item.description;
   const displayedCaption = compactCaption && typeof caption === 'string' && caption.length > 120 ? `${caption.slice(0, Math.ceil(caption.length * 0.65)).trimEnd()}…` : caption;
 
   // Tapping anywhere on the card (except an interactive control) opens the
@@ -144,9 +144,10 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
                 alt={caption || `Post by ${creator.username || 'creator'}`}
                 onDoubleClick={() => { if (!item.liked) onLike(item); }}
                 autoplayOnView={feedAutoplayOn}
+                feedCompact={feedCompactMedia}
               />
             ) : (
-              <PostMedia src={source} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
+              <PostMedia src={source} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
             )}
           </div>
         )}
@@ -154,8 +155,8 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
           <div className="flex min-w-0 items-center">
             <button type="button" onClick={() => onLike(item)} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, item.liked && 'text-[#f2c75c]')}><Heart size={17} className={item.liked ? 'fill-current' : ''}/><span>{formatCount(item.likes)}</span></button>
             <button type="button" onClick={() => onComment(item)} aria-label="Open comments" className={actionClass}><MessageCircle size={17}/><span>{formatCount(item.comments)}</span></button>
-            <button type="button" onClick={() => onShare(item)} aria-label="Repost or share post" className={actionClass}><Share2 size={17}/><span>{formatCount(item.reposts ?? item.shares)}</span></button>
-            {isOwn ? <span aria-label="Tips received" className={actionClass}><Gift size={17}/><span>{formatCount(Number(item.tips ?? item.gifts ?? item.giftCount ?? item.totalTips ?? 0))}</span></span> : <button type="button" onClick={() => onGift(item)} aria-label="Send gift" className={cn(actionClass, 'hover:text-[#c9a227]')}><Gift size={17}/><span>{formatCount(Number(item.tips ?? item.gifts ?? item.giftCount ?? item.totalTips ?? 0))}</span></button>}
+            <button type="button" onClick={() => onShare(item)} aria-label="Share post" className={actionClass}><Repeat2 size={17}/><span>{formatCount(item.reposts ?? item.shares)}</span></button>
+            {!isOwn ? <button type="button" onClick={() => onGift(item)} aria-label="Send gift" className={cn(actionClass, 'hover:text-[#c9a227]')}><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></button> : <span className={cn(actionClass, 'pointer-events-none')} aria-label="Tips"><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></span>}
           </div>
           <button type="button" onClick={() => onSave(item)} aria-label={item.saved ? 'Remove saved post' : 'Save post'} aria-pressed={item.saved} className={cn(actionClass, item.saved && 'text-white')}><Bookmark size={17} className={item.saved ? 'fill-current' : ''}/><span className="sr-only">{item.saved ? 'Saved' : 'Save'}</span></button>
         </footer>
