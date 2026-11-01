@@ -149,7 +149,7 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
                       )}
                     >
                       <span>{msg.content}</span>
-                      {isOwn && (
+                      {isOwn ? (
                         <span className="flex items-center gap-0.5 shrink-0 translate-y-0.5">
                           <span className="text-[9px] text-white/70">{formatTime(msg.timestamp)}</span>
                           {msg.isRead || msg.isDelivered ? (
@@ -158,7 +158,9 @@ export default function ChatMessages({ messages, currentUserId, onLoadMore, hasM
                             <Check size={11} className="text-white/60" />
                           )}
                         </span>
-                      )}
+                      ) : isLastOfRun ? (
+                        <span className="shrink-0 translate-y-0.5 text-[9px] text-white/45">{formatTime(msg.timestamp)}</span>
+                      ) : null}
                     </div>
 
                     {/* Time under incoming group */}

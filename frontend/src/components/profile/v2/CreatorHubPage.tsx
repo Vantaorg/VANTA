@@ -12,6 +12,7 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import CommentPanel from '@/components/social/CommentPanel';
 import GiftPicker, { type GiftCatalogItem } from '@/components/social/GiftPicker';
 import FeedPostMoreSheet from '@/components/social/FeedPostMoreSheet';
+import PullToRefresh from '@/components/ui/PullToRefresh';
 import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
 import { useToast } from '@/components/ui/Toast';
 import PeopleDialog from './PeopleDialog';
@@ -41,7 +42,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   const normalized = username && username !== 'me' ? decodeURIComponent(username).replace(/^@/, '') : '';
   const own = !normalized || (!!user?.username && normalized.toLowerCase() === user.username.toLowerCase());
   const [profile, setProfile] = useState<ProfileData | null>(null); const [tab, setTab] = useState<ProfileTab>('posts');
-  const [content, setContent] = useState(emptyContent); const [nextCursor, setNextCursor] = useState<Partial<Record<ProfileTab, string>>>({}); const [loadingMore, setLoadingMore] = useState(false); const [loading, setLoading] = useState(true); const [contentLoading, setContentLoading] = useState(false);
+  const [content, setContent] = useState(emptyContent); const [nextCursor, setNextCursor] = useState<Partial<Record<ProfileTab, string>>>({}); const [loadingMore, setLoadingMore] = useState(false); const [loading, setLoading] = useState(true); const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState(''); const [contentRetry, setContentRetry] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [unfollowOpen, setUnfollowOpen] = useState(false);
@@ -112,6 +113,26 @@ export default function CreatorHubPage({ username }: { username?: string }) {
       .finally(() => active && setContentLoading(false));
     return () => { active = false; };
   }, [contentRetry, endpoint, profile, tab, token]);
+
+  const refreshProfile = useCallback(async () => {
+    await Promise.all([loadProfile(), new Promise<void>(resolve => {
+      if (!profile || tab === 'about' || !endpoint) { resolve(); return; }
+      let settled = false;
+      const finish = () => { if (!settled) { settled = true; resolve(); } };
+      setContentLoading(true);
+      setContentError('');
+      apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
+        .then(result => {
+          const rows = postOnly(unwrap(result)).map(item => tab === 'likes' ? { ...(item.post || item), liked: true } : item);
+          setContent(current => ({ ...current, [tab]: rows }));
+          setNextCursor(current => ({ ...current, [tab]: nextCursorFrom(result) }));
+        })
+        .catch((reason: any) => {
+          if (reason?.statusCode !== 499) setContentError(reason?.message || `Unable to load ${tab}.`);
+        })
+        .finally(() => { setContentLoading(false); finish(); });
+    })]);
+  }, [endpoint, loadProfile, profile, tab, token]);
 
   const loadMore = async () => {
     const requestedTab = tab;
@@ -227,7 +248,8 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   if (error || !profile) return <ProfileFailure kind={error || 'error'} retry={() => void loadProfile()} />;
   const avatar = profile.avatarUrl || profile.profile?.avatarUrl || profile.avatar || '';
 
-  return <main className="profile-page">
+  return <PullToRefresh onRefresh={refreshProfile} ariaLabel="Profile feed" className="profile-pull-refresh">
+    <main className="profile-page">
     <ProfileHeader profile={profile} own={own} onFollow={() => { void follow(); }} onMessage={() => { void messageProfile(); }} onGift={() => { void openGift(profile); }} onCopy={() => { void copyProfile(); }} onPeople={setPeople} followPending={followPending} />
     {!own && <FollowerRewardGiftBox creatorUsername={profile.username} token={token} />}
     <nav className="profile-tabs" aria-label="Profile content">{TABS.filter(item => !item.ownOnly || own).map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}><Icon size={16} strokeWidth={tab === id ? 2.4 : 1.9} /><span className="tab-label">{label}</span></button>)}</nav>
@@ -236,7 +258,8 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     {people && <PeopleDialog kind={people} own={own} username={profile.username} token={token || undefined} currentUserId={user?.id} close={() => setPeople(null)} />}
     {unfollowOpen && <ConfirmDialog username={profile.username} onCancel={() => setUnfollowOpen(false)} onConfirm={() => { void follow(); }} />}
     {deletePostFor && <DeleteDialog label={tab === 'reels' ? 'Reel' : 'Post'} onCancel={() => setDeletePostFor(undefined)} onConfirm={() => { void confirmDeletePost(); }} />}
-  </main>;
+    </main>
+  </PullToRefresh>;
 }
 
 function ProfileSkeleton() { return <main className="profile-page" aria-label="Loading profile"><div className="profile-loading cover" /><div className="profile-loading identity"><i /><span /><span /><b /></div><div className="profile-loading tabs" /><ContentSkeleton /></main>; }

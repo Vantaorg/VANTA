@@ -1,3 +1,7 @@
+.profile-pull-refresh {
+  height: 100%;
+}
+
 .profile-page {
   --profile-bg: var(--background);
   --profile-surface: var(--surface);

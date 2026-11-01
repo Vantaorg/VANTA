@@ -91,11 +91,12 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   // see a video start on first paint.
   const feedAutoplayOn = contentPrefsHydrated ? contentPrefs.homeAutoplay : false;
   const creator = getAuthor(item);
+  const creatorAvatar = creator.avatarUrl || creator.profile?.avatarUrl || creator.avatar || creator.profilePicture || '';
   const isOwn = creator.id === currentUserId;
   const source = mediaUrl(item);
   const attachments = postAttachments(item);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
-  const actionClass = 'flex min-h-10 items-center gap-1.5 rounded-lg px-1 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
+  const actionClass = 'flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
   const displayedCaption = compactCaption && typeof caption === 'string' && caption.length > 120 ? `${caption.slice(0, Math.ceil(caption.length * 0.65)).trimEnd()}…` : caption;
 
@@ -115,7 +116,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         onClick={() => router.push(profilePath)}
         aria-label={`Open ${creator.username || 'creator'} profile`}
         className="flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white/[.05]"
-      ><Avatar src={creator.avatar} alt={creator.username || 'Creator'} size="md" wrapperClassName="!h-11 !w-11" className="!h-11 !w-11" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} /></button>
+      ><Avatar src={creatorAvatar} alt={creator.username || 'Creator'} size="md" wrapperClassName="!h-11 !w-11" className="!h-11 !w-11" verified={Boolean(creator.verified && creator.verificationType)} verificationType={creator.verificationType} /></button>
       <div className="min-w-0 flex flex-col gap-1">
         <div className="flex min-w-0 items-center justify-between gap-x-1.5">
           <button
@@ -152,7 +153,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
           </div>
         )}
         <footer className="flex min-w-0 items-center justify-between gap-1 pt-0.5">
-          <div className="flex min-w-0 items-center">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button type="button" onClick={() => onLike(item)} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, item.liked && 'text-[#f2c75c]')}><Heart size={17} className={item.liked ? 'fill-current' : ''}/><span>{formatCount(item.likes)}</span></button>
             <button type="button" onClick={() => onComment(item)} aria-label="Open comments" className={actionClass}><MessageCircle size={17}/><span>{formatCount(item.comments)}</span></button>
             <button type="button" onClick={() => onShare(item)} aria-label="Share post" className={actionClass}><Repeat2 size={17}/><span>{formatCount(item.reposts ?? item.shares)}</span></button>

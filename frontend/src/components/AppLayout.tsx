@@ -342,7 +342,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname === '/privacy' ||
     pathname === '/community-guidelines';
 
-  const isImmersiveSurface = isChatPage || isHomePage || isDiscoverPage || isStoryPage || isReelsFeed || isReelViewerPage || isGoLivePage;
+  const isProfilePage = pathname === '/profile' || pathname?.startsWith('/profile/');
+  const isImmersiveSurface = isChatPage || isHomePage || isDiscoverPage || isStoryPage || isReelsFeed || isReelViewerPage || isGoLivePage || isProfilePage;
   const isScrollPage = !isImmersiveSurface;
 
   const handleLogout = useCallback(() => {
@@ -431,7 +432,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}>
             <motion.div
               key={isClient ? pathname : 'initial'}
-              className={cn(isSettingsRoute && 'vanta-settings-shell', (isHomePage || isDiscoverPage || isStoryPage || isReelsFeed || isReelViewerPage || isGoLivePage || isChatPage) && 'h-full min-h-0')}
+              className={cn(isSettingsRoute && 'vanta-settings-shell', (isHomePage || isDiscoverPage || isStoryPage || isReelsFeed || isReelViewerPage || isGoLivePage || isChatPage || isProfilePage) && 'h-full min-h-0')}
               initial={{ opacity: 0, ...(isConsolePage ? {} : { y: 10 }) }}
               animate={{ opacity: 1, ...(isConsolePage ? {} : { y: 0 }) }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
