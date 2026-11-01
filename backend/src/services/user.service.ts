@@ -140,6 +140,7 @@ export class UserService {
       email: user.email || null,
       username: user.username,
       fullName: user.fullName,
+      dateOfBirth: user.dateOfBirth,
       avatarUrl: profile?.avatarUrl || user.avatar || null,
       bannerUrl: profile?.bannerUrl || null,
       bio: profile?.bio || user.bio || null,
@@ -644,6 +645,17 @@ export class UserService {
         }
         updates.username = normalized;
         profileUpdates.username = normalized;
+      }
+    }
+
+    if (data.dateOfBirth !== undefined) {
+      const value = data.dateOfBirth;
+      if (value === null || value === '') updates.dateOfBirth = null;
+      else {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Date of birth must be a valid calendar date');
+        const parsed = new Date(`${value}T00:00:00.000Z`);
+        if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value || value > new Date().toISOString().slice(0, 10)) throw new Error('Date of birth must be a valid date that is not in the future');
+        updates.dateOfBirth = parsed;
       }
     }
 

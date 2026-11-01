@@ -11,10 +11,10 @@ import { versionMediaUrl } from '@/lib/profileMedia';
 import './edit-profile.css';
 import './edit-profile-recovery.css';
 
-type Form = { fullName: string; username: string; bio: string; city: string; website: string };
+type Form = { fullName: string; username: string; bio: string; city: string; website: string; dateOfBirth: string };
 type Media = { file: File | null; preview: string };
 type Availability = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error';
-const empty: Form = { fullName: '', username: '', bio: '', city: '', website: '' };
+const empty: Form = { fullName: '', username: '', bio: '', city: '', website: '', dateOfBirth: '' };
 const types = ['image/jpeg', 'image/png', 'image/webp'];
 const profileValue = (value: any) => value?.profile || value?.data || value;
 
@@ -41,7 +41,7 @@ export default function EditProfilePage() {
       if (!active || requestId !== profileRequest.current) return;
       const profile = profileValue(value);
       if (!profile || typeof profile !== 'object' || !profile.username) throw new Error('Your profile data is unavailable.');
-      const next = { fullName: profile.fullName || '', username: profile.username || '', bio: profile.bio || '', city: profile.city || '', website: profile.website || '' };
+      const next = { fullName: profile.fullName || '', username: profile.username || '', bio: profile.bio || '', city: profile.city || '', website: profile.website || '', dateOfBirth: profile.dateOfBirth ? String(profile.dateOfBirth).slice(0, 10) : '' };
       const media = { avatar: profile.avatarUrl || profile.avatar || '', cover: profile.bannerUrl || '' };
       setForm(next); setOriginal(next); setInitialMedia(media); setAvatar({ file: null, preview: media.avatar }); setCover({ file: null, preview: media.cover });
       setLoadFailed(false);
@@ -93,6 +93,11 @@ export default function EditProfilePage() {
     if (availability === 'checking' || availability === 'error') return 'Unable to verify username availability. Please try again.';
     if (form.bio.length > 260) return 'Bio must be 260 characters or fewer.';
     if (form.city.trim().length > 100) return 'Location must be 100 characters or fewer.';
+    if (form.dateOfBirth) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(form.dateOfBirth);
+      const birthDate = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))) : null;
+      if (!match || !birthDate || birthDate.toISOString().slice(0, 10) !== form.dateOfBirth || form.dateOfBirth > new Date().toISOString().slice(0, 10)) return 'Choose a valid date of birth that is not in the future.';
+    }
     if (website) { try { new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`); } catch { return 'Enter a valid website URL.'; } }
     return '';
   };
@@ -104,10 +109,10 @@ export default function EditProfilePage() {
       if (avatar.file) { setProgress('Uploading profile photo...'); const result = await uploadAvatar(avatar.file, token); const uploadedUrl = result.url; if (!uploadedUrl) throw new Error(result.error || 'Unable to upload profile photo. Please try again.'); avatarUrl = result.profile?.avatarUrl || result.user?.avatarUrl || String(uploadedUrl); }
       if (cover.file) { setProgress('Uploading cover photo...'); const result = await uploadBanner(cover.file, token); const uploadedUrl = result.url; if (!uploadedUrl) throw new Error(result.error || 'Unable to upload cover photo. Please try again.'); bannerUrl = result.profile?.bannerUrl || result.user?.bannerUrl || String(uploadedUrl); }
       setProgress('Saving changes...'); const website = form.website.trim();
-      const payload = { fullName: form.fullName.trim(), username: form.username.trim().toLowerCase(), bio: form.bio.trim(), city: form.city.trim(), website: website && !/^https?:\/\//i.test(website) ? `https://${website}` : website };
+      const payload = { fullName: form.fullName.trim(), username: form.username.trim().toLowerCase(), bio: form.bio.trim(), city: form.city.trim(), website: website && !/^https?:\/\//i.test(website) ? `https://${website}` : website, dateOfBirth: form.dateOfBirth || null };
       const saved = profileValue(await apiPut<any>('/api/profiles/me', payload, token));
       await updateUser({ ...saved, ...payload, avatar: avatarUrl, avatarUrl, bannerUrl }, { versionMedia: true });
-      const next = { fullName: payload.fullName, username: payload.username, bio: payload.bio, city: payload.city, website: payload.website };
+      const next = { fullName: payload.fullName, username: payload.username, bio: payload.bio, city: payload.city, website: payload.website, dateOfBirth: payload.dateOfBirth || '' };
       setOriginal(next); setForm(next); setInitialMedia({ avatar: avatarUrl, cover: bannerUrl }); setAvatar({ file: null, preview: versionMediaUrl(avatarUrl) || '' }); setCover({ file: null, preview: versionMediaUrl(bannerUrl) || '' });
       setSuccess('Changes saved'); window.setTimeout(() => router.replace(`/profile/${payload.username}`), 600);
     } catch (reason: any) {
@@ -120,9 +125,8 @@ export default function EditProfilePage() {
   if (loadFailed) return <main className="edit-profile-page"><div className="edit-load-error" role="alert"><X size={24} /><h1>Unable to load profile</h1><p>{error}</p><div><button type="button" onClick={() => router.push('/profile')}>Back to profile</button><button className="retry" type="button" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button></div></div></main>;
   return <main className="edit-profile-page">
     <PageHeader
-      title="Edit Profile"
-      back
-      sticky
+      title="Edit profile"
+      back={leave}
       className="edit-profile-header"
       actions={
         <button
@@ -148,6 +152,7 @@ export default function EditProfilePage() {
         <Field label="Username" hint={availabilityText(availability)} status={availability}><div className="username-input"><span>@</span><input value={form.username} maxLength={30} autoComplete="username" spellCheck={false} onChange={event => setField('username', event.target.value.replace(/^@/, '').toLowerCase())} /></div></Field>
         <Field label="Bio" count={`${form.bio.length} / 260`}><textarea value={form.bio} maxLength={260} rows={5} onChange={event => setField('bio', event.target.value)} /></Field>
         <Field label="Location" optional><input value={form.city} maxLength={100} autoComplete="address-level2" placeholder="City or region" onChange={event => setField('city', event.target.value)} /></Field>
+        <Field label="Date of birth" optional><input type="date" value={form.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={event => setField('dateOfBirth', event.target.value)} /></Field>
         <Field label="Website" optional><input value={form.website} inputMode="url" autoComplete="url" placeholder="https://example.com" onChange={event => setField('website', event.target.value)} /></Field>
       </section>
       {progress && <div className="edit-feedback progress"><Loader2 className="spin" size={15} />{progress}</div>}{error && <div className="edit-feedback error" role="alert"><X size={15} />{error}</div>}{success && <div className="edit-feedback success" role="status"><Check size={15} />{success}</div>}
