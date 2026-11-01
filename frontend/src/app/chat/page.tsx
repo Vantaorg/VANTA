@@ -2195,6 +2195,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     || nextDate!.toDateString() !== currentDate.toDateString()
                     || nextDate!.getTime() - currentDate.getTime() >= 60_000;
                   const showMessageTime = msg.isOwn || endsIncomingGroup;
+                  const hasAudioAttachment = (msg.attachments ?? []).some(attachment => attachment.fileType === 'AUDIO');
                   // Direct chats stay private and compact: no role badges, and
                   // show the other person's avatar only at the start of a run.
                   // Group/channel conversations retain sender identity for each run.
@@ -2328,13 +2329,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                   </div>
                                 )}
                                 {otherAtts.map((att, index) => att.fileType === 'AUDIO'
-                                  ? <div key={att.id || `extra-${index}`} className={cn('min-w-0 px-3', visibleMessageText(msg) ? 'pt-2 pb-1' : 'py-2.5')}><VoiceNotePlayer src={att.url!} name={att.fileName} /></div>
+                                  ? <div key={att.id || `extra-${index}`} className={cn('min-w-0 px-3', visibleMessageText(msg) ? 'pt-2 pb-1' : 'py-2.5')}><VoiceNotePlayer src={att.url!} name={att.fileName} sentAt={msg.isOwn ? currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : undefined} /></div>
                                   : <a key={att.id || `extra-${index}`} href={att.url} target="_blank" rel="noreferrer" className="flex min-w-0 max-w-full items-center gap-2 px-3 py-2.5 text-xs underline underline-offset-2 text-white/70 hover:text-white">{<FileText size={13} className="shrink-0 text-white/40" />}<span className="min-w-0 truncate">{att.fileName || 'Download attachment'}</span></a>)}
                               </>
                             );
                           })()}
-                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{showMessageTime && !msg.deletedAt && <span className={cn('float-right ml-2 inline-flex translate-y-[3px] items-center gap-1 select-none text-[10px] leading-none tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}{msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />)}</span>}{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
-                          {!visibleMessageText(msg).trim() && showMessageTime && !msg.deletedAt && (
+                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{showMessageTime && !msg.deletedAt && !(msg.isOwn && hasAudioAttachment) && <span className={cn('float-right ml-2 inline-flex translate-y-[3px] items-center gap-1 select-none text-[10px] leading-none tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}{msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />)}</span>}{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
+                          {!visibleMessageText(msg).trim() && showMessageTime && !msg.deletedAt && !(msg.isOwn && hasAudioAttachment) && (
                           <div className={cn('flex items-center gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums', msg.isOwn ? 'justify-end text-white/75' : 'text-white/40')}>
                             <span>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                             {msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />)}

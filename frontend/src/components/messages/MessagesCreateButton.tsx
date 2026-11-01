@@ -53,7 +53,7 @@ export default function MessagesCreateButton({
               initial={{ y: '100%', opacity: 0 }}
               animate={{ y: 0, opacity: 1, transition: { type: 'spring', damping: 30, stiffness: 320 } }}
               exit={{ y: '100%', opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-              className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-0.5rem)] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[24px] border-x border-t border-white/[0.08] bg-[#0d0d0f]/98 pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl md:max-h-[min(640px,calc(100dvh-120px))] md:rounded-2xl md:inset-y-0 md:my-auto md:left-1/2 md:-translate-x-1/2"
+              className="fixed inset-x-0 top-[calc(var(--vanta-vh-offset,0px)+0.5rem)] bottom-[calc(var(--vanta-kb,0px)+env(safe-area-inset-bottom,0px))] z-50 mx-auto flex min-h-0 w-full max-w-[520px] flex-col overflow-hidden rounded-t-[24px] border-x border-t border-white/[0.08] bg-[#0d0d0f]/98 pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl md:top-0 md:bottom-0 md:max-h-[min(640px,calc(100dvh-120px))] md:rounded-2xl md:my-auto md:left-1/2 md:-translate-x-1/2"
             >
               {/* Grab handle (mobile) */}
               <div aria-hidden="true" className="mx-auto mt-1.5 h-1 w-10 shrink-0 rounded-full bg-white/15 md:hidden" />
@@ -142,7 +142,7 @@ export default function MessagesCreateButton({
         animate={{ scale: 1 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.9 }}
-        className="relative z-50 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#f2c75c] via-[#d6a83f] to-[#a8842c] text-black shadow-[0_12px_28px_rgba(0,0,0,.45)] transition-transform"
+        className={`relative z-50 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#f2c75c] via-[#d6a83f] to-[#a8842c] text-black shadow-[0_12px_28px_rgba(0,0,0,.45)] transition-transform ${open ? 'pointer-events-none opacity-0' : ''}`}
         aria-label={open ? 'Close new chat menu' : 'New chat'}
         aria-haspopup="menu"
         aria-expanded={open}

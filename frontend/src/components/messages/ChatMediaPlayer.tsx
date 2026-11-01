@@ -41,7 +41,7 @@ export interface ChatMediaAttachment {
 }
 
 /** Compact inline voice-note player used for AUDIO message attachments. */
-export function VoiceNotePlayer({ src, name }: { src: string; name?: string }) {
+export function VoiceNotePlayer({ src, name, sentAt }: { src: string; name?: string; sentAt?: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -108,10 +108,12 @@ export function VoiceNotePlayer({ src, name }: { src: string; name?: string }) {
           ))}
         </div>
         <div className="mt-0.5 flex items-center justify-between text-[9px] leading-none">
-          <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
-            {formatVoiceTime(progress)}
-          </span>
-          {duration > 0 && <span className="tabular-nums text-white/25">{formatVoiceTime(duration)}</span>}
+          {(!sentAt || duration > 0) && <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
+            {sentAt ? formatVoiceTime(duration) : formatVoiceTime(progress)}
+          </span>}
+          {sentAt
+            ? <span className="tabular-nums text-white/55">{sentAt}</span>
+            : duration > 0 && <span className="tabular-nums text-white/25">{formatVoiceTime(duration)}</span>}
         </div>
       </div>
     </div>
