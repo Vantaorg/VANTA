@@ -297,7 +297,7 @@ function Featured({ item, open, hideEmpty }: { item?: Item; open: () => void; hi
   const image = mediaOf(item) || creator.avatar || item.avatar;
   const video = videoSourceOf(item);
   const rawTitle = item.title || item.content || item.fullName || creator.fullName || creator.username || categoryName(item.category);
-  const title = isUntitledReel(rawTitle) ? (item.caption && !isUntitledReel(item.caption) ? item.caption : item.description && !isUntitledReel(item.description) ? item.description : 'Reel') : rawTitle;
+  const title = isVideo(item) ? reelDisplayTitle(item) : rawTitle;
   const description = item.description || item.bio || (creator.username ? '@' + creator.username : '');
   if (!title) return hideEmpty ? null : <EmptyState title="Nothing featured yet." actionLabel="Refresh Discover" onAction={() => location.reload()}/>;
 
