@@ -127,7 +127,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
       }
     } catch { /* ordinary text */ }
   }
-  const safeLegacyPoll = legacyPoll ?? (msg.type === 'POLL' ? { question: 'Poll', options: [] as string[] } : null);
+  const safeLegacyPoll = legacyPoll ?? ((pollPayload || msg.type === 'POLL') ? { question: 'Poll', options: [] as string[] } : null);
   const attachments = (msg.attachments ?? []).map((attachment: any) => {
     const source = attachment.url ?? attachment.mediaUrl ?? attachment.path ?? attachment.fileName;
     return {
