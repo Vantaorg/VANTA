@@ -33,7 +33,7 @@ export interface StoryCircleProps {
   /** Show a small emerald "NEW" dot bottom-right (active only) */
   showDot?: boolean;
   /** Outer diameter: sm = 48px, md = 66px, lg = 72px. */
-  size?: 'sm' | 'md' | 'lg' | 'compactStatus' | 'xl';
+  size?: 'tiny' | 'sm' | 'md' | 'lg' | 'compactStatus' | 'xl';
   /**
    * Optional per-story viewed segments. When provided the ring is ONE circle
    * divided into one gold/faint arc per story item.
@@ -44,6 +44,7 @@ export interface StoryCircleProps {
 
 const SIZES = {
   // outer size, avatar inner padding, ring stroke width (SVG viewBox units)
+  tiny: { outer: 'h-11 w-11', pad: 'p-px', stroke: 3 },
   sm: { outer: 'h-[55px] w-[55px]', pad: 'p-[2px]', stroke: 4 },
   compactStatus: { outer: 'h-[69px] w-[69px]', pad: 'p-px', stroke: 3 },
   md: { outer: 'h-[76px] w-[76px]', pad: 'p-[2px]', stroke: 5 },
