@@ -181,6 +181,19 @@ describe('BlockchainTxVerifier.verifyTransaction', () => {
     expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.AMOUNT_MISMATCH);
   });
 
+  test('maps an RPC failure on hash lookup to retryable, not pending', async () => {
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => { throw new Error('RPC timeout'); } });
+    const error = await blockchainTxVerifier.verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET }).catch((err: Error) => err);
+    expect(error).toBeInstanceOf(BlockchainTxVerificationError);
+    expect((error as BlockchainTxVerificationError).transient).toBe(true);
+  });
+
+  test('rejects a transaction on a provider configured to the wrong chain before lookup', async () => {
+    mockRpc({ ...defaultHandlers(), eth_chainId: () => '0x2105' });
+    const error = await blockchainTxVerifier.verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET }).catch((err: Error) => err);
+    expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK);
+  });
+
   test('rejects a FAILED on-chain transaction (receipt status 0x0)', async () => {
     mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => makeReceipt({ status: '0x0' }) });
     const error = await blockchainTxVerifier
@@ -189,20 +202,30 @@ describe('BlockchainTxVerifier.verifyTransaction', () => {
     expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_FAILED);
   });
 
-  test('rejects an unknown transaction (no receipt)', async () => {
-    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => null });
+  test('rejects an unknown transaction (no receipt and no mempool transaction)', async () => {
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => null, eth_getTransactionByHash: () => null, eth_chainId: () => '0x38' });
     const error = await blockchainTxVerifier
       .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
       .catch((err: Error) => err);
     expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_NOT_FOUND);
   });
 
-  test('rejects a PENDING (unmined) transaction', async () => {
-    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => makeReceipt({ blockHash: null, blockNumber: null, status: null }) });
+  test('returns TRANSACTION_PENDING for a mined receipt without block inclusion', async () => {
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => null, eth_getTransactionByHash: () => ({ to: USDT_BSC_CONTRACT, input: `0xa9059cbb${OFFICIAL_WALLET.slice(2).toLowerCase().padStart(64, '0')}${(199n * (10n ** 16n)).toString(16).padStart(64, '0')}` }) });
     const error = await blockchainTxVerifier
       .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
       .catch((err: Error) => err);
     expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_PENDING);
+  });
+
+  test.each([
+    ['wrong token', USDC_BASE_CONTRACT, `0xa9059cbb${OFFICIAL_WALLET.slice(2).toLowerCase().padStart(64, '0')}${(199n * (10n ** 16n)).toString(16).padStart(64, '0')}`, BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_TOKEN],
+    ['wrong recipient', USDT_BSC_CONTRACT, `0xa9059cbb${'b'.repeat(40).padStart(64, '0')}${(199n * (10n ** 16n)).toString(16).padStart(64, '0')}`, BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_RECIPIENT],
+    ['wrong amount', USDT_BSC_CONTRACT, `0xa9059cbb${OFFICIAL_WALLET.slice(2).toLowerCase().padStart(64, '0')}${(100n * (10n ** 16n)).toString(16).padStart(64, '0')}`, BLOCKCHAIN_VERIFICATION_ERROR_CODES.AMOUNT_MISMATCH],
+  ])('does not label unmined %s as pending', async (_label, to, input, expectedCode) => {
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => null, eth_getTransactionByHash: () => ({ to, input }) });
+    const error = await blockchainTxVerifier.verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET }).catch((err: Error) => err);
+    expect((error as BlockchainTxVerificationError).code).toBe(expectedCode);
   });
 
   test('rejects a transaction with insufficient confirmations', async () => {

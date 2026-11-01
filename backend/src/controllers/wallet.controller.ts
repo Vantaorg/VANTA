@@ -9,8 +9,11 @@ import {
   COIN_PAYMENT_MODE,
   COIN_PAYMENT_STATUS,
   SUPPORTED_COIN_PAYMENT_NETWORKS,
+  getCoinPaymentDepositAddress,
 } from '../config/coin-payments.config';
 import { coinPaymentService, CoinPaymentUnavailableError } from '../services/coin-payment.service';
+import { blockchainTxVerifier, BlockchainTxVerificationError } from '../services/blockchain-verifier.service';
+import { getMinBlockchainConfirmations } from '../config/blockchain-networks.config';
 import { PurchasePackageNotFoundError, isSystemOrDatabaseError } from '../errors/purchase.errors';
 
 // ============================================================================
@@ -525,17 +528,72 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // LIVE mode — coin crediting belongs exclusively to the trusted provider
-    // webhook (POST /api/payments/webhook) after server-side verification of
-    // amount, asset, destination and finality. A client-submitted transaction
-    // reference is never proof of payment.
-    res.status(202).json({
-      success: false,
-      pending: true,
-      orderId: order.id,
-      status: order.status,
-      message: 'Payment is awaiting provider verification.',
-    });
+    // LIVE mode: the client hash only drives server-side lookup. It never
+    // authorizes a credit; the signed provider webhook/chain watcher remains the
+    // only fulfillment path.
+    const submittedTxHash = typeof req.body?.txHash === 'string' ? req.body.txHash.trim() : '';
+    if (!/^0x[a-fA-F0-9]{64}$/.test(submittedTxHash)) {
+      res.status(400).json({ success: false, terminal: true, code: 'INVALID_TX_HASH', message: 'Enter a valid transaction hash.' });
+      return;
+    }
+    if (order.paymentMode !== 'live') {
+      res.status(400).json({ success: false, terminal: true, code: 'ORDER_NOT_LIVE', message: 'This purchase is not a live crypto order.' });
+      return;
+    }
+    const network = order.paymentMethod;
+    if (!network || !SUPPORTED_COIN_PAYMENT_NETWORKS.includes(network as any)) {
+      res.status(400).json({ success: false, terminal: true, code: 'UNSUPPORTED_NETWORK', message: 'This purchase network is not supported.' });
+      return;
+    }
+    const expectedRecipient = getCoinPaymentDepositAddress();
+    if (!expectedRecipient) {
+      res.status(503).json({ error: 'Live payment receiving address is not configured.' });
+      return;
+    }
+    const txHashNormalized = submittedTxHash.toLowerCase();
+
+    try {
+      const verified = await blockchainTxVerifier.verifyTransaction({
+        txHash: txHashNormalized,
+        network,
+        expectedAmountUsd: order.amount,
+        expectedRecipient,
+        minConfirmations: getMinBlockchainConfirmations(),
+      });
+      const usedBy = await prisma.purchaseOrder.findFirst({
+        where: { providerReference: txHashNormalized },
+        select: { id: true },
+      });
+      if (usedBy && usedBy.id !== order.id) {
+        res.status(409).json({ success: false, terminal: true, code: 'TX_ALREADY_USED', message: 'This transaction hash has already been used.' });
+        return;
+      }
+      // Client verification is lookup-only. Fulfillment is exclusively atomic in
+      // the authenticated provider webhook or chain watcher.
+      const update = await prisma.purchaseOrder.updateMany({
+        where: { id: order.id, userId, status: { in: [COIN_PAYMENT_STATUS.PENDING, COIN_PAYMENT_STATUS.PROCESSING] } },
+        data: { providerReference: txHashNormalized },
+      });
+      if (update.count !== 1) {
+        res.status(409).json({ success: false, terminal: true, code: 'ORDER_NOT_PENDING', message: 'This purchase is no longer awaiting payment.' });
+        return;
+      }
+      res.status(202).json({ success: false, pending: true, orderId: order.id, status: order.status, confirmations: verified.confirmations, message: 'Payment verified on-chain and awaiting fulfillment.' });
+    } catch (error) {
+      if (error instanceof BlockchainTxVerificationError) {
+        if (error.transient || error.code === 'RPC_UNAVAILABLE' || error.code === 'RPC_ERROR') {
+          res.status(503).json({ success: false, retryable: true, code: error.code, message: 'The blockchain is temporarily unavailable. Check again shortly.' });
+          return;
+        }
+        if (error.code === 'LOW_CONFIRMATIONS' || error.code === 'TRANSACTION_PENDING') {
+          res.status(202).json({ success: false, pending: true, code: error.code, orderId: order.id, status: order.status, message: error.message });
+          return;
+        }
+        res.status(400).json({ success: false, terminal: true, code: error.code, message: error.message });
+        return;
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof CoinPaymentUnavailableError) {
       res.status(503).json({ error: error.message });

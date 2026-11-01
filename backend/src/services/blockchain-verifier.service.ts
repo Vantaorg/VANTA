@@ -218,12 +218,58 @@ export class BlockchainTxVerifier {
     );
     const tolerance = getBlockchainAmountToleranceUsd();
     const timeoutMs = getBlockchainRpcTimeoutMs();
+    const identityChainId = hexToNumber(await rpcCall(network, 'eth_chainId', [], Math.min(timeoutMs, 4000)));
+    if (identityChainId === null) {
+      throw new BlockchainTxVerificationError(BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR, `Could not verify the ${network.chainName} RPC chain identity.`, true);
+    }
+    if (identityChainId !== network.chainId) {
+      throw new BlockchainTxVerificationError(BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK, `Transaction lookup is on chain ${identityChainId}, expected ${network.chainName} (chain ${network.chainId}).`);
+    }
 
     const receipt = await rpcCall(network, 'eth_getTransactionReceipt', [txHash], timeoutMs);
     if (!receipt || typeof receipt !== 'object') {
+      const transaction = await rpcCall(network, 'eth_getTransactionByHash', [txHash], timeoutMs);
+      if (!transaction || typeof transaction !== 'object') {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_NOT_FOUND,
+          `Transaction ${txHash} was not found on ${network.chainName}.`
+        );
+      }
+      const tx = transaction as Record<string, unknown>;
+      // A pending transaction is only retryable when it is already a matching
+      // token transfer. Never label an unrelated/unverified mempool hash pending.
+      if (typeof tx.to !== 'string' || tx.to.toLowerCase() !== network.tokenContract.toLowerCase() ||
+          typeof tx.input !== 'string' || !/^0xa9059cbb[0-9a-fA-F]{128}$/.test(tx.input)) {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_TOKEN,
+          `Unmined transaction does not call the expected ${network.tokenName} transfer contract.`
+        );
+      }
+      const pendingChainId = hexToNumber(await rpcCall(network, 'eth_chainId', [], Math.min(timeoutMs, 4000)));
+      if (pendingChainId !== network.chainId) {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK,
+          `Transaction lookup is on chain ${pendingChainId ?? 'unknown'}, expected ${network.chainName} (${network.chainId}).`
+        );
+      }
+      const input = tx.input;
+      const pendingRecipient = topicToAddress(`0x${input.slice(34, 74)}`);
+      const pendingAmount = parseUint256ToNumber(`0x${input.slice(74)}`, network.tokenDecimals);
+      if (pendingRecipient.toLowerCase() !== recipient.toLowerCase()) {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_RECIPIENT,
+          'Unmined transaction is not directed to the official receiving wallet.'
+        );
+      }
+      if (!Number.isFinite(pendingAmount) || pendingAmount <= 0 || Math.abs(pendingAmount - options.expectedAmountUsd) > tolerance) {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.AMOUNT_MISMATCH,
+          `Unmined transaction amount does not match the order amount ${options.expectedAmountUsd}.`
+        );
+      }
       throw new BlockchainTxVerificationError(
-        BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_NOT_FOUND,
-        `Transaction ${txHash} has no receipt on ${network.chainName} (not mined or unknown).`
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_PENDING,
+        `Matching transaction ${txHash} exists on ${network.chainName} but is awaiting mining/indexing.`
       );
     }
     const receiptObj = receipt as Record<string, unknown>;
@@ -251,22 +297,21 @@ export class BlockchainTxVerifier {
       );
     }
 
-    // Best-effort chainId check: never blocks on the extra call, but ALWAYS
-    // rejects a transaction observed on the wrong chain.
-    try {
-      const chainId = await rpcCall(network, 'eth_chainId', [], Math.min(timeoutMs, 4000));
-      const chainIdNum = hexToNumber(chainId);
-      if (chainIdNum !== null && chainIdNum !== network.chainId) {
-        throw new BlockchainTxVerificationError(
-          BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK,
-          `Transaction ${txHash} is on chain ${chainIdNum}, expected ${network.chainName} (chain ${network.chainId}).`
-        );
-      }
-    } catch (error) {
-      if (error instanceof BlockchainTxVerificationError && error.code === BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK) {
-        throw error;
-      }
-      // RPC issues on the extra call are best-effort — continue.
+    // Verify the RPC endpoint is actually serving the configured chain. If the
+    // identity check is unavailable, fail closed and let the caller retry.
+    const chainId = hexToNumber(await rpcCall(network, 'eth_chainId', [], Math.min(timeoutMs, 4000)));
+    if (chainId === null) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR,
+        `Could not verify the ${network.chainName} RPC chain identity.`,
+        true
+      );
+    }
+    if (chainId !== network.chainId) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_NETWORK,
+        `Transaction ${txHash} is on chain ${chainId}, expected ${network.chainName} (chain ${network.chainId}).`
+      );
     }
 
     // ---- The Transfer event targeting the official receiving wallet --------

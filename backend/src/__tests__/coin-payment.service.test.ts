@@ -333,6 +333,19 @@ describe('CoinPaymentService.processPaymentWebhook', () => {
     expect(call[2].verification.onChain).toBe(ON_CHAIN_VERIFIED);
   });
 
+  test('a verified tx can credit only once even when a distinct webhook event replays it', async () => {
+    const body = eventBody();
+    (walletService.completeCoinPurchase as jest.Mock).mockRejectedValueOnce({ code: 'P2002' });
+    const result = await coinPaymentService.processPaymentWebhook({
+      rawBody: JSON.stringify(body), signature: sign(body),
+      eventId: 'evt-duplicate-hash', orderId: body.orderId, txHash: body.txHash,
+      network: body.network, asset: body.asset, amount: body.amount, status: body.status, confirmations: 12,
+    });
+    expect(result.duplicate).toBe(true);
+    expect(walletService.completeCoinPurchase).toHaveBeenCalledTimes(1);
+    expect(blockchainTxVerifier.verifyTransaction).toHaveBeenCalledTimes(1);
+  });
+
   test('an on-chain verification rejection (wrong recipient) blocks crediting', async () => {
     const body = eventBody();
     const { BlockchainTxVerificationError } = require('../services/blockchain-verifier.service');
