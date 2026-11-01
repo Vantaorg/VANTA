@@ -108,7 +108,6 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
       <head>
-        <script async src="https://app.gomine.social/api/visit/v.js" />
         {/* DNS prefetch for critical origins */}
         <link rel="dns-prefetch" href="//api.vanta.app" />
         <link rel="dns-prefetch" href="//cdn.vanta.app" />
