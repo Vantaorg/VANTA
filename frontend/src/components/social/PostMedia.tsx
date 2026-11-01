@@ -253,6 +253,7 @@ export function PostMediaCarousel({
         isVideo={isVideoAttachment(active)}
         alt={alt}
         autoplayOnView={autoplayOnView}
+        feedCompact={feedCompact}
         onDoubleClick={onDoubleClick}
       />
 
