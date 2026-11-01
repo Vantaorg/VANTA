@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "predev": "prisma generate",
     "dev": "nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/index.ts\"",

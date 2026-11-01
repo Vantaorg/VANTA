@@ -1,6 +1,9 @@
 {
   "name": "vanta",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "main": "backend/src/server.js",
   "workspaces": [
     "frontend"
