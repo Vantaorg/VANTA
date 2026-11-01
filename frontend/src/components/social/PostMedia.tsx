@@ -143,7 +143,7 @@ export default function PostMedia({
             const element = event.currentTarget;
             setProgress(element.duration ? (element.currentTime / element.duration) * 100 : 0);
           }}
-          className={`block h-auto max-h-[min(76dvh,820px)] w-full object-contain ${className ?? ''}`}
+          className={`block h-auto max-h-[60dvh] w-full object-contain ${className ?? ''}`}
           aria-label={alt}
         />
         {showPlay && !playing && (
@@ -161,7 +161,7 @@ export default function PostMedia({
             type="button"
             onClick={() => setMuted((value) => !value)}
             aria-label={muted ? 'Unmute video' : 'Mute video'}
-            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white backdrop-blur"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white backdrop-blur"
           >
             {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
@@ -180,7 +180,7 @@ export default function PostMedia({
       alt={alt}
       loading="lazy"
       onDoubleClick={onDoubleClick}
-      className={`mx-auto block h-auto max-h-[min(76dvh,820px)] w-full object-contain ${className ?? ''}`}
+      className={`mx-auto block h-auto max-h-[60dvh] w-full object-contain ${className ?? ''}`}
     />
   );
 }
