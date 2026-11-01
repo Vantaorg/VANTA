@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getVoiceNoteFooterLabels } from './voiceNoteLayout';
+export { getVoiceNoteFooterLabels } from './voiceNoteLayout';
 
 // ============================================================================
 // CHAT MEDIA PLAYERS — compact voice notes + video messages.
@@ -18,7 +20,7 @@ import { cn } from '@/lib/utils';
 // ============================================================================
 
 const formatVoiceTime = (seconds: number): string => {
-  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  if (!Number.isFinite(seconds) || seconds < 0) return '';
   const safe = Math.floor(seconds);
   const mins = Math.floor(safe / 60);
   const secs = safe % 60;
@@ -41,7 +43,7 @@ export interface ChatMediaAttachment {
 }
 
 /** Compact inline voice-note player used for AUDIO message attachments. */
-export function VoiceNotePlayer({ src, name, sentAt }: { src: string; name?: string; sentAt?: string }) {
+export function VoiceNotePlayer({ src, name, sentAt, isOwn = false }: { src: string; name?: string; sentAt?: string; isOwn?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -80,6 +82,7 @@ export function VoiceNotePlayer({ src, name, sentAt }: { src: string; name?: str
   };
 
   const activeBars = duration > 0 ? Math.round((progress / duration) * VOICE_WAVE_BARS.length) : 0;
+  const footer = getVoiceNoteFooterLabels(duration, sentAt);
 
   return (
     <div className="flex w-full max-w-[212px] select-none items-center gap-2">
@@ -108,12 +111,10 @@ export function VoiceNotePlayer({ src, name, sentAt }: { src: string; name?: str
           ))}
         </div>
         <div className="mt-0.5 flex items-center justify-between text-[9px] leading-none">
-          {duration > 0 && <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
-            {formatVoiceTime(duration)}
+          {footer.duration && <span className={cn('tabular-nums', isPlaying ? 'text-[#f2c75c]' : 'text-white/45')}>
+            {footer.duration}
           </span>}
-          {sentAt
-            ? <span className="tabular-nums text-white/55">{sentAt}</span>
-            : duration > 0 && <span className="tabular-nums text-white/25">{formatVoiceTime(duration)}</span>}
+          {footer.timestamp && <span className={cn('tabular-nums', isOwn ? 'text-white/75' : 'text-white/55')}>{footer.timestamp}</span>}
         </div>
       </div>
     </div>

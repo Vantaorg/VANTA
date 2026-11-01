@@ -2331,7 +2331,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                   </div>
                                 )}
                                 {otherAtts.map((att, index) => att.fileType === 'AUDIO'
-                                  ? <div key={att.id || `extra-${index}`} className={cn('min-w-0 px-3', visibleMessageText(msg) ? 'pt-2 pb-1' : 'py-2.5')}><VoiceNotePlayer src={att.url!} name={att.fileName} sentAt={msg.isOwn ? currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : undefined} /></div>
+                                  ? <div key={att.id || `extra-${index}`} className={cn('min-w-0 px-3', visibleMessageText(msg) ? 'pt-2 pb-1' : 'py-2.5')}><VoiceNotePlayer src={att.url!} name={att.fileName} sentAt={currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} isOwn={msg.isOwn} /></div>
                                   : <a key={att.id || `extra-${index}`} href={att.url} target="_blank" rel="noreferrer" className="flex min-w-0 max-w-full items-center gap-2 px-3 py-2.5 text-xs underline underline-offset-2 text-white/70 hover:text-white">{<FileText size={13} className="shrink-0 text-white/40" />}<span className="min-w-0 truncate">{att.fileName || 'Download attachment'}</span></a>)}
                               </>
                             );
