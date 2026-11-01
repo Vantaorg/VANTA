@@ -95,7 +95,8 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const attachments = postAttachments(item);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
-  const caption = item.content || item.description;
+  const rawCaption = item.content || item.description;
+  const caption = typeof rawCaption === 'string' && /^untitled\s+reel$/i.test(rawCaption.trim()) ? '' : rawCaption;
   const displayedCaption = compactCaption && typeof caption === 'string' && caption.length > 120 ? `${caption.slice(0, Math.ceil(caption.length * 0.65)).trimEnd()}…` : caption;
 
   // Tapping anywhere on the card (except an interactive control) opens the
