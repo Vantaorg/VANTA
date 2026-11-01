@@ -161,7 +161,7 @@ export default function StoryCircle({
           src={src}
           alt={alt}
           size={size === 'sm' ? 'md' : 'lg'}
-          wrapperClassName="!h-full !w-full"
+          wrapperClassName="!h-full !w-full !rounded-full !overflow-hidden"
           className="!h-full !w-full !rounded-full"
           verified={verified}
           verificationType={verificationType}
