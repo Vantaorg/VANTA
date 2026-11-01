@@ -192,7 +192,8 @@ class MainActivity : Activity() {
 
         val grid = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(18), 0, 0)
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(18), dp(8), dp(4))
         }
         grid.addView(
             pickerTile("📷", "Camera", "Take a photo", Color.rgb(201, 162, 39)) {
@@ -250,35 +251,38 @@ class MainActivity : Activity() {
         accent: Int,
         onClick: () -> Unit
     ): View {
+        // Telegram-style attachment option: bare circular icon with a label
+        // underneath, no card behind it.
         val tile = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(5), dp(17), dp(5), dp(16))
-            background = roundedBackground(Color.rgb(29, 29, 32), 18)
+            setPadding(dp(6), dp(4), dp(6), dp(6))
             isClickable = true
             isFocusable = true
             setOnClickListener { onClick() }
         }
-        tile.addView(TextView(this).apply {
-            text = symbol
-            textSize = 25f
-            gravity = Gravity.CENTER
-            setTextColor(accent)
-        })
+        val circle = FrameLayout(this).apply {
+            val size = dp(56)
+            layoutParams = LinearLayout.LayoutParams(size, size)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.argb(38, Color.red(accent), Color.green(accent), Color.blue(accent)))
+            }
+            addView(TextView(this@showNativeAttachmentPicker.context).apply {
+                text = symbol
+                textSize = 24f
+                gravity = Gravity.CENTER
+                setTextColor(accent)
+            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        tile.addView(circle)
         tile.addView(TextView(this).apply {
             text = label
-            textSize = 13f
+            textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, 0)
-        })
-        tile.addView(TextView(this).apply {
-            text = detail
-            textSize = 10f
-            setTextColor(Color.rgb(155, 155, 160))
-            gravity = Gravity.CENTER
-            setPadding(0, dp(3), 0, 0)
+            setPadding(0, dp(7), 0, 0)
         })
         return tile
     }

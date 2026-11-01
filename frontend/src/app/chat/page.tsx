@@ -2300,21 +2300,18 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                       <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-12 w-12 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={23}/></span>
+                    <div className="flex items-start justify-center gap-4">
+                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={24}/></span>
                         <span className="text-xs font-semibold text-white">Camera</span>
-                        <span className="text-[10px] text-white/40">Take a photo</span>
                       </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><ImageIcon size={23}/></span>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><ImageIcon size={24}/></span>
                         <span className="text-xs font-semibold text-white">Photos</span>
-                        <span className="text-[10px] text-white/40">Images & videos</span>
                       </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl bg-[#1b1b1e] px-2 py-4 text-center transition hover:bg-[#252529] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-12 w-12 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={23}/></span>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={24}/></span>
                         <span className="text-xs font-semibold text-white">Files</span>
-                        <span className="text-[10px] text-white/40">PDF & documents</span>
                       </button>
                     </div>
                   </section>
