@@ -17,6 +17,7 @@ import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
@@ -54,9 +55,17 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = Color.rgb(5, 5, 5)
-        window.navigationBarColor = Color.rgb(5, 5, 5)
         window.decorView.setBackgroundColor(Color.rgb(5, 5, 5))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+        }
         CookieManager.getInstance().setAcceptCookie(true)
 
         pendingCameraUri = savedInstanceState?.getString(CAMERA_URI_STATE)?.let(Uri::parse)
@@ -135,10 +144,18 @@ class MainActivity : Activity() {
             }
         }
 
-        setContentView(FrameLayout(this).apply {
+        val root = FrameLayout(this).apply {
             setBackgroundColor(Color.rgb(5, 5, 5))
             addView(webView)
-        })
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            root.setOnApplyWindowInsetsListener { view, insets ->
+                val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                insets
+            }
+        }
+        setContentView(root)
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         if (savedInstanceState == null) {

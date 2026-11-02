@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.vanta.app"
-    compileSdk = 35
+    compileSdk = 36
 
     buildFeatures {
         buildConfig = true
@@ -14,7 +14,7 @@ android {
     defaultConfig {
         applicationId = "com.vanta.app"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
     }
