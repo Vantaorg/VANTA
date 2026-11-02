@@ -500,7 +500,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         )}
         <AnimatePresence initial={false}>
-          {(!isEditProfilePage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation) && (
+          {(!isEditProfilePage && !isPostDetailPage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation) && (
           <motion.nav
             initial={{ y: 64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

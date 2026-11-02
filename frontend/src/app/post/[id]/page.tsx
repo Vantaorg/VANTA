@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
-import { Bookmark, Eye, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Share2, Trash2, X } from 'lucide-react';
+import { Bookmark, Eye, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Share2, UserPlus } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -27,7 +27,7 @@ type Post = {
   likesCount?: number; commentsCount?: number; shareCount?: number; views?: number;
   isLiked?: boolean; liked?: boolean; saved?: boolean; shares?: number; likes?: number; comments?: number;
   hashtags?: string[];
-  author: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null };
+  author: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null; following?: boolean; isFollowing?: boolean };
 };
 
 const mediaSrc = (value?: string | null) => resolveMediaUrl(value);
@@ -73,8 +73,9 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   // Lightweight engagement-action base style: evenly distributed icon
   // actions with restrained transitions — a toolbar, not four rectangular
   // buttons. Active states use the VANTA gold accent.
-  const toolClass = (extra?: string) => `flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full text-[#8a8a8a] transition hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.97] ${extra ?? ''}`;
-useEffect(() => {
+  const toolClass = (extra?: string) => `flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full text-[#8a8a8a] transition hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.97] ${extra ?? ''}`;
+
+  useEffect(() => {
     let active = true;
     setLoading(true); setUnavailable(false);
     void apiGet<Post>(`/api/feed/${encodeURIComponent(id)}`, token || undefined, { skipCache: true })
@@ -116,6 +117,23 @@ useEffect(() => {
     } catch { setPost(before); }
   };
 
+  const followBusy = useRef(false);
+  const toggleFollow = async () => {
+    if (!token || !post || isOwn || followBusy.current) return;
+    followBusy.current = true;
+    const wasFollowing = Boolean(post.author.following ?? post.author.isFollowing);
+    setPost(current => current ? { ...current, author: { ...current.author, following: !wasFollowing, isFollowing: !wasFollowing } } : current);
+    try {
+      if (wasFollowing) await apiDelete(`/api/profiles/${encodeURIComponent(post.author.username)}/follow`, token);
+      else await apiPost(`/api/profiles/${encodeURIComponent(post.author.username)}/follow`, {}, token);
+    } catch {
+      setPost(current => current ? { ...current, author: { ...current.author, following: wasFollowing, isFollowing: wasFollowing } } : current);
+      toast.error('Follow update failed');
+    } finally {
+      followBusy.current = false;
+    }
+  };
+
   const share = async (destination: string) => {
     if (!post || !token) return;
     const url = `${window.location.origin}/post/${encodeURIComponent(post.id)}`;
@@ -153,7 +171,7 @@ useEffect(() => {
   };
 
   if (loading) {
-    return <main className="min-w-0 w-full text-white">
+    return <main data-post-detail className="min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky bleed className="h-14 min-h-14 px-4"
@@ -164,7 +182,7 @@ useEffect(() => {
   }
 
   if (unavailable || !post) {
-    return <main className="min-w-0 w-full text-white">
+    return <main data-post-detail className="min-w-0 w-full bg-[#050505] text-white">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky bleed className="h-14 min-h-14 px-4"
@@ -177,13 +195,13 @@ useEffect(() => {
   const media = mediaSrc(post.mediaUrl) || attachments[0]?.url;
   const isOwn = post.author.id === user?.id;
   return (
-    <main data-post-detail data-post-detail-version="3" className="min-h-dvh w-full min-w-0 bg-[#050505] text-white">
+    <main data-post-detail data-post-detail-version="4" className="min-h-full w-full min-w-0 bg-[#050505] text-white">
       <PageHeader
         title="Post"
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky
         bleed
-        className="h-14 min-h-14 px-4"
+        className="h-12 min-h-12 border-b border-white/[0.08] bg-[#050505] px-3"
         actions={
           <button
             type="button"
@@ -196,10 +214,10 @@ useEffect(() => {
         }
       />
 
-      <div className="grid min-h-[calc(100dvh-3.5rem)] w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
+      <div className="mx-auto min-h-[calc(100dvh-3rem)] w-full min-w-0 max-w-[680px]">
         <section className="min-w-0">
           <article className="w-full min-w-0">
-            <header className="flex min-w-0 items-center gap-3 px-4 py-4 sm:px-5">
+            <header className="flex min-w-0 items-center gap-2.5 border-b border-white/[0.08] px-4 py-3">
               <Link
                 href={`/profile/${post.author.username}`}
                 className="grid shrink-0 place-items-center"
@@ -208,7 +226,7 @@ useEffect(() => {
                 <Avatar
                   src={post.author.avatar}
                   alt={post.author.username}
-                  size="md"
+                  size="sm"
                   verified={Boolean(post.author.verified && post.author.verificationType)}
                   verificationType={post.author.verificationType}
                 />
@@ -217,7 +235,7 @@ useEffect(() => {
                 <div className="flex min-w-0 items-center gap-1.5">
                   <Link
                     href={`/profile/${post.author.username}`}
-                    className="truncate text-[14px] font-semibold text-white hover:underline"
+                    className="truncate text-[14px] font-bold text-white hover:underline"
                   >
                     {post.author.fullName || post.author.username}
                   </Link>
@@ -227,19 +245,20 @@ useEffect(() => {
                 </div>
                 <p className="truncate text-[12px] text-white/40">@{post.author.username}</p>
               </div>
-              <time className="shrink-0 text-[12px] text-white/40">{timeAgo(post.createdAt)}</time>
+              {token && !isOwn && <button type="button" onClick={() => void toggleFollow()} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#c9a227]/60 px-3 text-[12px] font-semibold text-[#e3c354] transition hover:bg-[#c9a227]/10"><UserPlus size={14} />{Boolean(post.author.following ?? post.author.isFollowing) ? 'Following' : 'Follow'}</button>}
             </header>
+            <div className="mx-4 flex items-center gap-2 py-2 text-[11px] text-white/45"><span className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.06] text-[10px] text-[#d2ad35]">文</span><span>Translated from original</span><span className="text-white/20">·</span><button type="button" className="text-[#d2ad35] hover:underline">Show original</button></div>
 
             {post.content && (
-              <div className="px-4 pb-4 sm:px-5">
-                <p className="whitespace-pre-wrap break-words text-[16px] leading-[1.7] tracking-[0.005em] text-[#f0f0f0] sm:text-[17px]">
+              <div className="px-4 pb-2 pt-3">
+                <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.5] tracking-[0.005em] text-[#f0f0f0]">
                   {renderTextWithLinks(post.content, 'linkify')}
                 </p>
               </div>
             )}
 
             {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
-              <p className="px-4 pb-4 text-[13px] font-medium leading-6 text-[#d2ad35] sm:px-5">
+              <p className="px-4 pb-2 text-[13px] font-medium leading-5 text-[#d2ad35]">
                 {post.hashtags.map(tag => `#${tag}`).join(' ')}
               </p>
             )}
@@ -264,8 +283,11 @@ useEffect(() => {
               </div>
             )}
 
-            <div className="px-4 pt-2 sm:px-5">
-              <footer className="flex min-h-14 w-full min-w-0 items-center gap-1">
+            <div className="px-4 pt-1">
+              <div className="flex min-h-8 items-center gap-2 border-b border-white/[0.08] pb-2 text-[11px] text-white/40">
+                <time className="tabular-nums">{new Date(post.createdAt).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric', year: 'numeric' })}</time><span>·</span><Eye size={13} /><span className="tabular-nums">{typeof post.views === 'number' ? formatCount(post.views) : '0'} views</span>
+              </div>
+              <footer className="flex min-h-12 w-full min-w-0 items-center gap-1 border-b border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => void toggleLike()}
@@ -273,15 +295,15 @@ useEffect(() => {
                   aria-label={liked ? 'Unlike post' : 'Like post'}
                   aria-pressed={liked}
                 >
-                  <Heart size={21} className={liked ? 'fill-current' : ''} />
+                  <Heart size={18} className={liked ? 'fill-current' : ''} />
                   <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
                 </button>
                 <button type="button" onClick={openComments} className={toolClass()} aria-label="Go to comments">
-                  <MessageCircle size={21} />
+                  <MessageCircle size={18} />
                   <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
                 </button>
                 <button type="button" onClick={() => setShareOpen(true)} className={toolClass()} aria-label="Share post">
-                  <Share2 size={21} />
+                  <Share2 size={18} />
                   <span className="text-xs tabular-nums">{formatCount(shareCount)}</span>
                 </button>
                 <button
@@ -291,27 +313,11 @@ useEffect(() => {
                   aria-label={savedState ? 'Remove from saved' : 'Save post'}
                   aria-pressed={savedState}
                 >
-                  <Bookmark size={21} className={savedState ? 'fill-current' : ''} />
+                  <Bookmark size={18} className={savedState ? 'fill-current' : ''} />
                   <span className="sr-only">{savedState ? 'Saved' : 'Save'}</span>
                 </button>
               </footer>
-              <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 pb-4 text-[11px] text-white/40">
-                {typeof post.views === 'number' && (
-                  <span className="inline-flex items-center gap-1">
-                    <Eye size={13} />
-                    <span className="tabular-nums">{formatCount(post.views)} views</span>
-                  </span>
-                )}
-                <time className="tabular-nums">
-                  {new Date(post.createdAt).toLocaleString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
-                </time>
-              </div>
+
             </div>
           </article>
         </section>
@@ -319,7 +325,7 @@ useEffect(() => {
         <aside
           ref={conversationRef}
           aria-label="Post comments"
-          className="min-w-0 scroll-mt-14 bg-[#080808] lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto"
+          className="min-w-0 scroll-mt-12 border-t border-white/[0.08] bg-[#050505]"
         >
           {token ? (
             <CommentPanel
@@ -330,6 +336,7 @@ useEffect(() => {
               token={token}
               currentUser={user}
               inline
+              compact
               onClose={() => undefined}
               onCountChange={count => setPost(current => current ? { ...current, commentsCount: count, comments: count } : current)}
             />
