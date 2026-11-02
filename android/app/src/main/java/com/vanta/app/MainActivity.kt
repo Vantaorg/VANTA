@@ -285,7 +285,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.OVAL
                 setColor(Color.argb(38, Color.red(accent), Color.green(accent), Color.blue(accent)))
             }
-            addView(TextView(this@showNativeAttachmentPicker.context).apply {
+            addView(TextView(this@MainActivity).apply {
                 text = symbol
                 textSize = 24f
                 gravity = Gravity.CENTER
