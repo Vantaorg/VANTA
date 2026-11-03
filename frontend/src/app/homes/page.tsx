@@ -90,29 +90,25 @@ export default async function HomesPage({ searchParams }: { searchParams: Record
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-3 sm:px-5">
           <div>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
-            <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'Listings appear here after they pass VANTA review.'}</p>
+            <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'No approved listings matched this search.'}</p>
           </div>
-          <a href="/homes/manage" className="inline-flex items-center gap-1.5 py-2 text-sm text-white/55 transition hover:text-[#e2c45f]">
-            Manage listings <ArrowRight size={14} />
-          </a>
+          <a href="/homes/manage" className="inline-flex items-center gap-1.5 py-2 text-sm text-white/55 transition hover:text-[#e2c45f]">Manage listings <ArrowRight size={14} /></a>
         </div>
-
         {data.data.length === 0 ? (
-          <div className="py-12 text-center">
-            <EmptyState title="No homes found" description="Try a different location or adjust your filters. Approved listings will appear here." />
-            <a href="/homes" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#e2c45f] transition hover:text-white">Clear search <ArrowRight size={14} /></a>
+          <div className="mx-3 rounded-2xl border border-white/[.07] bg-white/[.025] px-5 py-10 text-center sm:mx-5">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#c9a227]/[.1] text-[#e0bb4f]"><Building2 size={22}/></span>
+            <h3 className="mt-4 text-base font-semibold text-white">{params.q || params.city || params.area || params.propertyType ? 'No homes match those filters' : 'No approved homes yet'}</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/50">{params.q || params.city || params.area || params.propertyType ? 'Try a broader location, another property type, or clear your filters. Only approved and available listings appear here.' : 'New rentals appear here after the owner submits them and VANTA approves them. You can still browse VANTA or list a property.'}</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {(params.q || params.city || params.area || params.propertyType || params.minRent || params.maxRent || params.bedrooms || params.bathrooms || params.furnished) && <a href="/homes" className="inline-flex min-h-10 items-center rounded-lg border border-white/[.12] px-4 text-sm text-white/75 transition hover:bg-white/[.06]">Clear filters</a>}
+              <a href="/homes/create" className="inline-flex min-h-10 items-center rounded-lg bg-[#c9a227] px-4 text-sm font-semibold text-black transition hover:bg-[#e0bb4f]">List a property</a>
+            </div>
           </div>
         ) : (
-          <HomesResults
-            initialListings={data.data}
-            initialCursor={data.nextCursor || null}
-            initialHasMore={Boolean(data.hasMore && data.nextCursor)}
-            filters={params}
-            pageLimit={PAGE_LIMIT}
-          />
+          <HomesResults initialListings={data.data} initialCursor={data.nextCursor || null} initialHasMore={Boolean(data.hasMore && data.nextCursor)} filters={params} pageLimit={PAGE_LIMIT} />
         )}
       </section>
-          </div>
+      </div>
     </main>
   );
 }

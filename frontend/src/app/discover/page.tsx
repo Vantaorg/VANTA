@@ -19,6 +19,7 @@ import { openAppMenu } from '@/lib/openAppMenu';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import PullToRefresh from '@/components/ui/PullToRefresh';
 import PropertyCard from '@/components/homes/PropertyCard';
+import { fetchHomes } from '@/lib/services';
 
 type Item = Record<string, any>;
 type Category = 'forYou' | 'trending' | 'homes' | 'creators' | 'reels' | 'live' | 'communities';
@@ -149,12 +150,12 @@ export default function DiscoverPage() {
     return () => { scroller.removeEventListener('scroll', handleScroll); if (frame) cancelAnimationFrame(frame); };
   }, []);
   useEffect(() => {
-    if (category !== 'homes' || !token) return;
+    if (category !== 'homes') return;
     let current = true;
     setHomesLoading(true);
     setHomesError('');
-    apiGet<any>('/api/homes?limit=12&sort=newest', token, { skipCache: true })
-      .then((result) => { if (current) setHomeListings(Array.isArray(result?.data) ? result.data : Array.isArray(result?.items) ? result.items : []); })
+    fetchHomes({ limit: 12, sort: 'newest' })
+      .then((result) => { if (current) setHomeListings(Array.isArray(result?.data) ? result.data : []); })
       .catch((reason: any) => { if (current) setHomesError(reason?.message || 'We could not load available properties. Please try again.'); })
       .finally(() => { if (current) setHomesLoading(false); });
     return () => { current = false; };
