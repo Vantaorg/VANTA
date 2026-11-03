@@ -253,39 +253,42 @@ export class ChannelService {
     return { success: true };
   }
 
-  async sendMessage(channelId: string, authorId: string, content: string) {
-    const member = await prisma.channelMember.findUnique({
-      where: { channelId_userId: { channelId, userId: authorId } },
+  private async ensureConversation(channelId: string) {
+    const channel = await prisma.channel.findUnique({ where: { id: channelId }, include: { members: true } });
+    if (!channel) throw new Error("Channel not found");
+    let conversationId = channel.conversationId;
+    if (!conversationId) {
+      const conversation = await chatService.createConversation(channel.members.map(member => member.userId), channel.name, true, {
+        type: "CHANNEL", avatar: channel.avatar || undefined, description: channel.description || undefined,
+        visibility: "PUBLIC", createdById: channel.ownerId,
+      });
+      conversationId = conversation.id;
+      await prisma.channel.update({ where: { id: channelId }, data: { conversationId } });
+    }
+    // Migrate legacy posts once into the shared timeline.
+    await prisma.$transaction(async tx => {
+      const legacy = await tx.channelMessage.findMany({ where: { channelId }, select: { authorId: true, content: true, createdAt: true } });
+      if (legacy.length) {
+        await tx.message.createMany({ data: legacy.map(message => ({ conversationId: conversationId!, senderId: message.authorId, content: message.content, createdAt: message.createdAt })) });
+        await tx.channelMessage.deleteMany({ where: { channelId } });
+      }
     });
-    if (!member || !["OWNER", "ADMIN", "MODERATOR"].includes(member.role)) throw new Error("Only channel administrators can publish posts");
+    return conversationId;
+  }
 
-    return prisma.channelMessage.create({
-      data: { channelId, authorId, content },
-      include: { author: { select: { id: true, username: true, avatar: true } } },
-    });
+  async sendMessage(channelId: string, authorId: string, content: string) {
+    const member = await prisma.channelMember.findUnique({ where: { channelId_userId: { channelId, userId: authorId } } });
+    if (!member) throw new Error("Not a member of this channel");
+    const conversationId = await this.ensureConversation(channelId);
+    return chatService.sendMessage(conversationId, authorId, content);
   }
 
   async getMessages(channelId: string, requesterId?: string, cursor?: string, limit: number = 50) {
-    // Authorization: only channel members may read posts. Private and PUBLIC
-    // channels alike restrict history reads to the subscriber list, so this
-    // endpoint can never leak posts to non-members.
-    if (requesterId) {
-      const member = await prisma.channelMember.findUnique({
-        where: { channelId_userId: { channelId, userId: requesterId } },
-        select: { id: true },
-      });
-      if (!member) throw new Error("Not a member of this channel");
-    }
-    const messages = await prisma.channelMessage.findMany({
-      where: { channelId },
-      orderBy: { createdAt: "desc" },
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { author: { select: { id: true, username: true, avatar: true } } },
-    });
-
-    const nextCursor = messages.length > limit ? messages.pop()?.id : undefined;
-    return { items: messages.reverse(), nextCursor };
+    if (!requesterId) throw new Error("Please sign in to continue");
+    const member = await prisma.channelMember.findUnique({ where: { channelId_userId: { channelId, userId: requesterId } }, select: { id: true } });
+    if (!member) throw new Error("Not a member of this channel");
+    const conversationId = await this.ensureConversation(channelId);
+    return chatService.getMessages(conversationId, requesterId, limit, cursor);
   }
 
   /**

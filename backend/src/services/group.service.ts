@@ -343,39 +343,43 @@ export class GroupService {
     return { success: true };
   }
 
-  async sendMessage(groupId: string, authorId: string, content: string) {
-    const member = await prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: authorId } },
+  private async ensureConversation(groupId: string) {
+    const group = await prisma.group.findUnique({ where: { id: groupId }, include: { members: true } });
+    if (!group) throw new Error("Group not found");
+    let conversationId = group.conversationId;
+    if (!conversationId) {
+      const conversation = await chatService.createConversation(group.members.map(member => member.userId), group.name, true, {
+        type: "GROUP", avatar: group.avatar || undefined, description: group.description || undefined, createdById: group.ownerId,
+      });
+      conversationId = conversation.id;
+      await prisma.group.update({ where: { id: groupId }, data: { conversationId } });
+    }
+    // Move any legacy posts once, preserving their original authors and times.
+    await prisma.$transaction(async tx => {
+      const legacy = await tx.groupMessage.findMany({ where: { groupId }, select: { authorId: true, content: true, createdAt: true } });
+      if (legacy.length) {
+        await tx.message.createMany({ data: legacy.map(message => ({ conversationId: conversationId!, senderId: message.authorId, content: message.content, createdAt: message.createdAt })) });
+        await tx.groupMessage.deleteMany({ where: { groupId } });
+      }
     });
-    if (!member) throw new Error("Not a member of this group");
+    return conversationId;
+  }
 
-    return prisma.groupMessage.create({
-      data: { groupId, authorId, content },
-      include: { author: { select: { id: true, username: true, avatar: true } } },
-    });
+  async sendMessage(groupId: string, authorId: string, content: string) {
+    const member = await prisma.groupMember.findUnique({ where: { groupId_userId: { groupId, userId: authorId } } });
+    if (!member) throw new Error("Not a member of this group");
+    const conversationId = await this.ensureConversation(groupId);
+    // Shared chat persistence enforces group permissions and keeps sockets,
+    // attachments, replies, reads, and history consistent with the main inbox.
+    return chatService.sendMessage(conversationId, authorId, content);
   }
 
   async getMessages(groupId: string, requesterId?: string, cursor?: string, limit: number = 50) {
-    // Authorization: only group members may read messages. A non-member must
-    // never retrieve history even for a public group — the group member list is
-    // the access-control list.
-    if (requesterId) {
-      const member = await prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId, userId: requesterId } },
-        select: { id: true },
-      });
-      if (!member) throw new Error("Not a member of this group");
-    }
-    const messages = await prisma.groupMessage.findMany({
-      where: { groupId },
-      orderBy: { createdAt: "desc" },
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { author: { select: { id: true, username: true, avatar: true } } },
-    });
-
-    const nextCursor = messages.length > limit ? messages.pop()?.id : undefined;
-    return { items: messages.reverse(), nextCursor };
+    if (!requesterId) throw new Error("Please sign in to continue");
+    const member = await prisma.groupMember.findUnique({ where: { groupId_userId: { groupId, userId: requesterId } }, select: { id: true } });
+    if (!member) throw new Error("Not a member of this group");
+    const conversationId = await this.ensureConversation(groupId);
+    return chatService.getMessages(conversationId, requesterId, limit, cursor);
   }
 
   /**
