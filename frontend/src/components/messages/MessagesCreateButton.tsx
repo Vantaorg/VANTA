@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Hash, MessageCircle, Plus, Search, Users, X } from 'lucide-react';
+import { ArrowUpRight, Hash, MessageCircle, Plus, Search, Users, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 
 interface MessagesCreateButtonProps {
@@ -23,137 +23,53 @@ export default function MessagesCreateButton({
   onNewChannel,
 }: MessagesCreateButtonProps) {
   const [open, setOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const runAndClose = (action: () => void | Promise<void>) => {
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    const timer = window.setTimeout(() => searchRef.current?.focus(), 120);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      window.clearTimeout(timer);
+    };
+  }, [open]);
+
+  const choose = (action: () => void | Promise<void>) => {
     setOpen(false);
     void action();
   };
 
   return (
-    <div className="fixed bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4rem+var(--vanta-kb,0px)))] right-4 z-50">
+    <>
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-              onClick={() => setOpen(false)}
-              aria-label="Close create menu"
-            />
-
-            {/* Bottom sheet — mobile: slides up with safe-area support and
-                rounded top corners. Desktop: centered modal panel. */}
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Create a new chat, group or channel"
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1, transition: { type: 'spring', damping: 30, stiffness: 320 } }}
-              exit={{ y: '100%', opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-              className="fixed inset-x-0 top-[calc(var(--vanta-vh-offset,0px)+0.5rem)] bottom-[calc(var(--vanta-kb,0px)+env(safe-area-inset-bottom,0px))] z-50 mx-auto flex min-h-0 w-full max-w-[520px] flex-col overflow-hidden rounded-t-[24px] border-x border-t border-white/[0.08] bg-[#0d0d0f]/98 pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl md:top-0 md:bottom-0 md:max-h-[min(640px,calc(100dvh-120px))] md:rounded-2xl md:my-auto md:left-1/2 md:-translate-x-1/2"
-            >
-              {/* Grab handle (mobile) */}
-              <div aria-hidden="true" className="mx-auto mt-1.5 h-1 w-10 shrink-0 rounded-full bg-white/15 md:hidden" />
-
-              {/* Header */}
-              <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 pt-2 pb-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#d6a83f]/25 bg-[#d6a83f]/10">
-                  <MessageCircle size={18} className="text-[#f2c75c]" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">VANTA</p>
-                  <h2 className="truncate text-base font-semibold text-white">Start something new</h2>
-                </div>
-                <button type="button" onClick={() => setOpen(false)} aria-label="Close create menu" className="grid h-9 w-9 place-items-center rounded-full text-[#c8c8cc] transition hover:bg-white/[0.06] hover:text-white"><X size={18} /></button>
+            <motion.button type="button" aria-label="Close new chat menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} className="fixed inset-0 z-[80] cursor-default bg-black/65 backdrop-blur-[2px]" />
+            <motion.section role="dialog" aria-modal="true" aria-labelledby="new-chat-title" initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.98 }} transition={{ type: 'spring', damping: 28, stiffness: 340 }} className="fixed inset-x-0 bottom-0 z-[81] mx-auto flex max-h-[min(82dvh,700px)] w-full max-w-[560px] flex-col overflow-hidden rounded-t-[28px] border border-white/[0.09] bg-[#101012] shadow-[0_-18px_70px_rgba(0,0,0,.55)] md:bottom-6 md:rounded-[26px]">
+              <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-white/20 md:hidden" />
+              <header className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-4">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#d6a83f]/25 bg-[#d6a83f]/10 text-[#f2c75c]"><MessageCircle size={19}/></div>
+                <div className="min-w-0 flex-1"><h2 id="new-chat-title" className="text-sm font-semibold text-white">New conversation</h2><p className="mt-0.5 text-[11px] text-white/40">Start a chat, group, or channel</p></div>
+                <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full text-white/55 hover:bg-white/[0.06] hover:text-white"><X size={18}/></button>
+              </header>
+              <div className="shrink-0 px-4 py-3"><label htmlFor="new-chat-search" className="sr-only">Search people</label><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"/><input ref={searchRef} id="new-chat-search" type="search" value={search} onChange={event => onSearch(event.target.value)} placeholder="Search people" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#18181b] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/45"/></div></div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
+                <div className="mb-1 flex items-center justify-between px-2 pt-1"><p className="text-[10px] font-semibold uppercase tracking-[.15em] text-white/35">People</p>{search.length > 0 && <button type="button" onClick={() => onSearch('')} className="text-[11px] text-[#f2c75c]">Clear</button>}</div>
+                {results.map(person => <button key={person.id} type="button" onClick={() => choose(() => onSelectUser(person))} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={person.avatar} alt={person.username || person.fullName} size="sm"/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-white">{person.fullName || person.username}</span><span className="mt-0.5 block truncate text-[11px] text-white/40">@{person.username}</span></span><ArrowUpRight size={15} className="text-white/30"/></button>)}
+                {search.trim().length >= 2 && results.length === 0 && <p className="px-3 py-4 text-xs text-white/40">No people found. Try another name.</p>}{search.trim().length < 2 && <p className="px-3 py-2 text-xs text-white/30">Search by name or username to start a direct chat.</p>}
+                <div className="mb-2 mt-4 border-t border-white/[0.07] pt-3"><p className="px-2 text-[10px] font-semibold uppercase tracking-[.15em] text-white/35">Create a space</p></div>
+                <button type="button" onClick={() => choose(onNewGroup)} className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-white/[0.05]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#d6a83f]/20 bg-[#d6a83f]/[0.08] text-[#e5b849]"><Users size={19}/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-white">New group</span><span className="mt-0.5 block text-[11px] text-white/40">Chat together with friends</span></span><ArrowUpRight size={15} className="text-white/30 transition group-hover:text-[#f2c75c]"/></button>
+                <button type="button" onClick={() => choose(onNewChannel)} className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-white/[0.05]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#d6a83f]/20 bg-[#d6a83f]/[0.08] text-[#e5b849]"><Hash size={19}/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-white">New channel</span><span className="mt-0.5 block text-[11px] text-white/40">Share updates with an audience</span></span><ArrowUpRight size={15} className="text-white/30 transition group-hover:text-[#f2c75c]"/></button>
               </div>
-
-              {/* Search people */}
-              <div className="shrink-0 px-3 pb-1 pt-2">
-                <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" />
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => onSearch(event.target.value)}
-                    placeholder="Search people"
-                    autoFocus
-                    className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] pl-9 pr-4 text-sm text-white outline-none placeholder:text-[#666]"
-                  />
-                </div>
-              </div>
-
-              {/* Results + actions */}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hide px-3 py-1">
-                <p className="mb-1 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/30">Direct message</p>
-              {results.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  onClick={() => runAndClose(() => onSelectUser(person))}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
-                >
-                  <Avatar src={person.avatar} alt={person.username || person.fullName} size="md" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-white">{person.fullName || person.username}</p>
-                    <p className="truncate text-[11px] text-white/45">@{person.username}</p>
-                  </div>
-                </button>
-              ))}
-              {search.length >= 2 && results.length === 0 && (
-                <p className="px-3 py-3 text-xs text-white/35">No matching users found.</p>
-              )}
-
-              <p className="mb-2 mt-3 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/30">Create conversation</p>
-              <button type="button" onClick={() => runAndClose(onNewGroup)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-[#161616]">
-                  <Users size={19} className="text-[#d6a83f]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-white">New Group</span>
-                  <span className="block truncate text-[11px] text-white/45">Create a group conversation</span>
-                </span>
-                <ChevronRight size={16} className="shrink-0 text-white/35" />
-              </button>
-
-              <button type="button" onClick={() => runAndClose(onNewChannel)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.1] bg-[#161616]">
-                  <Hash size={19} className="text-[#d6a83f]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-white">New Channel</span>
-                  <span className="block truncate text-[11px] text-white/45">Broadcast to your audience</span>
-                </span>
-                <ChevronRight size={16} className="shrink-0 text-white/35" />
-              </button>
-            </div>
-          </motion.div>
+            </motion.section>
           </>
         )}
       </AnimatePresence>
-
-      {/* Main FAB Button */}
-      <motion.button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.9 }}
-        className={`relative z-50 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#f2c75c] via-[#d6a83f] to-[#a8842c] text-black shadow-[0_12px_28px_rgba(0,0,0,.45)] transition-transform ${open ? 'pointer-events-none opacity-0' : ''}`}
-        aria-label={open ? 'Close new chat menu' : 'New chat'}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <motion.span
-          animate={{ rotate: open ? 45 : 0 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Plus size={26} strokeWidth={2.5} />
-        </motion.span>
-      </motion.button>
-    </div>
+      <motion.button type="button" onClick={() => setOpen(value => !value)} initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: open ? 45 : 0 }} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 420, damping: 24 }} className="fixed bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem+var(--vanta-kb,0px)))] right-4 z-[79] grid h-14 w-14 place-items-center rounded-full border border-[#ffe59a]/45 bg-gradient-to-br from-[#f6d675] via-[#d6a83f] to-[#aa8028] text-[#15110a] shadow-[0_12px_32px_rgba(0,0,0,.55)] ring-1 ring-black/25 md:bottom-6 md:right-6" aria-label={open ? 'Close new conversation menu' : 'New conversation'} aria-haspopup="dialog" aria-expanded={open}><Plus size={27} strokeWidth={2.4}/></motion.button>
+    </>
   );
 }

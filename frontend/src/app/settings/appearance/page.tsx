@@ -1,43 +1,36 @@
 'use client';
 
-/* Appearance Settings — theme, accent color and display density.
+/* Appearance Settings — accent color and display density.
    Each control is applied live to the whole app via ThemeContext and
    persisted to the account through /api/settings/privacy. */
 
 import { useEffect, useState } from 'react';
-import { Check, Monitor, Moon, Palette, SlidersHorizontal, Sun } from 'lucide-react';
+import { Check, Monitor, Palette, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPut } from '@/lib/apiClient';
 import { useToast } from '@/components/ui/Toast';
-import { useTheme, type Accent, type Density, type ThemeMode } from '@/context/ThemeContext';
+import { useTheme, type Accent, type Density } from '@/context/ThemeContext';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { SettingsGroup, ToggleRow, useScrollRestore } from '@/components/settings/SettingsUI';
 import { cn } from '@/lib/utils';
-
-const THEME_OPTIONS: { id: ThemeMode; icon: typeof Moon; label: string }[] = [
-  { id: 'dark', icon: Moon, label: 'Dark' },
-  { id: 'light', icon: Sun, label: 'Light' },
-  { id: 'system', icon: Monitor, label: 'System' },
-];
 
 export default function AppearanceSettingsPage() {
   const { token } = useAuth();
   const toast = useToast();
   const saveScroll = useScrollRestore();
 
-  const { themeMode, setThemeMode, accent, setAccent, density, setDensity } = useTheme();
+  const { accent, setAccent, density, setDensity } = useTheme();
   const { reducedMotion, toggleReducedMotion } = useAccessibility();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     let cancel = false;
-    apiGet<{ themeMode?: string; accent?: string; density?: string }>('/api/settings/privacy', token)
+    apiGet<{ accent?: string; density?: string }>('/api/settings/privacy', token)
       .then((data) => {
         if (cancel || !data) return;
-        if (data.themeMode === 'light' || data.themeMode === 'system') setThemeMode(data.themeMode);
         if (data.accent === 'gold' || data.accent === 'monochrome') setAccent(data.accent);
         if (data.density === 'compact' || data.density === 'comfortable') setDensity(data.density);
       })
@@ -56,14 +49,6 @@ export default function AppearanceSettingsPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const chooseTheme = (id: ThemeMode) => {
-    setThemeMode(id);
-    const concrete = id === 'system'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      : id;
-    void persistAppearance({ theme: concrete, themeMode: id });
   };
 
   const chooseAccent = (value: Accent) => {
@@ -89,38 +74,6 @@ export default function AppearanceSettingsPage() {
   return (
     <div className="space-y-8 pb-24">
       <PageHeader sticky bleed title="Appearance" back="/settings" />
-
-      <SettingsGroup
-        icon={Palette}
-        title="Theme"
-        description="Match your mood or your OS"
-        right={saving ? <span className="text-[10px] text-white/30">saving…</span> : undefined}
-      >
-        <div className="grid grid-cols-3 gap-2 px-4 py-3">
-          {THEME_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const active = themeMode === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => chooseTheme(option.id)}
-                className={cn(
-                  'flex flex-col items-center gap-2 rounded-[12px] border py-4 text-center transition-colors',
-                  active ? 'border-[var(--active-border)] bg-[var(--active-soft)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
-                )}
-              >
-                <Icon size={18} className={active ? 'text-[var(--active-bright)]' : 'text-[var(--text-muted)]'} />
-                <span className="text-xs font-medium text-[var(--text-primary)]">{option.label}</span>
-                {active && <Check size={14} className="text-[var(--active-bright)]" strokeWidth={2.5} />}
-              </button>
-            );
-          })}
-        </div>
-        <p className="px-4 pb-3 text-[10px] text-white/25">
-          System follows your device&apos;s light/dark preference automatically.
-        </p>
-      </SettingsGroup>
 
       <SettingsGroup icon={Palette} title="Accent Color" description="Applies across buttons, links and active states">
         {accentOptions.map((option) => {

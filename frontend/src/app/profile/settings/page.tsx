@@ -34,8 +34,6 @@ interface ProfileData {
 }
 
 interface PrivacyData {
-  theme?: string;
-  themeMode?: string;
   accent?: string;
   density?: string;
   language?: string;
@@ -79,7 +77,6 @@ export default function SettingsPage() {
 
   const privacyValue = privacy.privacyProfile === 'private' ? 'Private' : 'Public';
 
-  const themeModeLabel = privacy.themeMode === 'light' ? 'Light' : privacy.themeMode === 'system' ? 'System' : 'Dark';
   const accentLabel = privacy.accent === 'gold' ? 'Gold' : 'Monochrome';
   const densityLabel = privacy.density === 'compact' ? 'Compact' : 'Comfortable';
   const languageLabel = privacy.language || 'English';
@@ -196,9 +193,9 @@ export default function SettingsPage() {
             <SettingsLink
               href="/settings/appearance"
               icon={Palette}
-              title="Theme & appearance"
-              description="Dark, light and accent color"
-              value={`${themeModeLabel} · ${accentLabel} · ${densityLabel}`}
+              title="Appearance"
+              description="Accent color and reading layout"
+              value={`${accentLabel} · ${densityLabel}`}
             />
           <SettingsLink
               href="/settings/language"
