@@ -1971,7 +1971,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen fixed inset-x-0 top-[var(--chat-viewport-offset,0px)] bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--vanta-kb,0px))] z-10 flex min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:bottom-0'
+        'chat-screen fixed inset-x-0 top-[var(--chat-viewport-offset,0px)] bottom-0 z-10 flex min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]'
       )}
     >
       {/* Conversation List */}
@@ -2391,7 +2391,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
 
             {/* Message Input */}
-            {canPublish ? <div className="sticky bottom-0 z-30 shrink-0 border-t border-white/[0.06] bg-[#080808]/95 px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+            {canPublish ? <div className="sticky bottom-0 z-30 shrink-0 bg-transparent px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
@@ -2562,7 +2562,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </section>
                 </>
               )}
-              <div className="flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-[#141414] px-2 py-1.5 shadow-sm">
+              <div className="flex items-center gap-1.5 bg-transparent px-0 py-0">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
                 <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
