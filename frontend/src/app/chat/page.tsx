@@ -2998,3 +2998,77 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   <div className="mt-3 max-h-40 space-y-1 overflow-y-auto pr-1">
                     {memberSearchResults.map((item: any) => (
                       <button
+                        key={item.id}
+                        onClick={() => toggleMemberSelection(item)}
+                        className="w-full flex items-center justify-between rounded-xl px-2.5 py-2 hover:bg-white/[0.04] text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" />
+                          <div>
+                            <p className="text-sm text-white">{item.username || item.fullName}</p>
+                            <p className="text-[10px] text-white/40">{item.fullName || 'User'}</p>
+                          </div>
+                        </div>
+                        <UserPlus size={14} className="text-white/40" />
+                      </button>
+                    ))}
+                    {memberSearch && memberSearchResults.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-white/[0.08] px-4 py-6 text-center">
+                        <Search size={16} className="mx-auto mb-1.5 text-white/20" />
+                        <p className="text-xs text-white/35">No users found for “{memberSearch}”.</p>
+                        <p className="text-[10px] text-white/25">Try a different name or username.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              </div>
+
+              <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-white/[0.06] px-5 py-4">
+                <button onClick={() => resetCreateModal()} className="btn-secondary text-sm">Cancel</button>
+                <button
+                  onClick={() => void handleCreateEntity()}
+                  disabled={isCreatingEntity || isUploadingAvatar}
+                  className="btn-gold text-sm disabled:opacity-50"
+                >
+                  {isCreatingEntity ? (
+                    <span className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Creating…</span>
+                  ) : (
+                    <span className="flex items-center gap-2">{createType === 'group' ? <Users size={15} /> : <Hash size={15} />} Create {createType}</span>
+                  )}
+                </button>
+              </footer>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Shared VANTA video trimmer — same UI everywhere (Reel, Post, Story, Chat) */}
+      <VideoTrimModal
+        open={Boolean(trimVideoFile)}
+        file={trimVideoFile}
+        onClose={() => setTrimVideoFile(null)}
+        onConfirm={handleTrimVideoConfirm}
+        title="Trim Video"
+        subtitle="Preview and trim the timeline before sending"
+        confirmLabel="Send with this clip"
+        trimActionLabel="Trim & Preview"
+      />
+
+      {/* Floating create button — only on the Chats index/list page. Never
+          rendered inside an open private/group/channel conversation. `showMobileList`
+          flips to false the moment a conversation is selected on every breakpoint. */}
+      {showMobileList && (
+        <MessageFab
+          search={newChatSearch}
+          results={newChatResults}
+          onSearch={handleNewChatSearch}
+          onSelectUser={handleNewChat}
+          onNewGroup={handleNewGroup}
+          onNewChannel={handleNewChannel}
+        />
+      )}
+
+    </motion.div>
+  );
+}
