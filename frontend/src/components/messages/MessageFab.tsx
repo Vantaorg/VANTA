@@ -40,6 +40,13 @@ export default function MessageFab({
   const close = () => setOpen(false);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent('vanta:floating-create-open', { detail: { open } }));
+    return () => {
+      if (open) window.dispatchEvent(new CustomEvent('vanta:floating-create-open', { detail: { open: false } }));
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;

@@ -215,6 +215,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeFlow, createHubOpen, openCreateHub, closeCreateHub, closeAll } = useContentCreation();
   const { latestNotification: notificationToast, dismissLatestNotification } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isFloatingCreateOpen, setIsFloatingCreateOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFloatingCreate = (event: Event) => {
+      setIsFloatingCreateOpen(Boolean((event as CustomEvent<{ open?: boolean }>).detail?.open));
+    };
+    window.addEventListener('vanta:floating-create-open', handleFloatingCreate);
+    return () => window.removeEventListener('vanta:floating-create-open', handleFloatingCreate);
+  }, []);
   const [isClient, setIsClient] = useState(false);
   const postOpen = activeFlow === 'post';
 
@@ -500,7 +509,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         )}
         <AnimatePresence initial={false}>
-          {(!isEditProfilePage && !isPostDetailPage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation) && (
+          {(!isEditProfilePage && !isPostDetailPage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation && !createHubOpen && !activeFlow && !isFloatingCreateOpen) && (
           <motion.nav
             initial={{ y: 64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
