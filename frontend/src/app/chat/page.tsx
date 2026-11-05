@@ -387,6 +387,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   // on selection, when the user taps outside, on back navigation, and the
   // moment a call starts (the in-call overlay takes over).
   const [callMenuOpen, setCallMenuOpen] = useState(false);
+  const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
   const [messageSearchResults, setMessageSearchResults] = useState<Message[]>([]);
   const [searchingMessages, setSearchingMessages] = useState(false);
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
@@ -2174,7 +2175,18 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </>
                 )}
                 <button onClick={() => setMessageSearchOpen(value => !value)} className="btn-icon h-9 w-9" aria-label="Search chat"><Search size={15} /></button>
-                 <button onClick={openConversationInfo} className="btn-icon h-9 w-9" aria-label={`Open ${activeConv.type === 'group' ? 'group' : activeConv.type === 'channel' ? 'channel' : 'conversation'} information`}><MoreVertical size={17} /></button>
+                 <div className="relative">
+                  <button type="button" onClick={() => setConversationMenuOpen(value => !value)} className="btn-icon h-9 w-9" aria-label="Conversation options" aria-haspopup="menu" aria-expanded={conversationMenuOpen}><MoreVertical size={17} /></button>
+                  {conversationMenuOpen && <>
+                    <button type="button" aria-label="Close conversation options" className="fixed inset-0 z-[70] cursor-default" onClick={() => setConversationMenuOpen(false)} />
+                    <div role="menu" aria-label="Conversation options" className="absolute right-0 top-11 z-[71] w-52 overflow-hidden rounded-xl border border-white/[0.1] bg-[#151517] p-1.5 shadow-2xl">
+                      {activeConv.type === 'direct' && activeConv.username && <a role="menuitem" href={`/profile/${encodeURIComponent(activeConv.username)}`} onClick={() => setConversationMenuOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/80 hover:bg-white/[0.06]"><User size={15} className="text-white/45"/>View profile</a>}
+                      <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setMessageSearchOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/80 hover:bg-white/[0.06]"><Search size={15} className="text-white/45"/>Search chat</button>
+                      <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void toggleMute(); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/80 hover:bg-white/[0.06]"><BellOff size={15} className="text-white/45"/>{activeConv.muted ? 'Unmute notifications' : 'Mute notifications'}</button>
+                      {activeConv.type !== 'direct' && <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void openConversationInfo(); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/80 hover:bg-white/[0.06]"><Info size={15} className="text-white/45"/>{activeConv.type === 'group' ? 'Group info' : 'Channel info'}</button>}
+                    </div>
+                  </>}
+                </div>
               </div>
             </header>
 
@@ -2687,6 +2699,29 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         {activeConv.type === 'channel' && <div className="mt-4 flex items-center justify-center gap-2"><span className={cn('rounded-full px-2.5 py-1 text-[10px] font-semibold', managedEntity?.visibility === 'PRIVATE' ? 'bg-white/[0.06] text-white/55' : 'bg-[#d6a83f]/10 text-[#f2c75c]')}>{managedEntity?.visibility === 'PRIVATE' ? 'Private channel' : 'Public channel'}</span>{(managedEntity?.handle || activeConv.handle) && <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[10px] text-white/50">@{managedEntity?.handle || activeConv.handle}</span>}</div>}
         {activeConv.type !== 'direct' && isLoadingEntityInfo && <p className="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/30"><Loader2 size={12} className="animate-spin"/>Loading members and channel details</p>}
         </div>
+        {activeConv.type === 'direct' ? (
+          <div className="px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#101012]">
+              <a href={activeConv.username ? `/profile/${encodeURIComponent(activeConv.username)}` : undefined} className="flex items-center gap-3 px-4 py-4 hover:bg-white/[0.025]">
+                <User size={16} className="text-white/45"/>
+                <span className="min-w-0 flex-1 text-sm font-medium text-white/80">View profile</span>
+                <ChevronRight size={15} className="text-white/30"/>
+              </a>
+              <div className="h-px bg-white/[0.06]"/>
+              <button type="button" onClick={() => { setDetailsOpen(false); setMessageSearchOpen(true); }} className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-white/[0.025]">
+                <Search size={16} className="text-white/45"/>
+                <span className="min-w-0 flex-1 text-sm font-medium text-white/80">Search chat</span>
+                <ChevronRight size={15} className="text-white/30"/>
+              </button>
+              <div className="h-px bg-white/[0.06]"/>
+              <button type="button" onClick={() => void toggleMute()} className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-white/[0.025]">
+                <BellOff size={16} className="text-white/45"/>
+                <span className="min-w-0 flex-1 text-sm font-medium text-white/80">{activeConv.muted ? 'Unmute notifications' : 'Mute notifications'}</span>
+                <ChevronRight size={15} className="text-white/30"/>
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="border-b border-white/[0.08] p-3">
           <button onClick={searchWithinChat} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/60 hover:bg-white/[0.04] hover:text-white"><Search size={14}/>Search chat<ChevronRight size={13} className="ml-auto"/></button>
           <button onClick={toggleMute} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/60 hover:bg-white/[0.04] hover:text-white"><BellOff size={14}/>{activeConv.muted ? 'Unmute notifications' : 'Mute notifications'}<ChevronRight size={13} className="ml-auto"/></button>
@@ -2698,6 +2733,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           </section>
         </>}
       </motion.aside>}
+        )}
 
       {leaveDialog && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-5" role="alertdialog" aria-modal="true" aria-labelledby="leave-dialog-title">
