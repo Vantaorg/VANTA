@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUpRight,
-  Hash,
+  Megaphone,
   MessageCircle,
   Plus,
   Search,
@@ -114,9 +114,9 @@ export default function MessageFab({
             role="dialog"
             aria-modal="true"
             aria-labelledby="message-fab-title"
-            className="fixed inset-x-0 bottom-0 z-[81] mx-auto flex max-h-[min(82dvh,720px)] w-full max-w-[520px] flex-col overflow-hidden rounded-t-[26px] border border-white/[0.08] bg-[#111317] shadow-[0_-18px_70px_rgba(0,0,0,.5)] md:inset-x-auto md:bottom-[6.25rem] md:right-6 md:max-h-[min(76dvh,680px)] md:rounded-[24px]"
+            className="fixed inset-0 z-[81] flex h-[100dvh] min-h-0 w-screen max-w-none flex-col overflow-hidden bg-[#1F2630] shadow-2xl"
           >
-            <div className="shrink-0 px-5 pb-4 pt-3 md:pt-5">
+            <div className="shrink-0 border-b border-white/[0.07] px-5 pb-4 pt-[max(18px,env(safe-area-inset-top))]">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#d6a83f]/10 text-[#e6bd58]">
@@ -173,7 +173,7 @@ export default function MessageFab({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(18px,env(safe-area-inset-bottom))]">
+            <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(28px,env(safe-area-inset-bottom))] pt-5 [-webkit-overflow-scrolling:touch]">
               <div className="mb-2 flex items-center justify-between px-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">
                   {query.length >= 2 ? 'Search results' : 'Create something'}
@@ -256,7 +256,7 @@ export default function MessageFab({
                   className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-3.5 text-left transition hover:border-[#d6a83f]/25 hover:bg-[#d6a83f]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6a83f]/70"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#d6a83f]/10 text-[#e6bd58]">
-                    <Hash size={17} />
+                    <Megaphone size={17} />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-xs font-semibold text-white">New channel</span>
@@ -266,8 +266,7 @@ export default function MessageFab({
               </div>
             </div>
 
-            <div className="h-px shrink-0 bg-white/[0.06] md:hidden" />
-            <div className="mx-auto mb-2 mt-2 hidden h-1 w-10 shrink-0 rounded-full bg-white/15 md:block" />
+            <div className="h-px shrink-0 bg-white/[0.06]" />
           </section>
         </>
       )}
