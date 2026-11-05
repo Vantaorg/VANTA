@@ -2722,6 +2722,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
           </div>
         ) : (
+        <>
         <div className="border-b border-white/[0.08] p-3">
           <button onClick={searchWithinChat} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/60 hover:bg-white/[0.04] hover:text-white"><Search size={14}/>Search chat<ChevronRight size={13} className="ml-auto"/></button>
           <button onClick={toggleMute} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-white/60 hover:bg-white/[0.04] hover:text-white"><BellOff size={14}/>{activeConv.muted ? 'Unmute notifications' : 'Mute notifications'}<ChevronRight size={13} className="ml-auto"/></button>
