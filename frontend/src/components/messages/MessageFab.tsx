@@ -131,10 +131,10 @@ export default function MessageFab({
                   </span>
                   <div>
                     <h2 id="message-fab-title" className="text-[15px] font-semibold tracking-tight text-white">
-                      Start a conversation
+                      New Message
                     </h2>
                     <p className="mt-0.5 text-xs text-white/40">
-                      Message someone or create a space
+                      Start a chat or create a group or channel
                     </p>
                   </div>
                 </div>
@@ -236,44 +236,43 @@ export default function MessageFab({
                 </p>
               )}
 
-              <div className="mb-2 mt-5 border-t border-white/[0.07] pt-4">
+              <div className="mt-4 border-t border-white/[0.07] pt-3">
                 <p className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">
-                  Create a space
+                  Create a group or channel
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pb-1">
+              <div className="space-y-1 pb-2">
                 <button
                   type="button"
                   onClick={() => choose(onNewGroup)}
-                  className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-3.5 text-left transition hover:border-[#d6a83f]/25 hover:bg-[#d6a83f]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6a83f]/70"
+                  className={actionBase + ' hover:bg-white/[0.055]'}
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#d6a83f]/10 text-[#e6bd58]">
-                    <Users size={17} />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/10 text-[#e6bd58]">
+                    <Users size={18} />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs font-semibold text-white">New group</span>
-                    <span className="mt-1 block text-[10px] text-white/40">Chat together</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-white">New Group</span>
+                    <span className="mt-0.5 block text-xs text-white/40">Chat with multiple people</span>
                   </span>
+                  <ArrowUpRight size={16} className="shrink-0 text-white/30" />
                 </button>
-
                 <button
                   type="button"
                   onClick={() => choose(onNewChannel)}
-                  className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-3.5 text-left transition hover:border-[#d6a83f]/25 hover:bg-[#d6a83f]/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6a83f]/70"
+                  className={actionBase + ' hover:bg-white/[0.055]'}
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#d6a83f]/10 text-[#e6bd58]">
-                    <Megaphone size={17} />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/10 text-[#e6bd58]">
+                    <Megaphone size={18} />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs font-semibold text-white">New channel</span>
-                    <span className="mt-1 block text-[10px] text-white/40">Share updates</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-white">New Channel</span>
+                    <span className="mt-0.5 block text-xs text-white/40">Broadcast updates to subscribers</span>
                   </span>
+                  <ArrowUpRight size={16} className="shrink-0 text-white/30" />
                 </button>
               </div>
             </div>
-
-            <div className="h-px shrink-0 bg-white/[0.06]" />
           </section>
         </>
       )}
