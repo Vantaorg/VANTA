@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 import {
-  Bell, MessageCircle, Search, Compass, Radio, House, Clapperboard, User,
+  Bell, MessageCircle, Search, Compass, Radio, House, Clapperboard, User, Megaphone,
   Send, Paperclip, Check, CheckCheck,
   Loader2, Users, Hash, ArrowLeft, X, UserPlus, Camera, BellOff,
   Pin, Image as ImageIcon, FileText, Info, ChevronRight, Flag, Ban, Pencil, RefreshCw,
@@ -1976,7 +1976,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     >
       {/* Conversation List */}
       <div className={cn(
-        'flex h-full w-full shrink-0 flex-col border-r border-white/[0.08] bg-[#0d0d0f] md:w-[360px] md:max-w-[38vw]',
+        'flex h-full min-h-0 w-full shrink-0 flex-col border-r border-white/[0.08] bg-[#0d0d0f] md:w-[360px] md:max-w-[38vw]',
         !showMobileList && 'hidden md:flex'
       )}>
         {/* Header */}
@@ -2007,18 +2007,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           </div>
           <div className="mt-3 grid grid-cols-5 gap-1 rounded-xl border border-white/[0.06] bg-[#09090a] p-1" role="tablist" aria-label="Conversation types">
             {(['all', 'direct', 'group', 'channel', 'unread'] as const).map(value => {
-              const count = value === 'group' || value === 'channel'
-                ? conversations.filter(conversation => conversation.type === value).length
-                : value === 'unread' ? conversations.filter(conversation => conversation.unread > 0).length : null;
               const label = value === 'all' ? 'Chats' : value === 'direct' ? 'People' : value === 'group' ? 'Groups' : value === 'channel' ? 'Channels' : 'Unread';
-              return <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)} className={cn('min-w-0 rounded-lg px-1.5 py-2 text-[10px] font-medium transition', filter === value ? 'bg-[#d6a83f]/15 text-[#f2c75c] shadow-sm' : 'text-white/45 hover:bg-white/[0.04] hover:text-white/80')}><span className="block truncate">{label}</span>{count !== null && <span className={cn('mt-0.5 block text-[9px] tabular-nums', filter === value ? 'text-[#f2c75c]/70' : 'text-white/25')}>{count}</span>}</button>;
+              return <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)} className={cn('min-w-0 rounded-lg px-1.5 py-2 text-[10px] font-medium transition', filter === value ? 'bg-[#d6a83f]/15 text-[#f2c75c] shadow-sm' : 'text-white/45 hover:bg-white/[0.04] hover:text-white/80')}><span className="block truncate">{label}</span></button>;
             })}
           </div>
           
         </div>
 
         {/* Conversation List */}
-        <PullToRefresh onRefresh={() => fetchConversations(true)}>
+        <PullToRefresh onRefresh={() => fetchConversations(true)} className="min-h-0 w-full flex-1 touch-pan-y" ariaLabel="Your conversations">
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <MessageCircle size={28} className="text-white/10 mb-3" />
@@ -2042,7 +2039,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   {conv.type === 'direct' && conv.online && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0a0a0f]" />
                   )}
-                  {conv.type !== 'direct' && <span className="absolute -top-1 -right-1 rounded-full border border-white/10 bg-[#161616] p-1 text-white/50">{conv.type === 'channel' ? <Hash size={8} /> : <Users size={8} />}</span>}
+                  {conv.type !== 'direct' && <span className="absolute -top-1 -right-1 rounded-full border border-white/10 bg-[#161616] p-1 text-white/50">{conv.type === 'channel' ? <Megaphone size={9} /> : <Users size={9} />}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -2084,11 +2081,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </>
                     )}
                     {conv.muted && <BellOff size={11} className="shrink-0 text-white/30" />}
-                    {conv.unread > 0 && (
-                      <span className="shrink-0 min-w-[18px] h-[18px] rounded-full bg-[#d6a83f] text-[9px] font-bold text-black flex items-center justify-center px-1">
-                        {conv.unread}
-                      </span>
-                    )}
                   </div>
                 </div>
               </button>
@@ -2833,212 +2825,84 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         )}
         {createModalOpen && createType && (
           <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-            onClick={() => resetCreateModal()}
-            aria-label="Close creation"
-          />
-          <motion.div
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1, transition: { type: 'spring', damping: 30, stiffness: 320 } }}
-            exit={{ y: '100%', opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-[61] mx-auto flex max-h-[88dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-t-[24px] border-x border-t border-white/[0.08] bg-[#0d0d0f] pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-2xl md:max-h-[min(720px,calc(100dvh-120px))] md:rounded-2xl md:inset-y-0 md:my-auto md:left-1/2 md:-translate-x-1/2"
-          >
-            <div aria-hidden="true" className="mx-auto mt-1.5 h-1 w-10 shrink-0 rounded-full bg-white/15 md:hidden" />
-              <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.06] px-5 pb-4 pt-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#d6a83f]/25 bg-[#d6a83f]/10')}>
-                    {createType === 'group' ? <Users size={18} className="text-[#f2c75c]" /> : <Hash size={18} className="text-[#f2c75c]" />}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">{createType === 'group' ? 'Group' : 'Channel'}</p>
-                    <h3 className="truncate text-lg font-semibold text-white">{createType === 'group' ? 'Create a group' : 'Create a channel'}</h3>
-                  </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/70" onClick={() => resetCreateModal()} aria-label="Close creation" />
+            <motion.section
+              initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' } }} exit={{ opacity: 0, y: 12 }}
+              role="dialog" aria-modal="true" aria-labelledby="entity-create-title"
+              className="fixed inset-0 z-[61] flex h-[100dvh] min-h-0 w-screen max-w-none flex-col overflow-hidden bg-[#1F2630] text-white"
+            >
+              <header className="flex shrink-0 items-center gap-3 border-b border-white/[0.07] px-4 pb-4 pt-[max(14px,env(safe-area-inset-top))] sm:px-7">
+                <button type="button" onClick={() => resetCreateModal()} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[0.07] hover:text-white" aria-label="Go back"><ArrowLeft size={19} /></button>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#d6a83f]/12 text-[#f2c75c]">{createType === 'group' ? <Users size={19} /> : <Megaphone size={19} />}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-white/35">VANTA · {createType}</p>
+                  <h2 id="entity-create-title" className="truncate text-lg font-semibold tracking-tight">{createType === 'group' ? 'Create a group' : 'Create a channel'}</h2>
                 </div>
-                <button onClick={() => resetCreateModal()} className="btn-icon h-9 w-9 shrink-0" aria-label="Close creation"><X size={16} /></button>
+                <button type="button" onClick={() => resetCreateModal()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/40 transition hover:bg-white/[0.07] hover:text-white" aria-label="Close"><X size={18} /></button>
               </header>
-
-              <div className="flex-1 overflow-y-auto px-5 py-5 pb-[max(20px,env(safe-area-inset-bottom))] scrollbar-hide">
-                <div className="grid gap-5">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7 [-webkit-overflow-scrolling:touch]">
+                <div className="mx-auto grid w-full max-w-3xl gap-6 pb-6">
                   <div>
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">{createType === 'group' ? 'Group photo' : 'Channel photo'}</label>
+                    <p className="text-sm font-medium text-white/85">{createType === 'group' ? 'Bring people together' : 'Create a place to broadcast'}</p>
+                    <p className="mt-1 text-xs leading-5 text-white/40">{createType === 'group' ? 'Set up your group, add a few details, then invite the people who should be part of it.' : 'Give your channel an identity, choose who can access it, and invite your first subscribers.'}</p>
+                  </div>
+                  <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-5 sm:p-5">
                     <div className="flex items-center gap-4">
-                      <button
-                        type="button"
-                        onClick={() => avatarInputRef.current?.click()}
-                        disabled={isUploadingAvatar}
-                        className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/[0.03] transition hover:border-white/30 hover:bg-white/[0.05] disabled:opacity-60"
-                        aria-label="Choose an image"
-                      >
-                        {isUploadingAvatar ? (
-                          <span className="absolute inset-0 grid place-items-center"><Loader2 size={20} className="animate-spin text-white/60" /></span>
-                        ) : createAvatar ? (
-                          <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" />
-                        ) : (
-                          <span className="grid h-full w-full place-items-center"><Camera size={20} className="text-white/30" /></span>
-                        )}
-                        {createAvatar && !isUploadingAvatar && (
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Remove image"
-                            onClick={(e) => { e.stopPropagation(); void removeCreateAvatar(); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void removeCreateAvatar(); } }}
-                            className="absolute -right-1.5 -top-1.5 grid h-6 w-6 cursor-pointer place-items-center rounded-full border border-white/10 bg-[#1a1a1d] text-white/70 shadow transition hover:text-white"
-                          >
-                            <X size={12} />
-                          </span>
-                        )}
+                      <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar} className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#26313e] text-white/45 transition hover:bg-[#303d4b] disabled:opacity-60" aria-label="Choose image">
+                        {isUploadingAvatar ? <Loader2 size={21} className="animate-spin" /> : createAvatar ? <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" /> : createType === 'group' ? <Users size={25} /> : <Megaphone size={25} />}
                       </button>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-white">{createType === 'group' ? 'Group photo' : 'Channel photo'}</p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-white/35">JPG, PNG, WebP or GIF up to 5MB. Tagged to the {createType} — never your profile picture.</p>
-                        {createAvatar && !isUploadingAvatar && (
-                          <button type="button" onClick={() => void removeCreateAvatar()} className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-red-300 transition hover:text-red-200">
-                            <Trash2 size={11} /> Remove photo
-                          </button>
-                        )}
-                        {createAvatarFileId && !isUploadingAvatar && (
-                          <span className="mt-2 inline-flex items-center gap-1 text-[10px] text-emerald-400/80"><Check size={10} /> Uploaded</span>
-                        )}
+                        <p className="text-sm font-semibold text-white">{createType === 'group' ? 'Group image' : 'Channel image'}</p>
+                        <p className="mt-1 text-xs leading-5 text-white/40">Optional · JPG, PNG, WebP, GIF or AVIF · Up to 5MB</p>
+                        {createAvatar && !isUploadingAvatar && <button type="button" onClick={() => void removeCreateAvatar()} className="mt-2 text-xs font-medium text-red-300 hover:text-red-200">Remove image</button>}
+                        {createAvatarFileId && !isUploadingAvatar && <p className="mt-1 text-[10px] text-emerald-300">Image uploaded</p>}
                       </div>
                     </div>
                     <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" className="hidden" onChange={handleCreateImageUpload} />
-                    {createAvatarError && (
-                      <p className="mt-2 flex items-center gap-1.5 text-[11px] text-red-300"><Info size={11} /> {createAvatarError}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">{createType === 'group' ? 'Group name' : 'Channel name'}</label>
-                    <input
-                      value={createName}
-                      onChange={e => { setCreateName(e.target.value); if (createValidationError) setCreateValidationError(null); }}
-                      placeholder={createType === 'group' ? 'e.g. Weekend Explorers' : 'e.g. Product Announcements'}
-                      maxLength={60}
-                      className={cn('w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-white/25', createValidationError ? 'border-red-400/60 focus:border-red-400' : 'border-white/[0.08] focus:border-white/25')}
-                    />
-                    <div className="mt-1.5 flex items-start justify-between gap-3">
-                      {createValidationError ? (
-                        <p className="flex items-center gap-1.5 text-[11px] text-red-300"><Info size={11} /> {createValidationError}</p>
-                      ) : (
-                        <p className="text-[10px] text-white/25">Visible in conversation lists.</p>
-                      )}
-                      <span className="shrink-0 text-[10px] tabular-nums text-white/25">{createName.length}/60</span>
-                    </div>
-                  </div>
-
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">Description</label>
-                  <textarea
-                    value={createDescription}
-                    onChange={e => setCreateDescription(e.target.value)}
-                    placeholder={createType === 'group' ? 'What is this group about?' : 'Set expectations for your channel'}
-                    rows={3}
-                    maxLength={500}
-                    className="w-full resize-none rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-sm leading-relaxed text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
-                  />
-                </div>
-
-                {createType === 'channel' && (
-                  <div className="grid gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                    {createAvatarError && <p className="text-xs text-red-300">{createAvatarError}</p>}
+                  </section>
+                  <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:p-5">
                     <div>
-                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">Handle</label>
-                      <div className="flex items-center rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 focus-within:border-white/25">
-                        <span className="text-sm text-white/30">@</span>
-                        <input value={createHandle} onChange={e => setCreateHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="vanta-news" maxLength={30} className="w-full bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/25" />
-                      </div>
-                      <p className="mt-1 text-[10px] text-white/25">A unique handle for your channel.</p>
+                      <label className="mb-2 block text-xs font-semibold text-white/65">{createType === 'group' ? 'Group name' : 'Channel name'}</label>
+                      <input value={createName} onChange={e => { setCreateName(e.target.value); if (createValidationError) setCreateValidationError(null); }} placeholder={createType === 'group' ? 'Give your group a name' : 'Give your channel a name'} maxLength={60} autoComplete="off" className={cn('h-12 w-full rounded-xl border bg-[#202b37] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60', createValidationError ? 'border-red-400/60' : 'border-white/[0.07]')} />
+                      <div className="mt-2 flex items-center justify-between gap-3">{createValidationError ? <p className="text-xs text-red-300">{createValidationError}</p> : <p className="text-[11px] text-white/35">This is how it appears in Chats.</p>}<span className="shrink-0 text-[10px] tabular-nums text-white/30">{createName.length}/60</span></div>
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">Access</label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {(['PUBLIC', 'PRIVATE'] as const).map((vis) => (
-                          <button key={vis} type="button" onClick={() => setCreateVisibility(vis)} className={cn('flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition', createVisibility === vis ? 'border-amber-400/50 bg-amber-400/10' : 'border-white/[0.08] bg-white/[0.03] hover:border-white/20')}>
-                            {vis === 'PUBLIC' ? <Globe2 size={16} className={createVisibility === vis ? 'text-amber-300' : 'text-white/40'} /> : <Lock size={16} className={createVisibility === vis ? 'text-amber-300' : 'text-white/40'} />}
-                            <div>
-                              <p className="text-xs font-medium text-white">{vis === 'PUBLIC' ? 'Public' : 'Private'}</p>
-                              <p className="text-[10px] text-white/35">{vis === 'PUBLIC' ? 'Open to everyone' : 'Only invited people'}</p>
-                            </div>
-                          </button>
-                        ))}
+                      <label className="mb-2 block text-xs font-semibold text-white/65">Description <span className="font-normal text-white/30">· optional</span></label>
+                      <textarea value={createDescription} onChange={e => setCreateDescription(e.target.value)} placeholder={createType === 'group' ? 'What will your group talk about?' : 'What updates will people receive?'} rows={3} maxLength={500} className="w-full resize-y rounded-xl border border-white/[0.07] bg-[#202b37] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60" />
+                    </div>
+                  </section>
+                  {createType === 'channel' && (
+                    <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:grid-cols-2 sm:p-5">
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold text-white/65">Channel handle</label>
+                        <div className="flex h-12 items-center rounded-xl border border-white/[0.07] bg-[#202b37] px-4 focus-within:border-[#d6a83f]/60"><span className="mr-1 text-sm text-white/35">@</span><input value={createHandle} onChange={e => setCreateHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="your-channel" maxLength={30} className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" /></div>
+                        <p className="mt-2 text-[10px] text-white/35">A unique identity for your channel.</p>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">Invite members <span className="normal-case text-white/30">· {Math.max(0, selectedMembers.length - 1)} invited</span></label>
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-2">
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {selectedMembers.map((member) => (
-                        <button
-                          key={member.id}
-                          onClick={() => toggleMemberSelection(member)}
-                          className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs text-white transition hover:border-white/30"
-                        >
-                          <Avatar src={member.avatar} alt={member.username || member.fullName} size="xs" />
-                          <span>{member.id === user?.id ? 'You' : member.username || member.fullName}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                      <input
-                        value={memberSearch}
-                        onChange={e => handleSearchMembers(e.target.value)}
-                        placeholder="Search users to add"
-                        className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] py-2 pr-3 pl-9 text-sm text-white outline-none transition placeholder:text-white/25"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 max-h-40 space-y-1 overflow-y-auto pr-1">
-                    {memberSearchResults.map((item: any) => (
-                      <button
-                        key={item.id}
-                        onClick={() => toggleMemberSelection(item)}
-                        className="w-full flex items-center justify-between rounded-xl px-2.5 py-2 hover:bg-white/[0.04] text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" />
-                          <div>
-                            <p className="text-sm text-white">{item.username || item.fullName}</p>
-                            <p className="text-[10px] text-white/40">{item.fullName || 'User'}</p>
-                          </div>
-                        </div>
-                        <UserPlus size={14} className="text-white/40" />
-                      </button>
-                    ))}
-                    {memberSearch && memberSearchResults.length === 0 && (
-                      <div className="rounded-2xl border border-dashed border-white/[0.08] px-4 py-6 text-center">
-                        <Search size={16} className="mx-auto mb-1.5 text-white/20" />
-                        <p className="text-xs text-white/35">No users found for “{memberSearch}”.</p>
-                        <p className="text-[10px] text-white/25">Try a different name or username.</p>
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold text-white/65">Who can access it?</label>
+                        <div className="grid grid-cols-2 gap-2">{(['PUBLIC', 'PRIVATE'] as const).map(vis => <button key={vis} type="button" onClick={() => setCreateVisibility(vis)} className={cn('min-h-12 rounded-xl px-3 text-left transition', createVisibility === vis ? 'bg-[#d6a83f]/15 text-[#f2c75c] ring-1 ring-[#d6a83f]/45' : 'bg-[#202b37] text-white/60 hover:bg-[#293746]')}><span className="block text-xs font-semibold">{vis === 'PUBLIC' ? 'Public' : 'Private'}</span><span className="mt-0.5 block text-[10px] opacity-65">{vis === 'PUBLIC' ? 'Discoverable' : 'Invite only'}</span></button>)}</div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              </div>
-
-              <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-white/[0.06] px-5 py-4">
-                <button onClick={() => resetCreateModal()} className="btn-secondary text-sm">Cancel</button>
-                <button
-                  onClick={() => void handleCreateEntity()}
-                  disabled={isCreatingEntity || isUploadingAvatar}
-                  className="btn-gold text-sm disabled:opacity-50"
-                >
-                  {isCreatingEntity ? (
-                    <span className="flex items-center gap-2"><Loader2 size={15} className="animate-spin" /> Creating…</span>
-                  ) : (
-                    <span className="flex items-center gap-2">{createType === 'group' ? <Users size={15} /> : <Hash size={15} />} Create {createType}</span>
+                    </section>
                   )}
-                </button>
+                  <section className="grid gap-3 rounded-3xl bg-[#171f29]/75 p-4 sm:p-5">
+                    <div><h3 className="text-sm font-semibold text-white">Invite people</h3><p className="mt-1 text-[11px] text-white/40">You can add more members later.</p></div>
+                    {selectedMembers.length > 0 && <div className="flex flex-wrap gap-2">{selectedMembers.map(member => <button key={member.id} type="button" onClick={() => toggleMemberSelection(member)} className="flex items-center gap-2 rounded-full bg-[#26313e] py-1.5 pl-1.5 pr-3 text-xs text-white/80 transition hover:bg-[#303d4b]"><Avatar src={member.avatar} alt={member.username || member.fullName} size="xs" /><span>{member.id === user?.id ? 'You' : member.username || member.fullName}</span>{member.id !== user?.id && <X size={12} className="text-white/40" />}</button>)}</div>}
+                    <div className="relative"><Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" /><input value={memberSearch} onChange={e => handleSearchMembers(e.target.value)} placeholder="Search VANTA members" className="h-11 w-full rounded-xl border border-white/[0.07] bg-[#202b37] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/60" /></div>
+                    {memberSearch && <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain">{memberSearchResults.map((item: any) => <button key={item.id} type="button" onClick={() => toggleMemberSelection(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{item.fullName || item.username}</span><span className="mt-0.5 block truncate text-[10px] text-white/40">@{item.username}</span></span><UserPlus size={15} className="text-[#d6a83f]" /></button>)}{memberSearchResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No members found.</p>}</div>}
+                  </section>
+                </div>
+              </div>
+              <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
+                <p className="hidden text-[11px] text-white/35 sm:block">You can edit these details later.</p>
+                <div className="ml-auto flex items-center gap-2">
+                  <button type="button" onClick={() => resetCreateModal()} className="h-11 rounded-xl px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white">Cancel</button>
+                  <button type="button" onClick={() => void handleCreateEntity()} disabled={isCreatingEntity || isUploadingAvatar || !createName.trim()} className="inline-flex h-11 min-w-36 items-center justify-center gap-2 rounded-xl bg-[#d6a83f] px-5 text-sm font-semibold text-[#17130a] transition hover:bg-[#e4b94f] disabled:cursor-not-allowed disabled:opacity-50">
+                    {isCreatingEntity ? <><Loader2 size={15} className="animate-spin" /> Creating…</> : <>{createType === 'group' ? <Users size={15} /> : <Megaphone size={15} />} Create {createType}</>}
+                  </button>
+                </div>
               </footer>
-            </motion.div>
+            </motion.section>
           </>
         )}
       </AnimatePresence>
