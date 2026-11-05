@@ -49,7 +49,7 @@ export default function MessageFab({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        close();
+        setOpen(false);
         return;
       }
 
@@ -82,8 +82,11 @@ export default function MessageFab({
     };
   }, [open]);
 
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!open) triggerRef.current?.focus({ preventScroll: true });
+    if (wasOpenRef.current && !open) triggerRef.current?.focus({ preventScroll: true });
+    wasOpenRef.current = open;
   }, [open]);
 
   const choose = (action: () => void | Promise<void>) => {
