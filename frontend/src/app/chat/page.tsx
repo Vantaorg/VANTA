@@ -1971,7 +1971,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'chat-screen fixed inset-x-0 top-[var(--chat-viewport-offset,0px)] z-10 flex h-[var(--chat-viewport-height,100dvh)] min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505]'
+        'chat-screen fixed inset-x-0 top-[var(--chat-viewport-offset,0px)] bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 flex min-h-0 w-screen max-w-none overflow-hidden overscroll-none bg-[#050505] md:bottom-0'
       )}
     >
       {/* Conversation List */}
