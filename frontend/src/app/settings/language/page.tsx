@@ -72,7 +72,7 @@ export default function LanguageSettingsPage() {
   };
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-6 pb-24">
       <PageHeader
         sticky
         bleed
@@ -102,13 +102,13 @@ export default function LanguageSettingsPage() {
                 type="button"
                 onClick={() => chooseLanguage(lang.value)}
                 className={cn(
-                  'flex w-full min-h-[62px] items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]',
+                  'flex w-full min-h-14 items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.03]',
                   active && 'bg-white/[0.02]'
                 )}
               >
                 <span
                   className={cn(
-                    'grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border transition-colors',
+                    'grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-colors',
                     active
                       ? 'border-[var(--settings-accent-border)] bg-[var(--settings-accent-soft)] text-[var(--settings-accent-text)]'
                       : 'border-white/[0.06] bg-white/[0.03] text-white/40'

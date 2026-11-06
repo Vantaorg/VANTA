@@ -36,7 +36,7 @@ export default function HelpCenterPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-6 pb-24">
       <PageHeader
         sticky
         bleed
@@ -60,7 +60,7 @@ export default function HelpCenterPage() {
                   type="button"
                   onClick={() => setOpenIndex(open ? null : i)}
                   aria-expanded={open}
-                  className="flex min-h-[62px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                  className="flex min-h-14 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
                 >
                   <span className="text-sm font-medium text-white">{faq.q}</span>
                   <ChevronDown
@@ -86,8 +86,8 @@ export default function HelpCenterPage() {
       </SettingsGroup>
 
       <SettingsGroup icon={Mail} title="Still stuck?">
-        <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-white/30">
+        <div className="flex flex-col items-center gap-2 px-5 py-6 text-center">
+          <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/30">
             <Mail size={20} strokeWidth={1.8} />
           </span>
           <p className="mt-1 text-sm font-medium text-white/70">
