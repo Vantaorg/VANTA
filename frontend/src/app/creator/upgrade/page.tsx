@@ -127,11 +127,11 @@ export default function CreatorUpgradePage() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="glass rounded-[28px] p-12 text-center max-w-md mx-4">
+        <div className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-6 text-center max-w-md mx-4">
           <Crown size={48} className="text-amber-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white">Creator Membership</h2>
           <p className="text-sm text-gray-400 mt-2">Sign in to unlock premium creator tools.</p>
-          <button onClick={() => router.push('/login')} className="mt-6 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-600 text-white text-sm font-semibold hover:brightness-110 transition-all">
+          <button onClick={() => router.push('/login')} className="mt-5 rounded-md bg-[#c9a227] px-5 py-2.5 text-sm font-semibold text-[#17130a] transition-colors hover:bg-[#dfbd55]">
             Sign In
           </button>
         </div>
@@ -145,9 +145,9 @@ export default function CreatorUpgradePage() {
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="glass rounded-[28px] p-12 text-center max-w-md mx-4"
+          className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-6 text-center max-w-md mx-4"
         >
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/30">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#c9a227] mx-auto">
             <Crown size={40} className="text-white" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Welcome to Creator Membership!</h2>
@@ -164,15 +164,12 @@ export default function CreatorUpgradePage() {
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-16 px-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 via-transparent to-transparent" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[120px]" />
-
+      <section className="relative overflow-hidden pt-12 pb-10 px-4">
         <div className="relative max-w-5xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium mb-6"
+            className="inline-flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 mb-5"
           >
             <Sparkles size={12} />
             Premium Creator Membership
@@ -182,10 +179,10 @@ export default function CreatorUpgradePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl  font-bold text-white mb-4 tracking-tight"
+            className="text-3xl font-semibold text-white mb-3 tracking-tight sm:text-4xl"
           >
             Become a{' '}
-            <span className="bg-gradient-to-r from-amber-400 to-yellow-500 bg-clip-text text-transparent">
+            <span className="text-[#dfbd55]">
               Verified Creator
             </span>
           </motion.h1>
@@ -209,8 +206,8 @@ export default function CreatorUpgradePage() {
               <div className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-full',
                 verificationStatus.hasGoldBadge
-                  ? 'bg-gradient-to-br from-amber-400 to-yellow-600'
-                  : 'bg-gradient-to-br from-[#151517]0 to-[#151517]0'
+                  ? 'bg-[#c9a227]'
+                  : 'bg-[#27303b]'
               )}>
                 {verificationStatus.hasGoldBadge ? <Crown size={18} className="text-white" /> : <Sparkles size={18} className="text-white" />}
               </div>
@@ -235,7 +232,7 @@ export default function CreatorUpgradePage() {
             className="flex items-center justify-center gap-6 mb-12"
           >
             <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#151517]0 to-[#68686c] flex items-center justify-center shadow-lg shadow-[#151517]0/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2563eb]">
                 <ShieldCheck size={24} className="text-white" />
               </div>
               <span className="text-xs text-gray-400">Blue Badge</span>
@@ -243,7 +240,7 @@ export default function CreatorUpgradePage() {
             </div>
             <div className="text-gray-600 text-2xl">+</div>
             <div className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-yellow-500/10 border border-amber-500/20">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#c9a227]">
                 <Crown size={24} className="text-white" />
               </div>
               <span className="text-xs text-amber-400 font-medium">Gold Badge</span>
@@ -288,21 +285,21 @@ export default function CreatorUpgradePage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 + index * 0.1 }}
                     className={cn(
-                      'relative rounded-3xl border overflow-hidden transition-all duration-300',
+                      'relative rounded-lg border overflow-hidden transition-colors duration-200',
                       isPopular
-                        ? 'bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 shadow-xl shadow-amber-500/10 scale-105'
-                        : 'bg-white/[0.03] border-white/[0.08] hover:border-white/[0.15]'
+                        ? 'bg-[#1F2630] border-amber-500/30'
+                        : 'bg-[#1F2630] border-white/[0.08] hover:border-white/[0.15]'
                     )}
                   >
                     {isPopular && (
                       <div className="absolute top-0 left-0 right-0">
-                        <div className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px] font-bold text-center py-1.5 uppercase tracking-wider">
+                        <div className="bg-[#c9a227] text-[#17130a] text-[10px] font-bold text-center py-1.5 uppercase tracking-wider">
                           Best Value
                         </div>
                       </div>
                     )}
 
-                    <div className={cn('p-6', isPopular && 'pt-10')}>
+                    <div className={cn('p-4', isPopular && 'pt-9')}>
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                         {plan.savings && (
@@ -346,9 +343,9 @@ export default function CreatorUpgradePage() {
                         }}
                         disabled={subscribing === plan.id || (verificationStatus?.hasGoldBadge && !subscribing)}
                         className={cn(
-                          'w-full py-3 rounded-2xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2',
+                          'w-full py-3 rounded-md text-sm font-semibold transition-colors duration-150 flex items-center justify-center gap-2',
                           isPopular
-                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30'
+                            ? 'bg-[#c9a227] text-[#17130a] hover:bg-[#dfbd55]'
                             : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'
                         )}
                       >
@@ -394,7 +391,7 @@ export default function CreatorUpgradePage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="glass rounded-3xl border border-white/[0.06] overflow-hidden"
+            className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#1F2630]"
           >
             <div className="grid grid-cols-3 gap-4 p-4 border-b border-white/[0.06] bg-white/[0.02]">
               <div className="text-sm font-medium text-gray-400">Feature</div>
@@ -455,9 +452,9 @@ export default function CreatorUpgradePage() {
             <div className="relative">
               <div className="grid grid-cols-2  gap-4 p-6 bg-white/[0.02]">
                 {[
-                  { icon: BarChart3, label: 'Analytics', color: 'from-[#151517]0 to-[#68686c]' },
+                  { icon: BarChart3, label: 'Analytics', color: 'from-[#2563eb] to-[#1d4ed8]' },
                   { icon: DollarSign, label: 'Earnings', color: 'from-emerald-500 to-teal-600' },
-                  { icon: Users, label: 'Community', color: 'from-[#151517]0 to-[#68686c]' },
+                  { icon: Users, label: 'Community', color: 'from-[#2563eb] to-[#1d4ed8]' },
                   { icon: Radio, label: 'Live Studio', color: 'from-[#d6a83f] to-[#b78929]' },
                 ].map((item, i) => (
                   <div key={i} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] blur-sm">
