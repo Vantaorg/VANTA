@@ -24,14 +24,14 @@ const CATEGORY_ICONS: Record<string, any> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  gaming: 'from-[#151517]0/20 to-[#151517]0/20 border-[#151517]0/20 text-[#c8c8cc]',
-  music: 'from-[#151517]0/20 to-[#151517]0/20 border-[#151517]0/20 text-[#c8c8cc]',
-  creative: 'from-[#d6a83f]/20 to-[#d6a83f]/20 border-[#151517]0/20 text-[#d6a83f]',
+  gaming: 'from-violet-500/20 to-violet-900/20 border-violet-500/20 text-violet-300',
+  music: 'from-pink-500/20 to-pink-900/20 border-pink-500/20 text-pink-300',
+  creative: 'from-[#d6a83f]/20 to-[#d6a83f]/10 border-[#d6a83f]/20 text-[#d6a83f]',
   education: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/20 text-emerald-400',
   sports: 'from-amber-500/20 to-orange-500/20 border-amber-500/20 text-amber-400',
-  tech: 'from-[#151517]0/20 to-[#151517]0/20 border-[#151517]0/20 text-[#c8c8cc]',
-  lifestyle: 'from-[#d6a83f]/20 to-[#151517]0/20 border-[#d6a83f]/20 text-[#d6a83f]',
-  chatting: 'from-[#8a8a8a]/20 to-[#151517]0/20 border-[#8a8a8a]/20 text-[#a8a8ac]',
+  tech: 'from-blue-500/20 to-blue-900/20 border-blue-500/20 text-blue-300',
+  lifestyle: 'from-[#d6a83f]/20 to-[#1F2630] border-[#d6a83f]/20 text-[#d6a83f]',
+  chatting: 'from-[#8a8a8a]/20 to-[#1F2630] border-[#8a8a8a]/20 text-[#a8a8ac]',
 };
 
 export default function SchedulePage() {
@@ -92,19 +92,19 @@ export default function SchedulePage() {
         transition={{ delay: 0.05 }}
         className="grid grid-cols-2  gap-3 mb-8"
       >
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
           <p className="text-xl font-bold text-white">{upcomingStreams.length}</p>
           <p className="text-[10px] text-white/40 mt-0.5">Upcoming</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
           <p className="text-xl font-bold text-white">{completedStreams.length}</p>
           <p className="text-[10px] text-white/40 mt-0.5">Completed</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
           <p className="text-xl font-bold text-white">{SCHEDULED_STREAMS.length}</p>
           <p className="text-[10px] text-white/40 mt-0.5">Total Streams</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
           <p className="text-xl font-bold text-white">10.5h</p>
           <p className="text-[10px] text-white/40 mt-0.5">Total Hours</p>
         </div>
@@ -118,7 +118,7 @@ export default function SchedulePage() {
           transition={{ delay: 0.1 }}
           className=""
         >
-          <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
             {/* Month Navigation */}
             <div className="flex items-center justify-between mb-4">
               <button onClick={prevMonth} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.05] transition-all">
@@ -161,7 +161,7 @@ export default function SchedulePage() {
                     className={cn(
                       'relative aspect-square rounded-xl text-xs font-medium transition-all',
                       isSelected
-                        ? 'bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc] text-white shadow-lg shadow-[#d6a83f]/20'
+                        ? 'bg-[#c9a227] text-[#17130a]'
                         : isToday
                           ? 'bg-white/[0.06] text-white border border-white/[0.1]'
                           : isPast
@@ -187,7 +187,7 @@ export default function SchedulePage() {
           transition={{ delay: 0.15 }}
           className=""
         >
-          <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
             <h3 className="text-sm font-semibold text-white mb-4">
               {selectedDate === '2026-07-26' ? "Today's Streams" : `Streams on ${selectedDate}`}
             </h3>
@@ -204,11 +204,11 @@ export default function SchedulePage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                       className={cn(
-                        'flex items-center gap-3 p-3 rounded-2xl border transition-all group',
+                        'flex items-center gap-3 rounded-md border p-2.5 transition-colors group',
                         stream.status === 'completed' ? 'bg-white/[0.02] border-white/[0.04] opacity-60' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'
                       )}
                     >
-                      <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center border', colorClass)}>
+                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-md border bg-gradient-to-br', colorClass)}>
                         <Icon size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -263,7 +263,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Upcoming This Week */}
-          <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4 mt-4">
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5 mt-4">
             <h3 className="text-sm font-semibold text-white mb-4">Upcoming This Week</h3>
             <div className="space-y-2">
               {upcomingStreams.slice(0, 4).map((stream, i) => {
@@ -318,7 +318,7 @@ export default function SchedulePage() {
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
               className="fixed inset-x-3 top-[max(12px,env(safe-area-inset-top))] bottom-[max(12px,env(safe-area-inset-bottom))] z-[101] min-h-0 overflow-y-auto overscroll-contain sm:inset-4"
             >
-              <div className="min-h-full rounded-3xl border border-white/[0.08] bg-[#0e0e16]/95 p-5 shadow-2xl backdrop-blur-2xl sm:p-6">
+              <div className="min-h-full rounded-lg border border-white/[0.08] bg-[#1F2630] p-4 shadow-lg sm:p-5">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-bold text-white">Schedule Stream</h2>
                   <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.05] transition">
@@ -331,7 +331,7 @@ export default function SchedulePage() {
                     <label className="block text-xs font-medium text-gray-400 mb-1.5">Stream Title</label>
                     <input
                       placeholder="Enter stream title..."
-                      className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#d6a83f]/30 transition-all"
+                      className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#d6a83f]/30 transition-all"
                     />
                   </div>
 
@@ -340,21 +340,21 @@ export default function SchedulePage() {
                       <label className="block text-xs font-medium text-gray-400 mb-1.5">Date</label>
                       <input
                         type="date"
-                        className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
+                        className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-400 mb-1.5">Time</label>
                       <input
                         type="time"
-                        className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
+                        className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-gray-400 mb-1.5">Duration</label>
-                    <select className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all">
+                    <select className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all">
                       <option>30 min</option>
                       <option>1 hour</option>
                       <option>1.5 hours</option>
@@ -383,11 +383,11 @@ export default function SchedulePage() {
                 <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/[0.06]">
                   <button
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2.5 rounded-2xl border border-white/[0.06] text-sm text-gray-300 hover:text-white transition"
+                    className="rounded-md border border-white/[0.08] px-4 py-2.5 text-sm text-gray-300 transition hover:text-white"
                   >
                     Cancel
                   </button>
-                  <button className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#d6a83f] to-[#c8c8cc] text-white text-sm font-bold shadow-lg shadow-[#d6a83f]/20">
+                  <button className="rounded-md bg-[#c9a227] px-5 py-2.5 text-sm font-semibold text-[#17130a] transition-colors hover:bg-[#dfbd55]">
                     Schedule
                   </button>
                 </div>

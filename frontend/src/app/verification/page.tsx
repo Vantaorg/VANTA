@@ -63,7 +63,7 @@ export default function VerificationPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#151517]0/60" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#c9a227]/60" />
       </div>
     );
   }
@@ -75,7 +75,7 @@ export default function VerificationPage() {
           <ShieldCheck size={48} className="text-[#c8c8cc] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white">Verification</h2>
           <p className="text-sm text-gray-400 mt-2">Sign in to manage your verification status.</p>
-          <button onClick={() => router.push('/login')} className="mt-6 px-6 py-2.5 rounded-full bg-gradient-to-r from-[#151517]0 to-[#68686c] text-white text-sm font-semibold hover:brightness-110 transition-all">
+          <button onClick={() => router.push('/login')} className="mt-5 rounded-md bg-[#c9a227] px-5 py-2.5 text-sm font-semibold text-[#17130a] transition-colors hover:bg-[#dfbd55]">
             Sign In
           </button>
         </div>
@@ -146,21 +146,21 @@ export default function VerificationPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="glass rounded-3xl border border-white/[0.06] p-6 mb-6"
+              className="mb-4 rounded-lg border border-white/[0.08] bg-[#1F2630] p-4 sm:p-5"
             >
               <h2 className="text-lg font-bold text-white mb-4">Current Status</h2>
               <div className="grid grid-cols-1  gap-4">
                 <div className={cn(
-                  'rounded-2xl p-4 border',
+                  'rounded-md p-3 border',
                   status?.hasBlueBadge
-                    ? 'bg-[#c8c8cc]/5 border-[#151517]0/20'
+                    ? 'bg-[#2563eb]/10 border-[#2563eb]/25'
                     : 'bg-white/[0.02] border-white/[0.06]'
                 )}>
                   <div className="flex items-center gap-3 mb-2">
                     <div className={cn(
                       'w-10 h-10 rounded-full flex items-center justify-center',
                       status?.hasBlueBadge
-                        ? 'bg-gradient-to-br from-[#151517]0 to-[#68686c]'
+                        ? 'bg-[#2563eb]'
                         : 'bg-white/5'
                     )}>
                       <ShieldCheck size={16} className={status?.hasBlueBadge ? 'text-white' : 'text-gray-500'} />
@@ -181,7 +181,7 @@ export default function VerificationPage() {
                 </div>
 
                 <div className={cn(
-                  'rounded-2xl p-4 border',
+                  'rounded-md p-3 border',
                   status?.hasGoldBadge
                     ? 'bg-amber-500/5 border-amber-500/20'
                     : 'bg-white/[0.02] border-white/[0.06]'
@@ -224,7 +224,7 @@ export default function VerificationPage() {
               </div>
 
               {/* Creator Studio Access */}
-              <div className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+              <div className="mt-4 rounded-md border border-white/[0.06] bg-white/[0.025] p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-white">Creator Studio Access</p>
@@ -238,7 +238,7 @@ export default function VerificationPage() {
                   ) : (
                     <Link
                       href="/creator/upgrade"
-                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px] font-bold"
+                      className="rounded-md bg-[#c9a227] px-3 py-1.5 text-[10px] font-semibold text-[#17130a]"
                     >
                       Upgrade
                     </Link>
@@ -253,7 +253,7 @@ export default function VerificationPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="glass rounded-3xl border border-white/[0.06] p-6 mb-6"
+                className="mb-4 rounded-lg border border-white/[0.08] bg-[#1F2630] p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function VerificationPage() {
                           <select
                             value={requestType}
                             onChange={(e) => setRequestType(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#151517]0/50 transition-colors"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#2563eb]/50 transition-colors"
                           >
                             <option value="CREATOR">Creator</option>
                             <option value="BUSINESS">Business</option>
@@ -291,7 +291,7 @@ export default function VerificationPage() {
                         <button
                           onClick={handleSubmitRequest}
                           disabled={submitting}
-                          className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#151517]0 to-[#68686c] text-white text-sm font-bold shadow-lg shadow-[#151517]0/20 hover:shadow-[#151517]0/30 transition-all flex items-center justify-center gap-2"
+                          className="flex w-full items-center justify-center gap-2 rounded-md bg-[#c9a227] py-3 text-sm font-semibold text-[#17130a] transition-colors hover:bg-[#dfbd55]"
                         >
                           {submitting ? (
                             <>
@@ -318,7 +318,7 @@ export default function VerificationPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="glass rounded-3xl border border-white/[0.06] p-6"
+                className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-4 sm:p-5"
               >
                 <div className="flex items-center gap-2 mb-4">
                   <History size={16} className="text-gray-400" />

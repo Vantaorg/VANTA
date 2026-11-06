@@ -82,7 +82,7 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
   return (
     <div className="flex flex-col h-full">
       {/* Search */}
-      <div className="p-3">
+      <div className="px-3 py-2">
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
@@ -98,7 +98,7 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
       {/* Archive Toggle */}
       <button
         onClick={() => setShowArchived(!showArchived)}
-        className="flex items-center gap-2 px-4 py-2 mx-3 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/[0.03] transition-all"
+        className="mx-3 flex min-h-9 items-center gap-2 px-2 text-xs text-gray-400 transition-colors hover:bg-white/[0.035] hover:text-white"
       >
         <Archive size={14} />
         {showArchived ? 'Show Active' : `Archived (${conversations.filter(c => c.isArchived).length})`}
@@ -119,13 +119,13 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
 
         {/* All Conversations */}
         {normal.length === 0 && !searchQuery ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
             <MessageCircle size={28} className="text-white/10 mb-3" />
             <p className="text-sm text-white/30">No conversations yet</p>
             <p className="text-xs text-white/20 mt-1">Tap the + button to start chatting</p>
           </div>
         ) : normal.length === 0 && searchQuery ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
             <Search size={28} className="text-white/10 mb-3" />
             <p className="text-sm text-white/30">No results found</p>
           </div>
@@ -150,10 +150,10 @@ function ConversationItem({ conv, isActive, onSelect, timeAgo }: {
       layout
       onClick={() => onSelect(conv.id)}
       className={cn(
-        'w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 text-left',
+        'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md transition-colors duration-150 text-left',
         isActive
-          ? 'bg-white/[0.07] border border-white/[0.12]'
-          : 'hover:bg-white/[0.03] border border-transparent'
+          ? 'bg-white/[0.055]'
+          : 'hover:bg-white/[0.035]'
       )}
     >
       {/* Avatar */}
@@ -161,7 +161,7 @@ function ConversationItem({ conv, isActive, onSelect, timeAgo }: {
         {conv.type === 'private' ? (
           <Avatar src={conv.avatar} alt={conv.name} size="md" verified={Boolean(conv.verified && conv.verificationType)} verificationType={conv.verificationType} />
         ) : (
-          <div className="w-10 h-10 rounded-full border border-white/[0.08] bg-[#161616] flex items-center justify-center text-white/50">
+          <div className="w-10 h-10 rounded-full bg-[#1F2630] flex items-center justify-center text-white/55">
             {conv.type === 'group' ? <Users size={15} /> : <Hash size={15} />}
           </div>
         )}
