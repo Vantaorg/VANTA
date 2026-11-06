@@ -325,29 +325,23 @@
     border: 1px solid var(--border);
     background: var(--surface);
     border-radius: var(--radius-md);
-    transition: all 0.3s var(--ease-spring);
+    transition: border-color 160ms ease, background-color 160ms ease;
   }
 
   .glass-card:hover {
     border-color: var(--border-strong);
     background: var(--surface-active);
-    box-shadow: var(--shadow-lg);
   }
 
   .glass-card-premium {
     @apply glass-card;
-    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-hover) 100%);
+    background: var(--surface);
     border: 1px solid var(--border);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .glass-card-premium:hover {
-    background: linear-gradient(135deg, var(--surface-active) 0%, var(--surface-hover) 100%);
+    background: var(--surface-active);
     border-color: var(--border-strong);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.24),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
   }
 
   .glass-input {
@@ -841,36 +835,26 @@
 
   /* ═══ Cards — Premium Content Cards ═══ */
   .card {
-    @apply glass-card p-5;
+    @apply glass-card p-4;
   }
 
   .card-hover {
     @apply card cursor-pointer;
     @apply hover:bg-white/[0.05] hover:border-white/[0.1];
-    transition: all 0.3s var(--ease-spring);
-  }
-
-  .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.38);
   }
 
   .card-premium {
-    @apply glass-card-premium p-6;
+    @apply glass-card-premium p-4;
   }
 
   .card-floating {
     @apply card-premium;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                0 2px 8px rgba(0, 0, 0, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    box-shadow: var(--shadow-sm);
   }
 
   .card-floating:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4),
-                0 4px 12px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: var(--border-strong);
+    background: var(--surface-active);
   }
 
   /* ═══ Badges ═══ */
@@ -983,19 +967,19 @@
 
   /* ═══ Page Layout ═══ */
   .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24;
+    @apply max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 pt-4 pb-20;
   }
 
   .page-container-narrow {
-    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24;
+    @apply max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 pt-4 pb-20;
   }
 
   .page-container-wide {
-    @apply max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6;
+    @apply max-w-[1400px] mx-auto px-4 sm:px-5 lg:px-6 py-4;
   }
 
   .page-header {
-    @apply mb-8;
+    @apply mb-6;
   }
 
   .page-title {
@@ -2885,5 +2869,16 @@ html.light .feed-item:hover {
   [class*="bg-[#161616]"],
   [class*="bg-[#18181b]"] {
     background-color: var(--header-surface) !important;
+  }
+}
+
+
+/* Keep motion purposeful and respect the operating-system preference globally. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
