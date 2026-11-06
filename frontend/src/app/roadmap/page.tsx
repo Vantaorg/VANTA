@@ -111,8 +111,8 @@ export default function RoadmapPage() {
             <ArrowLeft size={14} /> Back to Home
           </Link>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc] flex items-center justify-center">
-              <Sparkles size={18} className="text-white" />
+            <div className="w-9 h-9 rounded-lg bg-[#d6a83f] flex items-center justify-center">
+              <Sparkles size={18} className="text-[#17130a]" />
             </div>
             <span className="text-lg font-semibold tracking-[0.18em]">VANTA</span>
           </div>
@@ -125,7 +125,7 @@ export default function RoadmapPage() {
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
         <div className="relative">
           {/* Vertical line */}
-          <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-[#d6a83f]/30 via-[#151517]0/20 to-transparent" />
+          <div className="absolute left-8 top-0 bottom-0 w-px bg-[var(--border)]" />
 
           <div className="space-y-6">
             {timelineItems.map((phase, idx) => {

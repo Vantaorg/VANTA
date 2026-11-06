@@ -33,8 +33,8 @@ export default function CareersPage() {
             <ArrowLeft size={14} /> Back to Home
           </Link>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#d6a83f]/10 flex items-center justify-center">
-              <Sparkles size={18} className="text-white" />
+            <div className="w-9 h-9 rounded-lg bg-[#d6a83f] flex items-center justify-center">
+              <Sparkles size={18} className="text-[#17130a]" />
             </div>
             <span className="text-lg font-semibold tracking-[0.18em]">VANTA</span>
           </div>
@@ -59,7 +59,7 @@ export default function CareersPage() {
         <div className="grid gap-3 sm:grid-cols-2 mb-10">
           {benefits.map((benefit) => (
             <div key={benefit.title} className="rounded-xl border border-white/[0.07] bg-[var(--surface)] p-4">
-              <div className="w-10 h-10 rounded-xl bg-[#d6a83f]/10 flex items-center justify-center mb-4">
+              <div className="w-9 h-9 rounded-lg bg-[#d6a83f] flex items-center justify-center mb-4">
                 <benefit.icon size={18} className="text-white" />
               </div>
               <h3 className="text-sm font-semibold text-white mb-2">{benefit.title}</h3>

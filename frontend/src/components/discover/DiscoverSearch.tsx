@@ -175,7 +175,7 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
 
         {/* Animated Gradient Line */}
         <motion.div
-          className="absolute -bottom-px left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#d6a83f]/50 to-transparent rounded-full"
+          className="absolute -bottom-px left-0 right-0 h-px bg-[var(--border)]"
           initial={{ scaleX: 0, opacity: 0 }}
           animate={focused ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
