@@ -70,10 +70,10 @@ export default function SavedHomesPage() {
   if (authLoading || (!user && !loading)) {
     return (
       <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)]">
-        <div className="max-w-5xl mx-auto px-4 py-6">
+        <div className="mx-auto max-w-5xl px-3 py-5 sm:px-4">
           <Skeleton className="mb-6 h-4 w-24" />
           <Skeleton className="mb-4 h-8 w-48" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
               <Skeleton key={index} variant="card" className="h-64" />
             ))}
@@ -85,7 +85,7 @@ export default function SavedHomesPage() {
 
   return (
     <div className="min-h-[var(--vanta-vh,100dvh)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="max-w-5xl mx-auto px-4 py-6 pb-24">
+      <div className="mx-auto max-w-5xl px-3 py-5 pb-24 sm:px-4">
         <button
           onClick={() => router.push('/homes')}
           className="mb-4 inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
@@ -93,14 +93,14 @@ export default function SavedHomesPage() {
           <ArrowLeft size={16} /> All homes
         </button>
 
-        <div className="mb-6">
+        <div className="mb-5">
           <span className="text-sm font-bold uppercase tracking-wider text-[#c9a227]">VANTA Homes</span>
-          <h1 className="text-2xl font-bold text-white">Saved homes</h1>
+          <h1 className="text-xl font-semibold text-white">Saved homes</h1>
           <p className="mt-1 text-sm text-white/50">Places you have bookmarked to revisit later.</p>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} variant="card" className="h-64" />
             ))}
@@ -127,7 +127,7 @@ export default function SavedHomesPage() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {listings.map((listing) => (
                 <PropertyCard key={listing.id} listing={{ ...listing, isSaved: true }} />
               ))}

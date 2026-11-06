@@ -72,7 +72,7 @@ export default function AppearanceSettingsPage() {
   ];
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-6 pb-24">
       <PageHeader sticky bleed title="Appearance" back="/settings" />
 
       <SettingsGroup icon={Palette} title="Accent Color" description="Applies across buttons, links and active states">
@@ -83,9 +83,9 @@ export default function AppearanceSettingsPage() {
               key={option.value}
               type="button"
               onClick={() => chooseAccent(option.value as Accent)}
-              className="flex w-full min-h-[62px] items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+              className="flex w-full min-h-[58px] items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface)]"
             >
-              <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border transition-colors',
+              <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-colors',
                 active ? 'border-[var(--active-border)] bg-[var(--active-soft)]' : 'border-[var(--border)] bg-[var(--surface)]')}>
                 <span className={cn('h-3.5 w-3.5 rounded-full', option.swatch)} />
               </span>
@@ -107,9 +107,9 @@ export default function AppearanceSettingsPage() {
               key={option.value}
               type="button"
               onClick={() => chooseDensity(option.value as Density)}
-              className="flex w-full min-h-[62px] items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+              className="flex w-full min-h-[58px] items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface)]"
             >
-              <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border transition-colors',
+              <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-colors',
                 active ? 'border-[var(--active-border)] bg-[var(--active-soft)] text-[var(--active-bright)]' : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]')}>
                 <SlidersHorizontal size={16} strokeWidth={1.9} />
               </span>
@@ -131,8 +131,8 @@ export default function AppearanceSettingsPage() {
       </SettingsGroup>
 
       <SettingsGroup icon={SlidersHorizontal} title="Localization" description="Language and regional settings">
-        <Link href="/settings/language" onClick={saveScroll} className="flex w-full min-h-[62px] items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] text-white/40">
+        <Link href="/settings/language" onClick={saveScroll} className="flex w-full min-h-[58px] items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface)]">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/40">
             <SlidersHorizontal size={17} strokeWidth={1.9} />
           </span>
           <span className="min-w-0 flex-1">

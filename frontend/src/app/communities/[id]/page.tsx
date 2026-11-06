@@ -83,7 +83,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
 
   if (loading) {
     return (
-      <main className="min-h-[100dvh] w-full bg-[#050505] text-white">
+      <main className="min-h-[100dvh] w-full bg-[var(--background)] text-[var(--text-primary)]">
         <PageHeader title="Community" back={() => router.push('/discover')} sticky className="px-4" />
         <div className="grid min-h-[70dvh] place-items-center"><Loader2 className="mx-auto animate-spin text-[#666]" size={34} /></div>
       </main>
@@ -92,10 +92,10 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
 
   if (error || !community) {
     return (
-      <main className="min-h-[100dvh] w-full bg-[#050505] text-[var(--text-primary)]">
+      <main className="min-h-[100dvh] w-full bg-[var(--background)] text-[var(--text-primary)]">
         <PageHeader title="Community" back={() => router.push('/discover')} sticky className="px-4" />
         <div className="mx-auto w-full min-w-0 max-w-3xl px-4">
-          <div className="rounded-lg border border-white/[.08] bg-[#101010] px-5 py-14 text-center">
+          <div className="rounded-xl border border-white/[.08] bg-[var(--surface)] px-4 py-10 text-center">
             <Users className="mx-auto text-[#666]" size={28} />
             <h1 className="mt-4 text-base font-semibold">Community not found</h1>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#666]">This public Group or Channel may have been removed, or the link is not public.</p>
