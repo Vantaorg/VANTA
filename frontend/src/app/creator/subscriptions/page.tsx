@@ -78,8 +78,8 @@ return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full space-y-5 pb-8">
       {/* Current membership */}
       <section className={cn(
-        'relative overflow-hidden rounded-3xl border p-6',
-        active ? 'border-[var(--active-border)] bg-gradient-to-br from-[var(--active-soft)] to-transparent' : 'border-white/[0.06] bg-white/[0.02]',
+        'relative overflow-hidden rounded-lg border p-4',
+        active ? 'border-[var(--active-border)] bg-[var(--active-soft)]' : 'border-white/[0.08] bg-[#1F2630]',
       )}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.04]">
@@ -98,7 +98,7 @@ return (
                 : 'You don&apos;t have an active creator subscription yet.'}
             </p>
           </div>
-          <Link href="/creator/upgrade" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--active-border)] bg-[var(--active-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--active-bright)]">
+          <Link href="/creator/upgrade" className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--active-border)] bg-[var(--active-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--active-bright)]">
             {active ? 'Manage plan' : 'View plans'} <ChevronRight size={14} />
           </Link>
         </div>
@@ -131,12 +131,12 @@ return (
           <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/30">Available subscription plans</h3>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {plans.map((plan) => (
-              <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div key={plan.id} className="flex items-center justify-between gap-3 rounded-md border border-white/[0.08] bg-[#1F2630] p-3.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-white">{plan.name}</p>
                   <p className="mt-0.5 text-[11px] text-white/40">{plan.durationMonths} month{plan.durationMonths === 1 ? '' : 's'} · {plan.badgeType} badge</p>
                 </div>
-                <Link href="/creator/upgrade" className="shrink-0 rounded-xl bg-[var(--active)] px-3.5 py-2 text-xs font-semibold text-black hover:opacity-90">
+                <Link href="/creator/upgrade" className="shrink-0 rounded-md bg-[var(--active)] px-3.5 py-2 text-xs font-semibold text-black hover:opacity-90">
                   View
                 </Link>
               </div>
@@ -146,11 +146,11 @@ return (
       )}
 
       {!active && plans.length === 0 && (
-        <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+        <section className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-5 text-center">
           <Crown size={26} className="mx-auto mb-3 text-white/15" />
           <p className="text-sm text-white/50">No subscriptions yet</p>
           <p className="mx-auto mt-1 max-w-xs text-xs text-white/30">Subscriptions, memberships and badge plans you join will be listed here.</p>
-          <Link href="/creator/upgrade" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
+          <Link href="/creator/upgrade" className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[var(--active)] px-4 py-2 text-xs font-semibold text-black hover:opacity-90">
             Explore plans <ChevronRight size={13} />
           </Link>
         </section>

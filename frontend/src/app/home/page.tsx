@@ -243,7 +243,7 @@ export default function HomePage() {
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-white">
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshFeed}>
     <div className="w-full min-w-0 px-0 pb-28 pt-1">
-      <main className="mx-auto w-[93%] max-w-[670px] min-w-0 sm:px-2 lg:px-0">
+      <main className="mx-auto w-full max-w-[670px] min-w-0 px-3 sm:px-2 lg:px-0">
         <div className="mb-5 hidden items-center justify-between "><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-[#666]">Home</p><h1 className="mt-1 text-xl font-semibold text-[#f5f5f5]">What&apos;s happening on VANTA</h1></div><button type="button" onClick={() => void refreshFeed()} aria-label="Refresh feed" className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[.08] text-[#8a8a8a] transition hover:bg-white/[.05] hover:text-white"><RefreshCw size={16}/></button></div>
         <StoryTray scrollRef={pageScrollRef} onCreate={openStoryModal} refreshKey={storyRefreshKey} compact className="mb-2" />
         <LiveStrip streams={live} openStream={stream => router.push(`/live/${cleanId(stream)}`)} openAll={() => router.push('/live')}/>

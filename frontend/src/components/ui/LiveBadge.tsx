@@ -14,7 +14,7 @@ export default function LiveBadge({ viewers, className, size = 'sm' }: LiveBadge
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full font-bold text-white',
         size === 'sm' ? 'px-2 py-0.5 text-[9px]' : 'px-3 py-1 text-xs',
-        'bg-gradient-to-r from-[#d6a83f] to-[#f2c75c] shadow-[0_0_12px_rgba(255,0,127,0.3)]',
+        'bg-[#b4232f]',
         className
       )}
     >

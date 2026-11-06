@@ -65,7 +65,7 @@ export default function CommunityPage() {
     return (
       <div className="w-full space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
+          {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-28 rounded-lg" />)}
         </div>
       </div>
     );
@@ -89,7 +89,7 @@ export default function CommunityPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full space-y-5 pb-8">
       {/* Audience overview */}
-      <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
+      <section className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Users size={15} className="text-[var(--active)]" />
@@ -119,7 +119,7 @@ export default function CommunityPage() {
       </section>
 
       {/* Communities */}
-      <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
+      <section className="rounded-lg border border-white/[0.08] bg-[#1F2630] p-4">
         <div className="mb-1 flex items-center gap-2">
           <Hash size={15} className="text-white/40" />
           <h3 className="text-sm font-bold text-white">Communities</h3>
