@@ -79,7 +79,7 @@ export default function BookmarksPage() {
     >
       {/* Header — always visible across loading, error and content states so
           navigation and spacing stay stable while bookmarks are fetched. */}
-      <header className="sticky top-0 z-30 relative -mx-4 flex h-14 w-[calc(100%+2rem)] shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[#080808]/90 px-4 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 relative -mx-4 flex h-14 w-[calc(100%+2rem)] shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[var(--header-surface)] px-4">
         <button type="button" onClick={() => router.back()} aria-label="Go back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><ArrowLeft size={20} /></button>
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#f5f5f5]">Bookmarks</h1>
         <div className="ml-auto flex shrink-0 items-center gap-1">
