@@ -39,7 +39,7 @@ export default function ExplorePage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="mx-auto min-w-0 w-full space-y-8 overflow-x-hidden pb-24 "
+      className="mx-auto min-w-0 w-full space-y-6 overflow-x-hidden pb-24"
     >
       {/* Header */}
       <motion.div
@@ -51,14 +51,14 @@ export default function ExplorePage() {
 
         {/* Premium Search */}
         <div className="relative group">
-          <div className="relative flex items-center rounded-3xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:bg-white/[0.06]">
+          <div className="relative flex items-center rounded-xl border border-white/[0.08] bg-[var(--surface)] transition-colors focus-within:border-white/[0.16]">
             <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 transition-colors duration-300 group-focus-within:text-[#d6a83f]" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search creators, streams, communities, hashtags..."
-              className="w-full bg-transparent pl-12 pr-4 py-4 text-sm text-white placeholder-gray-600 outline-none rounded-3xl"
+              className="w-full bg-transparent pl-11 pr-4 py-3 text-sm text-white placeholder-gray-500 outline-none rounded-xl"
               aria-label="Search explore"
             />
           </div>
@@ -81,7 +81,7 @@ export default function ExplorePage() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="shrink-0 flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all"
+              className="shrink-0 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--surface)] border border-white/[0.06] hover:bg-[var(--surface-active)] transition-colors"
             >
               <span className="text-sm">{item.trend}</span>
               <div className="text-left">
@@ -118,18 +118,18 @@ export default function ExplorePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="shrink-0 w-52 rounded-2xl bg-white/[0.02] border border-white/[0.06] overflow-hidden hover:bg-white/[0.04] hover:border-[#d6a83f]/20 transition-all duration-300 group cursor-pointer"
+              className="shrink-0 w-48 rounded-xl bg-[var(--surface)] border border-white/[0.06] overflow-hidden transition-colors hover:border-white/[0.14] group cursor-pointer"
             >
-              <div className={cn('h-16 bg-gradient-to-br', creator.banner)} />
+              <div className="h-14 bg-[var(--surface-active)]" />
               <div className="relative px-4 -mt-8">
-                <div className="w-14 h-14 rounded-full border-2 border-[#0a0a0f] overflow-hidden bg-gradient-to-br from-[#d6a83f]/20 to-[#c8c8cc]/20 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full border-2 border-[var(--background)] overflow-hidden bg-[var(--surface-active)] flex items-center justify-center">
                   <span className="text-lg font-bold text-white/60">{creator.name.charAt(0)}</span>
                 </div>
                 {creator.live && (
                   <span className="absolute top-0 right-4 w-3 h-3 rounded-full bg-red-500 border-2 border-[#0a0a0f] animate-pulse" />
                 )}
               </div>
-              <div className="p-4 pt-2">
+              <div className="p-3 pt-2">
                 <p className="text-sm font-semibold text-white truncate">{creator.name}</p>
                 <p className="text-[10px] text-gray-500">{creator.handle}</p>
                 <div className="flex items-center justify-between mt-2">
@@ -139,7 +139,7 @@ export default function ExplorePage() {
                   </div>
                   <span className="text-[10px] text-white/30 px-2 py-0.5 rounded-full bg-white/[0.04]">{creator.category}</span>
                 </div>
-                <button className="w-full mt-3 py-2 rounded-xl bg-gradient-to-r from-[#d6a83f] to-[#c8c8cc] text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                <button className="w-full mt-3 py-2 rounded-lg bg-[#d6a83f] text-[10px] font-semibold text-[#151108] transition-colors hover:bg-[#e0bb4f]">
                   Follow
                 </button>
               </div>
@@ -253,9 +253,9 @@ export default function ExplorePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="rounded-3xl bg-gradient-to-br from-[#d6a83f]/5 via-[#c8c8cc]/5 to-[#c8c8cc]/5 border border-[#d6a83f]/10 p-6"
+        className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-4"
       >
-        <div className="grid grid-cols-2  gap-6 text-center">
+        <div className="grid grid-cols-2 gap-4 text-center">
           {[
             { icon: Radio, label: 'Live Streams', value: '', color: 'text-red-400' },
             { icon: Users, label: 'Active Creators', value: '', color: 'text-[#d6a83f]' },
