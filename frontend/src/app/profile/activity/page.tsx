@@ -115,21 +115,21 @@ export default function ActivityPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-2  gap-3 mb-6"
+        className="grid grid-cols-2 gap-2.5 mb-5"
       >
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-3">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-lg font-bold text-white">{ACTIVITIES.length}</p>
           <p className="text-[9px] text-white/40 mt-0.5">Total Actions</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-3">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-lg font-bold text-white">{ACTIVITIES.filter(a => a.type === 'like').length}</p>
           <p className="text-[9px] text-white/40 mt-0.5">Likes</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-3">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-lg font-bold text-white">{ACTIVITIES.filter(a => a.type === 'stream').length}</p>
           <p className="text-[9px] text-white/40 mt-0.5">Streams</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-3">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-lg font-bold text-white">{ACTIVITIES.filter(a => a.type === 'gift').length}</p>
           <p className="text-[9px] text-white/40 mt-0.5">Gifts</p>
         </div>
@@ -146,7 +146,7 @@ export default function ActivityPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: i * 0.02, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex items-center gap-3 p-3 rounded-2xl hover:bg-white/[0.02] transition-colors cursor-pointer group"
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--surface)] transition-colors cursor-pointer group"
             >
               {/* Timeline line */}
               <div className="relative flex flex-col items-center">
