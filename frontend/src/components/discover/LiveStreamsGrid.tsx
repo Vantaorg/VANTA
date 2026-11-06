@@ -43,9 +43,9 @@ const defaultStreams: LiveStream[] = [
 export default function LiveStreamsGrid({ streams = defaultStreams, loading }: LiveStreamsGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1   gap-4">
+      <div className="grid grid-cols-1 gap-3">
         {[1, 2, 3, 4, 5, 6].map(i => (
-          <div key={i} className="rounded-2xl overflow-hidden">
+          <div key={i} className="rounded-xl overflow-hidden">
             <div className="skeleton aspect-video" />
             <div className="p-3 space-y-2">
               <div className="skeleton h-4 w-3/4" />
@@ -58,19 +58,19 @@ export default function LiveStreamsGrid({ streams = defaultStreams, loading }: L
   }
 
   return (
-    <div className="grid grid-cols-1   gap-4">
+    <div className="grid grid-cols-1 gap-3">
       {streams.map((stream, i) => (
         <motion.div
           key={stream.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="group relative rounded-2xl overflow-hidden bg-white/[0.02] border border-white/[0.04] hover:border-[#d6a83f]/20 hover:bg-white/[0.04] transition-all duration-300 cursor-pointer"
+          className="group relative rounded-xl overflow-hidden bg-white/[0.02] border border-white/[0.04] hover:border-[#d6a83f]/20 hover:bg-white/[0.04] transition-all duration-300 cursor-pointer"
         >
           {/* Thumbnail */}
-          <div className="relative aspect-video bg-gradient-to-br from-[#1a1a28] to-[#0e0e16] overflow-hidden">
+          <div className="relative aspect-video bg-[var(--surface-secondary)] overflow-hidden">
             {stream.thumbnail ? (
-              <img src={resolveMediaUrl(stream.thumbnail)} alt={stream.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <img src={resolveMediaUrl(stream.thumbnail)} alt={stream.title} className="w-full h-full object-cover transition-opacity duration-200" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Radio size={32} className="text-[#d6a83f]/20" />
@@ -82,7 +82,7 @@ export default function LiveStreamsGrid({ streams = defaultStreams, loading }: L
 
             {/* Top Badges */}
             <div className="absolute top-2 left-2 flex items-center gap-1.5">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/90 text-[10px] font-bold text-white shadow-lg">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/90 text-[10px] font-bold text-white ">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 LIVE
               </div>
@@ -116,7 +116,7 @@ export default function LiveStreamsGrid({ streams = defaultStreams, loading }: L
 
           {/* Info */}
           <div className="p-3">
-            <p className="text-sm font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-[#d6a83f] group-hover:to-[#c8c8cc] transition-all">
+            <p className="text-sm font-semibold text-white truncate transition-colors">
               {stream.title}
             </p>
             <div className="flex items-center justify-between mt-2">

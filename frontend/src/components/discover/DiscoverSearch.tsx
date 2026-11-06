@@ -105,9 +105,9 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
         )}
       >
         <div className={cn(
-          'relative flex items-center rounded-3xl border transition-all duration-300 bg-white/[0.03] backdrop-blur-xl',
+          'relative flex items-center rounded-xl border transition-colors bg-[var(--surface)]',
           focused
-            ? 'border-[#d6a83f]/30 bg-white/[0.06] shadow-lg shadow-[#d6a83f]/10'
+            ? 'border-[#d6a83f]/35 bg-[var(--surface-active)]'
             : 'border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05]'
         )}>
           {/* Search Icon */}
@@ -127,7 +127,7 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
             onFocus={() => { setFocused(true); setShowSuggestions(true); }}
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
             placeholder="Search creators, streams, communities, hashtags..."
-            className="w-full bg-transparent pl-12 pr-24 py-4  text-sm  text-white placeholder-gray-600 outline-none rounded-3xl"
+            className="w-full bg-transparent pl-11 pr-24 py-3 text-sm text-white placeholder-gray-500 outline-none rounded-xl"
             aria-label="Search"
           />
 
@@ -190,9 +190,9 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-full mt-2 left-0 right-0 z-50 rounded-3xl border border-white/[0.08] bg-[#0e0e16]/98 backdrop-blur-2xl shadow-2xl overflow-hidden"
+            className="absolute top-full mt-2 left-0 right-0 z-50 rounded-xl border border-white/[0.08] bg-[var(--surface)] overflow-hidden"
           >
-            <div className="max-h-[70vh] overflow-y-auto scrollbar-hide p-2 space-y-1">
+            <div className="max-h-[70vh] overflow-y-auto scrollbar-hide p-1.5 space-y-1">
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <div className="p-2">
@@ -205,7 +205,7 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
                       <button
                         key={i}
                         onClick={() => { setQuery(search); handleSubmit(search); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/[0.04] transition-all"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[var(--surface-active)] transition-colors"
                       >
                         <Clock size={14} className="text-gray-600 shrink-0" />
                         <span className="truncate">{search}</span>
@@ -227,7 +227,7 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
                     <button
                       key={i}
                       onClick={() => { setQuery(suggestion.label); handleSubmit(suggestion.label); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/[0.04] transition-all"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[var(--surface-active)] transition-colors"
                     >
                       <Sparkles size={14} className="text-[#d6a83f]/50 shrink-0" />
                       <span className="truncate">{suggestion.label}</span>
@@ -250,7 +250,7 @@ export default function DiscoverSearch({ onSearch, className }: DiscoverSearchPr
                       <button
                         key={i}
                         onClick={() => { setQuery(suggestion.label); handleSubmit(suggestion.label); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-300 hover:text-white hover:bg-white/[0.04] transition-all group"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[var(--surface-active)] transition-colors group"
                       >
                         <Icon size={14} className={cn(
                           'shrink-0',
