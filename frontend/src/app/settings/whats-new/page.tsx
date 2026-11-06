@@ -38,7 +38,7 @@ const UPDATES = [
 
 export default function WhatsNewPage() {
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-6 pb-24">
       <PageHeader
         sticky
         bleed
@@ -59,9 +59,9 @@ export default function WhatsNewPage() {
             return (
               <div
                 key={i}
-                className="flex items-start gap-3.5 px-4 py-4"
+                className="flex items-start gap-3 px-3.5 py-3"
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-[var(--settings-accent-border)] bg-[var(--settings-accent-soft)] text-[var(--settings-accent-text)]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[var(--settings-accent-border)] bg-[var(--settings-accent-soft)] text-[var(--settings-accent-text)]">
                   <Icon size={17} strokeWidth={1.9} />
                 </span>
                 <div className="min-w-0 flex-1">

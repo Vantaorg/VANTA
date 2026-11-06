@@ -110,7 +110,7 @@ export default function AccountSettingsPage() {
 
   return (
     <>
-    <div className="space-y-8 pb-24">
+    <div className="space-y-5 pb-24">
       <PageHeader
         sticky
         bleed
@@ -124,10 +124,10 @@ export default function AccountSettingsPage() {
           <div className="skeleton h-64 w-full rounded-[var(--radius-md)]" />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* ── Profile summary ── */}
           <SettingsGroup>
-            <div className="flex items-center gap-4 px-4 py-4">
+            <div className="flex items-center gap-3 px-4 py-3">
               <Avatar
                 src={profile?.avatarUrl || undefined}
                 alt={profile?.username || 'User'}
@@ -217,7 +217,7 @@ export default function AccountSettingsPage() {
             title="Connected Accounts"
             description="Sign in faster with your other accounts"
           >
-            <div className="flex min-h-[62px] items-center gap-3.5 px-4 py-3">
+            <div className="flex min-h-14 items-center gap-3 px-3.5 py-2.5">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] text-white/40">
                 <Link2 size={17} strokeWidth={1.9} />
               </span>
@@ -228,7 +228,7 @@ export default function AccountSettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex min-h-[62px] items-center gap-3.5 px-4 py-3">
+            <div className="flex min-h-14 items-center gap-3 px-3.5 py-2.5">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] text-white/40">
                 <Link2 size={17} strokeWidth={1.9} />
               </span>
