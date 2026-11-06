@@ -24,29 +24,29 @@ const benefits = [
 
 export default function CareersPage() {
   return (
-    <div className="min-h-screen bg-[#07070d] text-white">
+    <div className="min-h-screen bg-[var(--background)] text-white">
       {/* Header */}
       <div className="relative border-b border-white/[0.06]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(214,168,63,0.055)_0%,_transparent_60%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 py-16 ">
+        
+        <div className="relative max-w-4xl mx-auto px-4 py-8 sm:py-10 ">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors mb-6">
             <ArrowLeft size={14} /> Back to Home
           </Link>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#d6a83f]/10 flex items-center justify-center">
               <Sparkles size={18} className="text-white" />
             </div>
             <span className="text-lg font-semibold tracking-[0.18em]">VANTA</span>
           </div>
-          <h1 className="text-4xl  font-black tracking-tight mb-4">Join the Team</h1>
-          <p className="text-white/40 text-lg max-w-2xl">Help us build the future of social connection. We're looking for passionate people who want to make a difference.</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">Join the Team</h1>
+          <p className="text-white/55 text-sm sm:text-base max-w-2xl">Help us build the future of social connection. We're looking for passionate people who want to make a difference.</p>
         </div>
       </div>
 
       {/* Mission */}
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h2 className="text-2xl  font-bold text-white mb-4">Our Mission</h2>
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
+        <div className="text-center mb-10">
+          <h2 className="text-xl font-semibold text-white mb-3">Our Mission</h2>
           <p className="text-white/60 leading-relaxed max-w-2xl mx-auto">
             At VANTA, we're building a platform where authentic human connection thrives. 
             We believe technology should bring people closer, not push them apart. 
@@ -55,11 +55,11 @@ export default function CareersPage() {
         </div>
 
         {/* Benefits */}
-        <h2 className="text-2xl font-bold text-white text-center mb-8">Why Work at VANTA</h2>
-        <div className="grid   gap-4 mb-16">
+        <h2 className="text-xl font-semibold text-white text-center mb-5">Why Work at VANTA</h2>
+        <div className="grid gap-3 sm:grid-cols-2 mb-10">
           {benefits.map((benefit) => (
-            <div key={benefit.title} className="rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d6a83f] to-[#c8c8cc] flex items-center justify-center mb-4">
+            <div key={benefit.title} className="rounded-xl border border-white/[0.07] bg-[var(--surface)] p-4">
+              <div className="w-10 h-10 rounded-xl bg-[#d6a83f]/10 flex items-center justify-center mb-4">
                 <benefit.icon size={18} className="text-white" />
               </div>
               <h3 className="text-sm font-semibold text-white mb-2">{benefit.title}</h3>
@@ -69,18 +69,18 @@ export default function CareersPage() {
         </div>
 
         {/* Open Positions */}
-        <div className="rounded-[32px] border border-white/[0.06] bg-white/[0.02] p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+        <div className="rounded-xl border border-white/[0.07] bg-[var(--surface)] p-5 text-center">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
             <Users size={28} className="text-white/40" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">No Open Positions Right Now</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">No Open Positions Right Now</h3>
           <p className="text-sm text-white/40 max-w-md mx-auto mb-6">
             We're not actively hiring at the moment, but we're always looking for talented people. 
             Send your resume and we'll keep you in mind for future opportunities.
           </p>
           <a
             href="mailto:careers@vanta.app"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#d6a83f] to-[#c8c8cc] text-white font-semibold text-sm hover:shadow-lg hover:shadow-[#d6a83f]/20 transition-all duration-300"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#d6a83f] text-[#17130a] font-semibold text-sm hover:bg-[#e0bb4f] transition-colors"
           >
             Send Resume
           </a>

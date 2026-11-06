@@ -102,11 +102,11 @@ const statusIcons = {
 
 export default function RoadmapPage() {
   return (
-    <div className="min-h-screen bg-[#07070d] text-white">
+    <div className="min-h-screen bg-[var(--background)] text-white">
       {/* Header */}
       <div className="relative border-b border-white/[0.06]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(214,168,63,0.055)_0%,_transparent_60%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 py-16 ">
+        
+        <div className="relative max-w-4xl mx-auto px-4 py-8 sm:py-10 ">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors mb-6">
             <ArrowLeft size={14} /> Back to Home
           </Link>
@@ -116,22 +116,22 @@ export default function RoadmapPage() {
             </div>
             <span className="text-lg font-semibold tracking-[0.18em]">VANTA</span>
           </div>
-          <h1 className="text-4xl  font-black tracking-tight mb-4">Product Roadmap</h1>
-          <p className="text-white/40 text-lg max-w-2xl">A live look at what we've built, what we're working on, and where we're headed.</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">Product Roadmap</h1>
+          <p className="text-white/55 text-sm sm:text-base max-w-2xl">A live look at what we've built, what we're working on, and where we're headed.</p>
         </div>
       </div>
 
       {/* Timeline */}
-      <div className="max-w-4xl mx-auto px-4 py-16">
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
         <div className="relative">
           {/* Vertical line */}
           <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-[#d6a83f]/30 via-[#151517]0/20 to-transparent" />
 
-          <div className="space-y-12">
+          <div className="space-y-6">
             {timelineItems.map((phase, idx) => {
               const StatusIcon = statusIcons[phase.status];
               return (
-                <div key={phase.phase} className="relative pl-20">
+                <div key={phase.phase} className="relative pl-16">
                   {/* Timeline dot */}
                   <div className={`absolute left-4 top-1 w-9 h-9 rounded-full border-2 flex items-center justify-center ${
                     phase.status === "completed" ? "border-emerald-500/50 bg-emerald-500/10" :
@@ -146,14 +146,14 @@ export default function RoadmapPage() {
                   </div>
 
                   {/* Content */}
-                  <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-6">
+                  <div className="rounded-xl border border-white/[0.07] bg-[var(--surface)] p-4 sm:p-5">
                     <div className="flex items-center gap-3 mb-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${statusColors[phase.status]}`}>
                         {phase.status === "completed" ? "Completed" : phase.status === "in-progress" ? "In Progress" : "Upcoming"}
                       </span>
                       <span className="text-[10px] text-white/30 uppercase tracking-wider">{phase.phase}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-3">{phase.title}</h3>
+                    <h3 className="text-base font-semibold text-white mb-2">{phase.title}</h3>
                     <ul className="space-y-2">
                       {phase.items.map((item) => (
                         <li key={item} className="flex items-center gap-2.5 text-sm text-white/50">
@@ -170,9 +170,9 @@ export default function RoadmapPage() {
         </div>
 
         {/* Future Vision */}
-        <div className="mt-16 rounded-[32px] border border-white/[0.06] bg-gradient-to-br from-[#d6a83f]/[0.02] to-[#151517]0/[0.02] p-8 text-center">
+        <div className="mt-8 rounded-xl border border-white/[0.07] bg-[var(--surface)] p-5 text-center">
           <Rocket size={32} className="text-[#d6a83f]/60 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Our Vision</h2>
+          <h2 className="text-xl font-semibold text-white mb-2">Our Vision</h2>
           <p className="text-sm text-white/40 max-w-lg mx-auto leading-relaxed">
             We're building the most immersive social platform ever created. 
             A place where technology fades away and authentic human connection takes center stage. 
