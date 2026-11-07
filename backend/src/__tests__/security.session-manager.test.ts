@@ -17,6 +17,7 @@ jest.mock('../prisma', () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
   },
 }));
@@ -77,6 +78,29 @@ describe('SessionManager.refreshTokens', () => {
     expect(updateCall[0]).toEqual(expect.objectContaining({ where: { id: 'sess1' } }));
     expect(updateCall[0].data.token).toBe('rotated-jwt-token');
     expect(updateCall[0].data.refreshToken).toBe('rotated-jwt-token');
+  });
+
+  test('rejects a concurrent refresh replay and revokes the session after a lost rotation race', async () => {
+    (jwt.verify as jest.Mock).mockReturnValue({
+      userId: 'user1',
+      sessionId: 'sess1',
+      type: 'refresh',
+    });
+    (prisma.session.findFirst as jest.Mock).mockResolvedValue({
+      id: 'sess1',
+      userId: 'user1',
+      refreshToken: 'old-refresh-token',
+      refreshExpiresAt: new Date(Date.now() + 60_000),
+      user: { role: 'USER', status: 'ACTIVE' },
+    });
+    (prisma.session.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+    (prisma.session.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+    await expect(sessionManager.refreshTokens('old-refresh-token')).rejects.toThrow('Invalid refresh token');
+    expect(prisma.session.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'sess1', userId: 'user1', refreshToken: 'old-refresh-token' },
+    }));
+    expect(prisma.session.deleteMany).toHaveBeenCalledWith({ where: { id: 'sess1', userId: 'user1' } });
   });
 
   test('detects reuse of a rotated-out refresh token and severs the session', async () => {
