@@ -452,21 +452,65 @@ export class MonetizationService {
   // ==========================================
 
   async subscribe(subscriberId: string, creatorId: string, tier: string) {
+    if (subscriberId === creatorId) throw new Error('You cannot subscribe to yourself');
     const tierConfig = await prisma.subscriptionTier.findUnique({
       where: { creatorId_tier: { creatorId, tier } },
     });
+    if (!tierConfig || !tierConfig.isActive) throw new Error('Subscription tier is unavailable');
 
-    const price = tierConfig?.price || 499;
-
-    // Check balance
-    const wallet = await prisma.wallet.findUnique({ where: { userId: subscriberId } });
-    if (!wallet || wallet.coinBalance < price) throw new Error('Insufficient coins');
+    const price = Number(tierConfig.price);
+    if (!Number.isSafeInteger(price) || price < 1) throw new Error('Subscription price is invalid');
 
     const now = new Date();
-    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const [subscription] = await prisma.$transaction([
-      prisma.creatorSubscription.upsert({
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.creatorSubscription.findUnique({
+        where: { subscriberId_creatorId: { subscriberId, creatorId } },
+      });
+      if (existing?.status === 'ACTIVE' && existing.currentPeriodEnd > now) {
+        throw new Error('Your subscription is already active');
+      }
+
+      const currentWallet = await tx.wallet.findUnique({ where: { userId: subscriberId } });
+      if (
+        !currentWallet ||
+        currentWallet.isFrozen ||
+        currentWallet.coinBalance - (currentWallet.lockedCoins || 0) < price
+      ) {
+        throw new Error('Insufficient available coins');
+      }
+
+      // Compare both balance and reservation state so a concurrent transfer
+      // or follower-reward reservation cannot spend the same coins twice.
+      const debit = await tx.wallet.updateMany({
+        where: {
+          id: currentWallet.id,
+          isFrozen: false,
+          coinBalance: currentWallet.coinBalance,
+          lockedCoins: currentWallet.lockedCoins,
+        },
+        data: {
+          coinBalance: { decrement: price },
+          totalCoinsSent: { increment: price },
+        },
+      });
+      if (debit.count !== 1) throw new Error('Balance changed while subscribing. Please try again.');
+
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({ where: { userId: subscriberId } });
+      const creatorEarningsCents = Math.round(price * REVENUE_SPLIT.CREATOR);
+      const platformShare = price - creatorEarningsCents;
+      const creatorEarningsUsd = creatorEarningsCents / 100;
+
+      await tx.wallet.update({
+        where: { userId: creatorId },
+        data: {
+          earningsBalance: { increment: creatorEarningsUsd },
+          lifetimeEarnings: { increment: creatorEarningsUsd },
+        },
+      });
+
+      const subscription = await tx.creatorSubscription.upsert({
         where: { subscriberId_creatorId: { subscriberId, creatorId } },
         create: {
           subscriberId,
@@ -485,19 +529,33 @@ export class MonetizationService {
           currentPeriodEnd: periodEnd,
           cancelledAt: null,
         },
-      }),
-      prisma.wallet.update({
-        where: { userId: subscriberId },
-        data: { coinBalance: { decrement: price } },
-      }),
-      // Creator gets 70%
-      prisma.wallet.update({
-        where: { userId: creatorId },
-        data: { earningsBalance: { increment: Math.round(price * REVENUE_SPLIT.CREATOR) } },
-      }),
-    ]);
+      });
 
-    return subscription;
+      await tx.walletTransaction.create({
+        data: {
+          walletId: currentWallet.id,
+          userId: subscriberId,
+          type: 'SUBSCRIPTION',
+          amount: price,
+          fee: platformShare,
+          balanceBefore: currentWallet.coinBalance,
+          balance: updatedWallet.coinBalance,
+          status: 'COMPLETED',
+          description: `Creator subscription to @${creatorId}`,
+          reference: subscription.id,
+          metadata: JSON.stringify({ creatorId, tier, price, creatorEarningsCents, creatorEarningsUsd }),
+        },
+      });
+      await tx.walletAuditLog.create({
+        data: {
+          userId: creatorId,
+          action: 'SUBSCRIPTION_EARNING',
+          details: JSON.stringify({ subscriberId, tier, subscriptionId: subscription.id, amountUsd: creatorEarningsUsd }),
+        },
+      });
+
+      return subscription;
+    });
   }
 
   async cancelSubscription(subscriberId: string, creatorId: string) {
