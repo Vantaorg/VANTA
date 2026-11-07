@@ -114,14 +114,13 @@ describe('SessionManager.refreshTokens', () => {
     });
     // The rotated-out token no longer matches any live session row.
     (prisma.session.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.session.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+    (prisma.session.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
 
     await expect(sessionManager.refreshTokens('stolen-rotated-token')).rejects.toThrow('Invalid refresh token');
 
-    // The referenced session is severed so the stale token can never refresh.
-    expect(prisma.session.updateMany).toHaveBeenCalledWith({
+    // Revoke the entire session so any outstanding access token is invalid too.
+    expect(prisma.session.deleteMany).toHaveBeenCalledWith({
       where: { id: 'sess1', userId: 'user1' },
-      data: { refreshToken: null },
     });
     // And the theft is audited.
     const auditCalls = (auditLog.log as jest.Mock).mock.calls;

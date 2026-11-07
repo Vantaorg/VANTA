@@ -174,9 +174,10 @@ export class SessionManager {
       // Fail closed: audit the event and sever the referenced session so the
       // stale token can never re-authenticate.
       if (decoded && decoded.sessionId) {
-        await prisma.session.updateMany({
+        // A rotated-out refresh token is a replay signal. Revoke the whole
+        // session so its still-live access token cannot remain usable.
+        await prisma.session.deleteMany({
           where: { id: decoded.sessionId, userId: decoded.userId },
-          data: { refreshToken: null },
         });
       }
       await auditLog.log({
