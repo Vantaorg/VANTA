@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { afterAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 jest.mock('../prisma', () => ({ prisma: { uploadedFile: { findFirst: jest.fn() } } }));
 import { prisma } from '../prisma';
 import { createPrivateMediaUrl, verifyPrivateMediaToken, privateMediaStaticGuard } from '../services/private-media.service';
