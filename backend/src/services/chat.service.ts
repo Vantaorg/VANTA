@@ -130,6 +130,26 @@ function protectMessageMedia(message: any, files: Array<{ id: string; url: strin
   return formatted;
 }
 
+async function protectPersistedMessage(message: any, userId: string): Promise<any> {
+  const recordIds = [message?.id, message?.replyTo?.id].filter((id): id is string => typeof id === "string" && id.length > 0);
+  const attachmentUrls = [
+    ...(Array.isArray(message?.attachments) ? message.attachments : []),
+    ...(Array.isArray(message?.replyTo?.attachments) ? message.replyTo.attachments : []),
+  ].map((attachment: any) => attachment?.url).filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
+  if (!recordIds.length || !attachmentUrls.length) return protectMessageMedia(message, [], userId);
+
+  const files = await prisma.uploadedFile.findMany({
+    where: {
+      recordType: "Message",
+      recordId: { in: recordIds },
+      url: { in: [...new Set(attachmentUrls)] },
+      deletedAt: null,
+    },
+    select: { id: true, url: true },
+  });
+  return protectMessageMedia(message, files, userId);
+}
+
 const formatCallDuration = (seconds: number): string => {
   const safe = Math.max(0, Math.floor(seconds || 0));
   const mins = Math.floor(safe / 60);
@@ -406,7 +426,7 @@ export class ChatService {
     if (message.senderId !== userId && !canModerateEdit) throw new Error("Message not found or unauthorized");
     const safeContent = cleanContent(content);
     if (!safeContent) throw new Error("Message content is required");
-    return prisma.message.update({ where: { id: messageId }, data: { content: safeContent, editedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { content: safeContent, editedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async deleteMessage(messageId: string, userId: string, everyone = false) {
@@ -426,7 +446,7 @@ export class ChatService {
       throw new Error("Message not found or unauthorized");
     }
     if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");
-    return prisma.message.update({ where: { id: messageId }, data: { content: "", deletedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { content: "", deletedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async reactToMessage(messageId: string, userId: string, reaction: string) {
@@ -437,7 +457,7 @@ export class ChatService {
     const existing = await prisma.messageReaction.findUnique({ where: { messageId_userId: { messageId, userId } } });
     if (existing?.reaction === reaction) await prisma.messageReaction.delete({ where: { id: existing.id } });
     else await prisma.messageReaction.upsert({ where: { messageId_userId: { messageId, userId } }, update: { reaction }, create: { messageId, userId, reaction } });
-    return prisma.message.findUnique({ where: { id: messageId }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.findUnique({ where: { id: messageId }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async setMessagePinned(messageId: string, userId: string, pinned: boolean) {
@@ -448,7 +468,7 @@ export class ChatService {
     const permissions = conversationPermissions(message.conversation.permissions);
     if (message.conversation.type === "CHANNEL" && !isAdministrator) throw new Error("Only channel administrators can pin messages");
     if (message.conversation.type === "GROUP" && !isAdministrator && permissions.pinMessages !== true) throw new Error("You do not have permission to pin messages");
-    return prisma.message.update({ where: { id: messageId }, data: { pinnedAt: pinned ? new Date() : null, pinnedById: pinned ? userId : null }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { pinnedAt: pinned ? new Date() : null, pinnedById: pinned ? userId : null }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async setConversationMuted(conversationId: string, userId: string, muted: boolean) {

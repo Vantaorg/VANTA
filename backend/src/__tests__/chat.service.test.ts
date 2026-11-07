@@ -315,4 +315,25 @@ describe('ChatService security and persistence', () => {
     expect(db.message.update).toHaveBeenCalled();
   });
 
+  it('returns protected private attachment URLs from message mutation responses', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'message-1',
+      senderId: 'sender',
+      deletedAt: null,
+      conversation: { type: 'DIRECT', permissions: null, participants: [{ userId: 'sender', role: 'MEMBER' }] },
+    });
+    (db.message.update as jest.Mock).mockResolvedValue({
+      id: 'message-1',
+      senderId: 'sender',
+      attachments: [{ url: 'https://cdn.test/private.jpg' }],
+      replyTo: null,
+    });
+    (db.uploadedFile.findMany as jest.Mock).mockResolvedValue([
+      { id: 'private-file-1', url: 'https://cdn.test/private.jpg' },
+    ]);
+
+    const result = await service.editMessage('message-1', 'sender', 'updated');
+    expect(result.attachments[0].url).toBe('/api/media/private/private-file-1?token=test-token');
+  });
+
 });
