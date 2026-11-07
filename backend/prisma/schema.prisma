@@ -258,6 +258,7 @@ model UploadedFile {
   @@index([userId, category])
   @@index([userId, createdAt])
   @@index([recordType, recordId])
+  @@index([filename, category])
   @@index([category, createdAt])
   @@index([deletedAt])
 }

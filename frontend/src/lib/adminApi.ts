@@ -482,3 +482,7 @@ export const getNotificationCenter = (token: string, params?: {
   const query = new URLSearchParams((params || {}) as any).toString();
   return apiGet<any>(`/api/admin/notifications?${query}`, token);
 };
+/** One-time migration of previously public Cloudinary message attachments. */
+export const securePrivateMediaAssets = (token: string): Promise<any> => {
+  return apiPost<any>('/api/admin/security/secure-private-media', {}, token);
+};
