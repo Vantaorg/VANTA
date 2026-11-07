@@ -529,3 +529,78 @@ export const getGuestToken = async (req: AuthRequest, res: Response): Promise<vo
     res.status(400).json({ error: message });
   }
 };
+
+
+export const getScheduledStreams = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const hostId = req.user?.userId;
+    if (!hostId) return void res.status(401).json({ error: 'Unauthorized' });
+    const streams = await liveService.getScheduledStreams(hostId);
+    res.status(200).json({ streams });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to load scheduled streams' });
+  }
+};
+
+export const createScheduledStream = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const hostId = req.user?.userId;
+    if (!hostId) return void res.status(401).json({ error: 'Unauthorized' });
+    const { title, category, description, scheduledAt, duration } = req.body || {};
+    const date = new Date(scheduledAt);
+    const durationSeconds = Number(duration);
+    if (typeof scheduledAt !== 'string' || !Number.isFinite(date.getTime())) {
+      return void res.status(400).json({ error: 'A valid scheduled date and time are required' });
+    }
+    if (!Number.isInteger(durationSeconds) || durationSeconds < 1800 || durationSeconds > 14400) {
+      return void res.status(400).json({ error: 'Duration must be between 30 minutes and 4 hours' });
+    }
+    if (typeof title !== 'string' || typeof category !== 'string') {
+      return void res.status(400).json({ error: 'Title and category are required' });
+    }
+    const stream = await liveService.createScheduledStream(hostId, {
+      title, category, description: typeof description === 'string' ? description : undefined,
+      scheduledAt: date, duration: durationSeconds,
+    });
+    res.status(201).json({ stream, message: 'Stream scheduled successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to schedule stream' });
+  }
+};
+
+export const updateScheduledStream = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const hostId = req.user?.userId;
+    if (!hostId) return void res.status(401).json({ error: 'Unauthorized' });
+    const { title, category, description, scheduledAt, duration } = req.body || {};
+    const date = scheduledAt === undefined ? undefined : new Date(scheduledAt);
+    if (scheduledAt !== undefined && (typeof scheduledAt !== 'string' || !Number.isFinite(date!.getTime()))) {
+      return void res.status(400).json({ error: 'A valid scheduled date and time are required' });
+    }
+    const durationSeconds = duration === undefined ? undefined : Number(duration);
+    if (durationSeconds !== undefined && (!Number.isInteger(durationSeconds) || durationSeconds < 1800 || durationSeconds > 14400)) {
+      return void res.status(400).json({ error: 'Duration must be between 30 minutes and 4 hours' });
+    }
+    const stream = await liveService.updateScheduledStream(getParamString(req.params.streamId), hostId, {
+      ...(typeof title === 'string' ? { title } : {}),
+      ...(typeof category === 'string' ? { category } : {}),
+      ...(typeof description === 'string' ? { description } : {}),
+      ...(date ? { scheduledAt: date } : {}),
+      ...(durationSeconds !== undefined ? { duration: durationSeconds } : {}),
+    });
+    res.status(200).json({ stream, message: 'Scheduled stream updated' });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to update scheduled stream' });
+  }
+};
+
+export const deleteScheduledStream = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const hostId = req.user?.userId;
+    if (!hostId) return void res.status(401).json({ error: 'Unauthorized' });
+    await liveService.deleteScheduledStream(getParamString(req.params.streamId), hostId);
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to delete scheduled stream' });
+  }
+};
