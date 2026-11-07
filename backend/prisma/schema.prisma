@@ -117,6 +117,7 @@ model User {
   notificationPrefs NotificationPreferences?
   securityLogs      SecurityLog[]
   sessions          Session[]
+  twoFactorLoginChallenges TwoFactorLoginChallenge[]
   passwordResetTokens PasswordResetToken[]
   blockedUsers      BlockedUser[]            @relation("BlockedBy")
   blockedBy         BlockedUser[]            @relation("BlockedTarget")
@@ -3478,4 +3479,18 @@ model PropertyAuditLog {
   @@index([listingId, createdAt])
   @@index([actorId, createdAt])
   @@index([action, createdAt])
+}
+
+
+model TwoFactorLoginChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }

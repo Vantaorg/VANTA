@@ -90,6 +90,7 @@ export default function AuthExperience({ mode }: Props) {
   // Two-factor step: a login held for 2FA stores the userId here and the
   // form switches to the code-collection screen until verification succeeds.
   const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null);
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorError, setTwoFactorError] = useState('');
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
@@ -238,6 +239,7 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       // issues a token until the authenticator/backup code is confirmed).
       if (!register && (response as any).requiresTwoFactor) {
         setTwoFactorUserId((response as any).userId as string);
+        setTwoFactorChallenge((response as any).twoFactorChallenge as string);
         return;
       }
       if (!response.user || !response.token) throw new Error('Invalid authentication response');
@@ -265,14 +267,14 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
 
   const submit2FA = async (event: FormEvent) => {
     event.preventDefault();
-    if (twoFactorBusy || !twoFactorUserId) return;
+    if (twoFactorBusy || !twoFactorUserId || !twoFactorChallenge) return;
     if (twoFactorCode.trim().length < 6) {
       setTwoFactorError('Enter the 6-digit code from your authenticator app.');
       return;
     }
     setTwoFactorBusy(true); setTwoFactorError('');
     try {
-      const response = await authComplete2FALogin(twoFactorUserId, twoFactorCode.trim());
+      const response = await authComplete2FALogin(twoFactorUserId, twoFactorChallenge, twoFactorCode.trim());
       if (!response.user || !response.token) throw new Error('Invalid authentication response');
       await login(response.user, response.token, response.refreshToken);
       if (response.user.status === 'SUSPENDED' || (response as any).accountStatus === 'SUSPENDED') {
@@ -309,7 +311,7 @@ return (
                   <label htmlFor="twofa">Authentication code</label>
                   <div className="auth-input-wrap"><LockKeyhole size={17} /><input id="twofa" className="auth-input" inputMode="numeric" maxLength={6} value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))} placeholder="6-digit code" autoFocus aria-invalid={!!twoFactorError} aria-describedby={twoFactorError ? 'twofa-error' : undefined} /></div>
                   {twoFactorError && <span className="auth-field-error" id="twofa-error"><X size={12} />{twoFactorError}</span>}
-                  <button type="button" className="auth-link" style={{ marginTop: 10 }} onClick={() => { setTwoFactorUserId(null); setTwoFactorCode(''); setTwoFactorError(''); }}>Back to sign in</button>
+                  <button type="button" className="auth-link" style={{ marginTop: 10 }} onClick={() => { setTwoFactorUserId(null); setTwoFactorChallenge(null); setTwoFactorCode(''); setTwoFactorError(''); }}>Back to sign in</button>
                 </div>
               )}
               {!twoFactorUserId && (

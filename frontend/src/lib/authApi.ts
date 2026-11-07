@@ -45,6 +45,7 @@ export interface AuthResponse extends ApiResponse {
   // A login held for two-factor verification returns these instead of a token.
   requiresTwoFactor?: boolean;
   userId?: string;
+  twoFactorChallenge?: string;
 }
 
 export interface RegisterPayload {
@@ -102,8 +103,8 @@ export const authLogin = async (payload: LoginPayload): Promise<AuthResponse> =>
  * `{ requiresTwoFactor: true, userId }`; the client collects the authenticator
  * or backup code and passes it here to finish signing in.
  */
-export const authComplete2FALogin = async (userId: string, token: string): Promise<AuthResponse> => {
-  return apiPost<AuthResponse>('/api/auth/login/2fa', { userId, token });
+export const authComplete2FALogin = async (userId: string, challengeToken: string, token: string): Promise<AuthResponse> => {
+  return apiPost<AuthResponse>('/api/auth/login/2fa', { userId, challengeToken, token });
 };
 
 /**

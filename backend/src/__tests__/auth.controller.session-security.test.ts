@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 jest.mock('../security', () => ({
-  CryptoUtils: { verifyPassword: jest.fn() },
+  CryptoUtils: { verifyPassword: jest.fn(), sha256: jest.fn(() => 'challenge-hash') },
   SecurityValidator: {},
   sessionManager: {
     generateTokenPair: jest.fn(),
@@ -27,6 +27,7 @@ jest.mock('../prisma', () => ({
   prisma: {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     session: { update: jest.fn() },
+    twoFactorLoginChallenge: { deleteMany: jest.fn(), create: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn() },
   },
 }));
 jest.mock('../services/auth.service', () => ({ authService: {} }));
@@ -65,6 +66,10 @@ beforeEach(() => {
   (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...activeUser, twoFactorEnabled: true });
   (prisma.user.update as jest.Mock).mockResolvedValue({});
   (prisma.session.update as jest.Mock).mockResolvedValue({});
+  (prisma.twoFactorLoginChallenge.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+  (prisma.twoFactorLoginChallenge.create as jest.Mock).mockResolvedValue({ id: 'challenge-1' });
+  (prisma.twoFactorLoginChallenge.findFirst as jest.Mock).mockResolvedValue({ id: 'challenge-1', userId: 'user-1' });
+  (prisma.twoFactorLoginChallenge.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
   (CryptoUtils.verifyPassword as jest.Mock).mockResolvedValue(true);
   (sessionManager.generateTokenPair as jest.Mock).mockReturnValue({ accessToken: 'access-token', refreshToken: 'refresh-token', expiresIn: 900 });
   (sessionManager.createSession as jest.Mock).mockResolvedValue({ id: 'session-1' });
@@ -103,13 +108,15 @@ describe('login session lifecycle', () => {
     await login(request({ identifier: 'alex@example.test', password: 'correct-password' }), res);
     expect(res.statusCode).toBe(200);
     expect(res.body.requiresTwoFactor).toBe(true);
+    expect(res.body.twoFactorChallenge).toBeDefined();
+    expect(res.body.userId).toBe('user-1');
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(prisma.session.update).not.toHaveBeenCalled();
   });
 
   test('a failed 2FA code never creates a session', async () => {
     const res = response();
-    await completeLogin2FA(request({ userId: 'user-1', token: '000000' }), res);
+    await completeLogin2FA(request({ userId: 'user-1', challengeToken: 'challenge-token-12345678901234567890123456789012', token: '000000' }), res);
     expect(res.statusCode).toBe(401);
     expect(sessionManager.createSession).not.toHaveBeenCalled();
     expect(prisma.session.update).not.toHaveBeenCalled();
@@ -118,7 +125,7 @@ describe('login session lifecycle', () => {
   test('a successful 2FA code creates a session, which logout revokes', async () => {
     (twoFactorAuth.verifyLogin as jest.Mock).mockResolvedValue({ valid: true, isBackupCode: false });
     const loginRes = response();
-    await completeLogin2FA(request({ userId: 'user-1', token: '123456' }), loginRes);
+    await completeLogin2FA(request({ userId: 'user-1', challengeToken: 'challenge-token-12345678901234567890123456789012', token: '123456' }), loginRes);
     expect(loginRes.statusCode).toBe(200);
     expect(sessionManager.createSession).toHaveBeenCalledTimes(1);
     expect(prisma.session.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'session-1' } }));
@@ -128,4 +135,25 @@ describe('login session lifecycle', () => {
     expect(logoutRes.statusCode).toBe(200);
     expect(sessionManager.logout).toHaveBeenCalledWith('user-1', 'access-token');
   });
+  test('rejects 2FA completion with only a userId and TOTP, without the password-step challenge', async () => {
+    const res = response();
+    await completeLogin2FA(request({ userId: 'user-1', token: '123456' }), res);
+    expect(res.statusCode).toBe(400);
+    expect(twoFactorAuth.verifyLogin).not.toHaveBeenCalled();
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+  });
+
+  test('does not create a session if the one-time password-step challenge was consumed concurrently', async () => {
+    (twoFactorAuth.verifyLogin as jest.Mock).mockResolvedValue({ valid: true, isBackupCode: false });
+    (prisma.twoFactorLoginChallenge.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+    const res = response();
+    await completeLogin2FA(request({
+      userId: 'user-1',
+      challengeToken: 'challenge-token-12345678901234567890123456789012',
+      token: '123456',
+    }), res);
+    expect(res.statusCode).toBe(401);
+    expect(sessionManager.createSession).not.toHaveBeenCalled();
+  });
+
 });
