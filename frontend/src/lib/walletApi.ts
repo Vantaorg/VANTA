@@ -52,7 +52,7 @@ export async function transferCoins(data: {
   receiverId: string;
   amount: number;
   note?: string;
-  pin?: string;
+  pinCode: string;
   otpCode?: string;
   requestId?: string;
   challengeId?: string;
