@@ -70,6 +70,16 @@ describe('creator subscription wallet integrity', () => {
         reference: subscription.id,
       }),
     }));
+    expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        type: 'CREATOR_EARNING',
+        currency: 'USD',
+        amount: 0.7,
+        balanceBefore: 0,
+        balance: 0.7,
+        reference: subscription.id,
+      }),
+    }));
     expect(tx.walletAuditLog.create).toHaveBeenCalled();
   });
 

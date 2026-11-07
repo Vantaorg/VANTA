@@ -546,6 +546,29 @@ export class MonetizationService {
           metadata: JSON.stringify({ creatorId, tier, price, creatorEarningsCents, creatorEarningsUsd }),
         },
       });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: updatedCreatorWallet.id,
+          userId: creatorId,
+          type: "CREATOR_EARNING",
+          currency: "USD",
+          amount: creatorEarningsUsd,
+          fee: 0,
+          balanceBefore: updatedCreatorWallet.earningsBalance - creatorEarningsUsd,
+          balance: updatedCreatorWallet.earningsBalance,
+          status: "COMPLETED",
+          description: "Creator subscription earnings",
+          reference: subscription.id,
+          metadata: JSON.stringify({
+            source: "SUBSCRIPTION",
+            subscriberId,
+            tierId,
+            grossCoins: price,
+            creatorSharePercent: REVENUE_SPLIT.CREATOR * 100,
+          }),
+        },
+      });
+
       await tx.walletAuditLog.create({
         data: {
           userId: creatorId,

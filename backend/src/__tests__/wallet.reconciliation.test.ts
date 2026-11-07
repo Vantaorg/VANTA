@@ -50,6 +50,7 @@ describe('WalletService.reconcileWallet', () => {
       { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA' },
       { type: 'GIFT_SENT', amount: 200, currency: 'VANTA' },
       { type: 'WITHDRAWAL', amount: 500, currency: 'USD' },
+      { type: 'CREATOR_EARNING', amount: 0.7, currency: 'USD' },
     ]);
     const result = await walletService.reconcileWallet('user1');
     expect(prisma.walletTransaction.findMany).toHaveBeenCalledWith(expect.objectContaining({

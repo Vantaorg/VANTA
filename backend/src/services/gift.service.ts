@@ -447,6 +447,30 @@ export class GiftService {
         },
       });
 
+        await tx.walletTransaction.create({
+          data: {
+            walletId: updatedReceiver.id,
+            userId: receiverId,
+            type: "CREATOR_EARNING",
+            currency: "USD",
+            amount: creatorEarningsUsd,
+            fee: 0,
+            balanceBefore: updatedReceiver.earningsBalance - creatorEarningsUsd,
+            balance: updatedReceiver.earningsBalance,
+            status: "COMPLETED",
+            description: "Creator earnings from gifts",
+            reference: transaction.id,
+            metadata: JSON.stringify({
+              source: "GIFT",
+              senderId,
+              senderUsername: senderInfo.username,
+              totalCost,
+              creatorEarningsCents,
+              rule: "0.02 USD per 3 eligible gift coins",
+            }),
+          },
+        });
+
         return { transaction, updatedSender, updatedReceiver };
       });
     } catch (error) {

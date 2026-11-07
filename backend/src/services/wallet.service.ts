@@ -29,6 +29,7 @@ export const TX_TYPES = {
   REFUND: "REFUND",
   FEE: "FEE",
   SUBSCRIPTION: "SUBSCRIPTION",
+  CREATOR_EARNING: "CREATOR_EARNING",
   ADMIN_CREDIT: "ADMIN_CREDIT",
   ADMIN_DEBIT: "ADMIN_DEBIT",
   SYSTEM_CREDIT: "SYSTEM_CREDIT",
@@ -53,6 +54,7 @@ const INCOMING_TYPES = new Set([
   TX_TYPES.FOLLOWER_REWARD_CLAIM,
   TX_TYPES.FOLLOWER_REWARD_REFUND,
   TX_TYPES.FOLLOWER_REWARD_RELEASE,
+  TX_TYPES.CREATOR_EARNING,
 ]);
 
 // Types that represent money going OUT (negative)
@@ -170,6 +172,8 @@ export function buildTransactionDescription(type: string, amount: number, counte
       return `Refunded ${safeAmount} VANTA Coins`;
     case TX_TYPES.SUBSCRIPTION:
       return `Creator subscription ${safeAmount} VANTA Coins`;
+    case TX_TYPES.CREATOR_EARNING:
+      return `Creator earnings ${safeAmount} USD`;
     case TX_TYPES.FOLLOWER_REWARD_RESERVE:
       return `Reserved ${safeAmount} VANTA Coins for a Follower Reward`;
     case TX_TYPES.FOLLOWER_REWARD_REFUND:
