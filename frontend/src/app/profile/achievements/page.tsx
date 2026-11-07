@@ -196,19 +196,19 @@ export default function AchievementsPage() {
         transition={{ delay: 0.05 }}
         className="grid grid-cols-2  gap-3 mb-8"
       >
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-xl font-bold text-white">{completedCount}</p>
           <p className="text-[10px] text-white/40 mt-0.5">Completed</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-xl font-bold text-white">{ACHIEVEMENTS.length - completedCount}</p>
           <p className="text-[10px] text-white/40 mt-0.5">In Progress</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-xl font-bold text-white">{Math.round((completedCount / ACHIEVEMENTS.length) * 100)}%</p>
           <p className="text-[10px] text-white/40 mt-0.5">Completion</p>
         </div>
-        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4">
+        <div className="rounded-xl bg-[var(--surface)] border border-white/[0.06] p-3">
           <p className="text-xl font-bold text-white">{ACHIEVEMENTS.length}</p>
           <p className="text-[10px] text-white/40 mt-0.5">Total Achievements</p>
         </div>
@@ -219,7 +219,7 @@ export default function AchievementsPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-wrap gap-2 mb-6"
+        className="flex flex-wrap gap-1.5 mb-5"
       >
         {['all', 'completed', 'in-progress', 'common', 'rare', 'epic', 'legendary'].map((f) => (
           <button
@@ -238,7 +238,7 @@ export default function AchievementsPage() {
       </motion.div>
 
       {/* Achievements Grid */}
-      <div className="grid grid-cols-1  gap-3">
+      <div className="grid grid-cols-1 gap-2.5">
         <AnimatePresence mode="popLayout">
           {filtered.map((achievement, i) => {
             const styles = RARITY_STYLES[achievement.rarity];
@@ -255,7 +255,7 @@ export default function AchievementsPage() {
                 transition={{ delay: i * 0.03, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => setSelectedAchievement(isSelected ? null : achievement.id)}
                 className={cn(
-                  'rounded-2xl border p-4 cursor-pointer transition-all duration-300',
+                  'rounded-xl border p-3 cursor-pointer transition-colors',
                   styles.bg,
                   styles.border,
                   isSelected ? 'ring-1 ring-white/10' : '',
@@ -264,7 +264,7 @@ export default function AchievementsPage() {
               >
                 <div className="flex items-start gap-3">
                   <div className={cn(
-                    'w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0',
+                    'w-10 h-10 rounded-lg bg-[var(--surface-active)] flex items-center justify-center shrink-0',
                     styles.gradient,
                     'bg-opacity-20'
                   )}>

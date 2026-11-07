@@ -3,20 +3,20 @@
   min-height: 100%;
   margin: 0 auto;
   padding: 0 0 calc(24px + var(--vanta-safe-bottom, env(safe-area-inset-bottom, 0px)));
-  color: #f5f5f5;
-  background: #050505;
+  color: var(--text-primary);
+  background: var(--background);
 }
-.edit-profile-header { position: sticky; top: 0; z-index: 20; min-height: 56px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(5,5,5,.96); backdrop-filter: blur(16px); }
+.edit-profile-header { position: sticky; top: 0; z-index: 20; min-height: 56px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,.08); background: var(--header-surface); }
 .edit-profile-header h1 { font-size: 16px; font-weight: 750; letter-spacing: 0; }
 .edit-profile-header p { display: none; }
-.edit-profile-form { overflow: visible; background: #050505; }
+.edit-profile-form { overflow: visible; background: var(--background); }
 .edit-media { position: relative; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,.09); }
-.edit-cover { position: relative; height: 190px; background: radial-gradient(ellipse at 72% 14%,rgba(201,162,39,.18),transparent 45%),#191919; background-size: cover; background-position: center; }
+.edit-cover { position: relative; height: 190px; background: var(--surface-secondary); background-size: cover; background-position: center; }
 .edit-cover:after { position: absolute; inset: 0; background: rgba(0,0,0,.22); content: ""; }
 .edit-cover > button { position: absolute; top: 50%; left: 50%; z-index: 1; display: flex; width: 42px; height: 42px; align-items: center; justify-content: center; gap: 7px; overflow: hidden; padding: 0 12px; transform: translate(-50%,-50%); border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(5,5,5,.68); backdrop-filter: blur(10px); font-size: 0; white-space: nowrap; transition: width .18s,border-radius .18s; }
 .edit-cover > button svg { flex: 0 0 auto; }
 .edit-cover > button:hover,.edit-cover > button:focus-visible { width: auto; border-radius: 9px; font-size: 11px; }
-.edit-avatar { position: relative; z-index: 2; display: grid; width: 94px; height: 94px; margin: -42px 0 0 16px; place-items: center; border: 4px solid #050505; border-radius: 50%; background-color: #1c1c1c; background-position: center; background-size: cover; color: rgba(255,255,255,.42); }
+.edit-avatar { position: relative; z-index: 2; display: grid; width: 94px; height: 94px; margin: -42px 0 0 16px; place-items: center; border: 4px solid var(--background); border-radius: 50%; background-color: var(--surface); background-position: center; background-size: cover; color: rgba(255,255,255,.42); }
 .edit-avatar button { position: absolute; inset: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(0,0,0,.38); color: #fff; opacity: .9; }
 .edit-avatar button:hover { background: rgba(0,0,0,.55); }
 .media-copy { display: grid; gap: 4px; padding: 12px 16px 0; }

@@ -32,7 +32,7 @@ export default function DiscoverTabs({ activeTab, onTabChange }: DiscoverTabsPro
     <div className="relative">
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto scrollbar-hide gap-1 pb-2 -mb-2"
+        className="flex overflow-x-auto scrollbar-hide gap-1 pb-1 -mb-1"
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -41,16 +41,16 @@ export default function DiscoverTabs({ activeTab, onTabChange }: DiscoverTabsPro
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'relative shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap',
+                'relative shrink-0 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
                 isActive
                   ? 'text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                  : 'text-gray-400 hover:text-white hover:bg-[var(--surface-active)]'
               )}
             >
               {isActive && (
                 <motion.div
                   layoutId="discoverTab"
-                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#d6a83f]/10 to-[#c8c8cc]/10 border border-[#d6a83f]/15"
+                  className="absolute inset-0 rounded-lg bg-[var(--surface-active)] border border-[#d6a83f]/20"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}

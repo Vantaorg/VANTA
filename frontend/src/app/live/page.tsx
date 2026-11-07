@@ -87,9 +87,9 @@ export default function LivePage() {
     <motion.main
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="mx-auto min-w-0 w-full space-y-5 pb-24"
+      className="mx-auto min-w-0 w-full space-y-4 pb-24"
     >
-      <header className="sticky top-0 z-30 -mx-4 flex h-14 w-[calc(100%+2rem)] items-center gap-3 border-b border-white/[.07] bg-[#080808] px-4">
+      <header className="sticky top-0 z-30 -mx-4 flex h-14 w-[calc(100%+2rem)] items-center gap-3 border-b border-white/[.07] bg-[var(--header-surface)] px-4">
         <button type="button" onClick={openAppMenu} aria-label="Open menu" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-white">
           <Menu size={19} />
         </button>
@@ -105,7 +105,7 @@ export default function LivePage() {
         </button>
       </header>
 
-      <div className="flex items-center rounded-xl border border-white/[.07] bg-white/[.025] p-1" role="tablist" aria-label="Live streams">
+      <div className="flex items-center rounded-lg border border-white/[.07] bg-[var(--surface)] p-1" role="tablist" aria-label="Live streams">
         {TABS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (
@@ -117,7 +117,7 @@ export default function LivePage() {
               onClick={() => setTab(id)}
               className={cn(
                 'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-xs font-semibold transition',
-                active ? 'bg-white/[.09] text-white shadow-sm' : 'text-white/45 hover:text-white/80',
+                active ? 'bg-[var(--surface-active)] text-white' : 'text-white/45 hover:text-white/80',
               )}
             >
               <Icon size={13} className={active ? 'text-[#F2C75C]' : 'text-current'} />
@@ -131,7 +131,7 @@ export default function LivePage() {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="animate-pulse">
-              <div className="aspect-video rounded-2xl bg-white/[.05]" />
+              <div className="aspect-video rounded-xl bg-[var(--surface-active)]" />
               <div className="mt-3 h-3 w-2/3 rounded bg-white/[.06]" />
               <div className="mt-2 h-3 w-1/3 rounded bg-white/[.04]" />
             </div>
@@ -140,7 +140,7 @@ export default function LivePage() {
       )}
 
       {!loading && loadError && (
-        <section className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-white/[.08] bg-[#0d0d0d] px-6 text-center">
+        <section className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-white/[.08] bg-[var(--surface)] px-5 text-center">
           <WifiOff size={22} className="text-white/35" />
           <h2 className="mt-4 text-base font-semibold text-white">Live isn’t available right now</h2>
           <p className="mt-1.5 max-w-xs text-sm text-white/45">Check your connection and try again.</p>
@@ -151,7 +151,7 @@ export default function LivePage() {
       )}
 
       {!loading && !loadError && streams.length === 0 && (
-        <section className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/[.1] px-6 text-center">
+        <section className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-white/[.08] bg-[var(--surface)] px-5 text-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-white/[.05] text-white/50">
             {tab === 'following' ? <Heart size={20} /> : <Users size={20} />}
           </span>

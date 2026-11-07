@@ -171,7 +171,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   };
 
   if (loading) {
-    return <main data-post-detail className="min-w-0 w-full bg-[#050505] text-white">
+    return <main data-post-detail className="min-w-0 w-full bg-[var(--background)] text-[var(--text-primary)]">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky bleed className="h-14 min-h-14 px-4"
@@ -182,7 +182,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   }
 
   if (unavailable || !post) {
-    return <main data-post-detail className="min-w-0 w-full bg-[#050505] text-white">
+    return <main data-post-detail className="min-w-0 w-full bg-[var(--background)] text-[var(--text-primary)]">
       <PageHeader
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky bleed className="h-14 min-h-14 px-4"
@@ -195,13 +195,13 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   const media = mediaSrc(post.mediaUrl) || attachments[0]?.url;
   const isOwn = post.author.id === user?.id;
   return (
-    <main data-post-detail data-post-detail-version="4" className="min-h-full w-full min-w-0 bg-[#050505] text-white">
+    <main data-post-detail data-post-detail-version="4" className="min-h-full w-full min-w-0 bg-[var(--background)] text-[var(--text-primary)]">
       <PageHeader
         title="Post"
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky
         bleed
-        className="h-12 min-h-12 border-b border-white/[0.08] bg-[#050505] px-3"
+        className="h-12 min-h-12 border-b border-white/[0.08] bg-[var(--header-surface)] px-3"
         actions={
           <button
             type="button"
@@ -217,7 +217,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       <div className="mx-auto min-h-[calc(100dvh-3rem)] w-full min-w-0 max-w-[680px]">
         <section className="min-w-0">
           <article className="w-full min-w-0">
-            <header className="flex min-w-0 items-center gap-2.5 border-b border-white/[0.08] px-4 py-3">
+            <header className="flex min-w-0 items-center gap-2.5 border-b border-white/[0.08] px-4 py-2.5">
               <Link
                 href={`/profile/${post.author.username}`}
                 className="grid shrink-0 place-items-center"

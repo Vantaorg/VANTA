@@ -32,6 +32,10 @@ import {
   getGuests,
   getGuestToken,
   heartbeatStream,
+  getScheduledStreams,
+  createScheduledStream,
+  updateScheduledStream,
+  deleteScheduledStream,
 } from '../controllers/live.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
 
@@ -44,6 +48,7 @@ router.get('/trending', getTrendingStreams);
 router.get('/recently-ended', getRecentlyEnded);
 router.get('/popular-creators', getPopularCreators);
 router.get('/history', authenticateJWT, getStreamHistory);
+router.get('/scheduled', authenticateJWT, getScheduledStreams);
 router.get('/stats', authenticateJWT, getHostStats);
 router.get('/following', authenticateJWT, getFollowingStreams);
 router.get('/', getActiveStreams);
@@ -63,6 +68,9 @@ router.get('/:streamId', getStream);
 router.use(authenticateJWT);
 
 router.post('/start', startStream);
+router.post('/scheduled', createScheduledStream);
+router.patch('/:streamId/schedule', updateScheduledStream);
+router.delete('/:streamId/schedule', deleteScheduledStream);
 router.post('/:streamId/join', joinStream);
 router.post('/:streamId/leave', leaveStream);
 router.post('/:streamId/message', sendMessage);

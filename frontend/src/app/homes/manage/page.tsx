@@ -144,8 +144,8 @@ export default function ManageHomesPage() {
 
   if (authLoading || (!user && !loading)) {
     return (
-      <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
-        <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 backdrop-blur-xl sm:px-5">
+      <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)] text-white flex flex-col overflow-hidden">
+        <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 sm:px-5">
           <div className="flex h-full items-center justify-between gap-3">
             <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
             <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>
@@ -161,8 +161,8 @@ export default function ManageHomesPage() {
   }
 
   return (
-    <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
-      <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 backdrop-blur-xl sm:px-5">
+    <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)] text-white flex flex-col overflow-hidden">
+      <header className="relative z-50 h-14 max-h-14 min-h-14 border-b border-white/[.08] bg-[var(--header-surface)] px-3 sm:px-5">
         <div className="flex h-full items-center justify-between gap-3">
           <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span><span className="flex items-baseline gap-2"><span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span><span className="text-sm font-medium text-white/80">Homes</span></span></a>
           <a href="/homes/create" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#c9a227] px-3 text-xs font-bold text-black sm:px-4 sm:text-sm"><Plus size={15} /> New listing</a>
@@ -170,7 +170,7 @@ export default function ManageHomesPage() {
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
-      <div className="w-full px-3 py-5 pb-24 sm:px-5 sm:py-6"> 
+      <div className="w-full px-3 py-4 pb-24 sm:px-5 sm:py-5"> 
         <button
           onClick={() => router.push('/homes')}
           className="mb-4 inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"
@@ -178,10 +178,10 @@ export default function ManageHomesPage() {
           <ArrowLeft size={16} /> All homes
         </button>
 
-        <div className="mb-6 flex w-full flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex w-full flex-wrap items-end justify-between gap-3">
           <div>
             <span className="text-sm font-bold uppercase tracking-wider text-[#c9a227]">VANTA Homes</span>
-            <h1 className="text-2xl font-bold text-white">Manage your listings</h1>
+            <h1 className="text-xl font-semibold text-white">Manage your listings</h1>
             <p className="mt-1 text-sm text-white/50">Publish, pause and track every property you list.</p>
           </div>
           <Button variant="gold" icon={<Plus size={18} />} onClick={() => router.push('/homes/create')}>

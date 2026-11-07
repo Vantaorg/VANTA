@@ -5,6 +5,7 @@ import { getBadgePaymentDepositAddress } from '../config/verification-badge.conf
 import { CryptoUtils } from '../security/crypto';
 import { coinPaymentService } from './coin-payment.service';
 import { verificationPaymentService } from './verification-payment.service';
+import { getNetworkRetryDelayMs, isBlockRangeLimitError } from './blockchain-rpc-policy';
 
 /**
  * Continuous, restart-safe-by-overlap chain log watcher.
@@ -21,6 +22,9 @@ const CHUNK_BLOCKS = Math.max(1, Math.min(500, Number(process.env.VANTA_CHAIN_WA
 const LOOKBACK_BLOCKS = Math.max(100, Number(process.env.VANTA_CHAIN_WATCH_LOOKBACK_BLOCKS || 2_000));
 const TOLERANCE_USD = 0.005;
 const cursors = new Map<BlockchainNetworkId, number>();
+const networkFailures = new Map<BlockchainNetworkId, number>();
+const networkRetryAt = new Map<BlockchainNetworkId, number>();
+const MAX_NETWORK_RETRY_MS = 5 * 60_000;
 let running = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -43,9 +47,12 @@ async function rpc(network: BlockchainNetworkId, method: string, params: unknown
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     signal: AbortSignal.timeout(12_000),
   });
-  if (!response.ok) throw new Error(`RPC HTTP ${response.status} for ${network}`);
-  const payload = await response.json() as { result?: any; error?: { message?: string } };
-  if (payload.error) throw new Error(payload.error.message || 'RPC error');
+  if (!response.ok) throw new Error(`RPC ${network} ${method} HTTP ${response.status}`);
+  const payload = await response.json() as { result?: any; error?: { code?: number; message?: string } };
+  if (payload.error) {
+    const code = typeof payload.error.code === 'number' ? ` (code ${payload.error.code})` : '';
+    throw new Error(`RPC ${network} ${method}${code}: ${payload.error.message || 'provider returned an RPC error'}`);
+  }
   return payload.result;
 }
 async function fulfill(network: BlockchainNetworkId, txHash: string, amount: number, recipient: string, timestamp: Date): Promise<void> {
@@ -93,14 +100,15 @@ async function fulfill(network: BlockchainNetworkId, txHash: string, amount: num
 async function getTransferLogs(network: BlockchainNetworkId, filter: Record<string, unknown>, fromBlock: number, toBlock: number): Promise<any[]> {
   try {
     const logs = await rpc(network, 'eth_getLogs', [filter]);
-    return Array.isArray(logs) ? logs : [];
+    if (!Array.isArray(logs)) throw new Error(`RPC ${network} eth_getLogs returned an invalid result`);
+    return logs;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const rangeSize = toBlock - fromBlock + 1;
-    // Providers use different wording for eth_getLogs range/result caps.
-    // Split the request and retry each half instead of abandoning the entire
-    // network scan. A one-block failure is allowed to bubble to the poll retry.
-    if (rangeSize > 1 && /limit exceeded|too many results|block range|query returned more than|response size/i.test(message)) {
+    // Split only errors that explicitly identify a block-range/result-size cap.
+    // A generic "limit exceeded" is commonly an RPC quota/rate-limit response;
+    // recursively splitting it would multiply requests and worsen throttling.
+    if (rangeSize > 1 && isBlockRangeLimitError(message)) {
       const midpoint = Math.floor((fromBlock + toBlock) / 2);
       const left = await getTransferLogs(network, filter, fromBlock, midpoint);
       const right = await getTransferLogs(network, filter, midpoint + 1, toBlock);
@@ -154,10 +162,32 @@ async function tick(): Promise<void> {
   if (running) return;
   running = true;
   try {
-    await scanNetwork('usdt-bep20');
-    await scanNetwork('usdc-base');
-  } catch (error) {
-    console.error('[CHAIN-WATCH] Poll failed; will retry', error);
+    // Keep each chain independent: an unavailable BSC RPC must not prevent
+    // Base from being scanned (and vice versa).
+    for (const network of ['usdt-bep20', 'usdc-base'] as const) {
+      const retryAt = networkRetryAt.get(network) || 0;
+      if (Date.now() < retryAt) continue;
+
+      try {
+        await scanNetwork(network);
+        if (networkFailures.has(network)) {
+          console.info('[CHAIN-WATCH] Network scan recovered', { network });
+        }
+        networkFailures.delete(network);
+        networkRetryAt.delete(network);
+      } catch (error) {
+        const failures = (networkFailures.get(network) || 0) + 1;
+        const delayMs = getNetworkRetryDelayMs(failures, POLL_MS, MAX_NETWORK_RETRY_MS);
+        networkFailures.set(network, failures);
+        networkRetryAt.set(network, Date.now() + delayMs);
+        console.error('[CHAIN-WATCH] Network scan failed; retry scheduled', {
+          network,
+          failures,
+          retryInMs: delayMs,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   } finally {
     running = false;
     timer = setTimeout(() => void tick(), POLL_MS);
