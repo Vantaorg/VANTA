@@ -48,6 +48,13 @@ export function resolveMediaUrl(value?: string | null): string {
   if (/^[a-zA-Z]:[\\/]/.test(source) || /^\\\\/.test(source)) return '';
 
   // Protocol-relative ("//host/path") - resolve against the API origin.
+  // Private chat attachments use a signed backend route, not the public
+  // /uploads mount. Resolve it against the backend origin like API requests.
+  if (/^\\/api\\/media\\/private\\//i.test(source)) {
+    try { return new URL(source, `${API_BASE_URL}/`).toString(); }
+    catch { return source; }
+  }
+
   if (source.startsWith('//')) {
     try {
       return `${new URL(API_BASE_URL).origin}${source}`;

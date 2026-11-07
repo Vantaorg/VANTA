@@ -43,7 +43,7 @@ if (configuredUploadDir && path.resolve(uploadDir) !== defaultUploadDir && fs.ex
 export function getPrivateCloudinaryDownloadUrl(storagePath: string, filename: string): string {
   const match = /^cloudinary:(image|video|raw):(.+)$/.exec(storagePath);
   if (!match) throw new Error('Invalid private Cloudinary storage reference');
-  const format = path.extname(filename).replace(/^\\./, '') || 'bin';
+  const format = path.extname(filename).replace(/^\./, '') || 'bin';
   return cloudinary.utils.private_download_url(match[2], format, {
     resource_type: match[1],
     type: 'authenticated',
@@ -531,6 +531,7 @@ export class UploadService {
         const resourceType = fileType === "VIDEO" || fileType === "AUDIO" ? "video" : fileType === "IMAGE" ? "image" : "raw";
         const cloudResult = await cloudinary.uploader.upload(file.path, {
           resource_type: resourceType,
+          type: category === 'message' ? 'authenticated' : 'upload',
           folder: `vanta/${category.replace(/[^a-z0-9-]/gi, "-")}`,
           use_filename: false,
           unique_filename: true,

@@ -467,6 +467,7 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/search', rateLimiter.search, searchRoutes);
 app.use('/api/upload', rateLimiter.upload, uploadRoutes);
+app.use('/api/media', rateLimiter.api, privateMediaRoutes);
 app.use('/api/reels', reelRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/channels', channelRoutes);
