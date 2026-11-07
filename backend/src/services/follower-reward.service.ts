@@ -3,6 +3,7 @@ import { verificationService } from './verification.service';
 import { walletService, resolveAvailableCoins } from './wallet.service';
 import { notificationService } from './notification.service';
 import { auditLog } from '../security';
+import { coinsToUsd } from '../config/wallet.config';
 
 // ============================================================================
 // GOLD VERIFIED FOLLOWER REWARDS â€” SERVICE
@@ -510,7 +511,13 @@ const campaign = await prisma.$transaction(async (tx) => {
 
     const claimantAfter = await tx.wallet.update({
       where: { id: claimantWallet.id },
-      data: { coinBalance: { increment: rewardPerUser }, totalCoinsReceived: { increment: rewardPerUser }, lifetimeEarnings: { increment: rewardPerUser } },
+      data: {
+        coinBalance: { increment: rewardPerUser },
+        totalCoinsReceived: { increment: rewardPerUser },
+        // Lifetime earnings are denominated in USD, while this reward is
+        // denominated in VANTA Coins (100 coins = $1).
+        lifetimeEarnings: { increment: coinsToUsd(rewardPerUser) },
+      },
     });
 
     // Creator spend ledger row (metadata.side = creator => displayed outgoing).
