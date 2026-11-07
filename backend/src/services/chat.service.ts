@@ -121,10 +121,10 @@ const formatMessage = (message: any): any => {
 function protectMessageMedia(message: any, files: Array<{ id: string; url: string }>, userId: string): any {
   const formatted = formatMessage(message);
   const byUrl = new Map(files.map(file => [file.url, file]));
-  const protect = (attachments: any[] | undefined) => (attachments || []).map(attachment => {
+  const protect = (attachments: any) => Array.isArray(attachments) ? attachments.map((attachment: any) => {
     const file = byUrl.get(attachment.url);
     return file ? { ...attachment, url: createPrivateMediaUrl(file.id, userId) } : attachment;
-  });
+  }) : (attachments || []);
   formatted.attachments = protect(formatted.attachments);
   if (formatted.replyTo) formatted.replyTo = { ...formatted.replyTo, attachments: protect(formatted.replyTo.attachments) };
   return formatted;

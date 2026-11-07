@@ -28,6 +28,26 @@ describe('ChatService security and persistence', () => {
     expect(db.message.findMany).not.toHaveBeenCalled();
   });
 
+
+  it('returns user-bound private URLs for message attachments after membership checks', async () => {
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({ id: 'conversation', participants: [{ userId: 'reader' }] });
+    (db.message.findMany as jest.Mock).mockResolvedValue([{
+      id: 'message-1',
+      sender: { id: 'sender', username: 'sender' },
+      reads: [],
+      reactions: [],
+      attachments: [{ id: 'attachment-1', url: 'https://cdn.test/private.jpg', fileType: 'IMAGE' }],
+      replyTo: null,
+    }]);
+    (db.userSettings.findMany as jest.Mock).mockResolvedValue([]);
+    (db.uploadedFile.findMany as jest.Mock).mockResolvedValue([{
+      id: 'private-file-1', url: 'https://cdn.test/private.jpg', recordId: 'message-1',
+    }]);
+
+    const result = await service.getMessages('conversation', 'reader');
+    expect(result.messages[0].attachments[0].url).toBe('/api/media/private/private-file-1?token=test-token');
+  });
+
   it('sanitizes content and persists attachment metadata', async () => {
     (db.conversation.findUnique as jest.Mock).mockResolvedValue({ id: 'conversation', participants: [{ userId: 'sender' }] });
     (db.uploadedFile.findMany as jest.Mock).mockResolvedValue([{
