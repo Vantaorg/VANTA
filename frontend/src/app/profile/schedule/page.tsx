@@ -9,12 +9,12 @@ import PageHeader from '@/components/ui/PageHeader';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const CATEGORIES: Record<string, any> = {
+const CATEGORIES: { [key: string]: any } = {
   gaming: Gamepad2, music: Music, creative: Palette, education: BookOpen,
   sports: Trophy, tech: Monitor, lifestyle: Heart, chatting: MessageCircle,
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
+const CATEGORY_COLORS: { [key: string]: string } = {
   gaming: 'from-violet-500/20 to-violet-900/20 border-violet-500/20 text-violet-300',
   music: 'from-pink-500/20 to-pink-900/20 border-pink-500/20 text-pink-300',
   creative: 'from-[#d6a83f]/20 to-[#d6a83f]/10 border-[#d6a83f]/20 text-[#d6a83f]',

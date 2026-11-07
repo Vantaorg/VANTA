@@ -21,7 +21,7 @@ import PullToRefresh from '@/components/ui/PullToRefresh';
 import PropertyCard from '@/components/homes/PropertyCard';
 import { fetchHomes } from '@/lib/services';
 
-type Item = Record<string, any>;
+type Item = { [key: string]: any };
 type Category = 'forYou' | 'trending' | 'homes' | 'creators' | 'reels' | 'live' | 'communities';
 type SearchFilter = 'all' | 'people' | 'posts' | 'reels' | 'live' | 'communities';
 
@@ -70,7 +70,7 @@ export default function DiscoverPage() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
   const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<Record<string, Item[]>>({});
+  const [searchResults, setSearchResults] = useState<{ [key: string]: Item[] }>({});
   const [posts, setPosts] = useState<Item[]>([]);
   const [trending, setTrending] = useState<Item[]>([]);
   const [creators, setCreators] = useState<Item[]>([]);
