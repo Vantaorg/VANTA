@@ -1372,7 +1372,7 @@ export class WalletService {
   }
 
   async verifyPin(userId: string, pin: string) {
-    if (typeof pin !== 'string' || !/^\\d{4,6}$/.test(pin)) throw new Error('Invalid PIN format');
+    if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) throw new Error('Invalid PIN format');
     const wallet = await this.ensureWallet(userId);
     const pinRecord = await prisma.walletPIN.findUnique({ where: { walletId: wallet.id } });
     if (!pinRecord) throw new Error("No PIN set");
