@@ -168,6 +168,8 @@ export function buildTransactionDescription(type: string, amount: number, counte
       return `Requested withdrawal of ${safeAmount} VANTA Coins`;
     case TX_TYPES.REFUND:
       return `Refunded ${safeAmount} VANTA Coins`;
+    case TX_TYPES.SUBSCRIPTION:
+      return `Creator subscription ${safeAmount} VANTA Coins`;
     case TX_TYPES.FOLLOWER_REWARD_RESERVE:
       return `Reserved ${safeAmount} VANTA Coins for a Follower Reward`;
     case TX_TYPES.FOLLOWER_REWARD_REFUND:

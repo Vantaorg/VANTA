@@ -252,4 +252,67 @@ describe('ChatService security and persistence', () => {
     const result = await service.sendMessage('conversation', 'sender', 'hello');
     expect(result).toBeDefined();
   });
+  it('does not let a removed sender edit their old message', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'old-message',
+      senderId: 'former-member',
+      deletedAt: null,
+      conversation: { type: 'GROUP', permissions: null, participants: [] },
+    });
+
+    await expect(service.editMessage('old-message', 'former-member', 'edited'))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('does not let a removed sender delete their old message', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'old-message',
+      senderId: 'former-member',
+      deletedAt: null,
+      conversation: { type: 'GROUP', permissions: null, participants: [] },
+    });
+
+    await expect(service.deleteMessage('old-message', 'former-member'))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('does not let a direct-chat creator delete the other participant messages', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'direct-message',
+      senderId: 'recipient',
+      deletedAt: null,
+      conversation: {
+        type: 'DIRECT',
+        permissions: null,
+        participants: [
+          { userId: 'creator', role: 'OWNER' },
+          { userId: 'recipient', role: 'MEMBER' },
+        ],
+      },
+    });
+
+    await expect(service.deleteMessage('direct-message', 'creator', true))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('allows an active group administrator to moderate group messages', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'group-message',
+      senderId: 'member',
+      deletedAt: null,
+      conversation: {
+        type: 'GROUP',
+        permissions: null,
+        participants: [{ userId: 'admin', role: 'ADMIN' }],
+      },
+    });
+    (db.message.update as jest.Mock).mockResolvedValue({ id: 'group-message', deletedAt: new Date() });
+
+    await expect(service.deleteMessage('group-message', 'admin', true)).resolves.toBeDefined();
+    expect(db.message.update).toHaveBeenCalled();
+  });
+
 });

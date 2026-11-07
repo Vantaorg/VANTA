@@ -394,6 +394,9 @@ export class ChatService {
     const message: any = await prisma.message.findUnique({ where: { id: messageId }, include: { conversation: { include: { participants: true } } } });
     if (!message || message.deletedAt) throw new Error("Message not found or unauthorized");
     const participant = message.conversation.participants.find((p: any) => p.userId === userId);
+    // A sender who has been removed from the conversation no longer has
+    // permission to mutate messages in that private space.
+    if (!participant) throw new Error("Message not found or unauthorized");
     const permissions = conversationPermissions(message.conversation.permissions);
     // Channel "Edit messages" permission lets administrators edit any message;
     // otherwise users may only edit their own messages.
@@ -409,14 +412,17 @@ export class ChatService {
   async deleteMessage(messageId: string, userId: string, everyone = false) {
     const message = await prisma.message.findUnique({ where: { id: messageId }, include: { conversation: { include: { participants: true } } } });
     const participant = message?.conversation.participants.find((p: any) => p.userId === userId);
-    const canModerate = ["OWNER", "ADMIN", "MODERATOR"].includes(participant?.role);
+    const isGroupOrChannel = message?.conversation.type === "GROUP" || message?.conversation.type === "CHANNEL";
+    // Direct-chat creator roles do not confer moderation rights over another
+    // person's private messages. Only active group/channel admins can moderate.
+    const canModerate = Boolean(isGroupOrChannel && participant && ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role));
     const permissions = conversationPermissions(message?.conversation.permissions);
     const isChannel = message?.conversation.type === "CHANNEL";
     const isChannelOwner = isChannel && participant?.role === "OWNER";
     // Channel "Delete messages" permission: when explicitly disabled, even
     // administrators cannot force-delete other people's posts (owner excluded).
     const forceDeleteAllowed = !isChannel || isChannelOwner || permissions.deleteMessages !== false;
-    if (!message || (!canModerate && message.senderId !== userId) || (everyone && !canModerate && message.senderId !== userId)) {
+    if (!message || !participant || (!canModerate && message.senderId !== userId)) {
       throw new Error("Message not found or unauthorized");
     }
     if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");
