@@ -1121,14 +1121,14 @@ export const getWithdrawals = async (req: AuthenticatedRequest, res: Response): 
 
 export const approveWithdrawal = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { withdrawalId } = req.body;
+    const { withdrawalId, transactionHash } = req.body;
 
-    if (!withdrawalId) {
-      res.status(400).json({ error: 'withdrawalId is required' });
+    if (!withdrawalId || typeof transactionHash !== 'string') {
+      res.status(400).json({ error: 'withdrawalId and transactionHash are required' });
       return;
     }
 
-    const withdrawal = await walletService.processWithdrawal(withdrawalId, req.user!.userId);
+    const withdrawal = await walletService.processWithdrawal(withdrawalId, req.user!.userId, transactionHash);
     res.status(200).json({
       message: 'Withdrawal approved',
       withdrawal,

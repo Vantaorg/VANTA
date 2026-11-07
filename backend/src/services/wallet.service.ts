@@ -6,6 +6,7 @@ import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { calculateTransferFee, coinsToUsd, VANTA_COINS_PER_USD, WITHDRAWAL_FEE_RATE, MIN_WITHDRAWAL_AMOUNT, PLATFORM_TRANSFER_LIMITS } from "../config/wallet.config";
 import { validateWithdrawalInput } from "./wallet-input-validation";
+import { blockchainTxVerifier } from "./blockchain-verifier.service";
 import {
   COIN_PAYMENT_ORDER_TTL_SECONDS,
   COIN_PAYMENT_CREDITABLE_STATUSES,
@@ -1404,12 +1405,14 @@ export class WalletService {
   // WITHDRAWALS (10% Platform Fee)
   // ============================================================
 
-  async requestWithdrawal(userId: string, amount: number, walletAddress: string) {
+  async requestWithdrawal(userId: string, amount: number, walletAddress: string, pinCode: string) {
     // Validate untrusted request values before any database access or balance mutation.
     // This remains a request-only/manual settlement flow; it does not initiate a payout.
     const validated = validateWithdrawalInput(amount, walletAddress);
     amount = validated.amount;
     walletAddress = validated.walletAddress;
+    if (typeof pinCode !== 'string' || !/^\\d{4,6}$/.test(pinCode)) throw new Error('A valid 4-6 digit wallet PIN is required');
+    await this.verifyPin(userId, pinCode);
 
     const wallet = await this.ensureWallet(userId);
 
@@ -1540,68 +1543,80 @@ export class WalletService {
     return result.withdrawal;
   }
 
-  async processWithdrawal(withdrawalId: string, adminId: string) {
-    const withdrawal = await prisma.withdrawal.findUnique({
-      where: { id: withdrawalId },
+  async processWithdrawal(withdrawalId: string, adminId: string, transactionHash: string) {
+    const normalizedHash = typeof transactionHash === 'string' ? transactionHash.trim().toLowerCase() : '';
+    if (!/^0x[a-f0-9]{64}$/.test(normalizedHash)) throw new Error('A valid BNB Smart Chain transaction hash is required');
+
+    const withdrawal = await prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
+    if (!withdrawal) throw new Error('Withdrawal not found');
+    if (withdrawal.status !== 'PENDING') throw new Error('Only pending withdrawals can be processed');
+    if (!withdrawal.walletAddress) throw new Error('Withdrawal destination address is missing');
+
+    // A manual admin click or client-supplied hash is not proof of payment.
+    // Independently verify the mined USDT BEP-20 transfer, exact destination,
+    // net amount and confirmation count. Any RPC failure/mismatch aborts.
+    const chainProof = await blockchainTxVerifier.verifyTransaction({
+      txHash: normalizedHash,
+      network: 'usdt-bep20',
+      expectedAmountUsd: withdrawal.netAmount,
+      expectedRecipient: withdrawal.walletAddress,
     });
+    if (!chainProof.verified) throw new Error('On-chain withdrawal verification failed');
 
-    if (!withdrawal) {
-      throw new Error("Withdrawal not found");
-    }
-
-    if (withdrawal.status !== "PENDING") {
-      throw new Error("Only pending withdrawals can be processed");
-    }
-
-    // Atomic transaction: conditionally flip PENDING -> COMPLETED. The CAS
-    // (where status = PENDING) guarantees two concurrent admin approvals can
-    // never both succeed — the loser updates 0 rows and aborts.
     const result = await prisma.$transaction(async (tx) => {
       const claim = await tx.withdrawal.updateMany({
-        where: { id: withdrawalId, status: "PENDING" },
+        where: { id: withdrawalId, status: 'PENDING', transactionHash: null },
         data: {
-          status: "COMPLETED",
+          status: 'COMPLETED',
+          transactionHash: normalizedHash,
           processedBy: adminId,
           processedAt: new Date(),
         },
       });
-      if (claim.count !== 1) {
-        throw new Error("Withdrawal can only be processed once");
-      }
+      if (claim.count !== 1) throw new Error('Withdrawal can only be completed once');
+
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
-
-      // Update the wallet transaction status
-      await tx.walletTransaction.updateMany({
-        where: { reference: withdrawalId, type: "WITHDRAWAL" },
-        data: { status: "COMPLETED" },
+      const ledgerUpdate = await tx.walletTransaction.updateMany({
+        where: { reference: withdrawalId, type: 'WITHDRAWAL', status: 'PENDING' },
+        data: {
+          status: 'COMPLETED',
+          metadata: JSON.stringify({
+            withdrawalId,
+            transactionHash: normalizedHash,
+            network: 'usdt-bep20',
+            confirmations: chainProof.confirmations,
+            blockNumber: chainProof.blockNumber,
+          }),
+        },
       });
+      if (ledgerUpdate.count !== 1) throw new Error('Pending withdrawal ledger entry is missing or already processed');
 
-      // Log audit
       await tx.walletAuditLog.create({
         data: {
           userId: withdrawal.userId,
-          action: "WITHDRAWAL_PROCESSED",
+          action: 'WITHDRAWAL_PROCESSED',
           details: JSON.stringify({
             withdrawalId,
             adminId,
             amount: withdrawal.amount,
             netAmount: withdrawal.netAmount,
+            transactionHash: normalizedHash,
+            network: 'usdt-bep20',
+            confirmations: chainProof.confirmations,
+            blockNumber: chainProof.blockNumber,
           }),
         },
       });
-
       return updated;
     });
 
-    // Send notification
     await notificationService.createNotification(
       withdrawal.userId,
-      "WALLET_WITHDRAWAL_COMPLETED",
-      "Withdrawal Completed",
-      `Your withdrawal of $${withdrawal.netAmount.toFixed(2)} has been processed and sent to your wallet.`,
-      { withdrawalId, amount: withdrawal.netAmount }
+      'WALLET_WITHDRAWAL_COMPLETED',
+      'Withdrawal Completed',
+      `Your withdrawal of $${withdrawal.netAmount.toFixed(2)} USDT has been confirmed on BNB Smart Chain.`,
+      { withdrawalId, amount: withdrawal.netAmount, transactionHash: normalizedHash, network: 'usdt-bep20' }
     );
-
     return result;
   }
 

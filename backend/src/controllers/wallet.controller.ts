@@ -260,13 +260,13 @@ export const getDeposits = async (req: AuthRequest, res: Response): Promise<void
 export const requestWithdrawal = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { amount, walletAddress } = req.body;
+    const { amount, walletAddress, pinCode } = req.body;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     if (!amount || !walletAddress) {
       res.status(400).json({ error: 'Amount and wallet address are required' });
       return;
     }
-    const withdrawal = await walletService.requestWithdrawal(userId, amount, walletAddress);
+    const withdrawal = await walletService.requestWithdrawal(userId, amount, walletAddress, pinCode);
     res.status(201).json({ message: 'Withdrawal request created', withdrawal });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';

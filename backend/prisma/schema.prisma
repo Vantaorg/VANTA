@@ -1674,6 +1674,7 @@ model Withdrawal {
   status        String    @default("PENDING")
   walletAddress String?
   cryptoNetwork String?   @default("BNB_SMART_CHAIN")
+  transactionHash String?  @unique
   adminNotes    String?
   processedBy   String?
   processedAt   DateTime?
