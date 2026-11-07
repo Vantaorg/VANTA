@@ -41,13 +41,8 @@ export class TwoFactorAuth {
    * Setup 2FA for a user - generates secret and backup codes
    */
   async setup(userId: string, email: string): Promise<TwoFactorSetupResult> {
-    // Generate TOTP secret
-    const secret = speakeasy 
-      ? speakeasy.generateSecret({ 
-          name: `${config.twoFactor.issuer} (${email})`,
-          length: 20 
-        })
-      : { base32: CryptoUtils.generateTOTPSecret(), otpauth_url: '' };
+    if (!speakeasy) throw new Error('TOTP provider is unavailable; 2FA setup is disabled.');
+    const secret = speakeasy.generateSecret({ name: `${config.twoFactor.issuer} (${email})`, length: 20 });
 
     // Generate backup codes
     const backupCodes: string[] = [];
@@ -88,16 +83,6 @@ export class TwoFactorAuth {
   }
 
   /**
-   * Verify a TOTP token
-   */
-  verifyToken(userId: string, token: string): boolean {
-    // We need the user's secret
-    // This must be called from a service that has access to the user
-    // Token verification is done externally with the secret
-    return true;
-  }
-
-  /**
    * Enable 2FA after verifying the setup token
    */
   async enable(userId: string, token: string): Promise<{ success: boolean; error?: string }> {
@@ -114,15 +99,8 @@ export class TwoFactorAuth {
       return { success: false, error: '2FA is already enabled' };
     }
 
-    // Verify the token
-    const verified = speakeasy
-      ? speakeasy.totp.verify({
-          secret: user.twoFactorSecret,
-          encoding: 'base32',
-          token,
-          window: 2, // Allow 2 steps before/after for clock drift
-        })
-      : token === '123456'; // Dev fallback
+    if (!speakeasy) throw new Error('TOTP provider is unavailable; refusing 2FA enrollment.');
+    const verified = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token, window: 2 });
 
     if (!verified) {
       return { success: false, error: 'Invalid verification code' };
@@ -156,16 +134,8 @@ export class TwoFactorAuth {
     if (!user || !user.twoFactorEnabled) {
       return { valid: true, isBackupCode: false }; // 2FA not enabled
     }
-
-    // Try TOTP verification first
-    const totpValid = speakeasy
-      ? speakeasy.totp.verify({
-          secret: user.twoFactorSecret,
-          encoding: 'base32',
-          token,
-          window: 2,
-        })
-      : false;
+    if (!speakeasy) throw new Error('TOTP provider is unavailable; refusing 2FA login.');
+    const totpValid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token, window: 2 });
 
     if (totpValid) {
       return { valid: true, isBackupCode: false };

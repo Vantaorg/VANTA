@@ -14,8 +14,7 @@ interface RateLimitConfig {
   max: number;
   message?: string;
   statusCode?: number;
-  keyGenerator?: (req: Request) => string | string[];
-  failClosed?: boolean;
+  keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
 }
 
@@ -34,7 +33,6 @@ class RateLimiter {
   createLimiter(limiterConfig: RateLimitConfig) {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       if (!config.rateLimit.enabled) {
-        if (limiterConfig.failClosed) { res.status(503).json({ error: 'Security rate limiting is temporarily unavailable.' }); return; }
         return next();
       }
 
@@ -42,40 +40,78 @@ class RateLimiter {
         return next();
       }
 
-      const generated = limiterConfig.keyGenerator ? limiterConfig.keyGenerator(req) : defaultKeyGenerator(req);
-      const keys = [...new Set((Array.isArray(generated) ? generated : [generated]).filter(Boolean))];
+      const key = limiterConfig.keyGenerator ? limiterConfig.keyGenerator(req) : defaultKeyGenerator(req);
       const route = `${req.method}:${req.path}`;
-      const identifiers = keys.map((key) => `${route}:${key}`).sort();
+      const identifier = `${route}:${key}`;
+
       try {
+        // Clean up expired entries
+        await prisma.rateLimit.deleteMany({
+          where: { expiresAt: { lt: new Date() } },
+        });
+
+        // Find existing rate limit record
         const now = new Date();
         const windowStart = new Date(now.getTime() - limiterConfig.windowMs);
-        const decision = await prisma.$transaction(async (tx) => {
-          for (const identifier of identifiers) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${identifier}))`;
-          await tx.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } });
-          const entries = await tx.rateLimit.findMany({ where: { key: { in: identifiers }, createdAt: { gte: windowStart } } });
-          const counts = new Map<string, number>();
-          for (const entry of entries) counts.set(entry.key, (counts.get(entry.key) || 0) + entry.points);
-          const blocked = identifiers.find((id) => (counts.get(id) || 0) >= limiterConfig.max);
-          if (blocked) {
-            const expiry = entries.filter((entry) => entry.key === blocked).reduce((min, entry) => Math.min(min, entry.expiresAt.getTime()), now.getTime() + limiterConfig.windowMs);
-            return { blocked, count: counts.get(blocked) || limiterConfig.max, retryAfter: Math.max(1, Math.ceil((expiry - now.getTime()) / 1000)) };
-          }
-          for (const identifier of identifiers) await tx.rateLimit.create({ data: { key: identifier, points: 1, expiresAt: new Date(now.getTime() + limiterConfig.windowMs) } });
-          return { blocked: null as string | null, count: Math.max(0, ...identifiers.map((id) => counts.get(id) || 0)), retryAfter: 0 };
+        
+        // Get all entries for this identifier within the window
+        const entries = await prisma.rateLimit.findMany({
+          where: {
+            key: identifier,
+            createdAt: { gte: windowStart },
+          },
         });
-        if (decision.blocked) {
-          res.setHeader('Retry-After', decision.retryAfter);
-          res.status(limiterConfig.statusCode || 429).json({ error: limiterConfig.message || 'Too many requests, please try again later', retryAfter: decision.retryAfter });
-          await auditLog.log({ userId: (req as any).user?.userId, action: 'RATE_LIMIT_HIT', ipAddress: req.ip, userAgent: req.headers['user-agent'], metadata: { route, key: decision.blocked.slice(0, 80), count: decision.count, limit: limiterConfig.max } });
+
+        const currentCount = entries.reduce((sum, e) => sum + e.points, 0);
+
+        if (currentCount >= limiterConfig.max) {
+          const retryAfter = Math.ceil(
+            (entries[0]?.expiresAt.getTime() - now.getTime()) / 1000
+          );
+
+          res.setHeader('Retry-After', Math.max(1, retryAfter));
+          res.status(limiterConfig.statusCode || 429).json({
+            error: limiterConfig.message || 'Too many requests, please try again later',
+            retryAfter: Math.max(1, retryAfter),
+          });
+
+          // Log rate limit hit for security monitoring
+          await auditLog.log({
+            userId: (req as any).user?.userId,
+            action: 'RATE_LIMIT_HIT',
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+            metadata: {
+              route,
+              key: key.substring(0, 50),
+              count: currentCount,
+              limit: limiterConfig.max,
+            },
+          });
+
           return;
         }
+
+        // Add new entry
+        await prisma.rateLimit.create({
+          data: {
+            key: identifier,
+            points: 1,
+            expiresAt: new Date(now.getTime() + limiterConfig.windowMs),
+          },
+        });
+
+        // Set rate limit headers
         res.setHeader('X-RateLimit-Limit', limiterConfig.max);
-        res.setHeader('X-RateLimit-Remaining', Math.max(0, limiterConfig.max - decision.count - 1));
-        res.setHeader('X-RateLimit-Reset', Math.ceil((now.getTime() + limiterConfig.windowMs) / 1000));
+        res.setHeader('X-RateLimit-Remaining', Math.max(0, limiterConfig.max - currentCount - 1));
+        res.setHeader('X-RateLimit-Reset', Math.ceil(
+          (now.getTime() + limiterConfig.windowMs) / 1000
+        ));
+
         next();
       } catch (error) {
-        console.error('Rate limiter error:', error instanceof Error ? error.message : 'unknown error');
-        if (limiterConfig.failClosed) { res.status(503).json({ error: 'Security rate limiting is temporarily unavailable.' }); return; }
+        // Fail open - allow request if rate limiter has issues
+        console.error('Rate limiter error:', error);
         next();
       }
     };
@@ -91,11 +127,10 @@ class RateLimiter {
     keyGenerator: (req) => {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
       const body = req.body as any;
+      // Use email in key to prevent targeted attacks on specific accounts
       const identifier = body?.identifier || body?.email;
-      const account = typeof identifier === 'string' && identifier.trim() ? `login-account:${CryptoUtils.sha256(identifier.trim().toLowerCase())}` : null;
-      return [account, `login-ip:${ip}`].filter(Boolean) as string[];
+      return identifier ? `login:${String(identifier).trim().toLowerCase()}:${ip}` : `login:${ip}`;
     },
-    failClosed: true,
   });
 
   register = this.createLimiter({
@@ -112,12 +147,6 @@ class RateLimiter {
     windowMs: config.rateLimit.passwordReset.windowMs,
     max: config.rateLimit.passwordReset.max,
     message: 'Too many password reset attempts. Please try again later.',
-    failClosed: true,
-    keyGenerator: (req) => {
-      const ip = req.ip || req.socket.remoteAddress || 'unknown';
-      const token = typeof (req.body as any)?.token === 'string' ? (req.body as any).token : '';
-      return [token ? `reset-password-token:${CryptoUtils.sha256(token)}` : null, `reset-password-ip:${ip}`].filter(Boolean) as string[];
-    },
   });
 
   /**
@@ -133,10 +162,8 @@ class RateLimiter {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
       const raw = (req.body || {}) as any;
       const email = typeof raw?.email === 'string' ? raw.email.trim().toLowerCase() : '';
-      const account = email ? `password-reset-account:${CryptoUtils.sha256(email)}` : null;
-      return [account, `password-reset-ip:${ip}`].filter(Boolean) as string[];
+      return email ? `passwordReset:${email}:${ip}` : `passwordReset:ip:${ip}`;
     },
-    failClosed: true,
   });
 
   /**
@@ -151,16 +178,15 @@ class RateLimiter {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
       const raw = (req.body || {}) as any;
       const token = typeof raw?.token === 'string' ? raw.token : '';
-      return [token ? `reset-token:${CryptoUtils.sha256(token)}` : null, `reset-token-ip:${ip}`].filter(Boolean) as string[];
+      const short = token ? CryptoUtils.sha256(token).slice(0, 32) : '';
+      return short ? `resetTokenCheck:${short}:${ip}` : `resetTokenCheck:ip:${ip}`;
     },
-    failClosed: true,
   });
 
   otp = this.createLimiter({
     windowMs: config.rateLimit.otp.windowMs,
     max: config.rateLimit.otp.max,
     message: 'Too many OTP requests. Please try again later.',
-    failClosed: true,
   });
 
   api = this.createLimiter({
@@ -217,13 +243,11 @@ class RateLimiter {
     windowMs: parseInt(process.env.RATE_LIMIT_LOGIN2FA_WINDOW || '900000', 10), // 15 min
     max: parseInt(process.env.RATE_LIMIT_LOGIN2FA_MAX || '10', 10),
     message: 'Too many 2FA attempts. Please try again later.',
-    failClosed: true,
     keyGenerator: (req) => {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
       const body = (req.body || {}) as any;
-      const userId = (req as any).user?.userId || (typeof body?.userId === 'string' ? body.userId : '');
-      const account = userId ? `login2fa-account:${CryptoUtils.sha256(userId)}` : null;
-      return [account, `login2fa-ip:${ip}`].filter(Boolean) as string[];
+      const userId = typeof body?.userId === 'string' ? body.userId : '';
+      return userId ? `login2fa:${userId}:${ip}` : `login2fa:${ip}`;
     },
   });
 }

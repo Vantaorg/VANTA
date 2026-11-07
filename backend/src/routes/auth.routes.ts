@@ -83,7 +83,7 @@ router.post('/change-password', authenticate, changePassword);
 // 2FA Management
 router.get('/2fa/setup', authenticate, setup2FA);
 router.post('/2fa/enable', authenticate, enable2FA);
-router.post('/2fa/verify', authenticate, verify2FA);
+router.post('/2fa/verify', authenticate, rateLimiter.login2fa, verify2FA);
 router.post('/2fa/disable', authenticate, disable2FA);
 router.get('/2fa/status', authenticate, get2FAStatus);
 router.get('/2fa/backup-codes', authenticate, getBackupCodes);

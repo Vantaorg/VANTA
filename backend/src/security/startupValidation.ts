@@ -42,10 +42,15 @@ export function validateProductionSecrets(env: Record<string, string | undefined
     weak.push('JWT_REFRESH_SECRET');
   }
 
-  if (!env.ENCRYPTION_KEY) {
-    missing.push('ENCRYPTION_KEY');
+  if (!env.ENCRYPTION_KEY) missing.push('ENCRYPTION_KEY');
+  if (!env.ENCRYPTION_SALT) missing.push('ENCRYPTION_SALT');
+  else {
+    const salt = env.ENCRYPTION_SALT.trim();
+    const isHexSalt = /^[a-f0-9]{64}$/i.test(salt);
+    const isStrongLength = Buffer.byteLength(salt, 'utf8') >= 32;
+    const isObviousDefault = /^(vanta|change|default|secret|salt)/i.test(salt) || /^(.)\\1+$/.test(salt);
+    if ((!isHexSalt && !isStrongLength) || isObviousDefault || salt === env.ENCRYPTION_KEY) weak.push('ENCRYPTION_SALT');
   }
-
   return { isProduction, missing, weak, ok: !(isProduction && (missing.length > 0 || weak.length > 0)) };
 }
 
@@ -77,6 +82,7 @@ export function enforceSecretPolicy(env: Record<string, string | undefined> = pr
   if (result.missing.includes('JWT_SECRET')) console.warn('[SECURITY] JWT_SECRET is not set. Using a development fallback is unsafe for production.');
   if (result.missing.includes('JWT_REFRESH_SECRET')) console.warn('[SECURITY] JWT_REFRESH_SECRET is not set. Using JWT_SECRET as fallback (development only).');
   if (result.missing.includes('ENCRYPTION_KEY')) console.warn('[SECURITY] ENCRYPTION_KEY is not set. Sensitive data will not be encrypted at rest.');
+  if (result.missing.includes('ENCRYPTION_SALT')) console.warn('[SECURITY] ENCRYPTION_SALT is not set. Encryption is unavailable.');
 }
 
 /**

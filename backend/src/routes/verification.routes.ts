@@ -99,15 +99,15 @@ router.post('/crypto/confirm', confirmCryptoPayment);
 // CRON / MAINTENANCE
 // ============================================================================
 
-// Expire overdue memberships / paid badges / stale purchases (call via cron)
-router.post('/expire-overdue', expireOverdue);
-
 // ============================================================================
 // ADMIN ROUTES
 // ============================================================================
 
 // All admin routes require ADMIN role
 router.use(requireRole(Role.ADMIN, Role.SUPER_ADMIN));
+
+// Maintenance is privileged; scheduled callers must use an admin service identity.
+router.post('/expire-overdue', expireOverdue);
 
 // Get all badges
 router.get('/admin/badges', adminGetAllBadges);

@@ -11,6 +11,7 @@ const PROD_GOOD = {
   JWT_SECRET: 'str0ng-access-secret-0123456789abcdef',
   JWT_REFRESH_SECRET: 'str0ng-refresh-secret-0123456789abcdef',
   ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
+  ENCRYPTION_SALT: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
 };
 
 describe('enforceSecretPolicy (fail closed)', () => {
@@ -48,5 +49,11 @@ describe('enforceSecretPolicy (fail closed)', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+  test('aborts production startup when ENCRYPTION_SALT is missing', () => {
+    expect(() => enforceSecretPolicy({ ...PROD_GOOD, ENCRYPTION_SALT: undefined })).toThrow('missing required secrets: ENCRYPTION_SALT');
+  });
+  test('aborts production startup when ENCRYPTION_SALT is weak', () => {
+    expect(() => enforceSecretPolicy({ ...PROD_GOOD, ENCRYPTION_SALT: 'vanta-encryption-salt' })).toThrow('development/default secrets');
   });
 });
