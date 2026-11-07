@@ -111,16 +111,16 @@ const MobileMenu = memo(function MobileMenu({
             onClick={onClose}
           />
           <motion.aside
-            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.10] bg-[#080808]/[0.99] shadow-[0_20px_70px_rgba(0,0,0,0.72)] backdrop-blur-2xl"
+            className="fixed left-3 right-3 top-[3.75rem] z-50 mx-auto flex max-h-[calc(var(--vanta-vh,100dvh)-5rem)] w-auto max-w-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.10] bg-[#1F2630]/[0.99] shadow-[0_20px_70px_rgba(0,0,0,0.72)] backdrop-blur-2xl"
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
           >
             
-            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#080808] px-4">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#1F2630] px-4">
               <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.10] bg-[#111111]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.10] bg-[#27313d]">
                   <VantaLogo size={16} className="text-[#c9a227]" />
                 </div>
                 <span className="text-base font-semibold tracking-[.18em] text-[#c9a227]">VANTA</span>
@@ -166,7 +166,7 @@ const MobileMenu = memo(function MobileMenu({
                         'flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2.5 transition-all',
                         isActive
                           ? 'border-[#c9a227]/25 bg-white/[0.035] text-[#c9a227]'
-                          : 'border-transparent bg-transparent text-[#c9a227] hover:border-white/[0.08] hover:bg-white/[0.045]'
+                          : 'border-transparent bg-transparent text-white/70 hover:border-white/[0.08] hover:bg-white/[0.045]'
                       )}
                     >
                       <span className="relative">
@@ -380,7 +380,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <motion.button
               initial={{ opacity: 0, y: -16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12 }}
               onClick={() => { router.push(notificationDestination(notificationToast)); dismissLatestNotification(); }}
-              className="fixed right-4 top-4 z-[100] w-[min(360px,calc(100vw-2rem))] rounded-xl border border-white/10 bg-[#161616]/95 p-4 text-left shadow-2xl backdrop-blur-xl"
+              className="fixed right-4 top-4 z-[100] w-[min(360px,calc(100vw-2rem))] rounded-xl border border-white/10 bg-[#1F2630]/95 p-4 text-left shadow-2xl backdrop-blur-xl"
             >
               <span className="flex items-start gap-3"><Bell className="mt-0.5 text-[#b8b8b8]" size={18} /><span><strong className="block text-sm text-white">{notificationToast.title || 'New notification'}</strong><span className="mt-1 block text-xs text-white/60">{notificationToast.message}</span></span><X onClick={(event) => { event.stopPropagation(); dismissLatestNotification(); }} className="ml-auto text-white/40" size={15} /></span>
             </motion.button>
@@ -515,7 +515,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 64, opacity: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[#080808] pb-[env(safe-area-inset-bottom)] shadow-none"
+            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[var(--nav-surface)] pb-[env(safe-area-inset-bottom)] shadow-none"
             aria-label="Mobile navigation"
           >
             <div className="mx-auto grid min-h-16 w-full max-w-5xl grid-cols-5 items-center px-2 pt-1">
@@ -533,7 +533,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="relative inline-flex">
                       <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
                       {item.href === '/chat' && chatUnread + notificationUnread > 0 && (
-                        <span className="absolute -right-3 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[#080808]" aria-label={`${chatUnread + notificationUnread} unread items`}>
+                        <span className="absolute -right-3 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[var(--nav-surface)]" aria-label={`${chatUnread + notificationUnread} unread items`}>
                           {chatUnread + notificationUnread > 99 ? '99+' : chatUnread + notificationUnread}
                         </span>
                       )}

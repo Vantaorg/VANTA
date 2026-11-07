@@ -78,12 +78,12 @@ export default function LiveStreamCard({ stream, ended = false, index = 0 }: Liv
       aria-label={ended ? `View ${host.username}'s profile` : `Watch ${stream.title} live`}
     >
       {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0D0D0F] shadow-[0_8px_28px_rgba(0,0,0,.4)] transition group-hover:border-white/[0.16]">
+      <div className="relative aspect-video overflow-hidden rounded-md border border-white/[0.07] bg-[#1F2630] transition-colors group-hover:border-white/[0.16]">
         {stream.thumbnailUrl ? (
           <img
             src={resolveMediaUrl(stream.thumbnailUrl)}
             alt={stream.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
+            className="h-full w-full object-cover"
             loading="lazy"
           />
         ) : (
@@ -145,7 +145,7 @@ export default function LiveStreamCard({ stream, ended = false, index = 0 }: Liv
           <motion.div
             initial={{ scale: 0.8 }}
             whileHover={{ scale: 1.1 }}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/45 shadow-2xl backdrop-blur-md"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm"
           >
             <Play size={16} className="text-white ml-0.5" fill="white" />
           </motion.div>

@@ -13,6 +13,16 @@ const CATEGORIES: Record<string, any> = {
   gaming: Gamepad2, music: Music, creative: Palette, education: BookOpen,
   sports: Trophy, tech: Monitor, lifestyle: Heart, chatting: MessageCircle,
 };
+
+const CATEGORY_COLORS: Record<string, string> = {
+  gaming: 'from-violet-500/20 to-violet-900/20 border-violet-500/20 text-violet-300',
+  music: 'from-pink-500/20 to-pink-900/20 border-pink-500/20 text-pink-300',
+  creative: 'from-[#d6a83f]/20 to-[#d6a83f]/10 border-[#d6a83f]/20 text-[#d6a83f]',
+  education: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/20 text-emerald-400',
+  sports: 'from-amber-500/20 to-orange-500/20 border-amber-500/20 text-amber-400',
+  tech: 'from-blue-500/20 to-blue-900/20 border-blue-500/20 text-blue-300',
+  lifestyle: 'from-[#d6a83f]/20 to-[#1F2630] border-[#d6a83f]/20 text-[#d6a83f]',
+  chatting: 'from-[#8a8a8a]/20 to-[#1F2630] border-[#8a8a8a]/20 text-[#a8a8ac]',
 const COLORS: Record<string, string> = {
   gaming: 'text-violet-300 bg-violet-500/10', music: 'text-pink-300 bg-pink-500/10',
   creative: 'text-[#d6a83f] bg-[#d6a83f]/10', education: 'text-emerald-300 bg-emerald-500/10',
@@ -121,6 +131,221 @@ export default function SchedulePage() {
           <button onClick={openCreate} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#F2C75C] px-3 text-xs font-semibold text-black hover:bg-[#d6a83f]"><Plus size={15}/> Schedule Stream</button>
         }/>
       </motion.div>
+
+      {/* Stats Overview */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="grid grid-cols-2  gap-3 mb-8"
+      >
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+          <p className="text-xl font-bold text-white">{upcomingStreams.length}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">Upcoming</p>
+        </div>
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+          <p className="text-xl font-bold text-white">{completedStreams.length}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">Completed</p>
+        </div>
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+          <p className="text-xl font-bold text-white">{SCHEDULED_STREAMS.length}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">Total Streams</p>
+        </div>
+        <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+          <p className="text-xl font-bold text-white">10.5h</p>
+          <p className="text-[10px] text-white/40 mt-0.5">Total Hours</p>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1  gap-6">
+        {/* Calendar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className=""
+        >
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+            {/* Month Navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={prevMonth} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.05] transition-all">
+                <ChevronLeft size={16} />
+              </button>
+              <h3 className="text-sm font-semibold text-white">
+                {MONTHS[month]} {year}
+              </h3>
+              <button onClick={nextMonth} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/[0.05] transition-all">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {DAYS.map(day => (
+                <div key={day} className="text-center text-[9px] text-white/30 font-medium py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: firstDay }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isToday = dateStr === '2026-07-26';
+                const isSelected = dateStr === selectedDate;
+                const hasStream = SCHEDULED_STREAMS.some(s => s.date === dateStr);
+                const isPast = new Date(dateStr) < today;
+
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedDate(dateStr)}
+                    className={cn(
+                      'relative aspect-square rounded-xl text-xs font-medium transition-all',
+                      isSelected
+                        ? 'bg-[#c9a227] text-[#17130a]'
+                        : isToday
+                          ? 'bg-white/[0.06] text-white border border-white/[0.1]'
+                          : isPast
+                            ? 'text-white/20'
+                            : 'text-white/50 hover:bg-white/[0.04] hover:text-white'
+                    )}
+                  >
+                    {day}
+                    {hasStream && !isSelected && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#d6a83f]" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Streams List */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className=""
+        >
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5">
+            <h3 className="text-sm font-semibold text-white mb-4">
+              {selectedDate === '2026-07-26' ? "Today's Streams" : `Streams on ${selectedDate}`}
+            </h3>
+
+            {selectedStreams.length > 0 ? (
+              <div className="space-y-2">
+                {selectedStreams.map((stream, i) => {
+                  const Icon = getCategoryIcon(stream.category);
+                  const colorClass = getCategoryColor(stream.category);
+                  return (
+                    <motion.div
+                      key={stream.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className={cn(
+                        'flex items-center gap-3 rounded-md border p-2.5 transition-colors group',
+                        stream.status === 'completed' ? 'bg-white/[0.02] border-white/[0.04] opacity-60' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'
+                      )}
+                    >
+                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-md border bg-gradient-to-br', colorClass)}>
+                        <Icon size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-sm font-medium truncate', stream.status === 'completed' ? 'text-white/50' : 'text-white')}>
+                          {stream.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-white/30 flex items-center gap-1">
+                            <Clock size={9} />
+                            {stream.time} · {stream.duration}
+                          </span>
+                          <span className="text-[9px] text-white/20 capitalize">{stream.category}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {stream.status === 'upcoming' && (
+                          <>
+                            <button className="p-1.5 rounded-lg text-white/20 hover:text-white hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100">
+                              <Bell size={12} />
+                            </button>
+                            <button className="p-1.5 rounded-lg text-white/20 hover:text-white hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100">
+                              <Edit3 size={12} />
+                            </button>
+                            <button className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100">
+                              <Trash2 size={12} />
+                            </button>
+                          </>
+                        )}
+                        {stream.status === 'completed' && (
+                          <span className="text-[9px] text-emerald-400/60 flex items-center gap-1">
+                            <Check size={10} />
+                            Completed
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Calendar size={32} className="text-white/10 mb-3" />
+                <p className="text-sm text-white/30">No streams scheduled for this day</p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="mt-3 text-xs text-[#d6a83f] hover:underline"
+                >
+                  Schedule a stream
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming This Week */}
+          <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3.5 mt-4">
+            <h3 className="text-sm font-semibold text-white mb-4">Upcoming This Week</h3>
+            <div className="space-y-2">
+              {upcomingStreams.slice(0, 4).map((stream, i) => {
+                const Icon = getCategoryIcon(stream.category);
+                const colorClass = getCategoryColor(stream.category);
+                const streamDate = new Date(stream.date);
+                const dayName = DAYS[streamDate.getDay()];
+                const dayNum = streamDate.getDate();
+
+                return (
+                  <motion.div
+                    key={stream.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[9px] text-white/40">{dayName}</span>
+                      <span className="text-sm font-bold text-white leading-none">{dayNum}</span>
+                    </div>
+                    <div className={cn('w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center border', colorClass)}>
+                      <Icon size={13} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white truncate">{stream.title}</p>
+                      <p className="text-[9px] text-white/30">{stream.time} · {stream.duration}</p>
+                    </div>
+                    <span className="text-[9px] text-white/20 capitalize">{stream.category}</span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
       {error && !showModal && <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-300"><AlertCircle size={15}/>{error}<button className="ml-auto" onClick={()=>setError('')}><X size={14}/></button></div>}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="rounded-lg bg-[#27303b] border border-white/[0.06] p-3"><p className="text-xl font-bold text-white">{upcoming.length}</p><p className="text-[10px] text-white/40 mt-0.5">Upcoming</p></div>
@@ -162,6 +387,94 @@ export default function SchedulePage() {
         {upcoming.length ? <div className="space-y-1">{upcoming.slice(0,5).map(stream=><button key={stream.id} onClick={()=>setSelectedDate(localDateKey(new Date(stream.scheduledAt)))} className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-white/[0.03]"><div className="w-10 shrink-0 text-center"><span className="block text-[9px] text-white/40">{dateLabel(stream.scheduledAt).split(' ')[0]}</span><span className="text-sm font-semibold text-white">{new Date(stream.scheduledAt).getDate()}</span></div><div className="min-w-0 flex-1"><p className="truncate text-xs text-white">{stream.title}</p><p className="text-[10px] text-white/40">{dateLabel(stream.scheduledAt)} · {timeLabel(stream.scheduledAt)}</p></div></button>)}</div> : <p className="py-4 text-center text-xs text-white/35">No upcoming streams yet</p>}
       </div>
       <AnimatePresence>
+        {showAddModal && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              className="fixed inset-x-3 top-[max(12px,env(safe-area-inset-top))] bottom-[max(12px,env(safe-area-inset-bottom))] z-[101] min-h-0 overflow-y-auto overscroll-contain sm:inset-4"
+            >
+              <div className="min-h-full rounded-lg border border-white/[0.08] bg-[#1F2630] p-4 shadow-lg sm:p-5">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-white">Schedule Stream</h2>
+                  <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.05] transition">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Stream Title</label>
+                    <input
+                      placeholder="Enter stream title..."
+                      className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#d6a83f]/30 transition-all"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">Date</label>
+                      <input
+                        type="date"
+                        className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">Time</label>
+                      <input
+                        type="time"
+                        className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all [color-scheme:dark]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Duration</label>
+                    <select className="w-full rounded-md border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#d6a83f]/30 transition-all">
+                      <option>30 min</option>
+                      <option>1 hour</option>
+                      <option>1.5 hours</option>
+                      <option>2 hours</option>
+                      <option>3 hours</option>
+                      <option>4 hours</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">Category</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {Object.entries(CATEGORY_ICONS).map(([key, Icon]) => (
+                        <button
+                          key={key}
+                          className="flex flex-col items-center gap-1 p-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] text-gray-400 hover:text-white hover:bg-white/[0.05] transition-all"
+                        >
+                          <Icon size={16} />
+                          <span className="text-[8px] capitalize">{key}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-white/[0.06]">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="rounded-md border border-white/[0.08] px-4 py-2.5 text-sm text-gray-300 transition hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button className="rounded-md bg-[#c9a227] px-5 py-2.5 text-sm font-semibold text-[#17130a] transition-colors hover:bg-[#dfbd55]">
+                    Schedule
+                  </button>
+                </div>
         {showModal && <>
           <motion.button aria-label="Close schedule dialog" className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={()=>setShowModal(false)}/>
           <motion.div role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title" initial={{opacity:0,y:20,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:20,scale:.98}} className="fixed inset-x-3 top-[max(12px,env(safe-area-inset-top))] bottom-[max(12px,env(safe-area-inset-bottom))] z-[101] overflow-y-auto rounded-xl border border-white/10 bg-[#1F2630] p-4 shadow-2xl sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2">
