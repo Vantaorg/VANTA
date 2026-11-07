@@ -38,6 +38,8 @@ import storyRoutes from './routes/story.routes';
 import feedRoutes from './routes/feed.routes';
 import searchRoutes from './routes/search.routes';
 import uploadRoutes from './routes/upload.routes';
+import privateMediaRoutes from './routes/private-media.routes';
+import { privateMediaStaticGuard } from './services/private-media.service';
 import reelRoutes from './routes/reel.routes';
 import communityRoutes from './routes/community.routes';
 import channelRoutes from './routes/channel.routes';
@@ -344,6 +346,9 @@ const publicDir = path.resolve(__dirname, '../public');
 // Express.static's setHeaders runs when the file is sent (after helmet set the
 // header), so we explicitly allow cross-origin embedding for STATIC MEDIA ONLY.
 // API JSON responses keep helmet's safe same-origin default.
+// Message attachments are never served from the public static directory.
+// Authorized readers use the short-lived, participant-bound /api/media route.
+app.use('/uploads', privateMediaStaticGuard);
 app.use('/uploads', express.static(uploadStorageDir, {
   etag: true,
   acceptRanges: true, // Range/byte requests: <video> seeking & progressive play

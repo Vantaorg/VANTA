@@ -35,6 +35,56 @@ if (configuredUploadDir && path.resolve(uploadDir) !== defaultUploadDir && fs.ex
 
 // The HTTP server mounts this same directory at /uploads. Keeping the storage
 // path exported prevents custom persistent volumes from producing dead URLs.
+
+/**
+ * Generate a short-lived Cloudinary download URL only after the application
+ * has authorized the requesting conversation participant.
+ */
+export function getPrivateCloudinaryDownloadUrl(storagePath: string, filename: string): string {
+  const match = /^cloudinary:(image|video|raw):(.+)$/.exec(storagePath);
+  if (!match) throw new Error('Invalid private Cloudinary storage reference');
+  const format = path.extname(filename).replace(/^\\./, '') || 'bin';
+  return cloudinary.utils.private_download_url(match[2], format, {
+    resource_type: match[1],
+    type: 'authenticated',
+    expires_at: Math.floor(Date.now() / 1000) + 300,
+  });
+}
+
+/**
+ * One-time admin migration for previously public Cloudinary message assets.
+ * New message uploads are authenticated at upload time; this converts legacy
+ * public assets and invalidates their old CDN delivery URLs.
+ */
+export async function secureExistingPrivateCloudinaryAssets() {
+  if (!useCloudinary) return { migrated: 0, alreadySecured: 0, skipped: true };
+  const files = await prisma.uploadedFile.findMany({
+    where: { category: 'message', path: { startsWith: 'cloudinary:' }, deletedAt: null },
+    select: { path: true, filename: true },
+  });
+  let migrated = 0;
+  let alreadySecured = 0;
+  for (const file of files) {
+    const match = /^cloudinary:(image|video|raw):(.+)$/.exec(file.path || '');
+    if (!match) continue;
+    try {
+      await cloudinary.api.resource(match[2], { resource_type: match[1], type: 'authenticated' });
+      alreadySecured += 1;
+      continue;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    await cloudinary.uploader.rename(match[2], match[2], {
+      resource_type: match[1],
+      type: 'upload',
+      to_type: 'authenticated',
+      invalidate: true,
+    });
+    migrated += 1;
+  }
+  return { migrated, alreadySecured, total: files.length, skipped: false };
+}
+
 export const uploadStorageDir = uploadDir;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -526,7 +576,7 @@ export class UploadService {
 
     return {
       id: record.id,
-      url: finalUrl,
+      url: category === 'message' ? createPrivateMediaUrl(record.id, userId) : finalUrl,
       type: fileType,
       filename: file.filename,
       mimeType: file.mimetype,
