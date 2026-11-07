@@ -339,7 +339,12 @@ const campaign = await prisma.$transaction(async (tx) => {
       }
 
       const reserved = await tx.wallet.updateMany({
-        where: { id: currentWallet.id, isFrozen: false, coinBalance: currentWallet.coinBalance },
+        where: {
+          id: currentWallet.id,
+          isFrozen: false,
+          coinBalance: currentWallet.coinBalance,
+          lockedCoins: currentWallet.lockedCoins,
+        },
         data: { lockedCoins: { increment: reservedAmount } },
       });
       if (reserved.count !== 1) {

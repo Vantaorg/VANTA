@@ -276,10 +276,18 @@ export class BlockchainTxVerifier {
     const txBlock = hexToNumber(receiptObj.blockNumber);
     const status = typeof receiptObj.status === 'string' ? receiptObj.status.toLowerCase() : null;
 
-    if (status === '0x0') {
+    if (status !== '0x1') {
       throw new BlockchainTxVerificationError(
         BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_FAILED,
-        `Transaction ${txHash} failed on-chain (receipt status 0x0).`
+        `Transaction ${txHash} has no confirmed successful receipt status.`
+      );
+    }
+    const receiptHash = typeof receiptObj.transactionHash === 'string' ? receiptObj.transactionHash.toLowerCase() : '';
+    if (receiptHash !== txHash.toLowerCase()) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR,
+        `The RPC receipt did not match requested transaction ${txHash}.`,
+        true
       );
     }
     if (!txBlock) {
@@ -290,7 +298,7 @@ export class BlockchainTxVerifier {
     }
 // ---- Chain / asset identity -------------------------------------------
     const receiptTo = typeof receiptObj.to === 'string' ? receiptObj.to.toLowerCase() : '';
-    if (receiptTo && receiptTo !== network.tokenContract.toLowerCase()) {
+    if (!receiptTo || receiptTo !== network.tokenContract.toLowerCase()) {
       throw new BlockchainTxVerificationError(
         BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_TOKEN,
         `The transaction interacted with contract ${receiptTo}, expected ${network.tokenContract} (${network.tokenName}).`
@@ -365,14 +373,25 @@ const logAddress = String(transferLog.address || '').toLowerCase();
       );
     }
 // ---- Confirmations -----------------------------------------------------
-    let latestBlock: number | null = null;
+    let latestBlock: number | null;
     try {
       latestBlock = hexToNumber(await rpcCall(network, 'eth_blockNumber', [], Math.min(timeoutMs, 4000)));
-    } catch {
-      // best-effort
+    } catch (error) {
+      if (error instanceof BlockchainTxVerificationError) throw error;
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_UNAVAILABLE,
+        `Could not verify the latest block on ${network.chainName}; refusing to assume confirmations.`,
+        true
+      );
     }
-    const confirmations =
-      latestBlock && txBlock ? Math.max(1, latestBlock - txBlock + 1) : Math.max(1, txBlock);
+    if (latestBlock === null || latestBlock < txBlock) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR,
+        `The latest block height could not be verified on ${network.chainName}.`,
+        true
+      );
+    }
+    const confirmations = latestBlock - txBlock + 1;
     if (confirmations < minConfirmations) {
       throw new BlockchainTxVerificationError(
         BLOCKCHAIN_VERIFICATION_ERROR_CODES.LOW_CONFIRMATIONS,

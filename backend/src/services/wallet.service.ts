@@ -301,13 +301,24 @@ export class WalletService {
 
     // Atomic transaction: update wallet + create transaction record
     const result = await prisma.$transaction(async (tx) => {
-      const updatedWallet = await tx.wallet.update({
-        where: { userId },
+      const currentWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      if (currentWallet.isFrozen || resolveAvailableCoins(currentWallet) < amount) {
+        throw new Error("Insufficient available coins");
+      }
+      const debit = await tx.wallet.updateMany({
+        where: {
+          id: currentWallet.id,
+          isFrozen: false,
+          coinBalance: currentWallet.coinBalance,
+          lockedCoins: currentWallet.lockedCoins,
+        },
         data: {
           coinBalance: { decrement: amount },
           totalCoinsSent: { increment: amount },
         },
       });
+      if (debit.count !== 1) throw new Error("Balance changed while spending. Please try again.");
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
 
       // Record transaction - store positive amount, sign derived from type
       await tx.walletTransaction.create({
@@ -956,6 +967,9 @@ export class WalletService {
           userId: senderId,
           isFrozen: false,
           coinBalance: { gte: totalDeduction },
+          // Include the reservation counter in the CAS so a concurrent
+          // reservation cannot make previously available coins unspendable.
+          lockedCoins: senderCurrent.lockedCoins,
         },
         data: {
           coinBalance: { decrement: totalDeduction },
@@ -1458,6 +1472,10 @@ export class WalletService {
     const result = await prisma.$transaction(async (tx) => {
       // Re-check single-PENDING invariant inside the transaction: two
       // concurrent requests can both pass the preflight lookup above.
+      // Serialize withdrawal creation per wallet before checking the
+      // single-pending invariant; otherwise concurrent requests can both see
+      // zero pending rows and both reserve earnings.
+      await tx.$queryRaw`SELECT "id" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
       const existingPending = await tx.withdrawal.count({
         where: { userId, status: "PENDING" },
       });

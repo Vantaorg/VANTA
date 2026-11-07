@@ -44,6 +44,7 @@ const validTxHash = `0x${'a'.repeat(64)}`;
 
 function txMock() {
   return {
+    $queryRaw: jest.fn().mockResolvedValue([]),
     wallet: {
       update: jest.fn().mockResolvedValue({ ...walletRow, earningsBalance: 100 }),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -79,6 +80,7 @@ describe('WalletService.requestWithdrawal', () => {
     expect(tx.wallet.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: 'user1', earningsBalance: { gte: 100 } }) })
     );
+    expect(tx.$queryRaw).toHaveBeenCalled();
     expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
   });
 

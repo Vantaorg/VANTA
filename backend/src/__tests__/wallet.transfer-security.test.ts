@@ -240,7 +240,9 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
       expect.objectContaining({ where: expect.objectContaining({ id: 'challenge1', consumedAt: null }), data: expect.objectContaining({ consumedAt: expect.any(Date) }) })
     );
     const debitCall = (tx.wallet.updateMany as jest.Mock).mock.calls[0];
-    expect(debitCall[0].where).toEqual(expect.objectContaining({ userId: 'user1', isFrozen: false, coinBalance: { gte: 2100 } }));
+    expect(debitCall[0].where).toEqual(expect.objectContaining({
+      userId: 'user1', isFrozen: false, coinBalance: { gte: 2100 }, lockedCoins: 0,
+    }));
   });
 });
 describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', () => {

@@ -126,7 +126,10 @@ describe('WalletService', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => {
         return cb({
           wallet: {
-            update: jest.fn().mockResolvedValue({ ...mockWallet, coinBalance: 50 }),
+            findUniqueOrThrow: jest.fn()
+              .mockResolvedValueOnce(mockWallet)
+              .mockResolvedValueOnce({ ...mockWallet, coinBalance: 50 }),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           },
           walletTransaction: {
             create: jest.fn().mockResolvedValue({}),

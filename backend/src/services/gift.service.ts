@@ -332,7 +332,12 @@ export class GiftService {
           throw new Error('Insufficient available coins');
         }
         const deduction = await tx.wallet.updateMany({
-          where: { id: currentSender.id, isFrozen: false, coinBalance: currentSender.coinBalance },
+          where: {
+            id: currentSender.id,
+            isFrozen: false,
+            coinBalance: currentSender.coinBalance,
+            lockedCoins: currentSender.lockedCoins,
+          },
           data: {
             coinBalance: { decrement: totalCost },
             totalCoinsSent: { increment: totalCost },
