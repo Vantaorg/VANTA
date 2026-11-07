@@ -34,7 +34,7 @@ function csvCell(value: unknown): string {
 // ============================================================================
 
 const INCOMING_TYPES = new Set([
-  'DEPOSIT', 'PURCHASE', 'TRANSFER_RECEIVED', 'GIFT_RECEIVED', 'REFUND', 'ADMIN_CREDIT', 'SYSTEM_CREDIT'
+  'DEPOSIT', 'PURCHASE', 'TRANSFER_RECEIVED', 'GIFT_RECEIVED', 'CREATOR_EARNING', 'REFUND', 'ADMIN_CREDIT', 'SYSTEM_CREDIT'
 ]);
 
 const FILTERS = [
@@ -55,6 +55,7 @@ function formatTxLabel(type: string) {
     TRANSFER_RECEIVED: 'Transfer Received',
     GIFT_SENT: 'Gift Sent',
     GIFT_RECEIVED: 'Gift Received',
+    CREATOR_EARNING: 'Creator Earnings',
     WITHDRAWAL: 'Withdrawal',
     REFUND: 'Refund',
     SYSTEM_CREDIT: 'System Credit',
@@ -279,7 +280,7 @@ export default function BalancePage() {
         purchases: ['PURCHASE', 'DEPOSIT'],
         transfers: ['TRANSFER_SENT', 'TRANSFER_RECEIVED'],
         gifts: ['GIFT_SENT', 'GIFT_RECEIVED'],
-        earnings: ['GIFT_RECEIVED'],
+        earnings: ['GIFT_RECEIVED', 'CREATOR_EARNING'],
         withdrawals: ['WITHDRAWAL'],
         refunds: ['REFUND'],
       };

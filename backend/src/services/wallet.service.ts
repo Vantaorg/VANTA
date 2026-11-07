@@ -1835,6 +1835,7 @@ export class WalletService {
         deposits: ["DEPOSIT", "PURCHASE"],
         transfers: ["TRANSFER_SENT", "TRANSFER_RECEIVED"],
         gifts: ["GIFT_SENT", "GIFT_RECEIVED"],
+        earnings: ["GIFT_RECEIVED", "CREATOR_EARNING"],
         purchases: ["PURCHASE", "DEPOSIT"],
         withdrawals: ["WITHDRAWAL"],
         refunds: ["REFUND"],
