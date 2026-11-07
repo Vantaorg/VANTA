@@ -52,6 +52,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (jwt.verify as jest.Mock).mockResolvedValue({});
   (prisma.session.update as jest.Mock).mockResolvedValue({ id: 'sess1' });
+  (prisma.session.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 });
 
 describe('SessionManager.refreshTokens', () => {
@@ -73,9 +74,11 @@ describe('SessionManager.refreshTokens', () => {
 
     expect(result.accessToken).toBeDefined();
     expect(result.refreshToken).toBeDefined();
-    // Rotation: the session row now carries the NEW tokens.
-    const updateCall = (prisma.session.update as jest.Mock).mock.calls[0];
-    expect(updateCall[0]).toEqual(expect.objectContaining({ where: { id: 'sess1' } }));
+    // Rotation is an atomic compare-and-swap on the old refresh token.
+    const updateCall = (prisma.session.updateMany as jest.Mock).mock.calls[0];
+    expect(updateCall[0]).toEqual(expect.objectContaining({
+      where: { id: 'sess1', userId: 'user1', refreshToken: 'old-refresh-token' },
+    }));
     expect(updateCall[0].data.token).toBe('rotated-jwt-token');
     expect(updateCall[0].data.refreshToken).toBe('rotated-jwt-token');
   });
