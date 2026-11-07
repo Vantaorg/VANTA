@@ -38,6 +38,42 @@ export interface TwoFactorVerifyResult {
 
 export class TwoFactorAuth {
   /**
+   * Verify and atomically consume a TOTP time-step. Speakeasy's ordinary
+   * verify() accepts a valid code repeatedly during its time window; storing
+   * the last accepted step prevents replay, including simultaneous requests.
+   */
+  private async verifyAndConsumeTotp(
+    userId: string,
+    secret: string,
+    token: string,
+    requireEnabled: boolean
+  ): Promise<boolean> {
+    const delta = speakeasy.totp.verifyDelta({
+      secret,
+      encoding: 'base32',
+      token,
+      window: 2,
+    });
+    if (!delta || !Number.isInteger(delta.delta)) return false;
+
+    const acceptedStep = Math.floor(Date.now() / 30_000) + delta.delta;
+    const where: any = {
+      id: userId,
+      OR: [
+        { twoFactorLastUsedStep: null },
+        { twoFactorLastUsedStep: { lt: acceptedStep } },
+      ],
+    };
+    if (requireEnabled) where.twoFactorEnabled = true;
+
+    const consumed = await prisma.user.updateMany({
+      where,
+      data: { twoFactorLastUsedStep: acceptedStep },
+    });
+    return consumed.count === 1;
+  }
+
+  /**
    * Setup 2FA for a user - generates secret and backup codes
    */
   async setup(userId: string, email: string): Promise<TwoFactorSetupResult> {
@@ -61,6 +97,7 @@ export class TwoFactorAuth {
         twoFactorSecret: secret.base32,
         backupCodes: JSON.stringify(hashedBackupCodes),
         twoFactorEnabled: false, // Not enabled until verified
+        twoFactorLastUsedStep: null,
       },
     });
 
@@ -100,7 +137,7 @@ export class TwoFactorAuth {
     }
 
     if (!speakeasy) throw new Error('TOTP provider is unavailable; refusing 2FA enrollment.');
-    const verified = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token, window: 2 });
+    const verified = await this.verifyAndConsumeTotp(userId, user.twoFactorSecret, token, false);
 
     if (!verified) {
       return { success: false, error: 'Invalid verification code' };
@@ -135,7 +172,7 @@ export class TwoFactorAuth {
       return { valid: true, isBackupCode: false }; // 2FA not enabled
     }
     if (!speakeasy) throw new Error('TOTP provider is unavailable; refusing 2FA login.');
-    const totpValid = speakeasy.totp.verify({ secret: user.twoFactorSecret, encoding: 'base32', token, window: 2 });
+    const totpValid = await this.verifyAndConsumeTotp(userId, user.twoFactorSecret!, token, true);
 
     if (totpValid) {
       return { valid: true, isBackupCode: false };
@@ -151,12 +188,16 @@ export class TwoFactorAuth {
       );
 
       if (codeIndex !== -1) {
-        // Remove used backup code
+        // Consume with compare-and-swap so concurrent requests cannot redeem
+        // the same backup code from a stale copy of the stored list.
         backupCodes.splice(codeIndex, 1);
-        await prisma.user.update({
-          where: { id: userId },
+        const consumed = await prisma.user.updateMany({
+          where: { id: userId, twoFactorEnabled: true, backupCodes: user.backupCodes },
           data: { backupCodes: JSON.stringify(backupCodes) },
         });
+        if (consumed.count !== 1) {
+          return { valid: false, isBackupCode: false };
+        }
 
         auditLog.log({
           userId,
@@ -197,6 +238,7 @@ export class TwoFactorAuth {
       data: {
         twoFactorEnabled: false,
         twoFactorSecret: null,
+        twoFactorLastUsedStep: null,
         backupCodes: null,
       },
     });

@@ -50,6 +50,7 @@ model User {
   // 2FA fields
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
+  twoFactorLastUsedStep Int? // last accepted TOTP time-step; prevents code replay
   backupCodes      String? // JSON array of hashed backup codes
 
   // Trusted devices
