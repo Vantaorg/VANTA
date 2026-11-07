@@ -55,6 +55,12 @@ export function resolveMediaUrl(value?: string | null): string {
     catch { return source; }
   }
 
+  // Private chat media uses a signed backend route rather than the public static uploads path.
+  if (source.startsWith('/api/media/private/')) {
+    try { return new URL(source, `${API_BASE_URL}/`).toString(); }
+    catch { return source; }
+  }
+
   if (source.startsWith('//')) {
     try {
       return `${new URL(API_BASE_URL).origin}${source}`;

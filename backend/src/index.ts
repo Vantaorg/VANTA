@@ -186,6 +186,7 @@ app.use(botProtection.middleware);
 
 // Global rate limiting for API
 app.use('/api', rateLimiter.api);
+app.use('/api/media', privateMediaRoutes);
 
 // ============================================================================
 // WEBM MEDIA TYPE PROBING
