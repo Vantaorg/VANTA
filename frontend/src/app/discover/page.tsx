@@ -189,15 +189,30 @@ export default function DiscoverPage() {
   const follow = async (profile: Item) => {
     if (!token || !profile.username) return;
     const was = Boolean(profile.following || profile.isFollowing);
-    const update = (rows: Item[]) => rows.map(item => item.id === profile.id ? { ...item, following: !was, isFollowing: !was, _count: { ...item._count, followers: Math.max(0, profileFollowers(item) + (was ? -1 : 1)) } } : item);
-    setCreators(update); setSearchResults(current => ({ ...current, people: update(current.people || []) }));
-    try { was ? await apiDelete(`/api/profiles/${profile.username}/follow`, token) : await apiPost(`/api/profiles/${profile.username}/follow`, {}, token); }
-    catch (reason: any) { setCreators(rows => rows.map(item => item.id === profile.id ? { ...item, following: was, isFollowing: was } : item)); toast.error('Follow update failed', reason?.message); }
+    const update = (rows: Item[]) => rows.map((item) => {
+      if (item.id !== profile.id) return item;
+      const followers = Math.max(0, profileFollowers(item) + (was ? -1 : 1));
+      return { ...item, following: !was, isFollowing: !was, _count: { ...item._count, followers } };
+    });
+    setCreators(update);
+    setSearchResults((current) => ({ ...current, people: update(current.people || []) }));
+    try {
+      if (was) await apiDelete(`/api/profiles/${profile.username}/follow`, token);
+      else await apiPost(`/api/profiles/${profile.username}/follow`, {}, token);
+    } catch (reason: any) {
+      setCreators((rows) => rows.map((item) => item.id === profile.id ? { ...item, following: was, isFollowing: was } : item));
+      toast.error('Follow update failed', reason?.message);
+    }
   };
+
   const joinCommunity = async (community: Item) => {
     if (!token || community.isPrivate) return;
     const was = Boolean(community.joined || community.isMember);
-    const update = (value: boolean) => setCommunities(rows => rows.map(item => item.id === community.id ? { ...item, joined: value, isMember: value, _count: { ...item._count, members: Math.max(0, Number(item._count?.members || 0) + (value ? 1 : -1)) } } : item));
+    const update = (value: boolean) => setCommunities((rows) => rows.map((item) => {
+      if (item.id !== community.id) return item;
+      const members = Math.max(0, Number(item._count?.members || 0) + (value ? 1 : -1));
+      return { ...item, joined: value, isMember: value, _count: { ...item._count, members } };
+    }));
     update(!was);
     try {
       if (community.kind === 'channel') {
@@ -207,28 +222,76 @@ export default function DiscoverPage() {
       } else {
         await apiPost(`/api/groups/${community.id}/join`, {}, token);
       }
+    } catch (reason: any) {
+      update(was);
+      toast.error('Community update failed', reason?.message);
     }
-    catch (reason: any) { update(was); toast.error('Community update failed', reason?.message); }
   };
+
   const copyCommunityLink = async (community: Item) => {
     if (!token) return;
     const url = `${location.origin}/communities/${community.id}`;
-    try { await navigator.clipboard.writeText(url); toast.success('Link copied'); }
-    catch { toast.error('Could not copy the link'); }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Could not copy the link');
+    }
   };
+
   const mutatePost = async (post: Item, mode: 'like' | 'save') => {
-    if (!token) return; const key = mode === 'like' ? 'liked' : 'saved'; const was = Boolean(post[key]);
-    const update = (value: boolean) => { const apply = (rows: Item[]) => rows.map(item => item.id === post.id ? { ...item, [key]: value, ...(mode === 'like' ? { likes: Math.max(0, Number(item.likes || item._count?.likes || 0) + (value ? 1 : -1)) } : {}) } : item); setPosts(apply); setTrending(apply); setSearchResults(current => ({ ...current, posts: apply(current.posts || []) })); };
+    if (!token) return;
+    const key = mode === 'like' ? 'liked' : 'saved';
+    const was = Boolean(post[key]);
+    const update = (value: boolean) => {
+      const apply = (rows: Item[]) => rows.map((item) => {
+        if (item.id !== post.id) return item;
+        const next: Item = { ...item, [key]: value };
+        if (mode === 'like') {
+          next.likes = Math.max(0, Number(item.likes || item._count?.likes || 0) + (value ? 1 : -1));
+        }
+        return next;
+      });
+      setPosts(apply);
+      setTrending(apply);
+      setSearchResults((current) => ({ ...current, posts: apply(current.posts || []) }));
+    };
     update(!was);
-    try { mode === 'like' ? await apiPost(`/api/feed/${cleanId(post)}/like`, {}, token) : was ? await apiDelete(`/api/feed/${cleanId(post)}/save`, token) : await apiPost(`/api/feed/${cleanId(post)}/save`, {}, token); }
-    catch (reason: any) { update(was); toast.error('Could not update post', reason?.message); }
+    try {
+      if (mode === 'like') await apiPost(`/api/feed/${cleanId(post)}/like`, {}, token);
+      else if (was) await apiDelete(`/api/feed/${cleanId(post)}/save`, token);
+      else await apiPost(`/api/feed/${cleanId(post)}/save`, {}, token);
+    } catch (reason: any) {
+      update(was);
+      toast.error('Could not update post', reason?.message);
+    }
   };
+
   const share = async (destination: string) => {
-    if (!shareFor || !token) return; const url = `${location.origin}/post/${cleanId(shareFor)}`;
-    try { await apiPost(`/api/feed/${cleanId(shareFor)}/share`, { destination }, token); if (destination === 'COPY_LINK') await navigator.clipboard.writeText(url); else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: 'VANTA', text: shareFor.content, url }); else if (destination === 'MESSAGE') router.push(`/chat?share=${encodeURIComponent(url)}`); toast.success('Shared successfully'); setShareFor(undefined); }
-    catch (reason: any) { toast.error('Share failed', reason?.message); }
+    if (!shareFor || !token) return;
+    const url = `${location.origin}/post/${cleanId(shareFor)}`;
+    try {
+      await apiPost(`/api/feed/${cleanId(shareFor)}/share`, { destination }, token);
+      if (destination === 'COPY_LINK') {
+        await navigator.clipboard.writeText(url);
+      } else if (destination === 'NATIVE' && navigator.share) {
+        await navigator.share({ title: 'VANTA', text: shareFor.content, url });
+      } else if (destination === 'MESSAGE') {
+        router.push(`/chat?share=${encodeURIComponent(url)}`);
+      }
+      toast.success('Shared successfully');
+      setShareFor(undefined);
+    } catch (reason: any) {
+      toast.error('Share failed', reason?.message);
+    }
   };
-  const selectTopic = (topic: string) => { setQuery(topic); setSearchFilter('all'); searchRef.current?.focus(); scrollPageTop(pageScrollRef.current); };
+
+  const selectTopic = (topic: string) => {
+    setQuery(topic);
+    setSearchFilter('all');
+    searchRef.current?.focus();
+    scrollPageTop(pageScrollRef.current);
+  };
 
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
     <header className="relative z-30 flex h-12 shrink-0 items-center justify-between border-b border-white/[.06] bg-[var(--header-surface)] px-3">

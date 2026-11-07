@@ -23,6 +23,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   tech: 'from-blue-500/20 to-blue-900/20 border-blue-500/20 text-blue-300',
   lifestyle: 'from-[#d6a83f]/20 to-[#1F2630] border-[#d6a83f]/20 text-[#d6a83f]',
   chatting: 'from-[#8a8a8a]/20 to-[#1F2630] border-[#8a8a8a]/20 text-[#a8a8ac]',
+};
 const COLORS: Record<string, string> = {
   gaming: 'text-violet-300 bg-violet-500/10', music: 'text-pink-300 bg-pink-500/10',
   creative: 'text-[#d6a83f] bg-[#d6a83f]/10', education: 'text-emerald-300 bg-emerald-500/10',
