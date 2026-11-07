@@ -1292,6 +1292,97 @@ export class LiveService {
     if (this.parseJsonList(stream.approvedGuests).includes(userId)) return 'guest';
     return null;
   }
+
+  /** List only the authenticated host's scheduled livestreams. */
+  async getScheduledStreams(hostId: string) {
+    return prisma.liveStream.findMany({
+      where: { hostId, status: 'SCHEDULED', active: false, scheduledAt: { not: null } },
+      orderBy: { scheduledAt: 'asc' },
+      select: {
+        id: true, title: true, description: true, categoryName: true,
+        scheduledAt: true, duration: true, createdAt: true, updatedAt: true,
+      },
+    });
+  }
+
+  /** Create a planned stream without opening a LiveKit room or marking it live. */
+  async createScheduledStream(hostId: string, input: {
+    title: string; category: string; description?: string; scheduledAt: Date; duration: number;
+  }) {
+    if (input.scheduledAt.getTime() <= Date.now()) throw new Error('Choose a future date and time');
+    const title = input.title.trim().slice(0, 120);
+    const category = input.category.trim().slice(0, 60);
+    if (!title || !category) throw new Error('Title and category are required');
+    await prisma.streamCategory.upsert({
+      where: { name: category },
+      update: {},
+      create: { name: category },
+    });
+    return prisma.liveStream.create({
+      data: {
+        hostId,
+        title,
+        description: input.description?.trim().slice(0, 2000) || '',
+        categoryName: category,
+        scheduledAt: input.scheduledAt,
+        duration: input.duration,
+        status: 'SCHEDULED',
+        active: false,
+      },
+      select: {
+        id: true, title: true, description: true, categoryName: true,
+        scheduledAt: true, duration: true, createdAt: true, updatedAt: true,
+      },
+    });
+  }
+
+  /** Edit only a future scheduled stream owned by the current host. */
+  async updateScheduledStream(streamId: string, hostId: string, input: {
+    title?: string; category?: string; description?: string; scheduledAt?: Date; duration?: number;
+  }) {
+    const existing = await prisma.liveStream.findFirst({
+      where: { id: streamId, hostId, status: 'SCHEDULED', active: false },
+      select: { id: true },
+    });
+    if (!existing) throw new Error('Scheduled stream not found');
+    if (input.scheduledAt && input.scheduledAt.getTime() <= Date.now()) {
+      throw new Error('Choose a future date and time');
+    }
+    const data: Record<string, unknown> = {};
+    if (typeof input.title === 'string') {
+      const title = input.title.trim().slice(0, 120);
+      if (!title) throw new Error('Stream title is required');
+      data.title = title;
+    }
+    if (typeof input.description === 'string') data.description = input.description.trim().slice(0, 2000);
+    if (typeof input.category === 'string') {
+      const category = input.category.trim().slice(0, 60);
+      if (!category) throw new Error('Category is required');
+      await prisma.streamCategory.upsert({ where: { name: category }, update: {}, create: { name: category } });
+      data.categoryName = category;
+    }
+    if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
+    if (typeof input.duration === 'number') data.duration = input.duration;
+    return prisma.liveStream.update({
+      where: { id: streamId },
+      data,
+      select: {
+        id: true, title: true, description: true, categoryName: true,
+        scheduledAt: true, duration: true, createdAt: true, updatedAt: true,
+      },
+    });
+  }
+
+  /** Delete only a scheduled (not live or ended) stream owned by the host. */
+  async deleteScheduledStream(streamId: string, hostId: string) {
+    const existing = await prisma.liveStream.findFirst({
+      where: { id: streamId, hostId, status: 'SCHEDULED', active: false },
+      select: { id: true },
+    });
+    if (!existing) throw new Error('Scheduled stream not found');
+    await prisma.liveStream.delete({ where: { id: streamId } });
+  }
+
 }
 
 /** In-process pins. Ephemeral per host instance — acceptable for a live pin. */

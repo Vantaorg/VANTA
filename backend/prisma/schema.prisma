@@ -965,6 +965,7 @@ model LiveStream {
   allowGuests       Boolean           @default(true)
   active            Boolean           @default(true)
   status            String            @default("LIVE") // LIVE, ENDED, SCHEDULED
+  scheduledAt       DateTime?
   categoryName      String?
   category          StreamCategory?   @relation(fields: [categoryName], references: [name], onDelete: SetNull)
   language          String            @default("en")
@@ -1003,6 +1004,7 @@ model LiveStream {
   @@index([active, categoryName, viewerCount])
   @@index([active, status, lastHostHeartbeat])
   @@index([hostId, active, createdAt])
+  @@index([hostId, status, scheduledAt])
   @@index([title])
   @@index([status])
   @@index([language])
