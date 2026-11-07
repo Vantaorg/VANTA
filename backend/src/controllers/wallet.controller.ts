@@ -70,7 +70,7 @@ export const transferCoins = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const userId = req.user?.userId;
     const sessionId = req.user?.sessionId;
-    const { receiverId, receiverUsername, amount, note, otpCode, requestId, challengeId } = req.body;
+    const { receiverId, receiverUsername, amount, note, otpCode, requestId, challengeId, pinCode } = req.body;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     if (!amount) {
       res.status(400).json({ error: 'Amount is required' });
@@ -101,7 +101,7 @@ export const transferCoins = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const result = await walletService.transferCoins(
-      userId, resolvedReceiverId, amount, note, otpCode, req.ip, undefined, requestId, challengeId, sessionId
+      userId, resolvedReceiverId, amount, note, otpCode, req.ip, undefined, requestId, challengeId, sessionId, pinCode
     );
     res.status(200).json(result);
   } catch (error) {

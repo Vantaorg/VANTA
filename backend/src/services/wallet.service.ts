@@ -737,7 +737,8 @@ export class WalletService {
     deviceFingerprint?: string,
     requestId?: string,
     challengeId?: string,
-    sessionId?: string
+    sessionId?: string,
+    pinCode?: string
   ) {
     if (senderId === receiverId) {
       throw new Error("Cannot send coins to yourself");
@@ -748,6 +749,8 @@ export class WalletService {
     if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
       throw new Error("Transfer amount must be a positive whole number");
     }
+    if (typeof pinCode !== 'string' || !/^\\d{4,6}$/.test(pinCode)) throw new Error("A valid 4-6 digit wallet PIN is required");
+    await this.verifyPin(senderId, pinCode);
 
     // Calculate fee (5% sender pays)
     const fee = calculateTransferFee(safeAmount);
@@ -1370,50 +1373,35 @@ export class WalletService {
 
   async verifyPin(userId: string, pin: string) {
     const wallet = await this.ensureWallet(userId);
-    const pinRecord = await prisma.walletPIN.findUnique({
-      where: { walletId: wallet.id },
-    });
-
-    if (!pinRecord) {
-      throw new Error("No PIN set");
-    }
-
-    if (pinRecord.lockedUntil && pinRecord.lockedUntil > new Date()) {
-      throw new Error(
-        `PIN is locked until ${pinRecord.lockedUntil.toISOString()}`
-      );
-    }
-
+    const pinRecord = await prisma.walletPIN.findUnique({ where: { walletId: wallet.id } });
+    if (!pinRecord) throw new Error("No PIN set");
+    const now = new Date();
+    if (pinRecord.lockedUntil && pinRecord.lockedUntil > now) throw new Error("PIN is locked. Please try again after the lockout period.");
     const valid = await bcrypt.compare(pin, pinRecord.pinHash);
     if (!valid) {
-      const newAttempts = pinRecord.failedAttempts + 1;
-      const updates: any = { failedAttempts: newAttempts };
-      if (newAttempts >= 5) {
-        updates.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-      }
-      await prisma.walletPIN.update({
-        where: { id: pinRecord.id },
-        data: updates,
-      });
-
-      await this.logAudit(userId, "PIN_FAILED", {
-        walletId: wallet.id,
-        failedAttempts: newAttempts,
-      });
-
-      throw new Error(`Invalid PIN. ${5 - newAttempts} attempts remaining.`);
+      // Atomic SQL increment + lock decision: no parallel request can slip
+      // through between the fifth failure and the lockout being persisted.
+      const attempts = await prisma.$queryRaw<Array<{ failedAttempts: number; lockedUntil: Date | null }>>`
+        UPDATE "WalletPIN"
+        SET "failedAttempts" = CASE WHEN "lockedUntil" IS NOT NULL AND "lockedUntil" <= NOW() THEN 1 ELSE "failedAttempts" + 1 END,
+            "lockedUntil" = CASE WHEN (CASE WHEN "lockedUntil" IS NOT NULL AND "lockedUntil" <= NOW() THEN 0 ELSE "failedAttempts" END) + 1 >= 5
+              THEN NOW() + INTERVAL '15 minutes' ELSE NULL END
+        WHERE "id" = ${pinRecord.id} AND ("lockedUntil" IS NULL OR "lockedUntil" <= NOW())
+        RETURNING "failedAttempts", "lockedUntil"
+      `;
+      const attempt = attempts[0];
+      if (!attempt) throw new Error("PIN is locked. Please try again after the lockout period.");
+      await this.logAudit(userId, "PIN_FAILED", { walletId: wallet.id, failedAttempts: attempt.failedAttempts });
+      if (attempt.lockedUntil) throw new Error("PIN locked after 5 failed attempts. Please try again in 15 minutes.");
+      throw new Error(`Invalid PIN. ${5 - attempt.failedAttempts} attempts remaining.`);
     }
-
-    // Reset failed attempts
     if (pinRecord.failedAttempts > 0) {
-      await prisma.walletPIN.update({
-        where: { id: pinRecord.id },
-        data: { failedAttempts: 0, lockedUntil: null },
+      await prisma.walletPIN.updateMany({
+        where: { id: pinRecord.id, failedAttempts: pinRecord.failedAttempts, lockedUntil: null },
+        data: { failedAttempts: 0 },
       });
     }
-
     await this.logAudit(userId, "PIN_VERIFY", { walletId: wallet.id });
-
     return { success: true, message: "PIN verified" };
   }
 
