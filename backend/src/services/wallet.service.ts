@@ -1,5 +1,4 @@
 import { prisma } from "../prisma";
-import { PaymentProviderFactory } from "./payment-provider.interface";
 import { notificationService } from "./notification.service";
 import { emailService } from "./email.service";
 import * as crypto from "crypto";

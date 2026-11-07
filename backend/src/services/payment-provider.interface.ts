@@ -36,20 +36,14 @@ export class USDTBEP20Provider implements PaymentProvider {
       throw new Error('Invalid USDT (BEP-20) wallet address');
     }
 
-    // In production, integrate with blockchain API (e.g., Binance API, third-party service)
-    // For now, return a mock transaction
-    return {
-      transactionId: `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      status: 'PENDING',
-    };
+    // Do not fabricate a transaction ID or pretend a payout was sent. The
+    // current product flow requires an operator to send USDT and then submit
+    // the real transaction hash for independent on-chain verification.
+    throw new Error('Automated USDT payouts are not configured. Send the payout externally and verify its on-chain transaction hash.');
   }
 
   async getTransactionStatus(txId: string): Promise<{ status: string; confirmations: number }> {
-    // In production, check blockchain explorer API
-    return {
-      status: 'PENDING',
-      confirmations: 0,
-    };
+    throw new Error('Transaction status lookup is unavailable until an on-chain provider is configured.');
   }
 
   async validateAddress(address: string): Promise<boolean> {

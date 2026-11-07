@@ -20,6 +20,15 @@ describe('admin authorization at the API middleware layer', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test('a moderator cannot invoke an admin-only action', () => {
+    const next = jest.fn();
+    const res = response();
+    const req: any = { user: { userId: 'moderator-user', role: Role.MODERATOR }, method: 'POST', path: '/admin/reports/1/process' };
+    requireRole(Role.ADMIN, Role.SUPER_ADMIN)(req, res, next);
+    expect(res.statusCode).toBe(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('an authorized admin role passes the role gate', () => {
     const next = jest.fn();
     const req: any = { user: { userId: 'admin-user', role: Role.ADMIN }, method: 'POST', path: '/users/role' };

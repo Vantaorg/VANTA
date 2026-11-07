@@ -38,7 +38,8 @@ const walletRow: any = {
   lockedCoins: 0, isFrozen: false, usdtWalletAddress: null,
 };
 
-const pendingWithdrawal = { id: 'wd1', userId: 'user1', amount: 100, fee: 10, netAmount: 90, status: 'PENDING', walletAddress: '0xabc', createdAt: new Date() };
+const validAddress = `0x${'a'.repeat(40)}`;
+const pendingWithdrawal = { id: 'wd1', userId: 'user1', amount: 100, fee: 10, netAmount: 90, status: 'PENDING', walletAddress: validAddress, createdAt: new Date() };
 const validTxHash = `0x${'a'.repeat(64)}`;
 
 function txMock() {
@@ -63,7 +64,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(walletRow);
   (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hash', failedAttempts: 0, lockedUntil: null });
-  (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: '0xabc', sender: null, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
+  (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: validAddress, sender: null, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
   (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
   (prisma.withdrawal.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingWithdrawal);
 });
@@ -79,7 +80,7 @@ describe('WalletService.requestWithdrawal', () => {
     const tx = txMock();
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    const result = await walletService.requestWithdrawal('user1', 100, '0xabc', '1234');
+    const result = await walletService.requestWithdrawal('user1', 100, validAddress, '1234');
 
     expect(result.status).toBe('PENDING');
     expect(tx.wallet.updateMany).toHaveBeenCalledWith(
@@ -93,7 +94,7 @@ describe('WalletService.requestWithdrawal', () => {
     tx.wallet.updateMany.mockResolvedValue({ count: 0 });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    await expect(walletService.requestWithdrawal('user1', 100, '0xabc', '1234')).rejects.toThrow('Insufficient earnings balance');
+    await expect(walletService.requestWithdrawal('user1', 100, validAddress, '1234')).rejects.toThrow('Insufficient earnings balance');
     expect(tx.withdrawal.create).not.toHaveBeenCalled();
   });
 });
@@ -168,7 +169,7 @@ describe('WalletService.processWithdrawal on-chain verification', () => {
       txHash: validTxHash,
       network: 'usdt-bep20',
       expectedAmountUsd: 90,
-      expectedRecipient: '0xabc',
+      expectedRecipient: validAddress,
     }));
     expect(tx.withdrawal.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: 'wd1', status: 'PENDING', transactionHash: null }),
