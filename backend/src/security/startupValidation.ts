@@ -48,7 +48,7 @@ export function validateProductionSecrets(env: Record<string, string | undefined
     const salt = env.ENCRYPTION_SALT.trim();
     const isHexSalt = /^[a-f0-9]{64}$/i.test(salt);
     const isStrongLength = Buffer.byteLength(salt, 'utf8') >= 32;
-    const isObviousDefault = /^(vanta|change|default|secret|salt)/i.test(salt) || /^(.)\\1+$/.test(salt);
+    const isObviousDefault = /^(vanta|change|default|secret|salt)/i.test(salt) || /^(.)\1+$/.test(salt);
     if ((!isHexSalt && !isStrongLength) || isObviousDefault || salt === env.ENCRYPTION_KEY) weak.push('ENCRYPTION_SALT');
   }
   return { isProduction, missing, weak, ok: !(isProduction && (missing.length > 0 || weak.length > 0)) };

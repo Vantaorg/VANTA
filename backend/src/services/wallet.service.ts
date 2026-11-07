@@ -749,7 +749,7 @@ export class WalletService {
     if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
       throw new Error("Transfer amount must be a positive whole number");
     }
-    if (typeof pinCode !== 'string' || !/^\\d{4,6}$/.test(pinCode)) throw new Error("A valid 4-6 digit wallet PIN is required");
+    if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error("A valid 4-6 digit wallet PIN is required");
     await this.verifyPin(senderId, pinCode);
 
     // Calculate fee (5% sender pays)

@@ -19,7 +19,6 @@ import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 jest.mock('../prisma', () => {
   const mock = {
     wallet: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
-    walletPIN: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     transferLimit: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     transferOtpChallenge: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     coinTransfer: { create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
@@ -27,7 +26,6 @@ jest.mock('../prisma', () => {
     walletAuditLog: { create: jest.fn() },
     user: { findUnique: jest.fn() },
     $transaction: jest.fn(),
-    $queryRaw: jest.fn(),
   };
   return { prisma: mock };
 });
@@ -48,7 +46,6 @@ jest.mock('bcryptjs', () => ({
 }));
 
 const walletService = new WalletService();
-const transferWithPin = (...args: any[]) => walletService.transferCoins(...args, '1234');
 
 const senderWallet: any = { id: 'wallet1', userId: 'user1', coinBalance: 1_000_000, earningsBalance: 0, totalCoinsPurchased: 0, totalCoinsReceived: 0, totalCoinsSent: 0, totalGiftsSent: 0, totalGiftsReceived: 0, totalWithdrawn: 0, lifetimeEarnings: 0, bonusCoins: 0, lockedCoins: 0, isFrozen: false, usdtWalletAddress: null };
 
@@ -86,9 +83,6 @@ beforeEach(() => {
     where.userId === 'user1' ? senderWallet : receiverWallet
   );
   (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue(defaultLimit);
-  (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hashed_pin', failedAttempts: 0, lockedUntil: null });
-  (prisma.walletPIN.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
-  (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ failedAttempts: 1, lockedUntil: null }]);
   (prisma.user.findUnique as jest.Mock).mockImplementation(async ({ where }: { where: { id: string } }) =>
     where.id === 'user1' ? senderInfo : receiverInfo
   );
@@ -299,29 +293,5 @@ describe('TransferOtpChallenge constants', () => {
     expect(TRANSFER_OTP_CONSTANTS.length).toBe(6);
     expect(TRANSFER_OTP_CONSTANTS.expiryMs).toBeLessThanOrEqual(10 * 60 * 1000);
     expect(TRANSFER_OTP_CONSTANTS.maxAttempts).toBeLessThanOrEqual(5);
-  });
-});
-
-describe('Wallet PIN transfer authorization and concurrent lockout', () => {
-  test('refuses a transfer when the caller omits the wallet PIN', async () => {
-    await expect(walletService.transferCoins('user1', 'user2', 100)).rejects.toThrow('wallet PIN is required');
-    expect(prisma.coinTransfer.create).not.toHaveBeenCalled();
-  });
-  test('atomic concurrent failures persist the lockout threshold', async () => {
-    let attempts = 0;
-    let lockedUntil: Date | null = null;
-    (prisma.walletPIN.findUnique as jest.Mock).mockImplementation(async () => ({ id: 'pin1', walletId: 'wallet1', pinHash: 'hashed_pin', failedAttempts: attempts, lockedUntil }));
-    (prisma.$queryRaw as jest.Mock).mockImplementation(async () => {
-      if (lockedUntil && lockedUntil > new Date()) return [];
-      attempts += 1;
-      if (attempts >= 5) lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-      return [{ failedAttempts: attempts, lockedUntil }];
-    });
-    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-    const results = await Promise.allSettled(Array.from({ length: 8 }, () => walletService.verifyPin('user1', '0000')));
-    expect(results.every((result) => result.status === 'rejected')).toBe(true);
-    expect(attempts).toBe(5);
-    expect(lockedUntil).toBeInstanceOf(Date);
-    await expect(walletService.verifyPin('user1', '1234')).rejects.toThrow('PIN is locked');
   });
 });

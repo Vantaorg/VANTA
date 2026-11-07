@@ -104,7 +104,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
 
   const handleSend = async () => {
     if (!token || !selectedUser || sending) return;
-    if (!/^\\d{4,6}$/.test(pinCode)) { setError('Enter your 4-6 digit wallet PIN.'); return; }
+    if (!/^\d{4,6}$/.test(pinCode)) { setError('Enter your 4-6 digit wallet PIN.'); return; }
     setSending(true);
     setError('');
     setStep('processing');
@@ -452,7 +452,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
                   <div className="space-y-1.5">
                     <label htmlFor="wallet-transfer-pin" className="block text-xs font-medium text-white/60">Wallet PIN</label>
                     <input id="wallet-transfer-pin" type="password" inputMode="numeric" autoComplete="off" maxLength={6}
-                      value={pinCode} onChange={e => setPinCode(e.target.value.replace(/\\D/g, '').slice(0, 6))}
+                      value={pinCode} onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="Enter your 4-6 digit PIN" aria-label="Wallet PIN"
                       className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm tracking-[0.3em] text-white placeholder:tracking-normal placeholder:text-gray-500 outline-none focus:border-white/30" />
                   </div>
