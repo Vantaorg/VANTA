@@ -30,6 +30,11 @@ async function load() {
 }
 
 describe('resolveMediaUrl (Reel video source resolution)', () => {
+  test('resolves signed private message media routes against the API origin', async () => {
+    const resolve = await load();
+    expect(resolve('/api/media/private/file-1?token=abc')).toBe(`${API}/api/media/private/file-1?token=abc`);
+  });
+
   test('resolves the relative /uploads URL returned by /api/reels against the API origin', async () => {
     const resolve = await load();
     expect(resolve('/uploads/1788831833464-9a1b2a6bd0cf60925e9934a66df2f5ea.mp4'))
