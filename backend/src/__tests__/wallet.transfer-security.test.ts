@@ -170,7 +170,8 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
 
   test('rejects an invalid OTP inside the transaction and aborts the transfer', async () => {
     (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue({ ...defaultLimit, otpThreshold: 1000 });
-    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+    // The first compare validates the wallet PIN; the second validates the deliberately wrong OTP.
+    (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     const tx = txMock();
     tx.transferOtpChallenge.findUnique.mockResolvedValue({
       id: 'challenge1', userId: 'user1', sessionId: 'session1', receiverId: 'user2', amount: 2100,
