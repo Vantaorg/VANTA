@@ -44,11 +44,11 @@ const timeLabel = (value: string) => new Date(value).toLocaleTimeString([], { ho
 const dateLabel = (value: string) => new Date(value).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
 export default function SchedulePage() {
-  const [streams, setStreams] = useState<ScheduledStream[]>([]);
+  const [streams, setStreams] = useState([] as ScheduledStream[]);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<ScheduledStream | null>(null);
+  const [editing, setEditing] = useState(null as ScheduledStream | null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(() => localDateKey(new Date(Date.now() + 86400000)));
@@ -57,7 +57,7 @@ export default function SchedulePage() {
   const [category, setCategory] = useState('chatting');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState(null as string | null);
   const [error, setError] = useState('');
 
   const loadStreams = useCallback(async () => {

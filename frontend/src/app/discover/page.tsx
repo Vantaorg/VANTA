@@ -26,11 +26,11 @@ type SearchResults = { [key: string]: Item[] };
 type Category = 'forYou' | 'trending' | 'homes' | 'creators' | 'reels' | 'live' | 'communities';
 type SearchFilter = 'all' | 'people' | 'posts' | 'reels' | 'live' | 'communities';
 
-const CATEGORIES: Array<[Category, string]> = [
+const CATEGORIES: [Category, string][] = [
   ['forYou', 'For You'], ['trending', 'Trending'], ['homes', 'VANTA Homes'],
   ['creators', 'Creators'], ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'],
 ];
-const SEARCH_FILTERS: Array<[SearchFilter, string]> = [
+const SEARCH_FILTERS: [SearchFilter, string][] = [
   ['all', 'All'], ['people', 'People'], ['posts', 'Posts'], ['reels', 'Reels'],
   ['live', 'Live'], ['communities', 'Communities'],
 ];
@@ -63,29 +63,29 @@ export default function DiscoverPage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const sentinel = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const sentinel = useRef(null as HTMLDivElement | null);
+  const searchRef = useRef(null as HTMLInputElement | null);
   const pageScrollRef = useRef<HTMLDivElement>(null);
-  const [category, setCategory] = useState<Category>('forYou');
+  const [category, setCategory] = useState('forYou' as Category);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
+  const [searchFilter, setSearchFilter] = useState('all' as SearchFilter);
   const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResults>({});
-  const [posts, setPosts] = useState<Item[]>([]);
-  const [trending, setTrending] = useState<Item[]>([]);
-  const [creators, setCreators] = useState<Item[]>([]);
-  const [reels, setReels] = useState<Item[]>([]);
-  const [live, setLive] = useState<Item[]>([]);
-  const [communities, setCommunities] = useState<Item[]>([]);
-  const [homeListings, setHomeListings] = useState<Item[]>([]);
+  const [searchResults, setSearchResults] = useState({} as SearchResults);
+  const [posts, setPosts] = useState([] as Item[]);
+  const [trending, setTrending] = useState([] as Item[]);
+  const [creators, setCreators] = useState([] as Item[]);
+  const [reels, setReels] = useState([] as Item[]);
+  const [live, setLive] = useState([] as Item[]);
+  const [communities, setCommunities] = useState([] as Item[]);
+  const [homeListings, setHomeListings] = useState([] as Item[]);
   const [homesLoading, setHomesLoading] = useState(false);
   const [homesError, setHomesError] = useState('');
-  const [cursor, setCursor] = useState<string>();
+  const [cursor, setCursor] = useState(undefined as string | undefined);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [commentsFor, setCommentsFor] = useState<Item>();
+  const [commentsFor, setCommentsFor] = useState(undefined as Item | undefined);
   const [shareFor, setShareFor] = useState<Item>();
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
@@ -101,23 +101,23 @@ export default function DiscoverPage() {
     if (nextCursor) exploreQuery.set('cursor', nextCursor);
     try {
       if (append) {
-        const data = await apiGet<any>(`/api/feed/explore?${exploreQuery}`, token, { skipCache: true });
+        const data = await apiGet(`/api/feed/explore?${exploreQuery}`, token, { skipCache: true });
         const next = unwrap(data);
         setPosts(current => [...current, ...next.filter(item => !current.some(existing => existing.id === item.id))]);
         setCursor(data?.nextCursor);
         return;
       }
       const results = await Promise.allSettled([
-        apiGet<any>(`/api/feed/explore?${exploreQuery}`, token, { skipCache: true }),
-        apiGet<any>('/api/feed/trending?limit=10', token, { skipCache: true }),
-        apiGet<any>('/api/profiles/discover?limit=14', token, { skipCache: true }),
-        apiGet<any>('/api/reels?limit=12', token, { skipCache: true }),
-        apiGet<any>('/api/live/discover?limit=8&sort=viewerCount', token, { skipCache: true }),
-        apiGet<any>('/api/communities/discover?limit=12', token, { skipCache: true }),
+        apiGet(`/api/feed/explore?${exploreQuery}`, token, { skipCache: true }),
+        apiGet('/api/feed/trending?limit=10', token, { skipCache: true }),
+        apiGet('/api/profiles/discover?limit=14', token, { skipCache: true }),
+        apiGet('/api/reels?limit=12', token, { skipCache: true }),
+        apiGet('/api/live/discover?limit=8&sort=viewerCount', token, { skipCache: true }),
+        apiGet('/api/communities/discover?limit=12', token, { skipCache: true }),
       ]);
       const fulfilled = results.filter(result => result.status === 'fulfilled').length;
       if (!fulfilled) throw new Error('Discover services are unavailable');
-      const value = (index: number) => results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<any>).value : {};
+      const value = (index: number) => results[index].status === 'fulfilled' ? (results[index] as { status: 'fulfilled'; value: any }).value : {};
       setPosts(unwrap(value(0))); setCursor(value(0)?.nextCursor);
       setTrending(unwrap(value(1))); setCreators(unwrap(value(2)));
       setReels(unwrap(value(3))); setLive(unwrap(value(4))); setCommunities(unwrap(value(5)));
@@ -165,7 +165,7 @@ export default function DiscoverPage() {
   useEffect(() => {
     if (!debouncedQuery || !token) { setSearchResults({}); setSearching(false); return; }
     let current = true; setSearching(true);
-    apiGet<any>(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=8`, token, { skipCache: true })
+    apiGet(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=8`, token, { skipCache: true })
       .then(data => { if (!current) return; setSearchResults({ people: unwrap(data?.users || data?.people), posts: unwrap(data?.posts), reels: unwrap(data?.videos || data?.reels), live: unwrap(data?.streams || data?.live), communities: unwrap(data?.communities), topics: unwrap(data?.hashtags || data?.topics) }); })
       .catch(() => { if (current) setSearchResults({}); })
       .finally(() => { if (current) setSearching(false); });
