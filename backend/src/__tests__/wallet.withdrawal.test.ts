@@ -93,7 +93,7 @@ describe('WalletService.requestWithdrawal', () => {
     tx.wallet.updateMany.mockResolvedValue({ count: 0 });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    await expect(walletService.requestWithdrawal('user1', 100, '0xabc')).rejects.toThrow('Insufficient earnings balance');
+    await expect(walletService.requestWithdrawal('user1', 100, '0xabc', '1234')).rejects.toThrow('Insufficient earnings balance');
     expect(tx.withdrawal.create).not.toHaveBeenCalled();
   });
 });

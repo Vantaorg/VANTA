@@ -1411,7 +1411,7 @@ export class WalletService {
     const validated = validateWithdrawalInput(amount, walletAddress);
     amount = validated.amount;
     walletAddress = validated.walletAddress;
-    if (typeof pinCode !== 'string' || !/^\\d{4,6}$/.test(pinCode)) throw new Error('A valid 4-6 digit wallet PIN is required');
+    if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error('A valid 4-6 digit wallet PIN is required');
     await this.verifyPin(userId, pinCode);
 
     const wallet = await this.ensureWallet(userId);

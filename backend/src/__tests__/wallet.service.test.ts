@@ -1,4 +1,5 @@
 import { WalletService, formatSignedAmount, buildTransactionDescription, TX_TYPES } from '../services/wallet.service';
+jest.mock('bcryptjs', () => ({ compare: jest.fn().mockResolvedValue(true) }));
 import { prisma } from '../prisma';
 
 jest.mock('../prisma', () => ({
@@ -152,7 +153,9 @@ describe('WalletService', () => {
 
   describe('requestWithdrawal', () => {
     test('should block withdrawals from frozen wallets', async () => {
-      await expect(walletService.requestWithdrawal('user1', 30, 'addr')).rejects.toThrow(
+      (prisma.wallet.findUnique as jest.Mock).mockResolvedValue({ ...mockWallet, isFrozen: true });
+      (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hash', failedAttempts: 0, lockedUntil: null });
+      await expect(walletService.requestWithdrawal('user1', 30, 'addr', '1234')).rejects.toThrow(
         'wallet is frozen'
       );
     });
