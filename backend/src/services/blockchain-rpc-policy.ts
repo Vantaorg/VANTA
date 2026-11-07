@@ -5,7 +5,7 @@
  * a rate-limited request can multiply traffic and make provider throttling worse.
  */
 export function isBlockRangeLimitError(message: string): boolean {
-  return /block range|range\\s+(?:is\\s+)?(?:too\\s+(?:large|wide)|exceeds?\\s+(?:the\\s+)?maximum)|query returned more than|too many results|response size|result set too large|exceeds?\\s+(?:the\\s+)?(?:block|query)\\s+(?:range|result|size)\\s+(?:limit|cap)/i.test(message);
+  return /block range|range\s+(?:is\s+)?(?:too\s+(?:large|wide)|exceeds?\s+(?:the\s+)?maximum)|query returned more than|too many results|response size|result set too large|exceeds?\s+(?:the\s+)?(?:block|query)\s+(?:range|result|size)\s+(?:limit|cap)/i.test(message);
 }
 
 /** Exponential retry delay with a hard cap; the first failure uses baseMs. */
