@@ -307,6 +307,17 @@ describe('Wallet PIN transfer authorization and concurrent lockout', () => {
     await expect(walletService.transferCoins('user1', 'user2', 100)).rejects.toThrow('wallet PIN is required');
     expect(prisma.coinTransfer.create).not.toHaveBeenCalled();
   });
+  test('a valid PIN after lockout expiry resets the stale counter and lock timestamp', async () => {
+    const expiredAt = new Date(Date.now() - 1000);
+    (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hashed_pin', failedAttempts: 5, lockedUntil: expiredAt });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    await expect(walletService.verifyPin('user1', '1234')).resolves.toEqual({ success: true, message: 'PIN verified' });
+    expect(prisma.walletPIN.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'pin1', failedAttempts: 5, lockedUntil: expiredAt }),
+      data: { failedAttempts: 0, lockedUntil: null },
+    }));
+  });
+
   test('atomic concurrent failures persist the lockout threshold', async () => {
     let attempts = 0;
     let lockedUntil: Date | null = null;

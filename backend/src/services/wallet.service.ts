@@ -1372,6 +1372,7 @@ export class WalletService {
   }
 
   async verifyPin(userId: string, pin: string) {
+    if (typeof pin !== 'string' || !/^\\d{4,6}$/.test(pin)) throw new Error('Invalid PIN format');
     const wallet = await this.ensureWallet(userId);
     const pinRecord = await prisma.walletPIN.findUnique({ where: { walletId: wallet.id } });
     if (!pinRecord) throw new Error("No PIN set");
@@ -1393,8 +1394,11 @@ export class WalletService {
       if (attempt.lockedUntil) throw new Error("PIN locked after 5 failed attempts. Please try again in 15 minutes.");
       throw new Error(`Invalid PIN. ${5 - attempt.failedAttempts} attempts remaining.`);
     }
-    if (pinRecord.failedAttempts > 0) {
-      await prisma.walletPIN.updateMany({ where: { id: pinRecord.id, failedAttempts: pinRecord.failedAttempts, lockedUntil: null }, data: { failedAttempts: 0 } });
+    if (pinRecord.failedAttempts > 0 || pinRecord.lockedUntil) {
+      await prisma.walletPIN.updateMany({
+        where: { id: pinRecord.id, failedAttempts: pinRecord.failedAttempts, lockedUntil: pinRecord.lockedUntil },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
     }
     await this.logAudit(userId, "PIN_VERIFY", { walletId: wallet.id });
     return { success: true, message: "PIN verified" };
@@ -1581,6 +1585,11 @@ export class WalletService {
           status: 'COMPLETED',
           metadata: JSON.stringify({
             withdrawalId,
+            amount: withdrawal.amount,
+            fee: withdrawal.fee,
+            netAmount: withdrawal.netAmount,
+            walletAddress: withdrawal.walletAddress,
+            method: withdrawal.method,
             transactionHash: normalizedHash,
             network: 'usdt-bep20',
             confirmations: chainProof.confirmations,
