@@ -10,6 +10,10 @@ jest.mock('../prisma', () => ({ prisma: {
   $transaction: jest.fn(),
 } }));
 
+jest.mock('../services/private-media.service', () => ({
+  createPrivateMediaUrl: jest.fn((fileId: string) => `/api/media/private/${fileId}?token=test-token`),
+}));
+
 import { prisma } from '../prisma';
 import { ChatService } from '../services/chat.service';
 
@@ -18,6 +22,7 @@ const service = new ChatService();
 
 describe('ChatService security and persistence', () => {
   beforeEach(() => {
+    process.env.JWT_SECRET = 'test-jwt-secret-long-enough-for-private-media-signing';
     jest.clearAllMocks();
     (db.$transaction as jest.Mock).mockImplementation((callback: any) => callback(db));
   });

@@ -68,13 +68,6 @@ beforeEach(() => {
   (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
   (prisma.withdrawal.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingWithdrawal);
 });
-beforeEach(() => {
-  jest.clearAllMocks();
-  (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(walletRow);
-  (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
-  (prisma.withdrawal.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingWithdrawal);
-});
-
 describe('WalletService.requestWithdrawal', () => {
   test('creates a PENDING withdrawal and debits earnings once', async () => {
     const tx = txMock();

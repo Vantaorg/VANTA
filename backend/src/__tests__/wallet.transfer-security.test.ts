@@ -142,7 +142,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue({ ...defaultLimit, otpThreshold: 1000 });
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_otp');
 
-    const result = await walletService.transferCoins('user1', 'user2', 2000);
+    const result = await transferWithPin('user1', 'user2', 2000);
 
     expect(result.requiresOTP).toBe(true);
     expect(result.challengeId).toBe('challenge1');
@@ -175,7 +175,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
     await expect(
-      walletService.transferCoins('user1', 'user2', 2000, undefined, '000000', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
+      transferWithPin('user1', 'user2', 2000, undefined, '000000', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
     ).rejects.toThrow('Invalid OTP');
 
     expect(tx.coinTransfer.create).not.toHaveBeenCalled();
@@ -195,7 +195,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
     await expect(
-      walletService.transferCoins('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
+      transferWithPin('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
     ).rejects.toThrow('OTP challenge has already been used');
 
     expect(tx.coinTransfer.create).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
     await expect(
-      walletService.transferCoins('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
+      transferWithPin('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1')
     ).rejects.toThrow('OTP challenge has expired');
     expect(tx.coinTransfer.create).not.toHaveBeenCalled();
   });
@@ -228,7 +228,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    const result = await walletService.transferCoins('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1');
+    const result = await transferWithPin('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1');
 
     expect(result.transfer.id).toBe('transfer1');
     expect(tx.transferOtpChallenge.updateMany).toHaveBeenCalledWith(
@@ -240,7 +240,7 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
 });
 describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', () => {
   test('rejects a transfer above the platform maximum', async () => {
-    await expect(walletService.transferCoins('user1', 'user2', PLATFORM_TRANSFER_LIMITS.maxPerTransfer + 1)).rejects.toThrow('platform maximum');
+    await expect(transferWithPin('user1', 'user2', PLATFORM_TRANSFER_LIMITS.maxPerTransfer + 1)).rejects.toThrow('platform maximum');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -249,7 +249,7 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
       ...senderWallet, userId: where.userId, coinBalance: 10, lockedCoins: 0,
     }));
 
-    await expect(walletService.transferCoins('user1', 'user2', 100)).rejects.toThrow('Insufficient balance');
+    await expect(transferWithPin('user1', 'user2', 100)).rejects.toThrow('Insufficient balance');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -260,17 +260,17 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
       return cb(tx);
     });
 
-    await expect(walletService.transferCoins('user1', 'user2', 100)).rejects.toThrow('Insufficient coins');
+    await expect(transferWithPin('user1', 'user2', 100)).rejects.toThrow('Insufficient coins');
   });
 
   test('returns the committed transfer when a requestId is retried (idempotent)', async () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(txMock()));
-    const first = await walletService.transferCoins('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123');
+    const first = await transferWithPin('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123');
     expect(first.transfer.id).toBe('transfer1');
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 
     (prisma.coinTransfer.findUnique as jest.Mock).mockResolvedValue({ id: 'transfer1', senderId: 'user1', amount: 100 });
-    const replay = await walletService.transferCoins('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123');
+    const replay = await transferWithPin('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123');
     expect(replay.replayed).toBe(true);
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
@@ -279,7 +279,7 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
     (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue({ ...defaultLimit, dailyLimit: 50, dailyUsed: 0, lastResetDate: new Date() });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(txMock()));
 
-    await expect(walletService.transferCoins('user1', 'user2', 100)).rejects.toThrow('Daily transfer limit');
+    await expect(transferWithPin('user1', 'user2', 100)).rejects.toThrow('Daily transfer limit');
   });
 });
 
@@ -289,7 +289,7 @@ describe('WalletService.transferCoins — legacy OTP bypass blocked', () => {
     const tx = txMock();
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    await expect(walletService.transferCoins('user1', 'user2', 2000, undefined, '123456', 'ip')).rejects.toThrow('An OTP challenge id is required');
+    await expect(transferWithPin('user1', 'user2', 2000, undefined, '123456', 'ip')).rejects.toThrow('An OTP challenge id is required');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
