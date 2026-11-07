@@ -25,6 +25,11 @@ const WEAK_JWT_SECRETS = new Set([
   'secret',
 ]);
 
+function isWeakSecret(value: string): boolean {
+  const normalized = value.trim();
+  return normalized.length < 32 || new Set(normalized).size < 12 || WEAK_JWT_SECRETS.has(normalized);
+}
+
 export function validateProductionSecrets(env: Record<string, string | undefined> = process.env): SecretValidationResult {
   const isProduction = env.NODE_ENV === 'production';
   const missing: string[] = [];
@@ -32,17 +37,18 @@ export function validateProductionSecrets(env: Record<string, string | undefined
 
   if (!env.JWT_SECRET) {
     missing.push('JWT_SECRET');
-  } else if (WEAK_JWT_SECRETS.has(env.JWT_SECRET)) {
+  } else if (isWeakSecret(env.JWT_SECRET)) {
     weak.push('JWT_SECRET');
   }
 
   if (!env.JWT_REFRESH_SECRET) {
     missing.push('JWT_REFRESH_SECRET');
-  } else if (WEAK_JWT_SECRETS.has(env.JWT_REFRESH_SECRET)) {
+  } else if (isWeakSecret(env.JWT_REFRESH_SECRET)) {
     weak.push('JWT_REFRESH_SECRET');
   }
 
   if (!env.ENCRYPTION_KEY) missing.push('ENCRYPTION_KEY');
+  else if (isWeakSecret(env.ENCRYPTION_KEY)) weak.push('ENCRYPTION_KEY');
   if (!env.ENCRYPTION_SALT) missing.push('ENCRYPTION_SALT');
   else {
     const salt = env.ENCRYPTION_SALT.trim();
@@ -51,6 +57,21 @@ export function validateProductionSecrets(env: Record<string, string | undefined
       || (salt.length > 0 && [...salt].every((character) => character === salt[0]));
     const hasEnoughDistinctBytes = new Set(salt.toLowerCase()).size >= 12;
     if (!isHexSalt || isObviousDefault || !hasEnoughDistinctBytes || salt === env.ENCRYPTION_KEY) weak.push('ENCRYPTION_SALT');
+  }
+  const configured = [
+    ['JWT_SECRET', env.JWT_SECRET],
+    ['JWT_REFRESH_SECRET', env.JWT_REFRESH_SECRET],
+    ['ENCRYPTION_KEY', env.ENCRYPTION_KEY],
+  ] as const;
+  for (let i = 0; i < configured.length; i++) {
+    for (let j = i + 1; j < configured.length; j++) {
+      const [nameA, valueA] = configured[i];
+      const [nameB, valueB] = configured[j];
+      if (valueA && valueB && valueA.trim() === valueB.trim()) {
+        if (!weak.includes(nameA)) weak.push(nameA);
+        if (!weak.includes(nameB)) weak.push(nameB);
+      }
+    }
   }
   return { isProduction, missing, weak, ok: !(isProduction && (missing.length > 0 || weak.length > 0)) };
 }

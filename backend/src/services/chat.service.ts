@@ -442,7 +442,7 @@ export class ChatService {
     // Channel "Delete messages" permission: when explicitly disabled, even
     // administrators cannot force-delete other people's posts (owner excluded).
     const forceDeleteAllowed = !isChannel || isChannelOwner || permissions.deleteMessages !== false;
-    if (!message || !participant || (!canModerate && message.senderId !== userId)) {
+    if (!message || !participant || (!canModerate && message.senderId !== userId) || (everyone && !canModerate && message.senderId !== userId)) {
       throw new Error("Message not found or unauthorized");
     }
     if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");

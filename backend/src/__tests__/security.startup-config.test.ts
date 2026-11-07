@@ -56,4 +56,20 @@ describe('enforceSecretPolicy (fail closed)', () => {
   test('aborts production startup when ENCRYPTION_SALT is weak', () => {
     expect(() => enforceSecretPolicy({ ...PROD_GOOD, ENCRYPTION_SALT: 'vanta-encryption-salt' })).toThrow('development/default secrets');
   });
+  test('rejects short or low-diversity JWT and encryption secrets', () => {
+    expect(validateProductionSecrets({ ...PROD_GOOD, JWT_SECRET: 'short-secret' }).weak).toContain('JWT_SECRET');
+    expect(validateProductionSecrets({ ...PROD_GOOD, JWT_REFRESH_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }).weak).toContain('JWT_REFRESH_SECRET');
+    expect(validateProductionSecrets({ ...PROD_GOOD, ENCRYPTION_KEY: 'weak-key' }).weak).toContain('ENCRYPTION_KEY');
+  });
+
+  test('rejects reuse of the same secret across authentication and encryption purposes', () => {
+    const reused = 'distinct-looking-random-secret-0123456789abcdef';
+    const result = validateProductionSecrets({
+      ...PROD_GOOD,
+      JWT_SECRET: reused,
+      JWT_REFRESH_SECRET: reused,
+    });
+    expect(result.weak).toEqual(expect.arrayContaining(['JWT_SECRET', 'JWT_REFRESH_SECRET']));
+  });
+
 });
