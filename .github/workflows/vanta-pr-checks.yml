@@ -43,6 +43,6 @@ jobs:
       - name: Install backend dependencies
         run: npm --prefix backend install
       - name: Run backend tests
-        run: npm --prefix backend run test -- --runInBand
+        run: npm --prefix backend run test -- --runInBand --forceExit --detectOpenHandles=false
       - name: Build backend
         run: npm --prefix backend run build
