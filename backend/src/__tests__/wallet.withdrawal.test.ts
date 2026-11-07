@@ -81,6 +81,9 @@ describe('WalletService.requestWithdrawal', () => {
       expect.objectContaining({ where: expect.objectContaining({ userId: 'user1', earningsBalance: { gte: 100 } }) })
     );
     expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ type: 'WITHDRAWAL', currency: 'USD' }),
+    }));
     expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
   });
 

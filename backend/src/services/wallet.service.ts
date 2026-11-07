@@ -1521,6 +1521,7 @@ export class WalletService {
           walletId: wallet.id,
           userId,
           type: "WITHDRAWAL",
+          currency: "USD",
           amount,
           fee,
           balance: updatedWallet.earningsBalance,
@@ -2156,10 +2157,13 @@ export class WalletService {
   }> {
     const wallet = await this.ensureWallet(userId);
     const txns = await prisma.walletTransaction.findMany({
-      where: { userId },
-      select: { type: true, amount: true },
+      where: { userId, currency: "VANTA" },
+      select: { type: true, amount: true, currency: true },
     });
     const ledgerBalance = txns.reduce((sum, t) => {
+      // Defensive filter: USD/USDT earnings movements must never be applied to
+      // the VANTA Coin balance, even if a legacy/misconfigured query returns one.
+      if (t.currency && t.currency !== "VANTA") return sum;
       if (INCOMING_TYPES.has(t.type as any)) return sum + Math.trunc(t.amount);
       if (OUTGOING_TYPES.has(t.type as any)) return sum - Math.trunc(t.amount);
       return sum; // unknown types do not affect the coin ledger

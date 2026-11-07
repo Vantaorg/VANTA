@@ -344,10 +344,11 @@ export const exportTransactions = async (req: AuthRequest, res: Response): Promi
     });
 
     // Build CSV
-    const headers = ['Date', 'Type', 'Description', 'Amount', 'Fee', 'Balance', 'Status', 'Reference'];
+    const headers = ['Date', 'Type', 'Currency', 'Description', 'Amount', 'Fee', 'Balance', 'Status', 'Reference'];
     const rows = result.transactions.map((tx: any) => [
       new Date(tx.createdAt).toISOString(),
       tx.type,
+      tx.currency || 'VANTA',
       tx.description || '',
       tx.displayAmount ?? tx.amount ?? 0,
       tx.fee ?? 0,

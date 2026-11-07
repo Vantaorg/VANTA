@@ -1644,6 +1644,7 @@ model WalletTransaction {
   wallet        Wallet?  @relation("WalletTransactions", fields: [walletId], references: [id], onDelete: SetNull)
   userId        String
   type          String // DEPOSIT, TRANSFER_SENT, TRANSFER_RECEIVED, GIFT_SENT, GIFT_RECEIVED, WITHDRAWAL, REFUND, FEE, ADMIN_CREDIT, ADMIN_DEBIT
+  currency      String   @default("VANTA") // VANTA coin ledger or USD earnings ledger
   amount        Float
   fee           Float    @default(0.0)
   balance       Float    @default(0.0)
