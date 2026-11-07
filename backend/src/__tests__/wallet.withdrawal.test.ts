@@ -5,12 +5,14 @@
  * invalid state transitions, and non-owner cancellation.
  */
 import { WalletService } from '../services/wallet.service';
+import { blockchainTxVerifier } from '../services/blockchain-verifier.service';
 import { prisma } from '../prisma';
 import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 
 jest.mock('../prisma', () => {
   const mock = {
     wallet: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+    walletPIN: { findUnique: jest.fn(), updateMany: jest.fn() },
     transferLimit: { create: jest.fn() },
     withdrawal: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), findUniqueOrThrow: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     walletTransaction: { create: jest.fn(), updateMany: jest.fn() },
@@ -19,6 +21,9 @@ jest.mock('../prisma', () => {
   };
   return { prisma: mock };
 });
+
+jest.mock('../services/blockchain-verifier.service', () => ({ blockchainTxVerifier: { verifyTransaction: jest.fn() } }));
+jest.mock('bcryptjs', () => ({ compare: jest.fn().mockResolvedValue(true) }));
 
 jest.mock('../services/notification.service', () => ({
   notificationService: { createNotification: jest.fn().mockResolvedValue({}), notifyWithdrawalStatus: jest.fn() },
@@ -34,6 +39,7 @@ const walletRow: any = {
 };
 
 const pendingWithdrawal = { id: 'wd1', userId: 'user1', amount: 100, fee: 10, netAmount: 90, status: 'PENDING', walletAddress: '0xabc', createdAt: new Date() };
+const validTxHash = `0x${'a'.repeat(64)}`;
 
 function txMock() {
   return {
@@ -56,6 +62,8 @@ function txMock() {
 beforeEach(() => {
   jest.clearAllMocks();
   (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(walletRow);
+  (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hash', failedAttempts: 0, lockedUntil: null });
+  (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: '0xabc', sender: null, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
   (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
   (prisma.withdrawal.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingWithdrawal);
 });
@@ -71,7 +79,7 @@ describe('WalletService.requestWithdrawal', () => {
     const tx = txMock();
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    const result = await walletService.requestWithdrawal('user1', 100, '0xabc');
+    const result = await walletService.requestWithdrawal('user1', 100, '0xabc', '1234');
 
     expect(result.status).toBe('PENDING');
     expect(tx.wallet.updateMany).toHaveBeenCalledWith(
@@ -96,7 +104,7 @@ describe('WalletService.processWithdrawal', () => {
     tx.withdrawal.updateMany.mockResolvedValue({ count: 0 });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    await expect(walletService.processWithdrawal('wd1', 'admin1')).rejects.toThrow('Withdrawal can only be processed once');
+    await expect(walletService.processWithdrawal('wd1', 'admin1', validTxHash)).rejects.toThrow('Withdrawal can only be processed once');
     expect(tx.walletTransaction.updateMany).not.toHaveBeenCalled();
     expect(tx.walletAuditLog.create).not.toHaveBeenCalled();
   });
@@ -148,5 +156,38 @@ describe('WalletService.cancelWithdrawal', () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
     await expect(walletService.cancelWithdrawal('wd1', 'user1')).rejects.toThrow('can no longer be cancelled');
     expect(tx.wallet.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('WalletService.processWithdrawal on-chain verification', () => {
+  test('verifies the exact USDT payout before completing the ledger', async () => {
+    const tx = txMock();
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+    await walletService.processWithdrawal('wd1', 'admin1', validTxHash);
+    expect(blockchainTxVerifier.verifyTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      txHash: validTxHash,
+      network: 'usdt-bep20',
+      expectedAmountUsd: 90,
+      expectedRecipient: '0xabc',
+    }));
+    expect(tx.withdrawal.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'wd1', status: 'PENDING', transactionHash: null }),
+      data: expect.objectContaining({ status: 'COMPLETED', transactionHash: validTxHash }),
+    }));
+    expect(tx.walletTransaction.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ reference: 'wd1', type: 'WITHDRAWAL', status: 'PENDING' }),
+      data: expect.objectContaining({ status: 'COMPLETED' }),
+    }));
+  });
+
+  test('does not change balances or ledger when the on-chain verifier rejects the transaction', async () => {
+    (blockchainTxVerifier.verifyTransaction as jest.Mock).mockRejectedValueOnce(new Error('RPC unavailable'));
+    await expect(walletService.processWithdrawal('wd1', 'admin1', validTxHash)).rejects.toThrow('RPC unavailable');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test('rejects a missing or malformed transaction hash', async () => {
+    await expect(walletService.processWithdrawal('wd1', 'admin1', '')).rejects.toThrow('transaction hash is required');
+    expect(blockchainTxVerifier.verifyTransaction).not.toHaveBeenCalled();
   });
 });

@@ -163,11 +163,11 @@ export async function getGiftHistory(limit = 50) {
 // WITHDRAWALS
 // ============================================================================
 
-export async function requestWithdrawal(amount: number, walletAddress: string) {
+export async function requestWithdrawal(amount: number, walletAddress: string, pinCode: string) {
   const res = await fetch(`${WALLET_URL}/withdraw`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(getToken()) },
-    body: JSON.stringify({ amount, walletAddress }),
+    body: JSON.stringify({ amount, walletAddress, pinCode }),
   });
   return handleResponse(res);
 }
