@@ -688,6 +688,12 @@ export class ChatService {
     }
 
     const type = options?.type || (isGroup ? "GROUP" : "DIRECT");
+    if (type === "DIRECT" && (uniqueUserIds.length !== 2 || isGroup)) {
+      throw new Error("Direct conversations must have exactly two participants");
+    }
+    if (type !== "DIRECT" && !options?.createdById) {
+      throw new Error("Group and channel conversations require an explicit owner");
+    }
 
     // Enforce every other participant's "who can message me" rule when a new
     // private direct conversation is being started. Groups and channels are

@@ -336,4 +336,20 @@ describe('ChatService security and persistence', () => {
     expect(result.attachments[0].url).toBe('/api/media/private/private-file-1?token=test-token');
   });
 
+  it('rejects multi-user direct conversations so groups cannot bypass group membership records', async () => {
+    await expect(service.createConversation(['user1', 'user2', 'user3'], undefined, false, {
+      type: 'DIRECT',
+      createdById: 'user1',
+    })).rejects.toThrow('exactly two participants');
+    expect(db.user.count).not.toHaveBeenCalled();
+    expect(db.conversation.create).not.toHaveBeenCalled();
+  });
+
+  it('requires an explicit owner for group and channel conversation records', async () => {
+    await expect(service.createConversation(['user1', 'user2'], 'fake channel', true, {
+      type: 'CHANNEL',
+    })).rejects.toThrow('explicit owner');
+    expect(db.conversation.create).not.toHaveBeenCalled();
+  });
+
 });
