@@ -11,7 +11,7 @@ const PROD_GOOD = {
   JWT_SECRET: 'str0ng-access-secret-0123456789abcdef',
   JWT_REFRESH_SECRET: 'str0ng-refresh-secret-0123456789abcdef',
   ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
-  ENCRYPTION_SALT: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  ENCRYPTION_SALT: 'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0fedcba9876543210',
 };
 
 describe('enforceSecretPolicy (fail closed)', () => {

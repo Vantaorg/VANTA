@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { complianceService } from '../services/compliance.service';
 import { authenticate, requirePermission, requireRole, AuthenticatedRequest } from '../security/authMiddleware';
-import { Role } from '../security/rbac';
-import { Permission } from '../security/rbac';
+import { Permission, Role } from '../security/rbac';
 
 const router = Router();
 

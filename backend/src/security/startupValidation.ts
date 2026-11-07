@@ -5,7 +5,7 @@
  * can run first during startup and be unit-tested in isolation.
  *
  * Rules:
- *  - production requires JWT_SECRET, JWT_REFRESH_SECRET and ENCRYPTION_KEY;
+ *  - production requires JWT_SECRET, JWT_REFRESH_SECRET, ENCRYPTION_KEY and a unique 32-byte hex ENCRYPTION_SALT;
  *  - production rejects the documented development defaults;
  *  - non-production only warns.
  */
