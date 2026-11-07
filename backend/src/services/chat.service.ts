@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { notificationService } from "./notification.service";
 import { BADGE_USER_SELECT, enrichPublicUser } from "./public-verification";
+import { createPrivateMediaUrl } from "./private-media.service";
 
 const userSelect = {
   id: true, username: true, fullName: true, avatar: true, verified: true,
@@ -115,6 +116,19 @@ const formatMessage = (message: any): any => {
   }
   return out;
 };
+
+
+function protectMessageMedia(message: any, files: Array<{ id: string; url: string }>, userId: string): any {
+  const formatted = formatMessage(message);
+  const byUrl = new Map(files.map(file => [file.url, file]));
+  const protect = (attachments: any[] | undefined) => (attachments || []).map(attachment => {
+    const file = byUrl.get(attachment.url);
+    return file ? { ...attachment, url: createPrivateMediaUrl(file.id, userId) } : attachment;
+  });
+  formatted.attachments = protect(formatted.attachments);
+  if (formatted.replyTo) formatted.replyTo = { ...formatted.replyTo, attachments: protect(formatted.replyTo.attachments) };
+  return formatted;
+}
 
 const formatCallDuration = (seconds: number): string => {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -274,7 +288,12 @@ export class ChatService {
     const nextCursor = hasMore ? page[page.length - 1]?.id : null;
     // Remove read-receipt entries from participants who disabled read receipts.
     page = await sanitizeReadReceipts(page, userId);
-    return { messages: page.reverse().map(formatMessage), nextCursor };
+    const messageIds = [...new Set(page.flatMap((message: any) => [message.id, message.replyTo?.id].filter(Boolean)))];
+    const privateFiles = messageIds.length ? await prisma.uploadedFile.findMany({
+      where: { category: 'message', recordType: 'Message', recordId: { in: messageIds }, deletedAt: null },
+      select: { id: true, url: true },
+    }) : [];
+    return { messages: page.reverse().map((message: any) => protectMessageMedia(message, privateFiles, userId)), nextCursor };
   }
 
   async sendMessage(conversationId: string, senderId: string, content: string, type = "TEXT", attachments: AttachmentInput[] = [], replyToId?: string, storyReply?: { storyId?: string; mediaUrl?: string; caption?: string; author?: string }) {
@@ -368,7 +387,7 @@ export class ChatService {
       await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
       return created;
     });
-    return formatMessage(message);
+    return protectMessageMedia(message, uploadedFiles, senderId);
   }
 
   async editMessage(messageId: string, userId: string, content: string) {
