@@ -48,7 +48,11 @@ jest.mock('bcryptjs', () => ({
 }));
 
 const walletService = new WalletService();
-const transferWithPin = (...args: any[]) => walletService.transferCoins(...args, '1234');
+const transferWithPin = (...args: any[]) => {
+  const positional = [...args];
+  while (positional.length < 10) positional.push(undefined);
+  return walletService.transferCoins(...positional, '1234');
+};
 
 const senderWallet: any = { id: 'wallet1', userId: 'user1', coinBalance: 1_000_000, earningsBalance: 0, totalCoinsPurchased: 0, totalCoinsReceived: 0, totalCoinsSent: 0, totalGiftsSent: 0, totalGiftsReceived: 0, totalWithdrawn: 0, lifetimeEarnings: 0, bonusCoins: 0, lockedCoins: 0, isFrozen: false, usdtWalletAddress: null };
 

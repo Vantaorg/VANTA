@@ -98,7 +98,7 @@ describe('WalletService.processWithdrawal', () => {
     tx.withdrawal.updateMany.mockResolvedValue({ count: 0 });
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
 
-    await expect(walletService.processWithdrawal('wd1', 'admin1', validTxHash)).rejects.toThrow('Withdrawal can only be processed once');
+    await expect(walletService.processWithdrawal('wd1', 'admin1', validTxHash)).rejects.toThrow('Withdrawal can only be completed once');
     expect(tx.walletTransaction.updateMany).not.toHaveBeenCalled();
     expect(tx.walletAuditLog.create).not.toHaveBeenCalled();
   });
