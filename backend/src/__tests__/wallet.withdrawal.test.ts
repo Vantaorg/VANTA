@@ -48,7 +48,9 @@ function txMock() {
     wallet: {
       update: jest.fn().mockResolvedValue({ ...walletRow, earningsBalance: 100 }),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      findUniqueOrThrow: jest.fn().mockResolvedValue(walletRow),
+      findUniqueOrThrow: jest.fn()
+        .mockResolvedValueOnce(walletRow)
+        .mockResolvedValueOnce({ ...walletRow, earningsBalance: 100 }),
     },
     withdrawal: {
       count: jest.fn().mockResolvedValue(0),
@@ -78,11 +80,13 @@ describe('WalletService.requestWithdrawal', () => {
 
     expect(result.status).toBe('PENDING');
     expect(tx.wallet.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: 'user1', earningsBalance: { gte: 100 } }) })
+      expect.objectContaining({ where: expect.objectContaining({ userId: 'user1', earningsBalance: 200 }) })
     );
     expect(tx.$queryRaw).toHaveBeenCalled();
     expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ type: 'WITHDRAWAL', currency: 'USD' }),
+      data: expect.objectContaining({
+        type: 'WITHDRAWAL', currency: 'USD', balanceBefore: 200, balance: 100,
+      }),
     }));
     expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
   });

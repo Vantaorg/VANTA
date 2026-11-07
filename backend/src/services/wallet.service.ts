@@ -1487,9 +1487,14 @@ export class WalletService {
         throw new Error("You already have a pending withdrawal request. Please wait for it to be processed.");
       }
 
-      // Re-check balance AND debit in the same conditional mutation.
+      // Read the balance after taking the wallet row lock, then compare-and-swap
+      // that exact snapshot so the USD ledger's before/after values are accurate.
+      const currentWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      if (currentWallet.isFrozen || currentWallet.earningsBalance < amount) {
+        throw new Error("Insufficient earnings balance");
+      }
       const debit = await tx.wallet.updateMany({
-        where: { userId, isFrozen: false, earningsBalance: { gte: amount } },
+        where: { userId, isFrozen: false, earningsBalance: currentWallet.earningsBalance },
         data: {
           earningsBalance: { decrement: amount },
           totalWithdrawn: { increment: netAmount },
@@ -1524,6 +1529,7 @@ export class WalletService {
           currency: "USD",
           amount,
           fee,
+          balanceBefore: currentWallet.earningsBalance,
           balance: updatedWallet.earningsBalance,
           status: "PENDING",
           description: `Withdrawal request of $${amount.toFixed(2)} (fee: $${fee.toFixed(2)}, net: $${netAmount.toFixed(2)})`,
