@@ -57,28 +57,47 @@ export function getPrivateCloudinaryDownloadUrl(storagePath: string, filename: s
  * public assets and invalidates their old CDN delivery URLs.
  */
 export async function secureExistingPrivateCloudinaryAssets() {
-  if (!useCloudinary) return { migrated: 0, alreadySecured: 0, skipped: true };
+  if (!useCloudinary) return { migrated: 0, alreadySecured: 0, total: 0, skipped: true };
   const files = await prisma.uploadedFile.findMany({
     where: { category: 'message', path: { startsWith: 'cloudinary:' }, deletedAt: null },
-    select: { path: true, filename: true },
+    select: { id: true, path: true, filename: true },
   });
   let migrated = 0;
   let alreadySecured = 0;
   for (const file of files) {
     const match = /^cloudinary:(image|video|raw):(.+)$/.exec(file.path || '');
     if (!match) continue;
+    const resourceType = match[1];
+    const oldPublicId = match[2];
+    const newPublicId = `${oldPublicId}_private_${file.id}`;
+    // Handle a retry after Cloudinary rename succeeded but the DB update failed.
     try {
-      await cloudinary.api.resource(match[2], { resource_type: match[1], type: 'authenticated' });
+      await cloudinary.api.resource(newPublicId, { resource_type: resourceType, type: 'authenticated' });
+      if (file.path !== `cloudinary:${resourceType}:${newPublicId}`) {
+        await prisma.uploadedFile.update({ where: { id: file.id }, data: { path: `cloudinary:${resourceType}:${newPublicId}` } });
+      }
       alreadySecured += 1;
       continue;
     } catch (error: any) {
       if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
     }
-    await cloudinary.uploader.rename(match[2], match[2], {
-      resource_type: match[1],
+    // Already-authenticated assets at their original public ID need no rename.
+    try {
+      await cloudinary.api.resource(oldPublicId, { resource_type: resourceType, type: 'authenticated' });
+      alreadySecured += 1;
+      continue;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    await cloudinary.uploader.rename(oldPublicId, newPublicId, {
+      resource_type: resourceType,
       type: 'upload',
       to_type: 'authenticated',
       invalidate: true,
+    });
+    await prisma.uploadedFile.update({
+      where: { id: file.id },
+      data: { path: `cloudinary:${resourceType}:${newPublicId}` },
     });
     migrated += 1;
   }
