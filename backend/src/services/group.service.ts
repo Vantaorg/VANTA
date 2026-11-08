@@ -25,8 +25,16 @@ export class GroupService {
     return { ...group, permissions };
   }
 
-  async createGroup(ownerId: string, name: string, description?: string, memberIds?: string[], avatar?: string) {
-    const allMemberIds = [ownerId, ...(memberIds?.filter(id => id !== ownerId) || [])];
+  async createGroup(ownerId: string, name: string, description?: string, memberIds?: string[], avatar?: string, autoDeleteSeconds?: number) {
+    const requestedMemberIds = [...new Set((memberIds || []).filter(id => typeof id === "string" && id !== ownerId))];
+    if (requestedMemberIds.length) {
+      const followerRows = await prisma.follow.findMany({ where: { followerId: { in: requestedMemberIds }, followingId: ownerId }, select: { followerId: true } });
+      const allowedFollowers = new Set(followerRows.map(row => row.followerId));
+      if (requestedMemberIds.some(id => !allowedFollowers.has(id))) throw new Error("Groups can only be created with people who follow you on VANTA");
+    }
+    const retention = Number(autoDeleteSeconds || 0);
+    if (!Number.isInteger(retention) || retention < 0 || retention > 31536000) throw new Error("Invalid group auto-delete duration");
+    const allMemberIds = [ownerId, ...requestedMemberIds];
     const uniqueMemberIds = [...new Set(allMemberIds)];
 
     const group = await prisma.group.create({
@@ -53,6 +61,7 @@ export class GroupService {
 
     const conversation = await chatService.createConversation(uniqueMemberIds, name, true, {
       type: "GROUP", avatar, description, createdById: ownerId,
+      permissions: retention > 0 ? { autoDeleteSeconds: retention } : {},
     });
     await prisma.group.update({ where: { id: group.id }, data: { conversationId: conversation.id } });
 
