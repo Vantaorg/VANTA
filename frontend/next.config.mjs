@@ -32,9 +32,11 @@ const nextConfig = {
     ? { allowedDevOrigins: ['10.174.123.177'] }
     : {}),
   
-  // Image optimization configuration
+  // Security mitigation: do not invoke the server-side image optimizer.
+  // User-controlled AVIF uploads remain direct browser-served assets only.
+  // The proxy.ts guard also returns 404 for direct /_next/image requests.
   images: {
-    formats: ['image/avif', 'image/webp'],
+    unoptimized: true,
     deviceSizes: [320, 480, 640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 86400,
