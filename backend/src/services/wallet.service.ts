@@ -1589,13 +1589,19 @@ export class WalletService {
     if (!withdrawal.walletAddress) throw new Error('Withdrawal destination address is missing');
 
     // A manual admin click or client-supplied hash is not proof of payment.
-    // Independently verify the mined USDT BEP-20 transfer, exact destination,
-    // net amount and confirmation count. Any RPC failure/mismatch aborts.
+    // Independently verify the mined USDT BEP-20 transfer, exact source
+    // treasury, destination, net amount and confirmation count. Any mismatch
+    // or missing treasury configuration fails closed.
+    const payoutSender = (process.env.VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS || '').trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(payoutSender)) {
+      throw new Error('VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS must be configured with the authorized payout wallet');
+    }
     const chainProof = await blockchainTxVerifier.verifyTransaction({
       txHash: normalizedHash,
       network: 'usdt-bep20',
       expectedAmountUsd: withdrawal.netAmount,
       expectedRecipient: withdrawal.walletAddress,
+      expectedSender: payoutSender,
     });
     if (!chainProof.verified) throw new Error('On-chain withdrawal verification failed');
 

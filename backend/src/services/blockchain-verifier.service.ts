@@ -41,6 +41,7 @@ export const BLOCKCHAIN_VERIFICATION_ERROR_CODES = Object.freeze({
   WRONG_NETWORK: 'WRONG_NETWORK',
   WRONG_TOKEN: 'WRONG_TOKEN',
   WRONG_RECIPIENT: 'WRONG_RECIPIENT',
+  WRONG_SENDER: 'WRONG_SENDER',
   AMOUNT_MISMATCH: 'AMOUNT_MISMATCH',
   LOW_CONFIRMATIONS: 'LOW_CONFIRMATIONS',
   RPC_UNAVAILABLE: 'RPC_UNAVAILABLE',
@@ -186,6 +187,8 @@ export class BlockchainTxVerifier {
     network: unknown;
     expectedAmountUsd: number;
     expectedRecipient: string;
+    /** Optional treasury/source wallet required for platform withdrawal verification. */
+    expectedSender?: string;
     minConfirmations?: number;
   }): Promise<BlockchainVerificationResult> {
     const txHash = typeof options.txHash === 'string' ? options.txHash.trim() : '';
@@ -207,6 +210,13 @@ export class BlockchainTxVerifier {
       throw new BlockchainTxVerificationError(
         BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_RECIPIENT,
         'The expected receiving wallet address is not a valid EVM address.'
+      );
+    }
+    const expectedSender = typeof options.expectedSender === 'string' ? options.expectedSender.trim() : undefined;
+    if (expectedSender !== undefined && !ADDRESS_HEX.test(expectedSender)) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_SENDER,
+        'The expected payout sender wallet address is not a valid EVM address.'
       );
     }
 
@@ -236,6 +246,12 @@ export class BlockchainTxVerifier {
         );
       }
       const tx = transaction as Record<string, unknown>;
+      if (expectedSender && (typeof tx.from !== 'string' || tx.from.toLowerCase() !== expectedSender.toLowerCase())) {
+        throw new BlockchainTxVerificationError(
+          BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_SENDER,
+          'Unmined transaction was not sent by the configured VANTA payout wallet.'
+        );
+      }
       // A pending transaction is only retryable when it is already a matching
       // token transfer. Never label an unrelated/unverified mempool hash pending.
       if (typeof tx.to !== 'string' || tx.to.toLowerCase() !== network.tokenContract.toLowerCase() ||
@@ -350,6 +366,12 @@ const logAddress = String(transferLog.address || '').toLowerCase();
 
     const topics = transferLog.topics as string[];
     const sender = topicToAddress(topics[1]);
+    if (expectedSender && sender.toLowerCase() !== expectedSender.toLowerCase()) {
+      throw new BlockchainTxVerificationError(
+        BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_SENDER,
+        'The USDT transfer was not sent by the configured VANTA payout wallet.'
+      );
+    }
     if (sender.toLowerCase() === recipient.toLowerCase()) {
       throw new BlockchainTxVerificationError(
         BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_RECIPIENT,

@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { requireRole } from '../security/authMiddleware';
-import { Role } from '../security/rbac';
+import { Role, canManageRole } from '../security/rbac';
 
 function response() {
   const res: any = {
@@ -34,5 +34,30 @@ describe('admin authorization at the API middleware layer', () => {
     const req: any = { user: { userId: 'admin-user', role: Role.ADMIN }, method: 'POST', path: '/users/role' };
     requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO)(req, response(), next);
     expect(next).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('privileged account role-change protections', () => {
+  test('an ADMIN cannot demote an existing SUPER_ADMIN or CEO', () => {
+    expect(canManageRole('ADMIN', 'SUPER_ADMIN', 'USER')).toBe(false);
+    expect(canManageRole('ADMIN', 'CEO', 'USER')).toBe(false);
+  });
+
+  test('an ADMIN cannot alter another ADMIN account', () => {
+    expect(canManageRole('ADMIN', 'ADMIN', 'USER')).toBe(false);
+    expect(canManageRole('ADMIN', 'ADMIN', 'ADMIN')).toBe(false);
+  });
+
+  test('a CEO may manage ADMIN accounts but cannot change CEO or SUPER_ADMIN accounts', () => {
+    expect(canManageRole('CEO', 'ADMIN', 'USER')).toBe(true);
+    expect(canManageRole('CEO', 'CEO', 'USER')).toBe(false);
+    expect(canManageRole('CEO', 'SUPER_ADMIN', 'USER')).toBe(false);
+  });
+
+  test('only SUPER_ADMIN can grant or change executive accounts', () => {
+    expect(canManageRole('ADMIN', 'USER', 'SUPER_ADMIN')).toBe(false);
+    expect(canManageRole('CEO', 'USER', 'CEO')).toBe(false);
+    expect(canManageRole('SUPER_ADMIN', 'USER', 'SUPER_ADMIN')).toBe(true);
+    expect(canManageRole('SUPER_ADMIN', 'SUPER_ADMIN', 'ADMIN')).toBe(true);
   });
 });

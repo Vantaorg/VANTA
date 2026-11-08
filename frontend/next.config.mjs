@@ -3,11 +3,8 @@
 import { createRequire } from 'node:module';
 
 // `allowedDevOrigins` (the dev-server origin allow-list used for physical-phone
-// LAN testing) was added in Next.js 15.0.0. Setting it on Next 14.2.x logs:
-//   "Unsupported allowedDevOrigins option detected ..."
-// Read the installed Next version and only set the option when it is actually
-// supported, so the 14.2.23 build stays warning-free while Wi-Fi phone testing
-// keeps working automatically after a future Next.js upgrade.
+// LAN testing) was added in Next.js 15.0.0. Read the installed Next version and
+// only set the option when supported, so the Next 14 baseline remains warning-free.
 const require = createRequire(import.meta.url);
 const nextMajorVersion = Number.parseInt(
   require('next/package.json').version.split('.')[0] ?? '0',
@@ -32,9 +29,11 @@ const nextConfig = {
     ? { allowedDevOrigins: ['10.174.123.177'] }
     : {}),
   
-  // Image optimization configuration
+  // Security mitigation: do not invoke the server-side image optimizer.
+  // User-controlled AVIF uploads remain direct browser-served assets only.
+  // The middleware.ts guard also returns 404 for direct /_next/image requests.
   images: {
-    formats: ['image/avif', 'image/webp'],
+    unoptimized: true,
     deviceSizes: [320, 480, 640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 86400,
