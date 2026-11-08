@@ -15,10 +15,10 @@ export const createGroup = async (req: AuthRequest, res: Response): Promise<void
     const userId = req.user?.userId;
     if (!userId) throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
 
-    const { name, description, memberIds, avatar } = req.body;
+    const { name, description, memberIds, avatar, autoDeleteSeconds } = req.body;
     if (!name || !name.trim()) throw badRequest("VALIDATION_ERROR", "Please give your group a name.");
 
-    const group = await groupService.createGroup(userId, name.trim(), description, memberIds, avatar);
+    const group = await groupService.createGroup(userId, name.trim(), description, memberIds, avatar, autoDeleteSeconds);
     res.status(201).json(group);
   } catch (error) {
     sendError(res, error, { diagnostic: { action: "createGroup" } });
