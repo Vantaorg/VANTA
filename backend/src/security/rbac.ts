@@ -256,3 +256,22 @@ export function parseRole(role: string): Role {
   }
   return Role.USER;
 }
+
+/**
+ * Prevent mid-level administrators from changing the role of an existing
+ * privileged account. Checking only the requested role is insufficient:
+ * without checking the target's current role, an ADMIN could demote a
+ * SUPER_ADMIN or CEO to USER and remove their privileges.
+ */
+export function canManageRole(actorRole: string, currentRole: string, nextRole: string): boolean {
+  const actor = actorRole.toUpperCase();
+  const current = currentRole.toUpperCase();
+  const next = nextRole.toUpperCase();
+
+  if ((current === Role.SUPER_ADMIN || current === Role.CEO) && actor !== Role.SUPER_ADMIN) return false;
+  if (current === Role.ADMIN && actor !== Role.SUPER_ADMIN && actor !== Role.CEO) return false;
+  if ((next === Role.SUPER_ADMIN || next === Role.CEO) && actor !== Role.SUPER_ADMIN) return false;
+  if (next === Role.ADMIN && actor !== Role.SUPER_ADMIN && actor !== Role.CEO) return false;
+
+  return true;
+}

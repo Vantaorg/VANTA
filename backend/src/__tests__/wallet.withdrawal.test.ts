@@ -39,6 +39,7 @@ const walletRow: any = {
 };
 
 const validAddress = `0x${'a'.repeat(40)}`;
+const payoutSender = `0x${'c'.repeat(40)}`;
 const pendingWithdrawal = { id: 'wd1', userId: 'user1', amount: 100, fee: 10, netAmount: 90, status: 'PENDING', walletAddress: validAddress, createdAt: new Date() };
 const validTxHash = `0x${'a'.repeat(64)}`;
 
@@ -65,9 +66,10 @@ function txMock() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env.VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS = payoutSender;
   (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(walletRow);
   (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hash', failedAttempts: 0, lockedUntil: null });
-  (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: validAddress, sender: null, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
+  (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: validAddress, sender: payoutSender, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
   (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
   (prisma.withdrawal.findUniqueOrThrow as jest.Mock).mockResolvedValue(pendingWithdrawal);
 });
@@ -172,6 +174,7 @@ describe('WalletService.processWithdrawal on-chain verification', () => {
       network: 'usdt-bep20',
       expectedAmountUsd: 90,
       expectedRecipient: validAddress,
+      expectedSender: payoutSender,
     }));
     expect(tx.withdrawal.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: 'wd1', status: 'PENDING', transactionHash: null }),
@@ -181,6 +184,14 @@ describe('WalletService.processWithdrawal on-chain verification', () => {
       where: expect.objectContaining({ reference: 'wd1', type: 'WITHDRAWAL', status: 'PENDING' }),
       data: expect.objectContaining({ status: 'COMPLETED' }),
     }));
+  });
+
+  test('fails closed when the authorized payout sender is not configured', async () => {
+    delete process.env.VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS;
+    await expect(walletService.processWithdrawal('wd1', 'admin1', validTxHash))
+      .rejects.toThrow('VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS must be configured');
+    expect(blockchainTxVerifier.verifyTransaction).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   test('does not change balances or ledger when the on-chain verifier rejects the transaction', async () => {

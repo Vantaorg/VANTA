@@ -20,12 +20,17 @@ const TRANSFER_SIG = '0xddf252ad1be2c89b69c2b608fc26bd2742204fa22e51d0b52488e1c4
 
 const padAddress = (addr: string) => `0x${addr.replace(/^0x/, '').toLowerCase().padStart(64, '0')}`;
 
-function makeTransferLog(to: string, amountWei: bigint | number, contract = USDT_BSC_CONTRACT) {
+function makeTransferLog(
+  to: string,
+  amountWei: bigint | number,
+  contract = USDT_BSC_CONTRACT,
+  from = '0x' + 'c'.repeat(40)
+) {
   return {
     address: contract,
     topics: [
       TRANSFER_SIG,
-      padAddress('0x' + 'c'.repeat(40)), // from
+      padAddress(from),
       padAddress(to),
     ],
     data: `0x${BigInt(amountWei).toString(16)}`,
@@ -97,6 +102,22 @@ describe('BlockchainTxVerifier.verifyTransaction', () => {
     expect(result.amount).toBeCloseTo(1.99, 4);
     expect(result.confirmations).toBe(5);
     expect(result.chainId).toBe(56);
+  });
+
+  test('rejects a USDT payout sent from a wallet other than the configured treasury', async () => {
+    mockRpc({
+      ...defaultHandlers(),
+      eth_getTransactionReceipt: () => makeReceipt({
+        logs: [makeTransferLog(OFFICIAL_WALLET, BigInt('199') * (10n ** 16n), USDT_BSC_CONTRACT, '0x' + 'c'.repeat(40))],
+      }),
+    });
+    await expect(blockchainTxVerifier.verifyTransaction({
+      txHash: TX,
+      network: 'usdt-bep20',
+      expectedAmountUsd: 1.99,
+      expectedRecipient: OFFICIAL_WALLET,
+      expectedSender: '0x' + 'd'.repeat(40),
+    })).rejects.toMatchObject({ code: BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_SENDER });
   });
 
   test('verifies a genuine USDC Base transfer honoring 6-decimal token values', async () => {

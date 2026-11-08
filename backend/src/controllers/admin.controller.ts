@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { moderationService, walletService, userService, adminService, adService, coinPaymentService, verificationService, liveService } from '../services';
 import { AuthenticatedRequest, auditLog } from '../security';
+import { canManageRole } from '../security/rbac';
 import { BADGE_USER_SELECT, isBadgeRowActive } from '../services/public-verification';
 import { normalizeAdminUserSearch, buildVerifiedFilters } from '../services/admin-user-search';
 import { isVerificationPlanKey, VERIFICATION_PLAN_KEYS } from '../services/verification.service';
@@ -216,17 +217,17 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
-    // Privilege escalation guard: only a SUPER_ADMIN may grant the highest
-    // roles. Mid-level admins can manage USER/CREATOR/MODERATOR roles only —
-    // they can never mint another admin or executive.
     const actorRole = String(req.user?.role || 'USER');
-    const actorIsSuper = actorRole === 'SUPER_ADMIN';
-    if ((role === 'SUPER_ADMIN' || role === 'CEO') && !actorIsSuper) {
-      res.status(403).json({ error: 'Only a SUPER_ADMIN can assign executive/SUPER_ADMIN roles' });
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    if (!target) {
+      res.status(404).json({ error: 'User not found' });
       return;
     }
-    if (role === 'ADMIN' && !(actorIsSuper || actorRole === 'CEO')) {
-      res.status(403).json({ error: 'Only a SUPER_ADMIN or CEO can assign the ADMIN role' });
+    if (!canManageRole(actorRole, String(target.role), String(role))) {
+      res.status(403).json({ error: 'Your role cannot change this account to the requested role' });
       return;
     }
 
