@@ -1565,7 +1565,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (type === 'group' && token) {
       setFollowersLoading(true);
       apiGet<any>('/api/profiles/me/followers?limit=100', token)
-        .then(result => setCreatorFollowers(result?.items ?? result?.data?.items ?? []))
+        .then(result => { const items = result?.items ?? result?.data?.items ?? []; setCreatorFollowers(items); setMemberSearchResults(items.filter((item: any) => item.id !== user?.id)); })
         .catch(() => setCreatorFollowers([]))
         .finally(() => setFollowersLoading(false));
     }
