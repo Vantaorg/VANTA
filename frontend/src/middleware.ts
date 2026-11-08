@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Fail closed on the legacy image-optimization endpoint. VANTA accepts
- * user-controlled AVIF uploads; keep this route blocked until image
- * optimization is separately reviewed and enabled on a patched Next.js build.
+ * user-controlled AVIF uploads; block server-side image processing until the
+ * patched Next.js upgrade is deployed and image handling is retested.
  */
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/_next/image') {
     return new NextResponse(null, {
       status: 404,
