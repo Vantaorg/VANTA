@@ -284,12 +284,15 @@ export class ChatService {
     }
 
     const pageSize = Math.min(Math.max(limit, 1), 100);
+    let retentionSeconds = 0;
+    try { retentionSeconds = Math.max(0, Math.floor(Number(JSON.parse(conversation.permissions || "{}")?.autoDeleteSeconds) || 0)); } catch { retentionSeconds = 0; }
+    const retentionCutoff = retentionSeconds > 0 ? new Date(Date.now() - retentionSeconds * 1000) : undefined;
     const messages = await prisma.message.findMany({
       // Soft-deleted messages are wiped from the conversation entirely — the
       // product treats "delete for everyone" as a hard removal, so we never
       // return deleted rows (no placeholders survive a refresh or a reload on
       // any device).
-      where: { conversationId, deletedAt: null },
+      where: { conversationId, deletedAt: null, ...(retentionCutoff ? { createdAt: { gte: retentionCutoff } } : {}) },
       include: {
         sender: {
           select: userSelect,
@@ -678,7 +681,7 @@ export class ChatService {
     return sanitizeReadReceipts(messages, userId);
   }
 
-  async createConversation(userIds: string[], name?: string, isGroup: boolean = false, options?: { type?: "DIRECT" | "GROUP" | "CHANNEL"; avatar?: string; description?: string; handle?: string; visibility?: string; createdById?: string }) {
+  async createConversation(userIds: string[], name?: string, isGroup: boolean = false, options?: { type?: "DIRECT" | "GROUP" | "CHANNEL"; avatar?: string; description?: string; handle?: string; visibility?: string; createdById?: string; permissions?: Record<string, unknown> }) {
     const uniqueUserIds = [...new Set(userIds)];
 
     if (uniqueUserIds.length > 100) throw new Error("A conversation cannot have more than 100 participants");
@@ -735,6 +738,7 @@ export class ChatService {
         handle: options?.handle,
         visibility: options?.visibility || (type === "DIRECT" ? "PRIVATE" : "PUBLIC"),
         createdById: options?.createdById,
+        permissions: options?.permissions && Object.keys(options.permissions).length ? JSON.stringify(options.permissions) : null,
         participants: {
           create: uniqueUserIds.map((userId) => ({ userId, role: userId === options?.createdById ? "OWNER" : "MEMBER" })),
         },
