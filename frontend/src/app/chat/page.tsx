@@ -277,6 +277,10 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creatorFollowers, setCreatorFollowers] = useState<any[]>([]);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [autoDeleteSeconds, setAutoDeleteSeconds] = useState(0);
+  const [customDeleteDays, setCustomDeleteDays] = useState('2');
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
   // Poll voting is not supported by this backend yet. Keep the attachment sheet
   // intact, but do not create messages that can only appear as raw JSON.
@@ -1540,6 +1544,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
     setCreateModalOpen(false);
     setCreateType(null);
+    setAutoDeleteSeconds(0);
+    setCreatorFollowers([]);
     setCreateName('');
     setCreateDescription('');
     setCreateHandle('');
@@ -1555,6 +1561,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const handleOpenCreateModal = (type: 'group' | 'channel') => {
     setCreateType(type);
     setCreateModalOpen(true);
+    setAutoDeleteSeconds(0);
+    if (type === 'group' && token) {
+      setFollowersLoading(true);
+      apiGet<any>('/api/profiles/me/followers?limit=100', token)
+        .then(result => { const items = result?.items ?? result?.data?.items ?? []; setCreatorFollowers(items); setMemberSearchResults(items.filter((item: any) => item.id !== user?.id)); })
+        .catch(() => setCreatorFollowers([]))
+        .finally(() => setFollowersLoading(false));
+    }
     setCreateAvatar(null);
     setCreateAvatarError(null);
     setCreateValidationError(null);
@@ -1570,23 +1584,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     );
   };
 
-  const handleSearchMembers = useCallback(async (query: string) => {
+  const handleSearchMembers = useCallback((query: string) => {
     setMemberSearch(query);
-    if (!query.trim() || !token) {
-      setMemberSearchResults([]);
-      return;
-    }
-
-    try {
-      const result = await apiGet<any>(`/api/search?q=${encodeURIComponent(query)}&type=users`, token);
-      const hits = Array.isArray(result) ? result : result?.results?.users ?? result?.data?.users ?? result?.users ?? [];
-      setMemberSearchResults(
-        hits.filter((item: any) => item.id !== user?.id && !selectedMembers.some((member) => member.id === item.id))
-      );
-    } catch {
-      setMemberSearchResults([]);
-    }
-  }, [token, user?.id, selectedMembers]);
+    const normalized = query.trim().toLowerCase();
+    setMemberSearchResults(creatorFollowers.filter((item: any) => item.id !== user?.id && !selectedMembers.some((member) => member.id === item.id) && (!normalized || String(item.username || '').toLowerCase().includes(normalized) || String(item.fullName || '').toLowerCase().includes(normalized))));
+  }, [creatorFollowers, user?.id, selectedMembers]);
 
   /**
    * Create Group / Create Channel image upload.
@@ -1668,7 +1670,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         name: createName.trim(),
         description: createDescription.trim() || undefined,
         avatar: createAvatar || undefined,
-        memberIds: selectedMembers.map((member) => member.id),
+        memberIds: selectedMembers.filter((member) => member.id !== user?.id).map((member) => member.id),
+        ...(createType === 'group' ? { autoDeleteSeconds } : {}),
         ...(createType === 'channel' ? { handle: createHandle.trim().replace(/^@/, '') || undefined, visibility: createVisibility } : {}),
       };
 
@@ -2872,6 +2875,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <textarea value={createDescription} onChange={e => setCreateDescription(e.target.value)} placeholder={createType === 'group' ? 'What will your group talk about?' : 'What updates will people receive?'} rows={3} maxLength={500} className="w-full resize-y rounded-xl border border-white/[0.07] bg-[#202b37] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60" />
                     </div>
                   </section>
+                  {createType === 'group' && <section className="rounded-3xl bg-[#171f29]/75 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Auto Delete Messages</h3><p className="mt-1 text-xs text-white/40">Automatically expire messages after a chosen time.</p></div><select aria-label="Auto delete messages" value={autoDeleteSeconds === 0 ? '0' : [86400,604800,2592000].includes(autoDeleteSeconds) ? String(autoDeleteSeconds) : 'custom'} onChange={e => setAutoDeleteSeconds(e.target.value === 'custom' ? 172800 : Number(e.target.value))} className="rounded-xl border border-white/[0.08] bg-[#202b37] px-3 py-2.5 text-sm text-[#e6bd58]"><option value="0">Off</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option><option value="custom">Custom time</option></select></div>{![0,86400,604800,2592000].includes(autoDeleteSeconds) && <div className="mt-3 flex items-center gap-2"><input aria-label="Custom auto delete days" type="number" min="1" max="365" value={customDeleteDays} onChange={e => {setCustomDeleteDays(e.target.value);setAutoDeleteSeconds(Math.max(1,Math.min(365,Number(e.target.value)||1))*86400);}} className="h-10 w-24 rounded-lg border border-white/[0.08] bg-[#202b37] px-3 text-sm text-white"/><span className="text-xs text-white/45">days</span></div>}</section>}
                   {createType === 'channel' && (
                     <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:grid-cols-2 sm:p-5">
                       <div>
@@ -2886,10 +2890,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     </section>
                   )}
                   <section className="grid gap-3 rounded-3xl bg-[#171f29]/75 p-4 sm:p-5">
-                    <div><h3 className="text-sm font-semibold text-white">Invite people</h3><p className="mt-1 text-[11px] text-white/40">You can add more members later.</p></div>
+                    <div><h3 className="text-sm font-semibold text-white">Add followers</h3><p className="mt-1 text-[11px] text-white/40">Only people following you on VANTA appear here.</p></div>
                     {selectedMembers.length > 0 && <div className="flex flex-wrap gap-2">{selectedMembers.map(member => <button key={member.id} type="button" onClick={() => toggleMemberSelection(member)} className="flex items-center gap-2 rounded-full bg-[#26313e] py-1.5 pl-1.5 pr-3 text-xs text-white/80 transition hover:bg-[#303d4b]"><Avatar src={member.avatar} alt={member.username || member.fullName} size="xs" /><span>{member.id === user?.id ? 'You' : member.username || member.fullName}</span>{member.id !== user?.id && <X size={12} className="text-white/40" />}</button>)}</div>}
                     <div className="relative"><Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" /><input value={memberSearch} onChange={e => handleSearchMembers(e.target.value)} placeholder="Search VANTA members" className="h-11 w-full rounded-xl border border-white/[0.07] bg-[#202b37] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/60" /></div>
-                    {memberSearch && <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain">{memberSearchResults.map((item: any) => <button key={item.id} type="button" onClick={() => toggleMemberSelection(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{item.fullName || item.username}</span><span className="mt-0.5 block truncate text-[10px] text-white/40">@{item.username}</span></span><UserPlus size={15} className="text-[#d6a83f]" /></button>)}{memberSearchResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No members found.</p>}</div>}
+                    {createType === 'group' && <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain">{followersLoading ? <p className="px-3 py-5 text-center text-xs text-white/40">Loading your followers…</p> : memberSearchResults.map((item: any) => <button key={item.id} type="button" onClick={() => toggleMemberSelection(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{item.fullName || item.username}</span><span className="mt-0.5 block truncate text-[10px] text-white/40">@{item.username}</span></span><UserPlus size={15} className="text-[#d6a83f]" /></button>)}{!followersLoading && memberSearchResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">{memberSearch ? 'No matching followers found.' : 'No followers available to add.'}</p>}</div>}
                   </section>
                 </div>
               </div>
