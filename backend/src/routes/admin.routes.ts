@@ -79,12 +79,23 @@ import {
 } from '../controllers/admin.controller';
 import { authenticate, requireRole, Role } from '../security';
 import { giftService, GiftCatalogInput } from '../services/gift.service';
+import { secureExistingPrivateCloudinaryAssets } from '../services/upload.service';
 
 const router = Router();
 
 // All admin routes require authentication + ADMIN role
 router.use(authenticate);
 router.use(requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN));
+
+// One-time migration: convert legacy public message assets to authenticated Cloudinary assets.
+router.post('/security/secure-private-media', async (_req, res, next) => {
+  try {
+    const result = await secureExistingPrivateCloudinaryAssets();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Dashboard
 router.get('/stats', getDashboardStats);

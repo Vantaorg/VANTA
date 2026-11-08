@@ -1,3 +1,4 @@
+jest.mock('../services/private-media.service', () => ({ createPrivateMediaUrl: jest.fn((id: string) => `/api/media/private/${id}?token=test-token`) }));
 import { UploadService, getFileType, buildUploadUrl } from '../services/upload.service';
 import { prisma } from '../prisma';
 import fs from 'fs';

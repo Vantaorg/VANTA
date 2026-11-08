@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { randomBytes } from 'crypto';
 import { AuthenticatedRequest, CryptoUtils, SecurityValidator, sessionManager, twoFactorAuth, auditLog, botProtection, GDPRCompliance, config } from '../security';
 import { accountStatusError, signAppealToken } from '../security/accountStatus';
 import { prisma } from '../prisma';
@@ -115,6 +116,29 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+async function issueTwoFactorLoginChallenge(userId: string): Promise<string> {
+  const token = randomBytes(32).toString('hex');
+  const now = new Date();
+  // Remove consumed/expired challenges for this account before issuing another.
+  await prisma.twoFactorLoginChallenge.deleteMany({
+    where: {
+      userId,
+      OR: [
+        { consumedAt: { not: null } },
+        { expiresAt: { lte: now } },
+      ],
+    },
+  });
+  await prisma.twoFactorLoginChallenge.create({
+    data: {
+      userId,
+      tokenHash: CryptoUtils.sha256(token),
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+    },
+  });
+  return token;
+}
+
 // ============================================================================
 // LOGIN
 // ============================================================================
@@ -226,17 +250,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           // Skip 2FA for trusted devices - proceed with login
         } else {
           // Require 2FA token
+          const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
           res.status(200).json({
             requiresTwoFactor: true,
             userId: user.id,
+            twoFactorChallenge,
             message: 'Two-factor authentication required',
           });
           return;
         }
       } else {
+        const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
         res.status(200).json({
           requiresTwoFactor: true,
           userId: user.id,
+          twoFactorChallenge,
           message: 'Two-factor authentication required',
         });
         return;
@@ -292,15 +320,29 @@ export const login = async (req: Request, res: Response): Promise<void> => {
  */
 export const completeLogin2FA = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, token } = req.body;
-    if (typeof userId !== 'string' || typeof token !== 'string' || !userId || !token.trim()) {
-      res.status(400).json({ error: 'userId and verification token are required' });
+    const { userId, challengeToken, token } = req.body;
+    if (
+      typeof userId !== 'string' || !userId ||
+      typeof challengeToken !== 'string' || challengeToken.length < 32 ||
+      typeof token !== 'string' || !token.trim()
+    ) {
+      res.status(400).json({ error: 'A valid password-step challenge and verification token are required' });
+      return;
+    }
+
+    const tokenHash = CryptoUtils.sha256(challengeToken);
+    const challenge = await prisma.twoFactorLoginChallenge.findFirst({
+      where: { userId, tokenHash, consumedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, userId: true },
+    });
+    if (!challenge) {
+      res.status(401).json({ error: 'The sign-in challenge is invalid or expired. Please sign in again.' });
       return;
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, username: true, fullName: true, role: true, status: true, twoFactorEnabled: true },
+      where: { id: challenge.userId },
+      select: { id: true, email: true, username: true, fullName: true, role: true, status: true, twoFactorEnabled: true, emailVerified: true, lockedUntil: true },
     });
 
     if (!user) {
@@ -324,6 +366,14 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
       res.status(accountError.status).json({ error: accountError.error, code: accountError.code, accountStatus: user.status });
       return;
     }
+    if (config.auth.requireEmailVerification && !user.emailVerified && user.status === 'ACTIVE') {
+      res.status(403).json({ error: 'Email not verified' });
+      return;
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      res.status(429).json({ error: 'Account temporarily locked. Please try again later.' });
+      return;
+    }
     if (!user.twoFactorEnabled) {
       res.status(400).json({ error: 'Two-factor authentication is not enabled for this account' });
       return;
@@ -332,6 +382,18 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
     const result = await twoFactorAuth.verifyLogin(user.id, token.trim());
     if (!result.valid) {
       res.status(401).json({ error: 'Invalid verification code' });
+      return;
+    }
+
+    // Consume the password-step challenge exactly once after successful 2FA.
+    // This compare-and-swap prevents concurrent completions from creating
+    // multiple sessions from the same password verification.
+    const consumed = await prisma.twoFactorLoginChallenge.updateMany({
+      where: { id: challenge.id, userId: user.id, tokenHash, consumedAt: null, expiresAt: { gt: new Date() } },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) {
+      res.status(401).json({ error: 'The sign-in challenge was already used. Please sign in again.' });
       return;
     }
 

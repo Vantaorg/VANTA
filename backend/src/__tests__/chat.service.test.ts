@@ -10,6 +10,10 @@ jest.mock('../prisma', () => ({ prisma: {
   $transaction: jest.fn(),
 } }));
 
+jest.mock('../services/private-media.service', () => ({
+  createPrivateMediaUrl: jest.fn((fileId: string) => `/api/media/private/${fileId}?token=test-token`),
+}));
+
 import { prisma } from '../prisma';
 import { ChatService } from '../services/chat.service';
 
@@ -18,6 +22,7 @@ const service = new ChatService();
 
 describe('ChatService security and persistence', () => {
   beforeEach(() => {
+    process.env.JWT_SECRET = 'test-jwt-secret-long-enough-for-private-media-signing';
     jest.clearAllMocks();
     (db.$transaction as jest.Mock).mockImplementation((callback: any) => callback(db));
   });
@@ -26,6 +31,26 @@ describe('ChatService security and persistence', () => {
     (db.conversation.findUnique as jest.Mock).mockResolvedValue({ id: 'conversation', participants: [{ userId: 'member' }] });
     await expect(service.getMessages('conversation', 'attacker')).rejects.toThrow('unauthorized');
     expect(db.message.findMany).not.toHaveBeenCalled();
+  });
+
+
+  it('returns user-bound private URLs for message attachments after membership checks', async () => {
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({ id: 'conversation', participants: [{ userId: 'reader' }] });
+    (db.message.findMany as jest.Mock).mockResolvedValue([{
+      id: 'message-1',
+      sender: { id: 'sender', username: 'sender' },
+      reads: [],
+      reactions: [],
+      attachments: [{ id: 'attachment-1', url: 'https://cdn.test/private.jpg', fileType: 'IMAGE' }],
+      replyTo: null,
+    }]);
+    (db.userSettings.findMany as jest.Mock).mockResolvedValue([]);
+    (db.uploadedFile.findMany as jest.Mock).mockResolvedValue([{
+      id: 'private-file-1', url: 'https://cdn.test/private.jpg', recordId: 'message-1',
+    }]);
+
+    const result = await service.getMessages('conversation', 'reader');
+    expect(result.messages[0].attachments[0].url).toBe('/api/media/private/private-file-1?token=test-token');
   });
 
   it('sanitizes content and persists attachment metadata', async () => {
@@ -227,4 +252,104 @@ describe('ChatService security and persistence', () => {
     const result = await service.sendMessage('conversation', 'sender', 'hello');
     expect(result).toBeDefined();
   });
+  it('does not let a removed sender edit their old message', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'old-message',
+      senderId: 'former-member',
+      deletedAt: null,
+      conversation: { type: 'GROUP', permissions: null, participants: [] },
+    });
+
+    await expect(service.editMessage('old-message', 'former-member', 'edited'))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('does not let a removed sender delete their old message', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'old-message',
+      senderId: 'former-member',
+      deletedAt: null,
+      conversation: { type: 'GROUP', permissions: null, participants: [] },
+    });
+
+    await expect(service.deleteMessage('old-message', 'former-member'))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('does not let a direct-chat creator delete the other participant messages', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'direct-message',
+      senderId: 'recipient',
+      deletedAt: null,
+      conversation: {
+        type: 'DIRECT',
+        permissions: null,
+        participants: [
+          { userId: 'creator', role: 'OWNER' },
+          { userId: 'recipient', role: 'MEMBER' },
+        ],
+      },
+    });
+
+    await expect(service.deleteMessage('direct-message', 'creator', true))
+      .rejects.toThrow('unauthorized');
+    expect(db.message.update).not.toHaveBeenCalled();
+  });
+
+  it('allows an active group administrator to moderate group messages', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'group-message',
+      senderId: 'member',
+      deletedAt: null,
+      conversation: {
+        type: 'GROUP',
+        permissions: null,
+        participants: [{ userId: 'admin', role: 'ADMIN' }],
+      },
+    });
+    (db.message.update as jest.Mock).mockResolvedValue({ id: 'group-message', deletedAt: new Date() });
+
+    await expect(service.deleteMessage('group-message', 'admin', true)).resolves.toBeDefined();
+    expect(db.message.update).toHaveBeenCalled();
+  });
+
+  it('returns protected private attachment URLs from message mutation responses', async () => {
+    (db.message.findUnique as jest.Mock).mockResolvedValue({
+      id: 'message-1',
+      senderId: 'sender',
+      deletedAt: null,
+      conversation: { type: 'DIRECT', permissions: null, participants: [{ userId: 'sender', role: 'MEMBER' }] },
+    });
+    (db.message.update as jest.Mock).mockResolvedValue({
+      id: 'message-1',
+      senderId: 'sender',
+      attachments: [{ url: 'https://cdn.test/private.jpg' }],
+      replyTo: null,
+    });
+    (db.uploadedFile.findMany as jest.Mock).mockResolvedValue([
+      { id: 'private-file-1', url: 'https://cdn.test/private.jpg' },
+    ]);
+
+    const result = await service.editMessage('message-1', 'sender', 'updated');
+    expect(result.attachments[0].url).toBe('/api/media/private/private-file-1?token=test-token');
+  });
+
+  it('rejects multi-user direct conversations so groups cannot bypass group membership records', async () => {
+    await expect(service.createConversation(['user1', 'user2', 'user3'], undefined, false, {
+      type: 'DIRECT',
+      createdById: 'user1',
+    })).rejects.toThrow('exactly two participants');
+    expect(db.user.count).not.toHaveBeenCalled();
+    expect(db.conversation.create).not.toHaveBeenCalled();
+  });
+
+  it('requires an explicit owner for group and channel conversation records', async () => {
+    await expect(service.createConversation(['user1', 'user2'], 'fake channel', true, {
+      type: 'CHANNEL',
+    })).rejects.toThrow('explicit owner');
+    expect(db.conversation.create).not.toHaveBeenCalled();
+  });
+
 });

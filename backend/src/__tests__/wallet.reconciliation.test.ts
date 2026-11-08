@@ -46,11 +46,16 @@ beforeEach(() => {
 describe('WalletService.reconcileWallet', () => {
   test('reports MATCH when the ledger equals the stored balance', async () => {
     (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
-      { type: 'PURCHASE', amount: 500 },
-      { type: 'GIFT_RECEIVED', amount: 700 },
-      { type: 'GIFT_SENT', amount: 200 },
+      { type: 'PURCHASE', amount: 500, currency: 'VANTA' },
+      { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA' },
+      { type: 'GIFT_SENT', amount: 200, currency: 'VANTA' },
+      { type: 'WITHDRAWAL', amount: 500, currency: 'USD' },
+      { type: 'CREATOR_EARNING', amount: 0.7, currency: 'USD' },
     ]);
     const result = await walletService.reconcileWallet('user1');
+    expect(prisma.walletTransaction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user1', currency: 'VANTA' },
+    }));
     expect(result.status).toBe('MATCH');
     expect(result.ledgerBalance).toBe(1000); // +500 +700 -200
     expect(result.difference).toBe(0);

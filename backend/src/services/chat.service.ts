@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { notificationService } from "./notification.service";
 import { BADGE_USER_SELECT, enrichPublicUser } from "./public-verification";
+import { createPrivateMediaUrl } from "./private-media.service";
 
 const userSelect = {
   id: true, username: true, fullName: true, avatar: true, verified: true,
@@ -115,6 +116,39 @@ const formatMessage = (message: any): any => {
   }
   return out;
 };
+
+
+function protectMessageMedia(message: any, files: Array<{ id: string; url: string }>, userId: string): any {
+  const formatted = formatMessage(message);
+  const byUrl = new Map(files.map(file => [file.url, file]));
+  const protect = (attachments: any) => Array.isArray(attachments) ? attachments.map((attachment: any) => {
+    const file = byUrl.get(attachment.url);
+    return file ? { ...attachment, url: createPrivateMediaUrl(file.id, userId) } : attachment;
+  }) : (attachments || []);
+  formatted.attachments = protect(formatted.attachments);
+  if (formatted.replyTo) formatted.replyTo = { ...formatted.replyTo, attachments: protect(formatted.replyTo.attachments) };
+  return formatted;
+}
+
+async function protectPersistedMessage(message: any, userId: string): Promise<any> {
+  const recordIds = [message?.id, message?.replyTo?.id].filter((id): id is string => typeof id === "string" && id.length > 0);
+  const attachmentUrls = [
+    ...(Array.isArray(message?.attachments) ? message.attachments : []),
+    ...(Array.isArray(message?.replyTo?.attachments) ? message.replyTo.attachments : []),
+  ].map((attachment: any) => attachment?.url).filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
+  if (!recordIds.length || !attachmentUrls.length) return protectMessageMedia(message, [], userId);
+
+  const files = await prisma.uploadedFile.findMany({
+    where: {
+      recordType: "Message",
+      recordId: { in: recordIds },
+      url: { in: [...new Set(attachmentUrls)] },
+      deletedAt: null,
+    },
+    select: { id: true, url: true },
+  });
+  return protectMessageMedia(message, files, userId);
+}
 
 const formatCallDuration = (seconds: number): string => {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -274,7 +308,12 @@ export class ChatService {
     const nextCursor = hasMore ? page[page.length - 1]?.id : null;
     // Remove read-receipt entries from participants who disabled read receipts.
     page = await sanitizeReadReceipts(page, userId);
-    return { messages: page.reverse().map(formatMessage), nextCursor };
+    const messageIds = [...new Set(page.flatMap((message: any) => [message.id, message.replyTo?.id].filter(Boolean)))];
+    const privateFiles = messageIds.length ? await prisma.uploadedFile.findMany({
+      where: { category: 'message', recordType: 'Message', recordId: { in: messageIds }, deletedAt: null },
+      select: { id: true, url: true },
+    }) : [];
+    return { messages: page.reverse().map((message: any) => protectMessageMedia(message, privateFiles, userId)), nextCursor };
   }
 
   async sendMessage(conversationId: string, senderId: string, content: string, type = "TEXT", attachments: AttachmentInput[] = [], replyToId?: string, storyReply?: { storyId?: string; mediaUrl?: string; caption?: string; author?: string }) {
@@ -368,13 +407,16 @@ export class ChatService {
       await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
       return created;
     });
-    return formatMessage(message);
+    return protectMessageMedia(message, uploadedFiles, senderId);
   }
 
   async editMessage(messageId: string, userId: string, content: string) {
     const message: any = await prisma.message.findUnique({ where: { id: messageId }, include: { conversation: { include: { participants: true } } } });
     if (!message || message.deletedAt) throw new Error("Message not found or unauthorized");
     const participant = message.conversation.participants.find((p: any) => p.userId === userId);
+    // A sender who has been removed from the conversation no longer has
+    // permission to mutate messages in that private space.
+    if (!participant) throw new Error("Message not found or unauthorized");
     const permissions = conversationPermissions(message.conversation.permissions);
     // Channel "Edit messages" permission lets administrators edit any message;
     // otherwise users may only edit their own messages.
@@ -384,24 +426,27 @@ export class ChatService {
     if (message.senderId !== userId && !canModerateEdit) throw new Error("Message not found or unauthorized");
     const safeContent = cleanContent(content);
     if (!safeContent) throw new Error("Message content is required");
-    return prisma.message.update({ where: { id: messageId }, data: { content: safeContent, editedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { content: safeContent, editedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async deleteMessage(messageId: string, userId: string, everyone = false) {
     const message = await prisma.message.findUnique({ where: { id: messageId }, include: { conversation: { include: { participants: true } } } });
     const participant = message?.conversation.participants.find((p: any) => p.userId === userId);
-    const canModerate = ["OWNER", "ADMIN", "MODERATOR"].includes(participant?.role);
+    const isGroupOrChannel = message?.conversation.type === "GROUP" || message?.conversation.type === "CHANNEL";
+    // Direct-chat creator roles do not confer moderation rights over another
+    // person's private messages. Only active group/channel admins can moderate.
+    const canModerate = Boolean(isGroupOrChannel && participant && ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role));
     const permissions = conversationPermissions(message?.conversation.permissions);
     const isChannel = message?.conversation.type === "CHANNEL";
     const isChannelOwner = isChannel && participant?.role === "OWNER";
     // Channel "Delete messages" permission: when explicitly disabled, even
     // administrators cannot force-delete other people's posts (owner excluded).
     const forceDeleteAllowed = !isChannel || isChannelOwner || permissions.deleteMessages !== false;
-    if (!message || (!canModerate && message.senderId !== userId) || (everyone && !canModerate && message.senderId !== userId)) {
+    if (!message || !participant || (!canModerate && message.senderId !== userId) || (everyone && !canModerate && message.senderId !== userId)) {
       throw new Error("Message not found or unauthorized");
     }
     if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");
-    return prisma.message.update({ where: { id: messageId }, data: { content: "", deletedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { content: "", deletedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async reactToMessage(messageId: string, userId: string, reaction: string) {
@@ -412,7 +457,7 @@ export class ChatService {
     const existing = await prisma.messageReaction.findUnique({ where: { messageId_userId: { messageId, userId } } });
     if (existing?.reaction === reaction) await prisma.messageReaction.delete({ where: { id: existing.id } });
     else await prisma.messageReaction.upsert({ where: { messageId_userId: { messageId, userId } }, update: { reaction }, create: { messageId, userId, reaction } });
-    return prisma.message.findUnique({ where: { id: messageId }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.findUnique({ where: { id: messageId }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async setMessagePinned(messageId: string, userId: string, pinned: boolean) {
@@ -423,7 +468,7 @@ export class ChatService {
     const permissions = conversationPermissions(message.conversation.permissions);
     if (message.conversation.type === "CHANNEL" && !isAdministrator) throw new Error("Only channel administrators can pin messages");
     if (message.conversation.type === "GROUP" && !isAdministrator && permissions.pinMessages !== true) throw new Error("You do not have permission to pin messages");
-    return prisma.message.update({ where: { id: messageId }, data: { pinnedAt: pinned ? new Date() : null, pinnedById: pinned ? userId : null }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } });
+    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId }, data: { pinnedAt: pinned ? new Date() : null, pinnedById: pinned ? userId : null }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
   }
 
   async setConversationMuted(conversationId: string, userId: string, muted: boolean) {
@@ -643,6 +688,12 @@ export class ChatService {
     }
 
     const type = options?.type || (isGroup ? "GROUP" : "DIRECT");
+    if (type === "DIRECT" && (uniqueUserIds.length !== 2 || isGroup)) {
+      throw new Error("Direct conversations must have exactly two participants");
+    }
+    if (type !== "DIRECT" && !options?.createdById) {
+      throw new Error("Group and channel conversations require an explicit owner");
+    }
 
     // Enforce every other participant's "who can message me" rule when a new
     // private direct conversation is being started. Groups and channels are

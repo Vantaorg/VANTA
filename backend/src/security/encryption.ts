@@ -10,13 +10,14 @@ const SALT_LENGTH = 32;
  * Uses AES-256-GCM for authenticated encryption.
  */
 class Encryption {
-  private getEncryptionKey(): Buffer {
+  private getEncryptionKey(saltValue = process.env.ENCRYPTION_SALT, allowLegacyShortSalt = false): Buffer {
     const key = process.env.ENCRYPTION_KEY;
-    if (!key) {
-      throw new Error('ENCRYPTION_KEY environment variable is required');
-    }
-    // Derive a 256-bit key from the provided key using PBKDF2
-    const salt = Buffer.from(process.env.ENCRYPTION_SALT || 'vanta-encryption-salt', 'utf8');
+    if (!key) throw new Error('ENCRYPTION_KEY environment variable is required');
+    if (!saltValue) throw new Error('ENCRYPTION_SALT environment variable is required');
+    const isStrongHexSalt = /^[a-f0-9]{64}$/i.test(saltValue);
+    if (!isStrongHexSalt && !allowLegacyShortSalt) throw new Error('ENCRYPTION_SALT must be 64 hexadecimal characters generated from 32 random bytes');
+    const salt = isStrongHexSalt ? Buffer.from(saltValue, 'hex') : Buffer.from(saltValue, 'utf8');
+    if (salt.length < (allowLegacyShortSalt ? 16 : SALT_LENGTH)) throw new Error('Encryption salt is too short');
     return crypto.pbkdf2Sync(key, salt, 100000, 32, 'sha512');
   }
 
@@ -33,23 +34,24 @@ class Encryption {
     const authTag = cipher.getAuthTag().toString('hex');
 
     // Format: iv:authTag:ciphertext (all hex encoded)
-    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+    return `v2:${iv.toString('hex')}:${authTag}:${encrypted}`;
   }
 
   /**
    * Decrypt data that was encrypted with encrypt()
    */
   decrypt(encryptedData: string): string {
-    const key = this.getEncryptionKey();
     const parts = encryptedData.split(':');
-    
-    if (parts.length !== 3) {
-      throw new Error('Invalid encrypted data format');
-    }
-
-    const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
-    const encrypted = parts[2];
+    const versioned = parts[0] === 'v2';
+    const payload = versioned ? parts.slice(1) : parts;
+    if (payload.length !== 3) throw new Error('Invalid encrypted data format');
+    // Legacy ciphertext may use ENCRYPTION_LEGACY_SALT during a controlled
+    // migration. New writes always use the required ENCRYPTION_SALT.
+    const salt = versioned ? process.env.ENCRYPTION_SALT : (process.env.ENCRYPTION_LEGACY_SALT || process.env.ENCRYPTION_SALT);
+    const key = this.getEncryptionKey(salt, !versioned);
+    const iv = Buffer.from(payload[0], 'hex');
+    const authTag = Buffer.from(payload[1], 'hex');
+    const encrypted = payload[2];
 
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);

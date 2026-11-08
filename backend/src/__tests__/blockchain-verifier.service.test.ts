@@ -228,6 +228,37 @@ describe('BlockchainTxVerifier.verifyTransaction', () => {
     expect((error as BlockchainTxVerificationError).code).toBe(expectedCode);
   });
 
+  test('fails closed when latest-block RPC fails instead of treating block height as confirmations', async () => {
+    mockRpc({ ...defaultHandlers(), eth_blockNumber: () => { throw new Error('latest block unavailable'); } });
+    const error = await blockchainTxVerifier
+      .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
+      .catch((err: Error) => err);
+    expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR);
+    expect((error as BlockchainTxVerificationError).transient).toBe(true);
+  });
+
+  test('fails closed when latest-block RPC returns an invalid height', async () => {
+    mockRpc({ ...defaultHandlers(), eth_blockNumber: () => null });
+    const error = await blockchainTxVerifier
+      .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
+      .catch((err: Error) => err);
+    expect((error as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.RPC_ERROR);
+  });
+
+  test('rejects a receipt with missing success status or token destination', async () => {
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => makeReceipt({ status: null }) });
+    const statusError = await blockchainTxVerifier
+      .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
+      .catch((err: Error) => err);
+    expect((statusError as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.TRANSACTION_FAILED);
+
+    mockRpc({ ...defaultHandlers(), eth_getTransactionReceipt: () => makeReceipt({ to: null }) });
+    const destinationError = await blockchainTxVerifier
+      .verifyTransaction({ txHash: TX, network: 'usdt-bep20', expectedAmountUsd: 1.99, expectedRecipient: OFFICIAL_WALLET })
+      .catch((err: Error) => err);
+    expect((destinationError as BlockchainTxVerificationError).code).toBe(BLOCKCHAIN_VERIFICATION_ERROR_CODES.WRONG_TOKEN);
+  });
+
   test('rejects a transaction with insufficient confirmations', async () => {
     mockRpc({
       eth_getTransactionReceipt: () => makeReceipt({ blockNumber: '0x13' }), // tx at block 19

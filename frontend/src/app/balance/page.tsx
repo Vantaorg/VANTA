@@ -34,7 +34,7 @@ function csvCell(value: unknown): string {
 // ============================================================================
 
 const INCOMING_TYPES = new Set([
-  'DEPOSIT', 'PURCHASE', 'TRANSFER_RECEIVED', 'GIFT_RECEIVED', 'REFUND', 'ADMIN_CREDIT', 'SYSTEM_CREDIT'
+  'DEPOSIT', 'PURCHASE', 'TRANSFER_RECEIVED', 'GIFT_RECEIVED', 'CREATOR_EARNING', 'REFUND', 'ADMIN_CREDIT', 'SYSTEM_CREDIT'
 ]);
 
 const FILTERS = [
@@ -55,6 +55,7 @@ function formatTxLabel(type: string) {
     TRANSFER_RECEIVED: 'Transfer Received',
     GIFT_SENT: 'Gift Sent',
     GIFT_RECEIVED: 'Gift Received',
+    CREATOR_EARNING: 'Creator Earnings',
     WITHDRAWAL: 'Withdrawal',
     REFUND: 'Refund',
     SYSTEM_CREDIT: 'System Credit',
@@ -238,10 +239,11 @@ export default function BalancePage() {
       URL.revokeObjectURL(url);
     } catch {
       // Fallback: client-side CSV
-      const headers = ['Date', 'Type', 'Description', 'Amount', 'Fee', 'Balance', 'Status', 'Reference'];
+      const headers = ['Date', 'Type', 'Currency', 'Description', 'Amount', 'Fee', 'Balance', 'Status', 'Reference'];
       const rows = transactions.map((tx: any) => [
         new Date(tx.createdAt).toISOString(),
         tx.type,
+        tx.currency || 'VANTA',
         tx.description || '',
         tx.displayAmount ?? tx.amount ?? 0,
         tx.fee ?? 0,
@@ -278,7 +280,7 @@ export default function BalancePage() {
         purchases: ['PURCHASE', 'DEPOSIT'],
         transfers: ['TRANSFER_SENT', 'TRANSFER_RECEIVED'],
         gifts: ['GIFT_SENT', 'GIFT_RECEIVED'],
-        earnings: ['GIFT_RECEIVED'],
+        earnings: ['GIFT_RECEIVED', 'CREATOR_EARNING'],
         withdrawals: ['WITHDRAWAL'],
         refunds: ['REFUND'],
       };
@@ -498,6 +500,8 @@ export default function BalancePage() {
                   const isIncoming = tx.isIncoming ?? INCOMING_TYPES.has(tx.type);
                   const displayAmount = typeof tx.displayAmount === 'number' ? tx.displayAmount : (isIncoming ? (tx.amount ?? 0) : -(tx.amount ?? 0));
                   const sign = displayAmount >= 0 ? '+' : '-';
+                  const isUsd = tx.currency === 'USD';
+                  const formattedAmount = isUsd ? Math.abs(displayAmount).toFixed(2) : Math.abs(displayAmount).toLocaleString();
                   return (
                     <button
                       key={tx.id}
@@ -521,7 +525,7 @@ export default function BalancePage() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className={cn('text-sm font-bold tabular-nums', isIncoming ? 'text-emerald-400' : 'text-[#F5F5F5]')}>
-                          {sign}{Math.abs(displayAmount ?? 0).toLocaleString()}
+                          {sign}{isUsd ? '$' : ''}{formattedAmount}
                         </p>
                         <p className="text-[9px] text-[#8A8A8A]">{tx.status}</p>
                       </div>
@@ -684,6 +688,8 @@ export default function BalancePage() {
                 const isIncoming = tx.isIncoming ?? INCOMING_TYPES.has(tx.type);
                 const displayAmount = typeof tx.displayAmount === 'number' ? tx.displayAmount : (isIncoming ? (tx.amount ?? 0) : -(tx.amount ?? 0));
                 const sign = displayAmount >= 0 ? '+' : '-';
+                const isUsd = tx.currency === 'USD';
+                const formattedAmount = isUsd ? Math.abs(displayAmount).toFixed(2) : Math.abs(displayAmount).toLocaleString();
                 return (
                   <motion.button
                     key={tx.id}
@@ -709,7 +715,7 @@ export default function BalancePage() {
                         {tx.fee > 0 && (
                           <>
                             <span className="text-[10px] text-[#8A8A8A]">·</span>
-                            <span className="text-[10px] text-amber-400/70">Fee: {tx.fee}</span>
+                            <span className="text-[10px] text-amber-400/70">Fee: {tx.currency === 'USD' ? '$' + Number(tx.fee).toFixed(2) : tx.fee.toLocaleString()}</span>
                           </>
                         )}
                         <span className={cn(
@@ -725,9 +731,9 @@ export default function BalancePage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className={cn('text-sm font-bold tabular-nums', isIncoming ? 'text-emerald-400' : 'text-[#F5F5F5]')}>
-                        {sign}{Math.abs(displayAmount ?? 0).toLocaleString()}
+                        {sign}{isUsd ? '$' : ''}{formattedAmount}
                       </p>
-                      <p className="text-[9px] text-[#8A8A8A]">Balance: {(tx.balance ?? 0).toLocaleString()}</p>
+                      <p className="text-[9px] text-[#8A8A8A]">Balance: {isUsd ? '$' : ''}{isUsd ? Number(tx.balance ?? 0).toFixed(2) : (tx.balance ?? 0).toLocaleString()}</p>
                     </div>
                   </motion.button>
                 );
@@ -1037,9 +1043,9 @@ export default function BalancePage() {
               <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-4">
                 <div className="text-center">
                   <p className={cn('text-3xl font-bold tabular-nums', selectedTx.isIncoming ? 'text-emerald-400' : 'text-[#F5F5F5]')}>
-                    {selectedTx.isIncoming ? '+' : '-'}{Math.abs(selectedTx.displayAmount ?? selectedTx.amount ?? 0).toLocaleString()}
+                    {selectedTx.isIncoming ? '+' : '-'}{selectedTx.currency === 'USD' ? '$' : ''}{selectedTx.currency === 'USD' ? Math.abs(selectedTx.displayAmount ?? selectedTx.amount ?? 0).toFixed(2) : Math.abs(selectedTx.displayAmount ?? selectedTx.amount ?? 0).toLocaleString()}
                   </p>
-                  <p className="mt-1 text-xs text-[#8A8A8A]">VANTA Coins</p>
+                  <p className="mt-1 text-xs text-[#8A8A8A]">{selectedTx.currency === 'USD' ? 'USD / USDT' : 'VANTA Coins'}</p>
                 </div>
 
                 <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-4 space-y-2.5">
@@ -1049,12 +1055,12 @@ export default function BalancePage() {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#8A8A8A]">Amount</span>
-                    <span className="font-medium text-[#F5F5F5]">{Math.abs(selectedTx.amount ?? 0).toLocaleString()}</span>
+                    <span className="font-medium text-[#F5F5F5]">{selectedTx.currency === 'USD' ? '$' : ''}{selectedTx.currency === 'USD' ? Math.abs(selectedTx.amount ?? 0).toFixed(2) : Math.abs(selectedTx.amount ?? 0).toLocaleString()}</span>
                   </div>
                   {selectedTx.fee > 0 && (
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#8A8A8A]">Fee</span>
-                      <span className="font-medium text-[#F5F5F5]">{selectedTx.fee.toLocaleString()}</span>
+                      <span className="font-medium text-[#F5F5F5]">{selectedTx.currency === 'USD' ? '$' : ''}{selectedTx.currency === 'USD' ? selectedTx.fee.toFixed(2) : selectedTx.fee.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between text-xs">

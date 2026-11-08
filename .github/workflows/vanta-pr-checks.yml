@@ -42,5 +42,27 @@ jobs:
           node-version: 22
       - name: Install backend dependencies
         run: npm --prefix backend install
+      - name: Run targeted backend security regression tests
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+          JWT_SECRET: test-jwt-secret-long-enough-for-tests
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-long-enough-for-tests
+          ENCRYPTION_KEY: test-encryption-key-for-ci-only-32-bytes
+          ENCRYPTION_SALT: a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0fedcba9876543210
+        run: >
+          npm --prefix backend run test -- --runInBand --forceExit --detectOpenHandles=false
+          src/__tests__/security.rate-limiter.test.ts
+          src/__tests__/security.admin-authorization.test.ts
+          src/__tests__/auth.controller.session-security.test.ts
+          src/__tests__/security.password-recovery.test.ts
+          src/__tests__/security.session-manager.test.ts
+          src/__tests__/security.encryption.test.ts
+          src/__tests__/security.startup-config.test.ts
+          src/__tests__/private-media.service.test.ts
+          src/__tests__/private-media.controller.test.ts
+          src/__tests__/chat.service.test.ts
+          src/__tests__/upload.service.test.ts
+          src/__tests__/wallet.transfer-security.test.ts
+          src/__tests__/wallet.withdrawal.test.ts
       - name: Build backend
         run: npm --prefix backend run build

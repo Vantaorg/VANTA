@@ -174,9 +174,10 @@ export class SessionManager {
       // Fail closed: audit the event and sever the referenced session so the
       // stale token can never re-authenticate.
       if (decoded && decoded.sessionId) {
-        await prisma.session.updateMany({
+        // A rotated-out refresh token is a replay signal. Revoke the whole
+        // session so its still-live access token cannot remain usable.
+        await prisma.session.deleteMany({
           where: { id: decoded.sessionId, userId: decoded.userId },
-          data: { refreshToken: null },
         });
       }
       await auditLog.log({
@@ -237,8 +238,11 @@ export class SessionManager {
       }
     }
 
-    await prisma.session.update({
-      where: { id: session.id },
+    // Compare-and-swap the refresh token. A read followed by an unconditional
+    // update allows two concurrent refresh requests to both rotate the same
+    // credential and both receive apparently valid token pairs.
+    const rotated = await prisma.session.updateMany({
+      where: { id: session.id, userId: decoded.userId, refreshToken },
       data: {
         token: newAccessToken,
         refreshToken: newRefreshToken,
@@ -246,6 +250,19 @@ export class SessionManager {
         lastActiveAt: now,
       },
     });
+
+    if (rotated.count !== 1) {
+      // Another request already consumed this refresh token. Revoke the
+      // session, including any pair minted by the winning concurrent request.
+      await prisma.session.deleteMany({ where: { id: session.id, userId: decoded.userId } });
+      await auditLog.log({
+        userId: decoded.userId,
+        action: 'REFRESH_TOKEN_REUSE_DETECTED',
+        metadata: { sessionId: session.id, rotation: true, concurrentReplay: true },
+        severity: 'CRITICAL',
+      });
+      throw new Error('Invalid refresh token');
+    }
 
     auditLog.log({
       userId: decoded.userId,

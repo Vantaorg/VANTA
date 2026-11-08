@@ -22,6 +22,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
   const [address, setAddress] = useState(walletAddress || '');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [pinCode, setPinCode] = useState('');
 
   const fee = amount > 0 ? Math.round(amount * 0.10 * 100) / 100 : 0;
   const netAmount = amount > 0 ? Math.round((amount - fee) * 100) / 100 : 0;
@@ -33,6 +34,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
       setAmount(0);
       setAddress(walletAddress || '');
       setError('');
+      setPinCode('');
     }
   }, [open, walletAddress]);
 
@@ -47,6 +49,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
 
   const handleWithdraw = async () => {
     if (!token) return;
+    if (!/^\d{4,6}$/.test(pinCode)) { setError('Enter your 4-6 digit wallet PIN.'); return; }
     setSending(true);
     setError('');
     setStep('processing');
@@ -55,6 +58,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
       await apiPost('/api/wallets/withdraw', {
         amount,
         walletAddress: address.trim(),
+        pinCode,
       }, token);
       setStep('success');
       setTimeout(() => {
@@ -240,6 +244,14 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
                       <span className="text-[#8A8A8A]">Wallet</span>
                       <span className="font-medium text-[#F5F5F5] font-mono text-[10px] truncate max-w-[180px]">{address}</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="withdraw-wallet-pin" className="block text-xs font-medium text-[#8A8A8A]">Wallet PIN</label>
+                    <input id="withdraw-wallet-pin" type="password" inputMode="numeric" autoComplete="off" maxLength={6}
+                      value={pinCode} onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter your 4-6 digit PIN" aria-label="Wallet PIN"
+                      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm tracking-[0.3em] text-[#F5F5F5] placeholder:tracking-normal placeholder:text-[#8A8A8A] outline-none focus:border-white/[0.15]" />
                   </div>
 
                   <button

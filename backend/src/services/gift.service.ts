@@ -332,7 +332,12 @@ export class GiftService {
           throw new Error('Insufficient available coins');
         }
         const deduction = await tx.wallet.updateMany({
-          where: { id: currentSender.id, isFrozen: false, coinBalance: currentSender.coinBalance },
+          where: {
+            id: currentSender.id,
+            isFrozen: false,
+            coinBalance: currentSender.coinBalance,
+            lockedCoins: currentSender.lockedCoins,
+          },
           data: {
             coinBalance: { decrement: totalCost },
             totalCoinsSent: { increment: totalCost },
@@ -441,6 +446,30 @@ export class GiftService {
           metadata: JSON.stringify({ giftId: gift.id, giftName: gift.name, senderId, giftCoinValue: totalCost, recipientCoins, platformCoins, creatorEarningsCents, creatorEarningsUsd, earningsRule: '2 cents per 3 eligible gift coins; floor incomplete groups per transaction', autoConverted: true, quantity, message, isAnon: Boolean(options.isAnon) }),
         },
       });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: updatedReceiver.id,
+            userId: receiverId,
+            type: "CREATOR_EARNING",
+            currency: "USD",
+            amount: creatorEarningsUsd,
+            fee: 0,
+            balanceBefore: updatedReceiver.earningsBalance - creatorEarningsUsd,
+            balance: updatedReceiver.earningsBalance,
+            status: "COMPLETED",
+            description: "Creator earnings from gifts",
+            reference: transaction.id,
+            metadata: JSON.stringify({
+              source: "GIFT",
+              senderId,
+              senderUsername: senderInfo.username,
+              totalCost,
+              creatorEarningsCents,
+              rule: "0.02 USD per 3 eligible gift coins",
+            }),
+          },
+        });
 
         return { transaction, updatedSender, updatedReceiver };
       });

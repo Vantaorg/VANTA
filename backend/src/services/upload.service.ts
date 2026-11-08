@@ -35,6 +35,75 @@ if (configuredUploadDir && path.resolve(uploadDir) !== defaultUploadDir && fs.ex
 
 // The HTTP server mounts this same directory at /uploads. Keeping the storage
 // path exported prevents custom persistent volumes from producing dead URLs.
+
+/**
+ * Generate a short-lived Cloudinary download URL only after the application
+ * has authorized the requesting conversation participant.
+ */
+export function getPrivateCloudinaryDownloadUrl(storagePath: string, filename: string): string {
+  const match = /^cloudinary:(image|video|raw):(.+)$/.exec(storagePath);
+  if (!match) throw new Error('Invalid private Cloudinary storage reference');
+  const format = path.extname(filename).replace(/^\./, '') || 'bin';
+  return cloudinary.utils.private_download_url(match[2], format, {
+    resource_type: match[1],
+    type: 'authenticated',
+    expires_at: Math.floor(Date.now() / 1000) + 300,
+  });
+}
+
+/**
+ * One-time admin migration for previously public Cloudinary message assets.
+ * New message uploads are authenticated at upload time; this converts legacy
+ * public assets and invalidates their old CDN delivery URLs.
+ */
+export async function secureExistingPrivateCloudinaryAssets() {
+  if (!useCloudinary) return { migrated: 0, alreadySecured: 0, total: 0, skipped: true };
+  const files = await prisma.uploadedFile.findMany({
+    where: { category: 'message', path: { startsWith: 'cloudinary:' }, deletedAt: null },
+    select: { id: true, path: true, filename: true },
+  });
+  let migrated = 0;
+  let alreadySecured = 0;
+  for (const file of files) {
+    const match = /^cloudinary:(image|video|raw):(.+)$/.exec(file.path || '');
+    if (!match) continue;
+    const resourceType = match[1];
+    const oldPublicId = match[2];
+    const newPublicId = `${oldPublicId}_private_${file.id}`;
+    // Handle a retry after Cloudinary rename succeeded but the DB update failed.
+    try {
+      await cloudinary.api.resource(newPublicId, { resource_type: resourceType, type: 'authenticated' });
+      if (file.path !== `cloudinary:${resourceType}:${newPublicId}`) {
+        await prisma.uploadedFile.update({ where: { id: file.id }, data: { path: `cloudinary:${resourceType}:${newPublicId}` } });
+      }
+      alreadySecured += 1;
+      continue;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    // Already-authenticated assets at their original public ID need no rename.
+    try {
+      await cloudinary.api.resource(oldPublicId, { resource_type: resourceType, type: 'authenticated' });
+      alreadySecured += 1;
+      continue;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    await cloudinary.uploader.rename(oldPublicId, newPublicId, {
+      resource_type: resourceType,
+      type: 'upload',
+      to_type: 'authenticated',
+      invalidate: true,
+    });
+    await prisma.uploadedFile.update({
+      where: { id: file.id },
+      data: { path: `cloudinary:${resourceType}:${newPublicId}` },
+    });
+    migrated += 1;
+  }
+  return { migrated, alreadySecured, total: files.length, skipped: false };
+}
+
 export const uploadStorageDir = uploadDir;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -481,6 +550,7 @@ export class UploadService {
         const resourceType = fileType === "VIDEO" || fileType === "AUDIO" ? "video" : fileType === "IMAGE" ? "image" : "raw";
         const cloudResult = await cloudinary.uploader.upload(file.path, {
           resource_type: resourceType,
+          type: category === 'message' ? 'authenticated' : 'upload',
           folder: `vanta/${category.replace(/[^a-z0-9-]/gi, "-")}`,
           use_filename: false,
           unique_filename: true,
@@ -526,7 +596,7 @@ export class UploadService {
 
     return {
       id: record.id,
-      url: finalUrl,
+      url: category === 'message' ? createPrivateMediaUrl(record.id, userId) : finalUrl,
       type: fileType,
       filename: file.filename,
       mimeType: file.mimetype,

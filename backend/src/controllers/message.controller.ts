@@ -48,20 +48,31 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
 export const startConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { participantIds, name, type, avatar, description, handle, visibility } = req.body;
+    const { participantIds, type } = req.body;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    if (!Array.isArray(participantIds) || participantIds.length === 0) {
-      res.status(400).json({ error: 'participantIds is required' });
+    // This endpoint is for one-to-one DMs only. Groups and channels must use
+    // their dedicated services so membership, ownership and visibility rules
+    // cannot be bypassed by creating a bare conversation row.
+    if (type && type !== 'DIRECT') {
+      res.status(400).json({ error: 'Use the dedicated Groups or Channels endpoint to create those conversations' });
+      return;
+    }
+    if (!Array.isArray(participantIds) || participantIds.length !== 1 || typeof participantIds[0] !== 'string') {
+      res.status(400).json({ error: 'A direct conversation requires exactly one recipient' });
       return;
     }
 
-    const normalizedType = type === 'GROUP' || type === 'CHANNEL' ? type : 'DIRECT';
-    const conversation = await chatService.createConversation([userId, ...participantIds], name, normalizedType !== 'DIRECT', { type: normalizedType, avatar, description, handle, visibility, createdById: userId });
+    const conversation = await chatService.createConversation(
+      [userId, participantIds[0]],
+      undefined,
+      false,
+      { type: 'DIRECT', createdById: userId }
+    );
     res.status(201).json({ conversation });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';

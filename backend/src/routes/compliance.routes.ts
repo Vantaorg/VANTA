@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { complianceService } from '../services/compliance.service';
-import { authenticate, requirePermission, AuthenticatedRequest } from '../security/authMiddleware';
-import { Permission } from '../security/rbac';
+import { authenticate, requirePermission, requireRole, AuthenticatedRequest } from '../security/authMiddleware';
+import { Permission, Role } from '../security/rbac';
 
 const router = Router();
 
@@ -358,7 +358,7 @@ router.put('/notifications/read-all', authenticate, async (req: AuthenticatedReq
 // AUDIT LOGS (For admin use)
 // ============================================================================
 
-router.get('/audit-logs', authenticate, requirePermission(Permission.VIEW_AUDIT_LOGS), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/audit-logs', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.VIEW_AUDIT_LOGS), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -381,7 +381,7 @@ router.get('/audit-logs', authenticate, requirePermission(Permission.VIEW_AUDIT_
 // ADMIN COMPLIANCE DASHBOARD
 // ============================================================================
 
-router.get('/admin/dashboard', authenticate, requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/dashboard', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const stats = await complianceService.getComplianceDashboardStats();
     res.json(stats);
@@ -391,7 +391,7 @@ router.get('/admin/dashboard', authenticate, requirePermission(Permission.VIEW_C
 });
 
 // Admin: Process reports
-router.put('/admin/reports/:id/process', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/reports/:id/process', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processReport(req.params.id, req.user!.userId, action, note);
@@ -402,7 +402,7 @@ router.put('/admin/reports/:id/process', authenticate, requirePermission(Permiss
 });
 
 // Admin: Process appeals
-router.put('/admin/appeals/:id/process', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/appeals/:id/process', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { decision, reason } = req.body;
     const result = await complianceService.processAppeal(req.params.id, req.user!.userId, decision, reason);
@@ -413,7 +413,7 @@ router.put('/admin/appeals/:id/process', authenticate, requirePermission(Permiss
 });
 
 // Admin: Process copyright claims
-router.put('/admin/copyright/:id/process', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/copyright/:id/process', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processCopyrightClaim(req.params.id, req.user!.userId, action, note);
@@ -424,7 +424,7 @@ router.put('/admin/copyright/:id/process', authenticate, requirePermission(Permi
 });
 
 // Admin: Process child safety flags
-router.put('/admin/child-safety/:id/process', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/child-safety/:id/process', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processChildSafetyFlag(req.params.id, req.user!.userId, action, note);
@@ -435,7 +435,7 @@ router.put('/admin/child-safety/:id/process', authenticate, requirePermission(Pe
 });
 
 // Admin: Get all reports
-router.get('/admin/reports', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/reports', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -447,7 +447,7 @@ router.get('/admin/reports', authenticate, requirePermission(Permission.MODERATE
 });
 
 // Admin: Get all appeals
-router.get('/admin/appeals', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/appeals', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -459,7 +459,7 @@ router.get('/admin/appeals', authenticate, requirePermission(Permission.MODERATE
 });
 
 // Admin: Get copyright claims
-router.get('/admin/copyright', authenticate, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/copyright', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -472,7 +472,7 @@ router.get('/admin/copyright', authenticate, requirePermission(Permission.MODERA
 });
 
 // Admin: Generate transparency report
-router.post('/admin/transparency/generate', authenticate, requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/admin/transparency/generate', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const result = await complianceService.generateTransparencyReport();
     res.json(result);
@@ -482,7 +482,7 @@ router.post('/admin/transparency/generate', authenticate, requirePermission(Perm
 });
 
 // Admin: Publish community standard
-router.post('/admin/community-standards', authenticate, requirePermission(Permission.MANAGE_POLICIES), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/admin/community-standards', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MANAGE_POLICIES), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { type, title, content, version } = req.body;
     const standard = await complianceService.upsertCommunityStandard(type, title, content, version);
@@ -493,7 +493,7 @@ router.post('/admin/community-standards', authenticate, requirePermission(Permis
 });
 
 // Admin: Publish policy version
-router.post('/admin/policies', authenticate, requirePermission(Permission.MANAGE_POLICIES), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/admin/policies', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN), requirePermission(Permission.MANAGE_POLICIES), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { policyType, version, title, content } = req.body;
     const policy = await complianceService.publishPolicyVersion(policyType, version, title, content);

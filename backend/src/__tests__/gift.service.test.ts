@@ -81,7 +81,7 @@ describe('GiftService', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => callback({
         wallet: {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-          findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'wallet1', coinBalance: 90 }),
+          findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'wallet1', coinBalance: 90, lockedCoins: 0 }),
           update: jest.fn().mockResolvedValue({ id: 'wallet2', earningsBalance: 7 }),
         },
         giftTransaction: {

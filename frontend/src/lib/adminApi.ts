@@ -407,6 +407,11 @@ export const getWithdrawals = (token: string, limit = 50): Promise<any[]> => {
   return apiGet<any[]>(`/api/admin/withdrawals?limit=${limit}`, token);
 };
 
+/** Complete a withdrawal only after sending USDT and copying its on-chain tx hash. */
+export const approveWithdrawal = (token: string, withdrawalId: string, transactionHash: string): Promise<any> => {
+  return apiPost<any>('/api/admin/withdrawals/approve', { withdrawalId, transactionHash }, token);
+};
+
 // ============================================================================
 // GIFT CATALOG
 // ============================================================================
@@ -476,4 +481,8 @@ export const getNotificationCenter = (token: string, params?: {
 }): Promise<any> => {
   const query = new URLSearchParams((params || {}) as any).toString();
   return apiGet<any>(`/api/admin/notifications?${query}`, token);
+};
+/** One-time migration of previously public Cloudinary message attachments. */
+export const securePrivateMediaAssets = (token: string): Promise<any> => {
+  return apiPost<any>('/api/admin/security/secure-private-media', {}, token);
 };

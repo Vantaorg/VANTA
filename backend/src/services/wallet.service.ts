@@ -1,11 +1,11 @@
 import { prisma } from "../prisma";
-import { PaymentProviderFactory } from "./payment-provider.interface";
 import { notificationService } from "./notification.service";
 import { emailService } from "./email.service";
 import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { calculateTransferFee, coinsToUsd, VANTA_COINS_PER_USD, WITHDRAWAL_FEE_RATE, MIN_WITHDRAWAL_AMOUNT, PLATFORM_TRANSFER_LIMITS } from "../config/wallet.config";
 import { validateWithdrawalInput } from "./wallet-input-validation";
+import { blockchainTxVerifier } from "./blockchain-verifier.service";
 import {
   COIN_PAYMENT_ORDER_TTL_SECONDS,
   COIN_PAYMENT_CREDITABLE_STATUSES,
@@ -28,6 +28,8 @@ export const TX_TYPES = {
   WITHDRAWAL: "WITHDRAWAL",
   REFUND: "REFUND",
   FEE: "FEE",
+  SUBSCRIPTION: "SUBSCRIPTION",
+  CREATOR_EARNING: "CREATOR_EARNING",
   ADMIN_CREDIT: "ADMIN_CREDIT",
   ADMIN_DEBIT: "ADMIN_DEBIT",
   SYSTEM_CREDIT: "SYSTEM_CREDIT",
@@ -52,6 +54,7 @@ const INCOMING_TYPES = new Set([
   TX_TYPES.FOLLOWER_REWARD_CLAIM,
   TX_TYPES.FOLLOWER_REWARD_REFUND,
   TX_TYPES.FOLLOWER_REWARD_RELEASE,
+  TX_TYPES.CREATOR_EARNING,
 ]);
 
 // Types that represent money going OUT (negative)
@@ -60,6 +63,7 @@ const OUTGOING_TYPES = new Set([
   TX_TYPES.GIFT_SENT,
   TX_TYPES.WITHDRAWAL,
   TX_TYPES.FEE,
+  TX_TYPES.SUBSCRIPTION,
   TX_TYPES.ADMIN_DEBIT,
   TX_TYPES.FOLLOWER_REWARD_RESERVE,
 ]);
@@ -166,6 +170,10 @@ export function buildTransactionDescription(type: string, amount: number, counte
       return `Requested withdrawal of ${safeAmount} VANTA Coins`;
     case TX_TYPES.REFUND:
       return `Refunded ${safeAmount} VANTA Coins`;
+    case TX_TYPES.SUBSCRIPTION:
+      return `Creator subscription ${safeAmount} VANTA Coins`;
+    case TX_TYPES.CREATOR_EARNING:
+      return `Creator earnings ${safeAmount} USD`;
     case TX_TYPES.FOLLOWER_REWARD_RESERVE:
       return `Reserved ${safeAmount} VANTA Coins for a Follower Reward`;
     case TX_TYPES.FOLLOWER_REWARD_REFUND:
@@ -301,13 +309,24 @@ export class WalletService {
 
     // Atomic transaction: update wallet + create transaction record
     const result = await prisma.$transaction(async (tx) => {
-      const updatedWallet = await tx.wallet.update({
-        where: { userId },
+      const currentWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      if (currentWallet.isFrozen || resolveAvailableCoins(currentWallet) < amount) {
+        throw new Error("Insufficient available coins");
+      }
+      const debit = await tx.wallet.updateMany({
+        where: {
+          id: currentWallet.id,
+          isFrozen: false,
+          coinBalance: currentWallet.coinBalance,
+          lockedCoins: currentWallet.lockedCoins,
+        },
         data: {
           coinBalance: { decrement: amount },
           totalCoinsSent: { increment: amount },
         },
       });
+      if (debit.count !== 1) throw new Error("Balance changed while spending. Please try again.");
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
 
       // Record transaction - store positive amount, sign derived from type
       await tx.walletTransaction.create({
@@ -317,7 +336,7 @@ export class WalletService {
           type: options?.type || "GIFT_SENT",
           amount: Math.abs(amount),
           fee: 0,
-          balanceBefore: wallet.coinBalance,
+          balanceBefore: currentWallet.coinBalance,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: options?.description || `Spent ${amount.toLocaleString()} VANTA Coins`,
@@ -737,7 +756,8 @@ export class WalletService {
     deviceFingerprint?: string,
     requestId?: string,
     challengeId?: string,
-    sessionId?: string
+    sessionId?: string,
+    pinCode?: string
   ) {
     if (senderId === receiverId) {
       throw new Error("Cannot send coins to yourself");
@@ -748,6 +768,8 @@ export class WalletService {
     if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
       throw new Error("Transfer amount must be a positive whole number");
     }
+    if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error("A valid 4-6 digit wallet PIN is required");
+    await this.verifyPin(senderId, pinCode);
 
     // Calculate fee (5% sender pays)
     const fee = calculateTransferFee(safeAmount);
@@ -953,6 +975,9 @@ export class WalletService {
           userId: senderId,
           isFrozen: false,
           coinBalance: { gte: totalDeduction },
+          // Include the reservation counter in the CAS so a concurrent
+          // reservation cannot make previously available coins unspendable.
+          lockedCoins: senderCurrent.lockedCoins,
         },
         data: {
           coinBalance: { decrement: totalDeduction },
@@ -1369,51 +1394,35 @@ export class WalletService {
   }
 
   async verifyPin(userId: string, pin: string) {
+    if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) throw new Error('Invalid PIN format');
     const wallet = await this.ensureWallet(userId);
-    const pinRecord = await prisma.walletPIN.findUnique({
-      where: { walletId: wallet.id },
-    });
-
-    if (!pinRecord) {
-      throw new Error("No PIN set");
-    }
-
-    if (pinRecord.lockedUntil && pinRecord.lockedUntil > new Date()) {
-      throw new Error(
-        `PIN is locked until ${pinRecord.lockedUntil.toISOString()}`
-      );
-    }
-
+    const pinRecord = await prisma.walletPIN.findUnique({ where: { walletId: wallet.id } });
+    if (!pinRecord) throw new Error("No PIN set");
+    const now = new Date();
+    if (pinRecord.lockedUntil && pinRecord.lockedUntil > now) throw new Error("PIN is locked. Please try again after the lockout period.");
     const valid = await bcrypt.compare(pin, pinRecord.pinHash);
     if (!valid) {
-      const newAttempts = pinRecord.failedAttempts + 1;
-      const updates: any = { failedAttempts: newAttempts };
-      if (newAttempts >= 5) {
-        updates.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-      }
-      await prisma.walletPIN.update({
-        where: { id: pinRecord.id },
-        data: updates,
-      });
-
-      await this.logAudit(userId, "PIN_FAILED", {
-        walletId: wallet.id,
-        failedAttempts: newAttempts,
-      });
-
-      throw new Error(`Invalid PIN. ${5 - newAttempts} attempts remaining.`);
+      const attempts = await prisma.$queryRaw<Array<{ failedAttempts: number; lockedUntil: Date | null }>>`
+        UPDATE "WalletPIN"
+        SET "failedAttempts" = CASE WHEN "lockedUntil" IS NOT NULL AND "lockedUntil" <= NOW() THEN 1 ELSE "failedAttempts" + 1 END,
+            "lockedUntil" = CASE WHEN (CASE WHEN "lockedUntil" IS NOT NULL AND "lockedUntil" <= NOW() THEN 0 ELSE "failedAttempts" END) + 1 >= 5
+              THEN NOW() + INTERVAL '15 minutes' ELSE NULL END
+        WHERE "id" = ${pinRecord.id} AND ("lockedUntil" IS NULL OR "lockedUntil" <= NOW())
+        RETURNING "failedAttempts", "lockedUntil"
+      `;
+      const attempt = attempts[0];
+      if (!attempt) throw new Error("PIN is locked. Please try again after the lockout period.");
+      await this.logAudit(userId, "PIN_FAILED", { walletId: wallet.id, failedAttempts: attempt.failedAttempts });
+      if (attempt.lockedUntil) throw new Error("PIN locked after 5 failed attempts. Please try again in 15 minutes.");
+      throw new Error(`Invalid PIN. ${5 - attempt.failedAttempts} attempts remaining.`);
     }
-
-    // Reset failed attempts
-    if (pinRecord.failedAttempts > 0) {
-      await prisma.walletPIN.update({
-        where: { id: pinRecord.id },
+    if (pinRecord.failedAttempts > 0 || pinRecord.lockedUntil) {
+      await prisma.walletPIN.updateMany({
+        where: { id: pinRecord.id, failedAttempts: pinRecord.failedAttempts, lockedUntil: pinRecord.lockedUntil },
         data: { failedAttempts: 0, lockedUntil: null },
       });
     }
-
     await this.logAudit(userId, "PIN_VERIFY", { walletId: wallet.id });
-
     return { success: true, message: "PIN verified" };
   }
 
@@ -1421,12 +1430,14 @@ export class WalletService {
   // WITHDRAWALS (10% Platform Fee)
   // ============================================================
 
-  async requestWithdrawal(userId: string, amount: number, walletAddress: string) {
+  async requestWithdrawal(userId: string, amount: number, walletAddress: string, pinCode: string) {
     // Validate untrusted request values before any database access or balance mutation.
     // This remains a request-only/manual settlement flow; it does not initiate a payout.
     const validated = validateWithdrawalInput(amount, walletAddress);
     amount = validated.amount;
     walletAddress = validated.walletAddress;
+    if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error('A valid 4-6 digit wallet PIN is required');
+    await this.verifyPin(userId, pinCode);
 
     const wallet = await this.ensureWallet(userId);
 
@@ -1469,6 +1480,10 @@ export class WalletService {
     const result = await prisma.$transaction(async (tx) => {
       // Re-check single-PENDING invariant inside the transaction: two
       // concurrent requests can both pass the preflight lookup above.
+      // Serialize withdrawal creation per wallet before checking the
+      // single-pending invariant; otherwise concurrent requests can both see
+      // zero pending rows and both reserve earnings.
+      await tx.$queryRaw`SELECT "id" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
       const existingPending = await tx.withdrawal.count({
         where: { userId, status: "PENDING" },
       });
@@ -1476,9 +1491,14 @@ export class WalletService {
         throw new Error("You already have a pending withdrawal request. Please wait for it to be processed.");
       }
 
-      // Re-check balance AND debit in the same conditional mutation.
+      // Read the balance after taking the wallet row lock, then compare-and-swap
+      // that exact snapshot so the USD ledger's before/after values are accurate.
+      const currentWallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      if (currentWallet.isFrozen || currentWallet.earningsBalance < amount) {
+        throw new Error("Insufficient earnings balance");
+      }
       const debit = await tx.wallet.updateMany({
-        where: { userId, isFrozen: false, earningsBalance: { gte: amount } },
+        where: { userId, isFrozen: false, earningsBalance: currentWallet.earningsBalance },
         data: {
           earningsBalance: { decrement: amount },
           totalWithdrawn: { increment: netAmount },
@@ -1510,8 +1530,10 @@ export class WalletService {
           walletId: wallet.id,
           userId,
           type: "WITHDRAWAL",
+          currency: "USD",
           amount,
           fee,
+          balanceBefore: currentWallet.earningsBalance,
           balance: updatedWallet.earningsBalance,
           status: "PENDING",
           description: `Withdrawal request of $${amount.toFixed(2)} (fee: $${fee.toFixed(2)}, net: $${netAmount.toFixed(2)})`,
@@ -1557,68 +1579,85 @@ export class WalletService {
     return result.withdrawal;
   }
 
-  async processWithdrawal(withdrawalId: string, adminId: string) {
-    const withdrawal = await prisma.withdrawal.findUnique({
-      where: { id: withdrawalId },
+  async processWithdrawal(withdrawalId: string, adminId: string, transactionHash: string) {
+    const normalizedHash = typeof transactionHash === 'string' ? transactionHash.trim().toLowerCase() : '';
+    if (!/^0x[a-f0-9]{64}$/.test(normalizedHash)) throw new Error('A valid BNB Smart Chain transaction hash is required');
+
+    const withdrawal = await prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
+    if (!withdrawal) throw new Error('Withdrawal not found');
+    if (withdrawal.status !== 'PENDING') throw new Error('Only pending withdrawals can be processed');
+    if (!withdrawal.walletAddress) throw new Error('Withdrawal destination address is missing');
+
+    // A manual admin click or client-supplied hash is not proof of payment.
+    // Independently verify the mined USDT BEP-20 transfer, exact destination,
+    // net amount and confirmation count. Any RPC failure/mismatch aborts.
+    const chainProof = await blockchainTxVerifier.verifyTransaction({
+      txHash: normalizedHash,
+      network: 'usdt-bep20',
+      expectedAmountUsd: withdrawal.netAmount,
+      expectedRecipient: withdrawal.walletAddress,
     });
+    if (!chainProof.verified) throw new Error('On-chain withdrawal verification failed');
 
-    if (!withdrawal) {
-      throw new Error("Withdrawal not found");
-    }
-
-    if (withdrawal.status !== "PENDING") {
-      throw new Error("Only pending withdrawals can be processed");
-    }
-
-    // Atomic transaction: conditionally flip PENDING -> COMPLETED. The CAS
-    // (where status = PENDING) guarantees two concurrent admin approvals can
-    // never both succeed — the loser updates 0 rows and aborts.
     const result = await prisma.$transaction(async (tx) => {
       const claim = await tx.withdrawal.updateMany({
-        where: { id: withdrawalId, status: "PENDING" },
+        where: { id: withdrawalId, status: 'PENDING', transactionHash: null },
         data: {
-          status: "COMPLETED",
+          status: 'COMPLETED',
+          transactionHash: normalizedHash,
           processedBy: adminId,
           processedAt: new Date(),
         },
       });
-      if (claim.count !== 1) {
-        throw new Error("Withdrawal can only be processed once");
-      }
+      if (claim.count !== 1) throw new Error('Withdrawal can only be completed once');
+
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
-
-      // Update the wallet transaction status
-      await tx.walletTransaction.updateMany({
-        where: { reference: withdrawalId, type: "WITHDRAWAL" },
-        data: { status: "COMPLETED" },
+      const ledgerUpdate = await tx.walletTransaction.updateMany({
+        where: { reference: withdrawalId, type: 'WITHDRAWAL', status: 'PENDING' },
+        data: {
+          status: 'COMPLETED',
+          metadata: JSON.stringify({
+            withdrawalId,
+            amount: withdrawal.amount,
+            fee: withdrawal.fee,
+            netAmount: withdrawal.netAmount,
+            walletAddress: withdrawal.walletAddress,
+            method: withdrawal.method,
+            transactionHash: normalizedHash,
+            network: 'usdt-bep20',
+            confirmations: chainProof.confirmations,
+            blockNumber: chainProof.blockNumber,
+          }),
+        },
       });
+      if (ledgerUpdate.count !== 1) throw new Error('Pending withdrawal ledger entry is missing or already processed');
 
-      // Log audit
       await tx.walletAuditLog.create({
         data: {
           userId: withdrawal.userId,
-          action: "WITHDRAWAL_PROCESSED",
+          action: 'WITHDRAWAL_PROCESSED',
           details: JSON.stringify({
             withdrawalId,
             adminId,
             amount: withdrawal.amount,
             netAmount: withdrawal.netAmount,
+            transactionHash: normalizedHash,
+            network: 'usdt-bep20',
+            confirmations: chainProof.confirmations,
+            blockNumber: chainProof.blockNumber,
           }),
         },
       });
-
       return updated;
     });
 
-    // Send notification
     await notificationService.createNotification(
       withdrawal.userId,
-      "WALLET_WITHDRAWAL_COMPLETED",
-      "Withdrawal Completed",
-      `Your withdrawal of $${withdrawal.netAmount.toFixed(2)} has been processed and sent to your wallet.`,
-      { withdrawalId, amount: withdrawal.netAmount }
+      'WALLET_WITHDRAWAL_COMPLETED',
+      'Withdrawal Completed',
+      `Your withdrawal of $${withdrawal.netAmount.toFixed(2)} USDT has been confirmed on BNB Smart Chain.`,
+      { withdrawalId, amount: withdrawal.netAmount, transactionHash: normalizedHash, network: 'usdt-bep20' }
     );
-
     return result;
   }
 
@@ -1796,6 +1835,7 @@ export class WalletService {
         deposits: ["DEPOSIT", "PURCHASE"],
         transfers: ["TRANSFER_SENT", "TRANSFER_RECEIVED"],
         gifts: ["GIFT_SENT", "GIFT_RECEIVED"],
+        earnings: ["GIFT_RECEIVED", "CREATOR_EARNING"],
         purchases: ["PURCHASE", "DEPOSIT"],
         withdrawals: ["WITHDRAWAL"],
         refunds: ["REFUND"],
@@ -2128,10 +2168,13 @@ export class WalletService {
   }> {
     const wallet = await this.ensureWallet(userId);
     const txns = await prisma.walletTransaction.findMany({
-      where: { userId },
-      select: { type: true, amount: true },
+      where: { userId, currency: "VANTA" },
+      select: { type: true, amount: true, currency: true },
     });
     const ledgerBalance = txns.reduce((sum, t) => {
+      // Defensive filter: USD/USDT earnings movements must never be applied to
+      // the VANTA Coin balance, even if a legacy/misconfigured query returns one.
+      if (t.currency && t.currency !== "VANTA") return sum;
       if (INCOMING_TYPES.has(t.type as any)) return sum + Math.trunc(t.amount);
       if (OUTGOING_TYPES.has(t.type as any)) return sum - Math.trunc(t.amount);
       return sum; // unknown types do not affect the coin ledger

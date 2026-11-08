@@ -468,10 +468,11 @@ export const uploadMessageAttachment = async (req: AuthRequest, res: Response): 
         res.status(403).json({ error: "You cannot attach a file to this message" });
         return;
       }
+      const storedFile = await prisma.uploadedFile.findUnique({ where: { id: result.id }, select: { url: true } });
       await prisma.attachment.create({
         data: {
           messageId,
-          url: result.url,
+          url: storedFile?.url || result.url,
           fileType: result.type,
           fileName: req.file.originalname,
           fileSize: req.file.size,

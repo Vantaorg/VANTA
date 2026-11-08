@@ -1,0 +1,9 @@
+# Reviewed false positives; no live credential is present at these fingerprints.
+# They are test-only keys, verification plan identifiers, placeholder VAPID config,
+# and a public Base USDC contract address.
+7d8e0e9de88cdb5020af29a0585a8df0c6f9ae97:backend/src/__tests__/security.encryption.test.ts:generic-api-key:12
+f4916db9effba97c92fd5aa8ab3ff726b48574e5:backend/src/services/verification.service.ts:generic-api-key:30
+f4916db9effba97c92fd5aa8ab3ff726b48574e5:backend/src/services/verification.service.ts:generic-api-key:31
+e14bae136ad7b10c36277db9c883eccee06871f8:PUSH_NOTIFICATIONS.md:generic-api-key:85
+021cbad30c307001067df28124e809685b97efdf:backend/src/__tests__/security.startup-config.test.ts:generic-api-key:13
+77ce92ef604200036c1a2ca96f4abf5a37f6347d:backend/src/config/blockchain-networks.config.ts:generic-api-key:57

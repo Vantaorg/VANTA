@@ -11,6 +11,7 @@ const PROD_GOOD = {
   JWT_SECRET: 'str0ng-access-secret-0123456789abcdef',
   JWT_REFRESH_SECRET: 'str0ng-refresh-secret-0123456789abcdef',
   ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
+  ENCRYPTION_SALT: 'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0fedcba9876543210',
 };
 
 describe('enforceSecretPolicy (fail closed)', () => {
@@ -49,4 +50,26 @@ describe('enforceSecretPolicy (fail closed)', () => {
       warnSpy.mockRestore();
     }
   });
+  test('aborts production startup when ENCRYPTION_SALT is missing', () => {
+    expect(() => enforceSecretPolicy({ ...PROD_GOOD, ENCRYPTION_SALT: undefined })).toThrow('missing required secrets: ENCRYPTION_SALT');
+  });
+  test('aborts production startup when ENCRYPTION_SALT is weak', () => {
+    expect(() => enforceSecretPolicy({ ...PROD_GOOD, ENCRYPTION_SALT: 'vanta-encryption-salt' })).toThrow('development/default secrets');
+  });
+  test('rejects short or low-diversity JWT and encryption secrets', () => {
+    expect(validateProductionSecrets({ ...PROD_GOOD, JWT_SECRET: 'short-secret' }).weak).toContain('JWT_SECRET');
+    expect(validateProductionSecrets({ ...PROD_GOOD, JWT_REFRESH_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }).weak).toContain('JWT_REFRESH_SECRET');
+    expect(validateProductionSecrets({ ...PROD_GOOD, ENCRYPTION_KEY: 'weak-key' }).weak).toContain('ENCRYPTION_KEY');
+  });
+
+  test('rejects reuse of the same secret across authentication and encryption purposes', () => {
+    const reused = 'distinct-looking-random-secret-0123456789abcdef';
+    const result = validateProductionSecrets({
+      ...PROD_GOOD,
+      JWT_SECRET: reused,
+      JWT_REFRESH_SECRET: reused,
+    });
+    expect(result.weak).toEqual(expect.arrayContaining(['JWT_SECRET', 'JWT_REFRESH_SECRET']));
+  });
+
 });
