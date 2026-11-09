@@ -16,6 +16,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Run ESLint as its own required CI step. Next 15.5's bundled build-time
+  // ESLint adapter passes options removed by newer ESLint APIs; avoid that
+  // duplicate adapter while keeping the standalone `npm run lint` gate.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   
   // Enable React strict mode for development
   reactStrictMode: true,
