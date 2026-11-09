@@ -12,22 +12,23 @@ export const metadata = {
   description: 'Discover homes and apartments for rent on VANTA.',
 };
 
-export default async function HomesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function HomesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const resolvedSearchParams = await searchParams;
   const params: Record<string, string> = {};
   const setIf = (key: string, val: string | string[] | undefined) => {
     if (val !== undefined && val !== '') params[key] = Array.isArray(val) ? val[0] : val;
   };
-  setIf('city', searchParams.city);
-  setIf('area', searchParams.area);
-  setIf('propertyType', searchParams.propertyType);
-  setIf('minRent', searchParams.minRent);
-  setIf('maxRent', searchParams.maxRent);
-  setIf('bedrooms', searchParams.bedrooms);
-  setIf('bathrooms', searchParams.bathrooms);
-  setIf('furnished', searchParams.furnished);
-  setIf('q', searchParams.q);
+  setIf('city', resolvedSearchParams.city);
+  setIf('area', resolvedSearchParams.area);
+  setIf('propertyType', resolvedSearchParams.propertyType);
+  setIf('minRent', resolvedSearchParams.minRent);
+  setIf('maxRent', resolvedSearchParams.maxRent);
+  setIf('bedrooms', resolvedSearchParams.bedrooms);
+  setIf('bathrooms', resolvedSearchParams.bathrooms);
+  setIf('furnished', resolvedSearchParams.furnished);
+  setIf('q', resolvedSearchParams.q);
   if (params.q) params.search = params.q;
-  setIf('sort', searchParams.sort || 'newest');
+  setIf('sort', resolvedSearchParams.sort || 'newest');
   params.limit = String(PAGE_LIMIT);
 
   let propertyTypes: string[] = [];
