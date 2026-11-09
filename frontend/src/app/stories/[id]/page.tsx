@@ -2,7 +2,7 @@
 
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, Eye, Link2, Loader2, MessageCircle, MoreVertical, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
@@ -60,10 +60,11 @@ function buildStoryGroups(raw: any[]): StoryGroup[] {
   return groups;
 }
 
-export default function StoryViewerPage({ params }: { params: { id: string } }) {
+export default function StoryViewerPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: routeId } = use(params);
   const { token, user } = useAuth();
   const router = useRouter();
-  const userId = useMemo(() => decodeURIComponent(params.id).trim(), [params.id]);
+  const userId = useMemo(() => decodeURIComponent(routeId).trim(), [routeId]);
 
   const [groups, setGroups] = useState<StoryGroup[]>([]);
   const [loading, setLoading] = useState(true);

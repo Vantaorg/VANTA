@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Hash, Loader2, MessageCircle, Share2, Users } from 'lucide-react';
@@ -33,7 +33,8 @@ type Community = {
  * for Join/Leave. After joining, the existing Messages routing opens the
  * Group/Channel conversation.
  */
-export default function CommunityPage({ params }: { params: { id: string } }) {
+export default function CommunityPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
@@ -47,12 +48,12 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
     let current = true;
     setLoading(true);
     setError('');
-    apiGet<Community>(`/api/communities/discover/${encodeURIComponent(params.id)}`, token, { skipCache: true })
+    apiGet<Community>(`/api/communities/discover/${encodeURIComponent(id)}`, token, { skipCache: true })
       .then(data => { if (current) setCommunity(data); })
       .catch((reason: any) => { if (current) setError(reason?.message || 'This community could not be found.'); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [params.id, token]);
+  }, [id, token]);
 
   const toggleJoin = async () => {
     if (!token || !community || joining) return;
@@ -76,7 +77,7 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
   };
 
   const copyLink = async () => {
-    const url = `${location.origin}/communities/${params.id}`;
+    const url = `${location.origin}/communities/${id}`;
     try { await navigator.clipboard.writeText(url); toast.success('Link copied'); }
     catch { toast.error('Could not copy the link'); }
   };
