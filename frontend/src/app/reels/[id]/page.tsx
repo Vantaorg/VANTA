@@ -2,7 +2,7 @@
 
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -74,7 +74,8 @@ const timeAgo = (value?: string) => {
  * `kind="reel"` mode). Sharing is client-side (copy / native / message) because
  * Reels have no server-side share counter.
  */
-export default function ReelDetailPage({ params }: { params: { id: string } }) {
+export default function ReelDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: routeId } = use(params);
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
@@ -102,7 +103,7 @@ export default function ReelDetailPage({ params }: { params: { id: string } }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const tapTimerRef = useRef<number>();
   const lastTapRef = useRef(0);
-  const id = useMemo(() => decodeURIComponent(params.id).trim(), [params.id]);
+  const id = useMemo(() => decodeURIComponent(routeId).trim(), [routeId]);
 
   // Derived engagement state — declared before event handlers so the toggles
   // can read the current Reel state safely.
