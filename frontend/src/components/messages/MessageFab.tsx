@@ -215,7 +215,7 @@ export default function MessageFab({
                     <span className="block text-sm font-medium text-white">New Group</span>
                     
                   </span>
-                  <ArrowUpRight size={16} className="shrink-0 text-white/30" />
+                  <ChevronRight size={16} className="shrink-0 text-white/30" />
                 </button>
                 <button
                   type="button"
@@ -229,7 +229,7 @@ export default function MessageFab({
                     <span className="block text-sm font-medium text-white">New Channel</span>
                     
                   </span>
-                  <ArrowUpRight size={16} className="shrink-0 text-white/30" />
+                  <ChevronRight size={16} className="shrink-0 text-white/30" />
                 </button>
               </div>
             </div>
