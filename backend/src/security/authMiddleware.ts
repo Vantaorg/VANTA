@@ -17,6 +17,7 @@ export interface AuthenticatedRequest extends Request {
     role: Role;
     sessionId: string;
     deviceFingerprint?: string;
+    adminTwoFactorVerifiedAt?: Date | null;
   };
   token?: string;
   /** Set when a SUSPENDED account exercised its restricted read-only allowlist. */
@@ -97,6 +98,8 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
           role: parseRole(user.role),
           sessionId: session.id,
           deviceFingerprint: (req as any).deviceFingerprint,
+      adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
+          adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
         };
         req.token = token;
         req.accountRestricted = 'SUSPENDED';
@@ -389,4 +392,35 @@ export function securityLog(action: string, severity: 'INFO' | 'WARNING' | 'CRIT
 
     next();
   };
+}
+
+/**
+ * Admin sessions must have completed a real 2FA challenge. Trusted-device
+ * login is deliberately not accepted as proof of administrator verification.
+ * The verification is session-bound and expires after 12 hours.
+ */
+export function requireAdminTwoFactorVerified(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  const adminRoles = [Role.ADMIN, Role.CEO, Role.SUPER_ADMIN];
+  if (!adminRoles.includes(req.user.role)) {
+    res.status(403).json({ error: 'Administrator access required' });
+    return;
+  }
+
+  const verifiedAt = req.user.adminTwoFactorVerifiedAt;
+  const maxAgeMs = 12 * 60 * 60 * 1000;
+  if (!(verifiedAt instanceof Date) || !Number.isFinite(verifiedAt.getTime()) || Date.now() - verifiedAt.getTime() > maxAgeMs || verifiedAt.getTime() > Date.now()) {
+    res.status(403).json({
+      error: 'Administrator two-factor verification required',
+      code: 'ADMIN_2FA_REQUIRED',
+      message: 'Sign in again and complete two-factor verification to access administration.',
+    });
+    return;
+  }
+
+  next();
 }
