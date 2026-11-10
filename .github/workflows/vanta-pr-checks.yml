@@ -64,5 +64,10 @@ jobs:
           src/__tests__/upload.service.test.ts
           src/__tests__/wallet.transfer-security.test.ts
           src/__tests__/wallet.withdrawal.test.ts
+          src/__tests__/security.fail-closed-prerequisites.test.ts
+          src/__tests__/security.admin-session-2fa.test.ts
+          src/__tests__/security.admin-rbac.test.ts
+          src/__tests__/security.audit-log-hash.test.ts
+          src/__tests__/wallet.service.test.ts
       - name: Build backend
         run: npm --prefix backend run build
