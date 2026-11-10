@@ -1201,6 +1201,9 @@ model PasswordResetToken {
 }
 
 model Session {
+  // Timestamp of a successful TOTP/backup-code verification for this session.
+  // Admin routes require a recent value; trusted-device status is not proof of 2FA.
+  adminTwoFactorVerifiedAt DateTime?
   id                String    @id @default(cuid())
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
