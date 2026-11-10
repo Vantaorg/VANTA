@@ -221,6 +221,83 @@ describe('WalletService', () => {
     });
   });
 
+  describe('reverseTransaction', () => {
+    const runReversal = async (transaction: any, wallet: any, updatedWallet: any, claimCount = 1) => {
+      const tx = {
+        walletTransaction: {
+          findUnique: jest.fn().mockResolvedValue(transaction),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          create: jest.fn().mockResolvedValue({}),
+        },
+        wallet: {
+          findUnique: jest.fn().mockResolvedValue(wallet),
+          findUniqueOrThrow: jest.fn().mockResolvedValue(updatedWallet),
+          updateMany: jest.fn().mockResolvedValue({ count: claimCount }),
+        },
+        walletAuditLog: { create: jest.fn().mockResolvedValue({}) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
+      return { result: await walletService.reverseTransaction('tx1', 'admin1', 'fraud review'), tx };
+    };
+
+    test('reverses an incoming purchase as a debit with an accurate ledger snapshot', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.PURCHASE, currency: 'VANTA', amount: 40, status: 'COMPLETED', reference: 'purchase1' };
+      const wallet = { ...mockWallet, coinBalance: 100, lockedCoins: 20 };
+      const updatedWallet = { ...wallet, coinBalance: 60 };
+      const { result, tx } = await runReversal(transaction, wallet, updatedWallet);
+      expect(result.success).toBe(true);
+      expect(tx.wallet.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId: 'user1', coinBalance: 100, lockedCoins: 20 },
+        data: { coinBalance: { increment: -40 } },
+      }));
+      expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          type: TX_TYPES.ADMIN_DEBIT,
+          amount: 40,
+          balanceBefore: 100,
+          balance: 60,
+          currency: 'VANTA',
+        }),
+      }));
+    });
+
+    test('reverses an outgoing transfer as a credit', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.TRANSFER_SENT, currency: 'VANTA', amount: 30, status: 'COMPLETED', reference: 'transfer1' };
+      const wallet = { ...mockWallet, coinBalance: 70 };
+      const updatedWallet = { ...wallet, coinBalance: 100 };
+      const { tx } = await runReversal(transaction, wallet, updatedWallet);
+      expect(tx.wallet.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        data: { coinBalance: { increment: 30 } },
+      }));
+      expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ type: TX_TYPES.ADMIN_CREDIT, amount: 30 }),
+      }));
+    });
+
+    test('refuses to consume locked coins when reversing an incoming transaction', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.PURCHASE, currency: 'VANTA', amount: 90, status: 'COMPLETED' };
+      const wallet = { ...mockWallet, coinBalance: 100, lockedCoins: 20 };
+      const tx = {
+        walletTransaction: { findUnique: jest.fn().mockResolvedValue(transaction), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        wallet: { findUnique: jest.fn().mockResolvedValue(wallet), updateMany: jest.fn() },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
+      await expect(walletService.reverseTransaction('tx1', 'admin1', 'fraud review')).rejects.toThrow('locked funds');
+      expect(tx.wallet.updateMany).not.toHaveBeenCalled();
+    });
+
+    test('fails safely if the wallet changed before the reversal update', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.PURCHASE, currency: 'VANTA', amount: 20, status: 'COMPLETED' };
+      const wallet = { ...mockWallet, coinBalance: 100 };
+      const tx = {
+        walletTransaction: { findUnique: jest.fn().mockResolvedValue(transaction), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        wallet: { findUnique: jest.fn().mockResolvedValue(wallet), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
+      await expect(walletService.reverseTransaction('tx1', 'admin1', 'fraud review')).rejects.toThrow('Wallet changed');
+    });
+  });
+
   describe('formatSignedAmount', () => {
     test('should format incoming amount with plus sign', () => {
       expect(formatSignedAmount(100, true)).toBe('+100');

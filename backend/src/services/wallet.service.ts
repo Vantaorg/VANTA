@@ -2080,25 +2080,59 @@ export class WalletService {
         throw new Error("Transaction already reversed or no longer eligible");
       }
 
+      if (transaction.currency !== "VANTA") {
+        throw new Error("Only VANTA Coin transactions can be reversed");
+      }
+
+      // Derive the original ledger movement using the same sign rules as
+      // reconcileWallet. REFUND rows may have a negative amount, so type alone
+      // is not enough to determine whether the original movement was incoming.
+      const originalDelta = INCOMING_TYPES.has(transaction.type as any)
+        ? transaction.amount
+        : OUTGOING_TYPES.has(transaction.type as any)
+          ? -transaction.amount
+          : null;
+      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
+        throw new Error("Transaction type or amount cannot be safely reversed");
+      }
+      const reversalDelta = -originalDelta;
+
       const wallet = await tx.wallet.findUnique({
         where: { userId: transaction.userId },
       });
       if (!wallet) throw new Error("Wallet not found");
 
-      const isIncoming = INCOMING_TYPES.has(transaction.type as any);
-      const reversalAmount = isIncoming ? -Math.abs(transaction.amount) : Math.abs(transaction.amount);
+      const debitAmount = Math.max(0, -reversalDelta);
+      if (debitAmount > 0 && resolveAvailableCoins(wallet) < debitAmount) {
+        throw new Error("Insufficient available coins to reverse this transaction without consuming locked funds");
+      }
 
-      const updatedWallet = await tx.wallet.update({
+      // Compare-and-swap both balances so the ledger snapshot and balance
+      // update describe the same state. Concurrent wallet changes cause a
+      // safe retry instead of a stale before/after record.
+      const balanceClaim = await tx.wallet.updateMany({
+        where: {
+          userId: transaction.userId,
+          coinBalance: wallet.coinBalance,
+          lockedCoins: wallet.lockedCoins,
+        },
+        data: { coinBalance: { increment: reversalDelta } },
+      });
+      if (balanceClaim.count !== 1) {
+        throw new Error("Wallet changed during reversal; retry the operation");
+      }
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({
         where: { userId: transaction.userId },
-        data: { coinBalance: { increment: reversalAmount } },
       });
 
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           userId: transaction.userId,
-          type: "REFUND",
-          amount: Math.abs(reversalAmount),
+          type: reversalDelta > 0 ? TX_TYPES.ADMIN_CREDIT : TX_TYPES.ADMIN_DEBIT,
+          currency: "VANTA",
+          amount: Math.abs(reversalDelta),
+          balanceBefore: wallet.coinBalance,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Reversal: ${reason}`,
