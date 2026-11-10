@@ -69,4 +69,13 @@ describe('security-critical shared rate limits', () => {
     expect(next).not.toHaveBeenCalled();
     log.mockRestore();
   });
+  test('advisory-lock query returns a Prisma-decodable scalar instead of PostgreSQL void', async () => {
+    const next = jest.fn();
+    await rateLimiter.api(request('192.0.2.30', '/feed', {}), response(), next);
+    const queryTemplate = (tx.$queryRaw as jest.Mock).mock.calls[0][0] as TemplateStringsArray;
+    expect(queryTemplate.join('')).toContain('SELECT 1::int AS locked');
+    expect(queryTemplate.join('')).toContain('pg_advisory_xact_lock');
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
 });

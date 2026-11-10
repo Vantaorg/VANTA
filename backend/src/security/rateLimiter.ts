@@ -50,7 +50,7 @@ class RateLimiter {
         const now = new Date();
         const windowStart = new Date(now.getTime() - limiterConfig.windowMs);
         const decision = await prisma.$transaction(async (tx) => {
-          for (const identifier of identifiers) await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${identifier}))`;
+          for (const identifier of identifiers) await tx.$queryRaw`SELECT 1::int AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${identifier}))) AS lock_result`;
           await tx.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } });
           const entries = await tx.rateLimit.findMany({ where: { key: { in: identifiers }, createdAt: { gte: windowStart } } });
           const counts = new Map<string, number>();
