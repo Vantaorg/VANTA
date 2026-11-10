@@ -58,6 +58,17 @@ describe('administrator session 2FA guard', () => {
     expect(res.statusCode).toBe(200);
   });
 
+  test('allows a recently verified moderator session to use scoped admin APIs', () => {
+    const req: any = { user: { userId: 'moderator', role: Role.MODERATOR, sessionId: 's1', adminTwoFactorVerifiedAt: new Date(Date.now() - 60_000) } };
+    const res = response();
+    const next = jest.fn();
+
+    requireAdminTwoFactorVerified(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(200);
+  });
+
   test('does not allow ordinary users through the administrator guard', () => {
     const req: any = { user: { userId: 'user', role: Role.USER, sessionId: 's1', adminTwoFactorVerifiedAt: new Date() } };
     const res = response();

@@ -405,7 +405,7 @@ export function requireAdminTwoFactorVerified(req: AuthenticatedRequest, res: Re
     return;
   }
 
-  const adminRoles = [Role.ADMIN, Role.CEO, Role.SUPER_ADMIN];
+  const adminRoles = [Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR];
   if (!adminRoles.includes(req.user.role)) {
     res.status(403).json({ error: 'Administrator access required' });
     return;

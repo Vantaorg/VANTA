@@ -243,7 +243,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Administrator logins always require a fresh 2FA challenge. Trusted-device
     // bypass remains available to ordinary users only; it is not sufficient
     // evidence for privileged administration.
-    const isAdministrator = ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR'].includes(String(user.role).toUpperCase());
+    const isAdministrator = ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR', 'MODERATOR'].includes(String(user.role).toUpperCase());
     if (user.twoFactorEnabled && (isAdministrator || !(req as any).deviceFingerprint || !(await twoFactorAuth.isDeviceTrusted(user.id, (req as any).deviceFingerprint)))) {
       const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
       res.status(200).json({
