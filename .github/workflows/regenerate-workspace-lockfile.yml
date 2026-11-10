@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '22'
       - name: Regenerate root workspace lockfile
-        run: npm install --package-lock-only --ignore-scripts --workspaces --include-workspace-root
+        run: rm -f package-lock.json && npm install --package-lock-only --ignore-scripts --workspaces --include-workspace-root
       - name: Commit synchronized lockfile
         run: |
           if git diff --quiet -- package-lock.json; then
