@@ -17,6 +17,20 @@ describe('audit log hash chain', () => {
     expect(buildAuditHash('previous', row)).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  test('uses unambiguous field encoding when values contain separators', () => {
+    const left = buildAuditHash('previous', {
+      ...row,
+      action: 'A|B',
+      metadata: 'C',
+    });
+    const right = buildAuditHash('previous', {
+      ...row,
+      action: 'A',
+      metadata: 'B|C',
+    });
+    expect(left).not.toBe(right);
+  });
+
   test('binds the predecessor hash and every persisted audit field', () => {
     const original = buildAuditHash('previous', row);
     expect(buildAuditHash('different-predecessor', row)).not.toBe(original);

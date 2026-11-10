@@ -32,16 +32,18 @@ type AuditRow = {
 const AUDIT_CHAIN_LOCK_ID = 8675309;
 
 export function buildAuditHash(previousHash: string, row: AuditRow): string {
-  const payload = [
+  // JSON array encoding preserves field boundaries. Delimiter concatenation
+  // is ambiguous when attacker-controlled metadata or headers contain "|".
+  const payload = JSON.stringify([
     previousHash,
     row.id,
     row.createdAt.toISOString(),
-    row.userId ?? '',
+    row.userId,
     row.action,
-    row.ipAddress ?? '',
-    row.userAgent ?? '',
-    row.metadata ?? '',
-  ].join('|');
+    row.ipAddress,
+    row.userAgent,
+    row.metadata,
+  ]);
   return CryptoUtils.sha256(payload);
 }
 
