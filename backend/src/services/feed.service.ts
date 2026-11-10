@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { appendAuditLog } from "../security/auditLog";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "./cache.service";
 import { dbPerformanceTracker } from "./monitoring.service";
 import { emitSocialEvent } from "./social-events.service";
@@ -739,7 +740,11 @@ export class FeedService {
         userId, eventType: parentId ? "comment.reply" : "comment.created", targetType: "POST", targetId: postId,
         metadata: JSON.stringify({ commentId: created.id, parentId: parentId || null, mentions: mentionedUsers.map(user => user.id) }),
       }});
-      await tx.securityLog.create({ data: { userId, action: parentId ? "COMMENT_REPLY_CREATED" : "COMMENT_CREATED", metadata: JSON.stringify({ postId, commentId: created.id }) } });
+      await appendAuditLog(tx, {
+        userId,
+        action: parentId ? "COMMENT_REPLY_CREATED" : "COMMENT_CREATED",
+        metadata: { postId, commentId: created.id },
+      });
       return created;
     });
     

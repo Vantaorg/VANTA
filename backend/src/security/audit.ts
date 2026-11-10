@@ -1,4 +1,4 @@
-import { prisma } from '../prisma';
+import { auditLog } from './auditLog';
 
 /**
  * Audit actions - centralized enum for all auditable events
@@ -67,9 +67,6 @@ export enum AuditAction {
  * All security events are logged with tamper-evident details
  */
 class AuditLogger {
-  /**
-   * Log a security event
-   */
   async log(
     userId: string | null | undefined,
     action: AuditAction | string,
@@ -79,31 +76,15 @@ class AuditLogger {
       metadata?: Record<string, any>;
     }
   ): Promise<void> {
-    try {
-      // userId is optional and nullable. Anonymous/system events store NULL —
-      // never fabricate a synthetic id that would violate the User FK.
-      const actorUserId = userId && typeof userId === 'string' && userId.trim().length > 0
-        ? userId.trim()
-        : null;
-
-      await prisma.securityLog.create({
-        data: {
-          userId: actorUserId,
-          action,
-          ipAddress: options?.ipAddress || null,
-          userAgent: options?.userAgent || null,
-          metadata: options?.metadata ? JSON.stringify(options.metadata) : null,
-        },
-      });
-    } catch (error) {
-      // Audit logging should never crash the application
-      console.error('Audit log error:', error);
-    }
+    await auditLog.log({
+      userId: userId ?? null,
+      action,
+      ipAddress: options?.ipAddress,
+      userAgent: options?.userAgent,
+      metadata: options?.metadata,
+    });
   }
 
-  /**
-   * Log an event and return immediately (fire-and-forget)
-   */
   logAsync(
     userId: string | null | undefined,
     action: AuditAction | string,
@@ -113,96 +94,7 @@ class AuditLogger {
       metadata?: Record<string, any>;
     }
   ): void {
-    this.log(userId, action, options).catch((err) => {
-      console.error('Async audit log error:', err);
-    });
-  }
-
-  /**
-   * Get audit logs for a specific user
-   */
-  async getUserLogs(userId: string, limit: number = 50, cursor?: string) {
-    const query: any = {
-      where: { userId },
-      orderBy: { createdAt: 'desc' as const },
-      take: limit + 1,
-    };
-
-    if (cursor) {
-      query.cursor = { id: cursor };
-      query.skip = 1;
-    }
-
-    const logs = await prisma.securityLog.findMany(query);
-    const nextCursor = logs.length > limit ? logs.pop()?.id : undefined;
-
-    return {
-      items: logs.map((log) => ({
-        id: log.id,
-        action: log.action,
-        ipAddress: log.ipAddress,
-        userAgent: log.userAgent,
-        metadata: log.metadata ? JSON.parse(log.metadata) : null,
-        createdAt: log.createdAt,
-      })),
-      nextCursor,
-    };
-  }
-
-  /**
-   * Get all audit logs for admin review (with pagination)
-   */
-  async getAllLogs(
-    limit: number = 100,
-    cursor?: string,
-    filters?: {
-      action?: string;
-      userId?: string;
-      startDate?: Date;
-      endDate?: Date;
-    }
-  ) {
-    const where: any = {};
-    
-    if (filters?.action) where.action = filters.action;
-    if (filters?.userId) where.userId = filters.userId;
-    if (filters?.startDate || filters?.endDate) {
-      where.createdAt = {};
-      if (filters.startDate) where.createdAt.gte = filters.startDate;
-      if (filters.endDate) where.createdAt.lte = filters.endDate;
-    }
-
-    const query: any = {
-      where,
-      orderBy: { createdAt: 'desc' as const },
-      take: limit + 1,
-      include: {
-        user: {
-          select: { id: true, username: true, email: true },
-        },
-      },
-    };
-
-    if (cursor) {
-      query.cursor = { id: cursor };
-      query.skip = 1;
-    }
-
-    const logs = await prisma.securityLog.findMany(query);
-    const nextCursor = logs.length > limit ? logs.pop()?.id : undefined;
-
-    return {
-      items: logs.map((log: any) => ({
-        id: log.id,
-        user: log.user,
-        action: log.action,
-        ipAddress: log.ipAddress,
-        userAgent: log.userAgent,
-        metadata: log.metadata ? JSON.parse(log.metadata) : null,
-        createdAt: log.createdAt,
-      })),
-      nextCursor,
-    };
+    void this.log(userId, action, options);
   }
 }
 

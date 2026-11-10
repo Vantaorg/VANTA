@@ -1147,18 +1147,20 @@ model MutedUser {
 }
 
 model SecurityLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String
-  ipAddress String?
-  userAgent String?
-  metadata  String? // JSON
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  ipAddress    String?
+  userAgent    String?
+  metadata     String? // JSON
+  previousHash String?
+  hash         String?
+  createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
-  @@index([createdAt])
+  @@index([createdAt, id])
   @@index([userId, action, createdAt])
   @@index([ipAddress, createdAt])
 }
