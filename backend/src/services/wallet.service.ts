@@ -566,7 +566,7 @@ export class WalletService {
           type: TX_TYPES.PURCHASE,
           amount: order.coins,
           fee: 0,
-          balanceBefore: wallet.coinBalance,
+          balanceBefore: updatedWallet.coinBalance + order.coins,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Purchased ${order.coins.toLocaleString()} VANTA Coins for $${order.amount.toFixed(2)}`,
@@ -652,14 +652,6 @@ export class WalletService {
       );
     }
 
-    const wallet = await this.ensureWallet(order.userId);
-    if (wallet.coinBalance < order.coins) {
-      throw new Error(
-        `Refund deferred: the user's spendable balance (${wallet.coinBalance} coins) is below the refunded amount (${order.coins} coins). ` +
-          "Reconcile manually per VANTA business rules before issuing this refund."
-      );
-    }
-
     const refundReason = (reason || "").trim().slice(0, 500) || null;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -679,15 +671,25 @@ export class WalletService {
         throw new Error("This purchase cannot be refunded.");
       }
 
-      const updatedWallet = await tx.wallet.update({
-        where: { userId: order.userId },
+      const walletBefore = await tx.wallet.findUnique({ where: { userId: order.userId } });
+      if (!walletBefore) throw new Error("Wallet not found");
+
+      // Claim the refund only if the current spendable balance still covers
+      // the debit. This is checked atomically with the balance update so a
+      // concurrent purchase/gift/transfer cannot make the wallet negative.
+      const balanceClaim = await tx.wallet.updateMany({
+        where: { userId: order.userId, coinBalance: { gte: order.coins } },
         data: { coinBalance: { decrement: order.coins } },
       });
+      if (balanceClaim.count !== 1) {
+        throw new Error("Refund deferred: the current wallet balance is below the refundable coin amount");
+      }
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({ where: { userId: order.userId } });
 
       // Negative ledger entry: the original PURCHASE entry stays intact.
       await tx.walletTransaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: walletBefore.id,
           userId: order.userId,
           type: "REFUND",
           amount: -order.coins,
