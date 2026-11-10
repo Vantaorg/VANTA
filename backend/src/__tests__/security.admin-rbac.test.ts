@@ -12,6 +12,15 @@ describe('admin section permissions', () => {
     expect(hasPermission(Role.MODERATOR, Permission.VIEW_AUDIT_LOGS)).toBe(false);
   });
 
+  test('read-only section permissions do not grant management access', () => {
+    expect(hasPermission(Role.ADMIN, Permission.READ_COINS)).toBe(true);
+    expect(hasPermission(Role.ADMIN, Permission.READ_GIFTS)).toBe(true);
+    expect(hasPermission(Role.ADMIN, Permission.READ_ADS)).toBe(true);
+    expect(hasPermission(Role.MODERATOR, Permission.READ_COINS)).toBe(false);
+    expect(hasPermission(Role.MODERATOR, Permission.READ_GIFTS)).toBe(false);
+    expect(hasPermission(Role.MODERATOR, Permission.READ_ADS)).toBe(false);
+  });
+
   test('administrators retain explicit access to admin console sections', () => {
     expect(hasPermission(Role.ADMIN, Permission.VIEW_ADMIN_DASHBOARD)).toBe(true);
     expect(hasPermission(Role.ADMIN, Permission.MANAGE_GIFTS)).toBe(true);

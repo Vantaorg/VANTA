@@ -134,7 +134,7 @@ router.post('/wallet/flag', requirePermission(Permission.MANAGE_WALLET), flagSus
 router.get('/wallet/analytics', requirePermission(Permission.VIEW_WALLET), getWalletAnalytics);
 
 // Coin Management
-router.get('/coins', requirePermission(Permission.MANAGE_COINS), getCoinManagement);
+router.get('/coins', requirePermission(Permission.READ_COINS), getCoinManagement);
 
 // Coin payment dashboard (VANTA Coin purchase analytics + refunds)
 router.get('/coin-payments', requirePermission(Permission.VIEW_WALLET), getCoinPaymentsDashboard);
@@ -182,7 +182,7 @@ function parseGiftInput(body: Record<string, unknown>, creating = false): GiftCa
 
 // Gift catalog management. Transactional history is preserved by archiving
 // gifts that have already been purchased instead of deleting referenced rows.
-router.get('/gifts', requirePermission(Permission.MANAGE_GIFTS), async (_req, res) => {
+router.get('/gifts', requirePermission(Permission.READ_GIFTS), async (_req, res) => {
   try { res.json(await giftService.listAllGifts()); } catch (error: any) { res.status(400).json({ error: error.message }); }
 });
 router.post('/gifts', requirePermission(Permission.MANAGE_GIFTS), async (req, res) => {
@@ -233,8 +233,8 @@ router.post('/withdrawals/reject', requirePermission(Permission.PROCESS_WITHDRAW
 router.post('/ads/campaigns', requirePermission(Permission.MANAGE_ADS), createCampaign);
 router.put('/ads/campaigns/:campaignId', requirePermission(Permission.MANAGE_ADS), updateCampaign);
 router.delete('/ads/campaigns/:campaignId', requirePermission(Permission.MANAGE_ADS), deleteCampaign);
-router.get('/ads/campaigns/:campaignId', requirePermission(Permission.MANAGE_ADS), getCampaign);
-router.get('/ads/campaigns', requirePermission(Permission.MANAGE_ADS), getCampaigns);
+router.get('/ads/campaigns/:campaignId', requirePermission(Permission.READ_ADS), getCampaign);
+router.get('/ads/campaigns', requirePermission(Permission.READ_ADS), getCampaigns);
 router.post('/ads/campaigns/:campaignId/pause', requirePermission(Permission.MANAGE_ADS), pauseCampaign);
 router.post('/ads/campaigns/:campaignId/resume', requirePermission(Permission.MANAGE_ADS), resumeCampaign);
 router.get('/ads/analytics', requirePermission(Permission.VIEW_ANALYTICS), getAllAdsAnalytics);
