@@ -60,13 +60,16 @@ export async function appendAuditLog(
   const previous = await tx.securityLog.findFirst({
     where: { hash: { not: null } },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    select: { hash: true },
+    select: { hash: true, createdAt: true },
   });
   const previousHash = previous?.hash ?? '';
   const actorUserId = typeof event.userId === 'string' && event.userId.trim()
     ? event.userId.trim()
     : null;
-  const createdAt = new Date();
+  // Keep chain timestamps strictly increasing, even when two appends happen
+  // within the same millisecond. The verifier uses this order across restarts.
+  const now = Date.now();
+  const createdAt = new Date(previous?.createdAt ? Math.max(now, previous.createdAt.getTime() + 1) : now);
   const metadata = event.metadata === undefined ? null : JSON.stringify(event.metadata);
 
   // Create and then fill the digest in the same transaction. The generated
@@ -97,7 +100,9 @@ class AuditLogger {
     try {
       await prisma.$transaction(async (tx) => {
         await appendAuditLog(tx, event);
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      // The advisory lock serializes appenders; READ COMMITTED ensures the
+      // predecessor query after lock acquisition sees the prior commit.
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
 
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[AUDIT] ${event.action} by ${event.userId || 'anonymous'} from ${event.ipAddress || 'unknown'}`);
