@@ -307,7 +307,13 @@ export function requireEmailVerified(req: AuthenticatedRequest, res: Response, n
       return;
     }
     next();
-  }).catch(() => next());
+  }).catch(() => {
+    // Authorization prerequisites must fail closed when the database is unavailable.
+    res.status(503).json({
+      error: 'Security verification unavailable',
+      message: 'Please retry this request shortly',
+    });
+  });
 }
 
 /**
@@ -331,7 +337,13 @@ export function requireTwoFactorEnabled(req: AuthenticatedRequest, res: Response
       return;
     }
     next();
-  }).catch(() => next());
+  }).catch(() => {
+    // A database error must never be interpreted as successful 2FA eligibility.
+    res.status(503).json({
+      error: 'Security verification unavailable',
+      message: 'Please retry this request shortly',
+    });
+  });
 }
 
 /**
