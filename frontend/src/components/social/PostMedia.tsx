@@ -130,7 +130,7 @@ export default function PostMedia({
     return (
       <div
         ref={frameRef}
-        className="relative mx-auto w-full bg-black pt-14"
+        className={`relative mx-auto w-full bg-black ${feedCompact ? 'aspect-[3/2] overflow-hidden' : 'pt-14'}`}
       >
         <video
           ref={videoRef}
@@ -146,7 +146,7 @@ export default function PostMedia({
             const element = event.currentTarget;
             setProgress(element.duration ? (element.currentTime / element.duration) * 100 : 0);
           }}
-          className={`block h-auto ${feedCompact ? 'max-h-[60dvh]' : 'max-h-[min(76dvh,820px)]'} w-full object-contain ${className ?? ''}`}
+          className={`${feedCompact ? 'absolute inset-0 h-full w-full object-cover' : 'block h-auto max-h-[min(76dvh,820px)] w-full object-contain'} ${className ?? ''}`}
           aria-label={alt}
         />
         {showPlay && !playing && (
@@ -176,14 +176,29 @@ export default function PostMedia({
     );
   }
 
-  // Plain image: full content, original proportions, responsive max-height.
+  // Home feed images use a consistent 16:9 frame; other contexts retain
+  // their natural proportions. Cropping is confined to the Home feed frame.
+  if (feedCompact) {
+    return (
+      <div className="relative mx-auto aspect-[16/9] w-full overflow-hidden bg-black">
+        <img
+          src={resolved}
+          alt={alt}
+          loading="lazy"
+          onDoubleClick={onDoubleClick}
+          className={`absolute inset-0 h-full w-full object-cover ${className ?? ''}`}
+        />
+      </div>
+    );
+  }
+
   return (
     <img
       src={resolved}
       alt={alt}
       loading="lazy"
       onDoubleClick={onDoubleClick}
-      className={`mx-auto block h-auto ${feedCompact ? 'max-h-[60dvh]' : 'max-h-[min(76dvh,820px)]'} w-full object-contain ${className ?? ''}`}
+      className={`mx-auto block h-auto max-h-[min(76dvh,820px)] w-full object-contain ${className ?? ''}`}
     />
   );
 }
