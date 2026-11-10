@@ -694,7 +694,7 @@ export class WalletService {
           type: "REFUND",
           amount: -order.coins,
           fee: 0,
-          balanceBefore: wallet.coinBalance,
+          balanceBefore: updatedWallet.coinBalance + order.coins,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Refund of ${order.coins.toLocaleString()} VANTA Coins for purchase ${orderId}`,
