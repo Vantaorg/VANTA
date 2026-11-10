@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowUpRight,
+  ArrowLeft,
+  ChevronRight,
   Megaphone,
-  MessageCircle,
   Plus,
   Search,
   Users,
@@ -121,67 +121,27 @@ export default function MessageFab({
             role="dialog"
             aria-modal="true"
             aria-labelledby="message-fab-title"
-            className="fixed inset-0 z-[81] flex h-[100dvh] min-h-0 w-screen max-w-none flex-col overflow-hidden bg-[#1F2630] shadow-2xl"
+            className="fixed inset-0 z-[81] flex h-[100dvh] min-h-0 w-screen max-w-none flex-col overflow-hidden bg-[#1F2630] text-white shadow-2xl"
           >
-            <div className="shrink-0 border-b border-white/[0.07] px-5 pb-4 pt-[max(18px,env(safe-area-inset-top))]">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#d6a83f]/10 text-[#e6bd58]">
-                    <MessageCircle size={19} strokeWidth={1.9} />
-                  </span>
-                  <div>
-                    <h2 id="message-fab-title" className="text-[15px] font-semibold tracking-tight text-white">
-                      New Message
-                    </h2>
-                    <p className="mt-0.5 text-xs text-white/40">
-                      Start a chat or create a group or channel
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={close}
-                  aria-label="Close"
-                  className="grid h-9 w-9 place-items-center rounded-full text-white/45 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6a83f]/70"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <label htmlFor="message-fab-search" className="sr-only">
-                Search people by name or username
-              </label>
+            <header className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-[max(18px,env(safe-area-inset-top))]">
+              <button type="button" onClick={close} aria-label="Go back" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/[0.06]">
+                <ArrowLeft size={21} />
+              </button>
+              <h2 id="message-fab-title" className="text-lg font-semibold tracking-tight text-white">New Message</h2>
+            </header>
+            <div className="shrink-0 px-4 pb-3">
+              <label htmlFor="message-fab-search" className="sr-only">Search username</label>
               <div className="relative">
-                <Search
-                  size={16}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35"
-                />
-                <input
-                  ref={searchRef}
-                  id="message-fab-search"
-                  type="search"
-                  autoComplete="off"
-                  value={search}
-                  onChange={(event) => onSearch(event.target.value)}
-                  placeholder="Search people"
-                  className="h-12 w-full rounded-2xl border border-white/[0.08] bg-[#1a1d22] pl-10 pr-10 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/55 focus:bg-[#1c2026]"
-                />
-                {query.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onSearch('')}
-                    aria-label="Clear search"
-                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-white/40 hover:bg-white/[0.06] hover:text-white"
-                  >
-                    <X size={15} />
-                  </button>
-                )}
+                <Search size={17} aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
+                <input ref={searchRef} id="message-fab-search" type="search" autoComplete="off" value={search}
+                  onChange={(event) => onSearch(event.target.value)} placeholder="Search username"
+                  className="h-12 w-full rounded-2xl border border-transparent bg-[#171f29] pl-11 pr-10 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d6a83f]/45" />
+                {query.length > 0 && <button type="button" onClick={() => onSearch('')} aria-label="Clear search" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-white/40 hover:bg-white/[0.06] hover:text-white"><X size={15} /></button>}
               </div>
             </div>
 
-            <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(28px,env(safe-area-inset-bottom))] pt-5 [-webkit-overflow-scrolling:touch]">
-              <div className="mb-2 flex items-center justify-between px-1">
+            <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(28px,env(safe-area-inset-bottom))] pt-1 [-webkit-overflow-scrolling:touch]">
+              <div className="mb-2 hidden items-center justify-between px-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">
                   {query.length >= 2 ? 'Search results' : 'Create something'}
                 </p>
@@ -200,7 +160,7 @@ export default function MessageFab({
                         key={person.id}
                         type="button"
                         onClick={() => choose(() => onSelectUser(person))}
-                        className={actionBase + ' hover:bg-white/[0.055]'}
+                        className={actionBase + ' min-h-[72px] rounded-[20px] bg-[#171f29] px-4 hover:bg-[#202b37]'}
                       >
                         <Avatar
                           src={person.avatar || person.profilePicture}
@@ -217,7 +177,7 @@ export default function MessageFab({
                             </span>
                           )}
                         </span>
-                        <ArrowUpRight size={16} className="shrink-0 text-white/30" />
+                        <ChevronRight size={19} className="shrink-0 text-white/55" />
                       </button>
                     ))}
                   </div>
@@ -236,7 +196,7 @@ export default function MessageFab({
                 </p>
               )}
 
-              <div className="mt-4 border-t border-white/[0.07] pt-3">
+              <div className="mt-1">
                 <p className="px-1 text-[10px] font-semibold uppercase tracking-[.16em] text-white/35">
                   Create a group or channel
                 </p>
@@ -248,12 +208,12 @@ export default function MessageFab({
                   onClick={() => choose(onNewGroup)}
                   className={actionBase + ' hover:bg-white/[0.055]'}
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/10 text-[#e6bd58]">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-[#d6a83f]/20 bg-[#d6a83f]/10 text-[#e6bd58]">
                     <Users size={18} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-white">New Group</span>
-                    <span className="mt-0.5 block text-xs text-white/40">Chat with multiple people</span>
+                    
                   </span>
                   <ArrowUpRight size={16} className="shrink-0 text-white/30" />
                 </button>
@@ -267,7 +227,7 @@ export default function MessageFab({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-white">New Channel</span>
-                    <span className="mt-0.5 block text-xs text-white/40">Broadcast updates to subscribers</span>
+                    
                   </span>
                   <ArrowUpRight size={16} className="shrink-0 text-white/30" />
                 </button>
@@ -284,7 +244,7 @@ export default function MessageFab({
         aria-label={open ? 'Close new conversation menu' : 'Start a conversation'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="fixed bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem+var(--vanta-kb,0px)))] right-4 z-[79] grid h-14 w-14 place-items-center rounded-full border border-[#ffe59a]/35 bg-[#d6a83f] text-[#17130a] shadow-[0_8px_26px_rgba(0,0,0,.42)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#e4b94f] hover:shadow-[0_12px_30px_rgba(0,0,0,.48)] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2d47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#101114] md:bottom-6 md:right-6"
+        className="fixed bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem+var(--vanta-kb,0px)))] right-4 z-[79] grid h-14 w-14 place-items-center rounded-full border border-[#d6a83f] bg-[#1F2630]/90 text-[#f2c75c] shadow-[0_8px_26px_rgba(0,0,0,.42)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#293442] hover:shadow-[0_12px_30px_rgba(0,0,0,.48)] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2d47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#101114] md:bottom-6 md:right-6"
       >
         <Plus
           size={25}

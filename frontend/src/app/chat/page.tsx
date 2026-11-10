@@ -2834,25 +2834,25 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               role="dialog" aria-modal="true" aria-labelledby="entity-create-title"
               className="fixed inset-0 z-[61] flex h-[100dvh] min-h-0 w-screen max-w-none flex-col overflow-hidden bg-[#1F2630] text-white"
             >
-              <header className="flex shrink-0 items-center gap-3 border-b border-white/[0.07] px-4 pb-4 pt-[max(14px,env(safe-area-inset-top))] sm:px-7">
+              <header className="flex shrink-0 items-center gap-3 px-4 pb-3 pt-[max(14px,env(safe-area-inset-top))] sm:px-7">
                 <button type="button" onClick={() => resetCreateModal()} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[0.07] hover:text-white" aria-label="Go back"><ArrowLeft size={19} /></button>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#d6a83f]/12 text-[#f2c75c]">{createType === 'group' ? <Users size={19} /> : <Megaphone size={19} />}</span>
+                
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-white/35">VANTA · {createType}</p>
-                  <h2 id="entity-create-title" className="truncate text-lg font-semibold tracking-tight">{createType === 'group' ? 'Create a group' : 'Create a channel'}</h2>
+                  
+                  <h2 id="entity-create-title" className="truncate text-lg font-semibold tracking-tight">{createType === 'group' ? 'New Group' : 'New Channel'}</h2>
                 </div>
-                <button type="button" onClick={() => resetCreateModal()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/40 transition hover:bg-white/[0.07] hover:text-white" aria-label="Close"><X size={18} /></button>
+                <button type="button" onClick={() => void handleCreateEntity()} disabled={isCreatingEntity || isUploadingAvatar || !createName.trim()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f2c75c] transition hover:bg-white/[0.07] disabled:opacity-40" aria-label="Create"><Check size={22} /></button>
               </header>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7 [-webkit-overflow-scrolling:touch]">
-                <div className="mx-auto grid w-full max-w-3xl gap-6 pb-6">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-7 sm:py-5 [-webkit-overflow-scrolling:touch]">
+                <div className="mx-auto grid w-full max-w-xl gap-4 pb-5">
                   <div>
                     <p className="text-sm font-medium text-white/85">{createType === 'group' ? 'Bring people together' : 'Create a place to broadcast'}</p>
                     <p className="mt-1 text-xs leading-5 text-white/40">{createType === 'group' ? 'Set up your group, add a few details, then invite the people who should be part of it.' : 'Give your channel an identity, choose who can access it, and invite your first subscribers.'}</p>
                   </div>
-                  <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-5 sm:p-5">
+                  <section className="grid justify-items-center gap-2 bg-transparent px-2 py-1">
                     <div className="flex items-center gap-4">
-                      <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar} className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#26313e] text-white/45 transition hover:bg-[#303d4b] disabled:opacity-60" aria-label="Choose image">
-                        {isUploadingAvatar ? <Loader2 size={21} className="animate-spin" /> : createAvatar ? <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" /> : createType === 'group' ? <Users size={25} /> : <Megaphone size={25} />}
+                      <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar} className="relative grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-full bg-[#303b49] text-white/75 transition hover:bg-[#394656] disabled:opacity-60" aria-label="Choose image">
+                        {isUploadingAvatar ? <Loader2 size={23} className="animate-spin" /> : createAvatar ? <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" /> : <Camera size={27} />}
                       </button>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-white">{createType === 'group' ? 'Group image' : 'Channel image'}</p>
@@ -2864,7 +2864,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" className="hidden" onChange={handleCreateImageUpload} />
                     {createAvatarError && <p className="text-xs text-red-300">{createAvatarError}</p>}
                   </section>
-                  <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:p-5">
+                  <section className="grid gap-4 bg-transparent p-1">
                     <div>
                       <label className="mb-2 block text-xs font-semibold text-white/65">{createType === 'group' ? 'Group name' : 'Channel name'}</label>
                       <input value={createName} onChange={e => { setCreateName(e.target.value); if (createValidationError) setCreateValidationError(null); }} placeholder={createType === 'group' ? 'Give your group a name' : 'Give your channel a name'} maxLength={60} autoComplete="off" className={cn('h-12 w-full rounded-xl border bg-[#202b37] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60', createValidationError ? 'border-red-400/60' : 'border-white/[0.07]')} />
@@ -2875,9 +2875,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <textarea value={createDescription} onChange={e => setCreateDescription(e.target.value)} placeholder={createType === 'group' ? 'What will your group talk about?' : 'What updates will people receive?'} rows={3} maxLength={500} className="w-full resize-y rounded-xl border border-white/[0.07] bg-[#202b37] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60" />
                     </div>
                   </section>
-                  {createType === 'group' && <section className="rounded-3xl bg-[#171f29]/75 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Auto Delete Messages</h3><p className="mt-1 text-xs text-white/40">Automatically expire messages after a chosen time.</p></div><select aria-label="Auto delete messages" value={autoDeleteSeconds === 0 ? '0' : [86400,604800,2592000].includes(autoDeleteSeconds) ? String(autoDeleteSeconds) : 'custom'} onChange={e => setAutoDeleteSeconds(e.target.value === 'custom' ? 172800 : Number(e.target.value))} className="rounded-xl border border-white/[0.08] bg-[#202b37] px-3 py-2.5 text-sm text-[#e6bd58]"><option value="0">Off</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option><option value="custom">Custom time</option></select></div>{![0,86400,604800,2592000].includes(autoDeleteSeconds) && <div className="mt-3 flex items-center gap-2"><input aria-label="Custom auto delete days" type="number" min="1" max="365" value={customDeleteDays} onChange={e => {setCustomDeleteDays(e.target.value);setAutoDeleteSeconds(Math.max(1,Math.min(365,Number(e.target.value)||1))*86400);}} className="h-10 w-24 rounded-lg border border-white/[0.08] bg-[#202b37] px-3 text-sm text-white"/><span className="text-xs text-white/45">days</span></div>}</section>}
+                  {createType === 'group' && <section className="rounded-2xl bg-[#171f29]/70 p-3"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Auto Delete Messages</h3><p className="mt-1 text-xs text-white/40">Automatically expire messages after a chosen time.</p></div><select aria-label="Auto delete messages" value={autoDeleteSeconds === 0 ? '0' : [86400,604800,2592000].includes(autoDeleteSeconds) ? String(autoDeleteSeconds) : 'custom'} onChange={e => setAutoDeleteSeconds(e.target.value === 'custom' ? 172800 : Number(e.target.value))} className="rounded-xl border border-white/[0.08] bg-[#202b37] px-3 py-2.5 text-sm text-[#e6bd58]"><option value="0">Off</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option><option value="custom">Custom time</option></select></div>{![0,86400,604800,2592000].includes(autoDeleteSeconds) && <div className="mt-3 flex items-center gap-2"><input aria-label="Custom auto delete days" type="number" min="1" max="365" value={customDeleteDays} onChange={e => {setCustomDeleteDays(e.target.value);setAutoDeleteSeconds(Math.max(1,Math.min(365,Number(e.target.value)||1))*86400);}} className="h-10 w-24 rounded-lg border border-white/[0.08] bg-[#202b37] px-3 text-sm text-white"/><span className="text-xs text-white/45">days</span></div>}</section>}
                   {createType === 'channel' && (
-                    <section className="grid gap-4 rounded-3xl bg-[#171f29]/75 p-4 sm:grid-cols-2 sm:p-5">
+                    <section className="grid gap-4 bg-transparent p-1 sm:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-xs font-semibold text-white/65">Channel handle</label>
                         <div className="flex h-12 items-center rounded-xl border border-white/[0.07] bg-[#202b37] px-4 focus-within:border-[#d6a83f]/60"><span className="mr-1 text-sm text-white/35">@</span><input value={createHandle} onChange={e => setCreateHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} placeholder="your-channel" maxLength={30} className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30" /></div>
@@ -2897,7 +2897,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </section>
                 </div>
               </div>
-              <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
+              <footer className="hidden shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
                 <p className="hidden text-[11px] text-white/35 sm:block">You can edit these details later.</p>
                 <div className="ml-auto flex items-center gap-2">
                   <button type="button" onClick={() => resetCreateModal()} className="h-11 rounded-xl px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white">Cancel</button>
