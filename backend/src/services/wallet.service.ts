@@ -2055,26 +2055,34 @@ export class WalletService {
   }
 
   async reverseTransaction(transactionId: string, adminId: string, reason: string) {
-    const transaction = await prisma.walletTransaction.findUnique({
-      where: { id: transactionId },
-    });
+    return prisma.$transaction(async (tx) => {
+      const transaction = await tx.walletTransaction.findUnique({
+        where: { id: transactionId },
+      });
 
-    if (!transaction) {
-      throw new Error("Transaction not found");
-    }
+      if (!transaction) {
+        throw new Error("Transaction not found");
+      }
+      if (transaction.status !== "COMPLETED") {
+        throw new Error("Only completed transactions can be reversed");
+      }
 
-    if (transaction.status === "REVERSED") {
-      throw new Error("Transaction already reversed");
-    }
+      // Compare-and-swap the source transaction before changing any balance.
+      // This makes concurrent admin requests idempotent: exactly one request
+      // can claim a COMPLETED transaction for reversal.
+      const claim = await tx.walletTransaction.updateMany({
+        where: { id: transactionId, status: "COMPLETED" },
+        data: { status: "REVERSED" },
+      });
+      if (claim.count !== 1) {
+        throw new Error("Transaction already reversed or no longer eligible");
+      }
 
-    // Atomic reversal
-    const result = await prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.findUnique({
         where: { userId: transaction.userId },
       });
       if (!wallet) throw new Error("Wallet not found");
 
-      // Determine reversal direction
       const isIncoming = INCOMING_TYPES.has(transaction.type as any);
       const reversalAmount = isIncoming ? -Math.abs(transaction.amount) : Math.abs(transaction.amount);
 
@@ -2083,13 +2091,6 @@ export class WalletService {
         data: { coinBalance: { increment: reversalAmount } },
       });
 
-      // Mark original as reversed
-      await tx.walletTransaction.update({
-        where: { id: transactionId },
-        data: { status: "REVERSED" },
-      });
-
-      // Create reversal record
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
@@ -2104,7 +2105,6 @@ export class WalletService {
         },
       });
 
-      // Log audit
       await tx.walletAuditLog.create({
         data: {
           userId: transaction.userId,
@@ -2113,10 +2113,8 @@ export class WalletService {
         },
       });
 
-      return updatedWallet;
+      return { success: true, message: "Transaction reversed" };
     });
-
-    return { success: true, message: "Transaction reversed" };
   }
 
   async flagSuspiciousAccount(userId: string, adminId: string, reason: string) {
