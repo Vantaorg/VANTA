@@ -98,7 +98,6 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
           role: parseRole(user.role),
           sessionId: session.id,
           deviceFingerprint: (req as any).deviceFingerprint,
-      adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
           adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
         };
         req.token = token;
@@ -143,6 +142,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       role: parseRole(user.role),
       sessionId: session.id,
       deviceFingerprint: (req as any).deviceFingerprint,
+      adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
     };
     req.token = token;
 
