@@ -2845,22 +2845,20 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               </header>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-7 sm:py-5 [-webkit-overflow-scrolling:touch]">
                 <div className="mx-auto grid w-full max-w-xl gap-4 pb-5">
-                  <div>
-                    <p className="text-sm font-medium text-white/85">{createType === 'group' ? 'Bring people together' : 'Create a place to broadcast'}</p>
-                    <p className="mt-1 text-xs leading-5 text-white/40">{createType === 'group' ? 'Set up your group, add a few details, then invite the people who should be part of it.' : 'Give your channel an identity, choose who can access it, and invite your first subscribers.'}</p>
-                  </div>
-                  <section className="grid justify-items-center gap-2 bg-transparent px-2 py-1">
-                    <div className="flex items-center gap-4">
-                      <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar} className="relative grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-full bg-[#303b49] text-white/75 transition hover:bg-[#394656] disabled:opacity-60" aria-label="Choose image">
-                        {isUploadingAvatar ? <Loader2 size={23} className="animate-spin" /> : createAvatar ? <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" /> : <Camera size={27} />}
+                  <section className="grid justify-items-center gap-2 px-2 py-1">
+                    <div className="relative">
+                      <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar}
+                        className="relative grid h-28 w-28 place-items-center overflow-hidden rounded-full bg-[#303b49] text-white/80 ring-1 ring-white/10 transition hover:bg-[#394656] disabled:opacity-60"
+                        aria-label={createAvatar ? "Change image" : "Choose image"}>
+                        {isUploadingAvatar ? <Loader2 size={24} className="animate-spin" /> : createAvatar ? <Avatar src={createAvatar} alt="Image preview" size="xl" className="!h-full !w-full" /> : <Camera size={28} />}
                       </button>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white">{createType === 'group' ? 'Group image' : 'Channel image'}</p>
-                        <p className="mt-1 text-xs leading-5 text-white/40">Optional · JPG, PNG, WebP, GIF or AVIF · Up to 5MB</p>
-                        {createAvatar && !isUploadingAvatar && <button type="button" onClick={() => void removeCreateAvatar()} className="mt-2 text-xs font-medium text-red-300 hover:text-red-200">Remove image</button>}
-                        {createAvatarFileId && !isUploadingAvatar && <p className="mt-1 text-[10px] text-emerald-300">Image uploaded</p>}
-                      </div>
+                      <span aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-[#1F2630] bg-[#d6a83f] text-[#17130a]">
+                        <Pencil size={14} />
+                      </span>
                     </div>
+                    <p className="text-xs text-white/40">{createAvatar ? "Tap photo to change" : "Add photo (optional)"}</p>
+                    {createAvatar && !isUploadingAvatar && <button type="button" onClick={() => void removeCreateAvatar()} className="text-xs font-medium text-red-300 hover:text-red-200">Remove photo</button>}
+                    {createAvatarFileId && !isUploadingAvatar && <p className="text-[10px] text-emerald-300">Photo uploaded</p>}
                     <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" className="hidden" onChange={handleCreateImageUpload} />
                     {createAvatarError && <p className="text-xs text-red-300">{createAvatarError}</p>}
                   </section>
@@ -2870,12 +2868,16 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <input value={createName} onChange={e => { setCreateName(e.target.value); if (createValidationError) setCreateValidationError(null); }} placeholder={createType === 'group' ? 'Give your group a name' : 'Give your channel a name'} maxLength={60} autoComplete="off" className={cn('h-12 w-full rounded-xl border bg-[#202b37] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60', createValidationError ? 'border-red-400/60' : 'border-white/[0.07]')} />
                       <div className="mt-2 flex items-center justify-between gap-3">{createValidationError ? <p className="text-xs text-red-300">{createValidationError}</p> : <p className="text-[11px] text-white/35">This is how it appears in Chats.</p>}<span className="shrink-0 text-[10px] tabular-nums text-white/30">{createName.length}/60</span></div>
                     </div>
-                    <div>
-                      <label className="mb-2 block text-xs font-semibold text-white/65">Description <span className="font-normal text-white/30">· optional</span></label>
-                      <textarea value={createDescription} onChange={e => setCreateDescription(e.target.value)} placeholder={createType === 'group' ? 'What will your group talk about?' : 'What updates will people receive?'} rows={3} maxLength={500} className="w-full resize-y rounded-xl border border-white/[0.07] bg-[#202b37] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/60" />
-                    </div>
+                    {createType === 'channel' && (
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold text-white/65">Description (Optional)</label>
+                        <textarea value={createDescription} onChange={e => setCreateDescription(e.target.value)}
+                          placeholder="You can provide an optional description for your channel." rows={3} maxLength={500}
+                          className="min-h-24 w-full resize-y rounded-xl border border-white/[0.07] bg-[#202b37] px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/35 focus:border-[#d6a83f]/60" />
+                      </div>
+                    )}
                   </section>
-                  {createType === 'group' && <section className="rounded-2xl bg-[#171f29]/70 p-3"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Auto Delete Messages</h3><p className="mt-1 text-xs text-white/40">Automatically expire messages after a chosen time.</p></div><select aria-label="Auto delete messages" value={autoDeleteSeconds === 0 ? '0' : [86400,604800,2592000].includes(autoDeleteSeconds) ? String(autoDeleteSeconds) : 'custom'} onChange={e => setAutoDeleteSeconds(e.target.value === 'custom' ? 172800 : Number(e.target.value))} className="rounded-xl border border-white/[0.08] bg-[#202b37] px-3 py-2.5 text-sm text-[#e6bd58]"><option value="0">Off</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option><option value="custom">Custom time</option></select></div>{![0,86400,604800,2592000].includes(autoDeleteSeconds) && <div className="mt-3 flex items-center gap-2"><input aria-label="Custom auto delete days" type="number" min="1" max="365" value={customDeleteDays} onChange={e => {setCustomDeleteDays(e.target.value);setAutoDeleteSeconds(Math.max(1,Math.min(365,Number(e.target.value)||1))*86400);}} className="h-10 w-24 rounded-lg border border-white/[0.08] bg-[#202b37] px-3 text-sm text-white"/><span className="text-xs text-white/45">days</span></div>}</section>}
+                  {createType === 'group' && <section className="rounded-2xl bg-[#171f29]/70 p-3"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Auto-Delete Messages</h3></div><select aria-label="Auto delete messages" value={autoDeleteSeconds === 0 ? '0' : [86400,604800,2592000].includes(autoDeleteSeconds) ? String(autoDeleteSeconds) : 'custom'} onChange={e => setAutoDeleteSeconds(e.target.value === 'custom' ? 172800 : Number(e.target.value))} className="rounded-xl border border-white/[0.08] bg-[#202b37] px-3 py-2.5 text-sm text-[#e6bd58]"><option value="0">Off</option><option value="86400">1 day</option><option value="604800">1 week</option><option value="2592000">1 month</option><option value="custom">Custom time</option></select></div>{![0,86400,604800,2592000].includes(autoDeleteSeconds) && <div className="mt-3 flex items-center gap-2"><input aria-label="Custom auto delete days" type="number" min="1" max="365" value={customDeleteDays} onChange={e => {setCustomDeleteDays(e.target.value);setAutoDeleteSeconds(Math.max(1,Math.min(365,Number(e.target.value)||1))*86400);}} className="h-10 w-24 rounded-lg border border-white/[0.08] bg-[#202b37] px-3 text-sm text-white"/><span className="text-xs text-white/45">days</span></div>}</section>}
                   {createType === 'channel' && (
                     <section className="grid gap-4 bg-transparent p-1 sm:grid-cols-2">
                       <div>
@@ -2889,15 +2891,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                     </section>
                   )}
-                  <section className="grid gap-3 rounded-3xl bg-[#171f29]/75 p-4 sm:p-5">
-                    <div><h3 className="text-sm font-semibold text-white">Add followers</h3><p className="mt-1 text-[11px] text-white/40">Only people following you on VANTA appear here.</p></div>
+                  <section className="grid gap-3 rounded-2xl bg-[#171f29]/65 p-3">
+                    <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-white">Members</h3><span className="text-xs tabular-nums text-[#e6bd58]">{selectedMembers.filter((member) => member.id !== user?.id).length} selected</span></div>
                     {selectedMembers.length > 0 && <div className="flex flex-wrap gap-2">{selectedMembers.map(member => <button key={member.id} type="button" onClick={() => toggleMemberSelection(member)} className="flex items-center gap-2 rounded-full bg-[#26313e] py-1.5 pl-1.5 pr-3 text-xs text-white/80 transition hover:bg-[#303d4b]"><Avatar src={member.avatar} alt={member.username || member.fullName} size="xs" /><span>{member.id === user?.id ? 'You' : member.username || member.fullName}</span>{member.id !== user?.id && <X size={12} className="text-white/40" />}</button>)}</div>}
                     <div className="relative"><Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" /><input value={memberSearch} onChange={e => handleSearchMembers(e.target.value)} placeholder="Search VANTA members" className="h-11 w-full rounded-xl border border-white/[0.07] bg-[#202b37] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/60" /></div>
                     {createType === 'group' && <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain">{followersLoading ? <p className="px-3 py-5 text-center text-xs text-white/40">Loading your followers…</p> : memberSearchResults.map((item: any) => <button key={item.id} type="button" onClick={() => toggleMemberSelection(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{item.fullName || item.username}</span><span className="mt-0.5 block truncate text-[10px] text-white/40">@{item.username}</span></span><UserPlus size={15} className="text-[#d6a83f]" /></button>)}{!followersLoading && memberSearchResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">{memberSearch ? 'No matching followers found.' : 'No followers available to add.'}</p>}</div>}
                   </section>
                 </div>
               </div>
-              <footer className="hidden shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
+              <footer className="shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
                 <p className="hidden text-[11px] text-white/35 sm:block">You can edit these details later.</p>
                 <div className="ml-auto flex items-center gap-2">
                   <button type="button" onClick={() => resetCreateModal()} className="h-11 rounded-xl px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white">Cancel</button>
