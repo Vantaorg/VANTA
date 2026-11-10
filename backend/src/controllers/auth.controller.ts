@@ -240,35 +240,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // explicitly by the 2FA flow below.
     const isSuspicious = await botProtection.detectSuspiciousLogin(user.id, req.ip || '');
     
-    // Check 2FA requirement
-    if (user.twoFactorEnabled) {
-      // Check if device is trusted
-      const deviceFingerprint = (req as any).deviceFingerprint;
-      if (deviceFingerprint) {
-        const isTrusted = await twoFactorAuth.isDeviceTrusted(user.id, deviceFingerprint);
-        if (isTrusted) {
-          // Skip 2FA for trusted devices - proceed with login
-        } else {
-          // Require 2FA token
-          const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
-          res.status(200).json({
-            requiresTwoFactor: true,
-            userId: user.id,
-            twoFactorChallenge,
-            message: 'Two-factor authentication required',
-          });
-          return;
-        }
-      } else {
-        const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
-        res.status(200).json({
-          requiresTwoFactor: true,
-          userId: user.id,
-          twoFactorChallenge,
-          message: 'Two-factor authentication required',
-        });
-        return;
-      }
+    // Administrator logins always require a fresh 2FA challenge. Trusted-device
+    // bypass remains available to ordinary users only; it is not sufficient
+    // evidence for privileged administration.
+    const isAdministrator = ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR'].includes(String(user.role).toUpperCase());
+    if (user.twoFactorEnabled && (isAdministrator || !(req as any).deviceFingerprint || !(await twoFactorAuth.isDeviceTrusted(user.id, (req as any).deviceFingerprint)))) {
+      const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
+      res.status(200).json({
+        requiresTwoFactor: true,
+        userId: user.id,
+        twoFactorChallenge,
+        message: 'Two-factor authentication required',
+      });
+      return;
     }
 
     // Create session
@@ -404,7 +388,7 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
     const tokenPair = sessionManager.generateTokenPair(user.id, user.role, '');
     const session = await sessionManager.createSession(user.id, tokenPair.accessToken, tokenPair.refreshToken, userAgent, ipAddress, deviceFingerprint);
     const finalPair = sessionManager.generateTokenPair(user.id, user.role, session.id);
-    await prisma.session.update({ where: { id: session.id }, data: { token: finalPair.accessToken, refreshToken: finalPair.refreshToken } });
+    await prisma.session.update({ where: { id: session.id }, data: { token: finalPair.accessToken, refreshToken: finalPair.refreshToken, adminTwoFactorVerifiedAt: ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR'].includes(String(user.role).toUpperCase()) ? new Date() : null } });
 
     await botProtection.recordLoginAttempt(user.id, true, req);
     await auditLog.log({ userId: user.id, action: 'LOGIN_SUCCESS_2FA', ipAddress, userAgent, severity: 'INFO' });
