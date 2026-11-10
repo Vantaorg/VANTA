@@ -11,5 +11,7 @@ ALTER TABLE "SecurityLog"
   FOREIGN KEY ("userId") REFERENCES "User"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;
 
+DROP INDEX IF EXISTS "SecurityLog_createdAt_idx";
+
 CREATE INDEX IF NOT EXISTS "SecurityLog_createdAt_id_idx"
   ON "SecurityLog"("createdAt", "id");
