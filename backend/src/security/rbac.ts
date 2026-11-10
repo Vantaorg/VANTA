@@ -153,6 +153,7 @@ const rolePermissions: Record<Role, Permission[]> = {
     Permission.MODERATE_STREAM,
     Permission.VIEW_REPORTS,
     Permission.RESOLVE_REPORTS,
+    Permission.VIEW_AUDIT_LOGS,
     Permission.DELETE_POST,
     Permission.DELETE_COMMENT,
     Permission.DELETE_VIDEO,
@@ -242,5 +243,79 @@ const rolePermissions: Record<Role, Permission[]> = {
     Permission.VIEW_FOLLOWER_REWARDS,
     Permission.MANAGE_VERIFICATION,
   ],
-  [Role.SUPER_ADMIN]: [Permission.ALL],
+  [Role.SUPER_ADMIN]: [
+    Permission.ALL,
+  ],
 };
+
+/**
+ * Check if a role has a specific permission
+ */
+export function hasPermission(role: Role, permission: Permission): boolean {
+  if (role === Role.SUPER_ADMIN) return true;
+  const permissions = rolePermissions[role] || [];
+  return permissions.includes(permission) || permissions.includes(Permission.ALL);
+}
+
+/**
+ * Check if a role has all specified permissions
+ */
+export function hasAllPermissions(role: Role, permissions: Permission[]): boolean {
+  return permissions.every(permission => hasPermission(role, permission));
+}
+
+/**
+ * Check if a role has any of the specified permissions
+ */
+export function hasAnyPermission(role: Role, permissions: Permission[]): boolean {
+  return permissions.some(permission => hasPermission(role, permission));
+}
+
+/**
+ * Get all permissions for a role
+ */
+export function getPermissionsForRole(role: Role): Permission[] {
+  if (role === Role.SUPER_ADMIN) {
+    return Object.values(Permission);
+  }
+  return [...(rolePermissions[role] || [])];
+}
+
+/**
+ * Get all available roles
+ */
+export function getAllRoles(): Role[] {
+  return Object.values(Role);
+}
+
+/**
+ * Convert string to Role enum
+ */
+export function parseRole(role: string): Role {
+  const upper = role.toUpperCase();
+  // Keep compatibility with role names used by older/admin deployments.
+  if (upper === 'ADMINISTRATOR') return Role.ADMIN;
+  if (Object.values(Role).includes(upper as Role)) {
+    return upper as Role;
+  }
+  return Role.USER;
+}
+
+/**
+ * Prevent mid-level administrators from changing the role of an existing
+ * privileged account. Checking only the requested role is insufficient:
+ * without checking the target's current role, an ADMIN could demote a
+ * SUPER_ADMIN or CEO to USER and remove their privileges.
+ */
+export function canManageRole(actorRole: string, currentRole: string, nextRole: string): boolean {
+  const actor = actorRole.toUpperCase();
+  const current = currentRole.toUpperCase();
+  const next = nextRole.toUpperCase();
+
+  if ((current === Role.SUPER_ADMIN || current === Role.CEO) && actor !== Role.SUPER_ADMIN) return false;
+  if (current === Role.ADMIN && actor !== Role.SUPER_ADMIN && actor !== Role.CEO) return false;
+  if ((next === Role.SUPER_ADMIN || next === Role.CEO) && actor !== Role.SUPER_ADMIN) return false;
+  if (next === Role.ADMIN && actor !== Role.SUPER_ADMIN && actor !== Role.CEO) return false;
+
+  return true;
+}
