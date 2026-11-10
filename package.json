@@ -40,5 +40,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "^8.5.32"
   }
 }
