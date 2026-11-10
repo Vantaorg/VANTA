@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  ArrowUpRight,
   ChevronRight,
   Megaphone,
   Plus,

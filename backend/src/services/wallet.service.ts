@@ -566,7 +566,7 @@ export class WalletService {
           type: TX_TYPES.PURCHASE,
           amount: order.coins,
           fee: 0,
-          balanceBefore: wallet.coinBalance,
+          balanceBefore: updatedWallet.coinBalance + order.coins,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Purchased ${order.coins.toLocaleString()} VANTA Coins for $${order.amount.toFixed(2)}`,
@@ -652,14 +652,6 @@ export class WalletService {
       );
     }
 
-    const wallet = await this.ensureWallet(order.userId);
-    if (wallet.coinBalance < order.coins) {
-      throw new Error(
-        `Refund deferred: the user's spendable balance (${wallet.coinBalance} coins) is below the refunded amount (${order.coins} coins). ` +
-          "Reconcile manually per VANTA business rules before issuing this refund."
-      );
-    }
-
     const refundReason = (reason || "").trim().slice(0, 500) || null;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -679,20 +671,30 @@ export class WalletService {
         throw new Error("This purchase cannot be refunded.");
       }
 
-      const updatedWallet = await tx.wallet.update({
-        where: { userId: order.userId },
+      const walletBefore = await tx.wallet.findUnique({ where: { userId: order.userId } });
+      if (!walletBefore) throw new Error("Wallet not found");
+
+      // Claim the refund only if the current spendable balance still covers
+      // the debit. This is checked atomically with the balance update so a
+      // concurrent purchase/gift/transfer cannot make the wallet negative.
+      const balanceClaim = await tx.wallet.updateMany({
+        where: { userId: order.userId, coinBalance: { gte: order.coins } },
         data: { coinBalance: { decrement: order.coins } },
       });
+      if (balanceClaim.count !== 1) {
+        throw new Error("Refund deferred: the current wallet balance is below the refundable coin amount");
+      }
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({ where: { userId: order.userId } });
 
       // Negative ledger entry: the original PURCHASE entry stays intact.
       await tx.walletTransaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: walletBefore.id,
           userId: order.userId,
           type: "REFUND",
           amount: -order.coins,
           fee: 0,
-          balanceBefore: wallet.coinBalance,
+          balanceBefore: updatedWallet.coinBalance + order.coins,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Refund of ${order.coins.toLocaleString()} VANTA Coins for purchase ${orderId}`,
@@ -2055,47 +2057,82 @@ export class WalletService {
   }
 
   async reverseTransaction(transactionId: string, adminId: string, reason: string) {
-    const transaction = await prisma.walletTransaction.findUnique({
-      where: { id: transactionId },
-    });
+    return prisma.$transaction(async (tx) => {
+      const transaction = await tx.walletTransaction.findUnique({
+        where: { id: transactionId },
+      });
 
-    if (!transaction) {
-      throw new Error("Transaction not found");
-    }
+      if (!transaction) {
+        throw new Error("Transaction not found");
+      }
+      if (transaction.status !== "COMPLETED") {
+        throw new Error("Only completed transactions can be reversed");
+      }
 
-    if (transaction.status === "REVERSED") {
-      throw new Error("Transaction already reversed");
-    }
+      // Compare-and-swap the source transaction before changing any balance.
+      // This makes concurrent admin requests idempotent: exactly one request
+      // can claim a COMPLETED transaction for reversal.
+      const claim = await tx.walletTransaction.updateMany({
+        where: { id: transactionId, status: "COMPLETED" },
+        data: { status: "REVERSED" },
+      });
+      if (claim.count !== 1) {
+        throw new Error("Transaction already reversed or no longer eligible");
+      }
 
-    // Atomic reversal
-    const result = await prisma.$transaction(async (tx) => {
+      if (transaction.currency !== "VANTA") {
+        throw new Error("Only VANTA Coin transactions can be reversed");
+      }
+
+      // Derive the original ledger movement using the same sign rules as
+      // reconcileWallet. REFUND rows may have a negative amount, so type alone
+      // is not enough to determine whether the original movement was incoming.
+      const originalDelta = INCOMING_TYPES.has(transaction.type as any)
+        ? transaction.amount
+        : OUTGOING_TYPES.has(transaction.type as any)
+          ? -transaction.amount
+          : null;
+      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
+        throw new Error("Transaction type or amount cannot be safely reversed");
+      }
+      const reversalDelta = -originalDelta;
+
       const wallet = await tx.wallet.findUnique({
         where: { userId: transaction.userId },
       });
       if (!wallet) throw new Error("Wallet not found");
 
-      // Determine reversal direction
-      const isIncoming = INCOMING_TYPES.has(transaction.type as any);
-      const reversalAmount = isIncoming ? -Math.abs(transaction.amount) : Math.abs(transaction.amount);
+      const debitAmount = Math.max(0, -reversalDelta);
+      if (debitAmount > 0 && resolveAvailableCoins(wallet) < debitAmount) {
+        throw new Error("Insufficient available coins to reverse this transaction without consuming locked funds");
+      }
 
-      const updatedWallet = await tx.wallet.update({
+      // Compare-and-swap both balances so the ledger snapshot and balance
+      // update describe the same state. Concurrent wallet changes cause a
+      // safe retry instead of a stale before/after record.
+      const balanceClaim = await tx.wallet.updateMany({
+        where: {
+          userId: transaction.userId,
+          coinBalance: wallet.coinBalance,
+          lockedCoins: wallet.lockedCoins,
+        },
+        data: { coinBalance: { increment: reversalDelta } },
+      });
+      if (balanceClaim.count !== 1) {
+        throw new Error("Wallet changed during reversal; retry the operation");
+      }
+      const updatedWallet = await tx.wallet.findUniqueOrThrow({
         where: { userId: transaction.userId },
-        data: { coinBalance: { increment: reversalAmount } },
       });
 
-      // Mark original as reversed
-      await tx.walletTransaction.update({
-        where: { id: transactionId },
-        data: { status: "REVERSED" },
-      });
-
-      // Create reversal record
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
           userId: transaction.userId,
-          type: "REFUND",
-          amount: Math.abs(reversalAmount),
+          type: reversalDelta > 0 ? TX_TYPES.ADMIN_CREDIT : TX_TYPES.ADMIN_DEBIT,
+          currency: "VANTA",
+          amount: Math.abs(reversalDelta),
+          balanceBefore: wallet.coinBalance,
           balance: updatedWallet.coinBalance,
           status: "COMPLETED",
           description: `Reversal: ${reason}`,
@@ -2104,7 +2141,6 @@ export class WalletService {
         },
       });
 
-      // Log audit
       await tx.walletAuditLog.create({
         data: {
           userId: transaction.userId,
@@ -2113,10 +2149,8 @@ export class WalletService {
         },
       });
 
-      return updatedWallet;
+      return { success: true, message: "Transaction reversed" };
     });
-
-    return { success: true, message: "Transaction reversed" };
   }
 
   async flagSuspiciousAccount(userId: string, adminId: string, reason: string) {

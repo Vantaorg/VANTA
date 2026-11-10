@@ -243,7 +243,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Administrator logins always require a fresh 2FA challenge. Trusted-device
     // bypass remains available to ordinary users only; it is not sufficient
     // evidence for privileged administration.
-    const isAdministrator = ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR'].includes(String(user.role).toUpperCase());
+    const isAdministrator = ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR', 'MODERATOR'].includes(String(user.role).toUpperCase());
     if (user.twoFactorEnabled && (isAdministrator || !(req as any).deviceFingerprint || !(await twoFactorAuth.isDeviceTrusted(user.id, (req as any).deviceFingerprint)))) {
       const twoFactorChallenge = await issueTwoFactorLoginChallenge(user.id);
       res.status(200).json({
@@ -388,7 +388,7 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
     const tokenPair = sessionManager.generateTokenPair(user.id, user.role, '');
     const session = await sessionManager.createSession(user.id, tokenPair.accessToken, tokenPair.refreshToken, userAgent, ipAddress, deviceFingerprint);
     const finalPair = sessionManager.generateTokenPair(user.id, user.role, session.id);
-    await prisma.session.update({ where: { id: session.id }, data: { token: finalPair.accessToken, refreshToken: finalPair.refreshToken, adminTwoFactorVerifiedAt: ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR'].includes(String(user.role).toUpperCase()) ? new Date() : null } });
+    await prisma.session.update({ where: { id: session.id }, data: { token: finalPair.accessToken, refreshToken: finalPair.refreshToken, adminTwoFactorVerifiedAt: ['ADMIN', 'CEO', 'SUPER_ADMIN', 'ADMINISTRATOR', 'MODERATOR'].includes(String(user.role).toUpperCase()) ? new Date() : null } });
 
     await botProtection.recordLoginAttempt(user.id, true, req);
     await auditLog.log({ userId: user.id, action: 'LOGIN_SUCCESS_2FA', ipAddress, userAgent, severity: 'INFO' });

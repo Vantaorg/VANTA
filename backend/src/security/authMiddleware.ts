@@ -98,7 +98,6 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
           role: parseRole(user.role),
           sessionId: session.id,
           deviceFingerprint: (req as any).deviceFingerprint,
-      adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
           adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
         };
         req.token = token;
@@ -143,6 +142,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       role: parseRole(user.role),
       sessionId: session.id,
       deviceFingerprint: (req as any).deviceFingerprint,
+      adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
     };
     req.token = token;
 
@@ -405,7 +405,7 @@ export function requireAdminTwoFactorVerified(req: AuthenticatedRequest, res: Re
     return;
   }
 
-  const adminRoles = [Role.ADMIN, Role.CEO, Role.SUPER_ADMIN];
+  const adminRoles = [Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR];
   if (!adminRoles.includes(req.user.role)) {
     res.status(403).json({ error: 'Administrator access required' });
     return;

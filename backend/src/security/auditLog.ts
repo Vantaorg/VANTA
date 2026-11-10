@@ -1,13 +1,17 @@
 /**
- * Enterprise audit logging for VANTA.
- * Tamper-resistant logging of all security events.
+ * Database-backed, tamper-evident audit logging for VANTA.
+ *
+ * Every append is serialized with a PostgreSQL transaction-scoped advisory lock.
+ * Legacy rows without hashes remain visible but are explicitly reported as
+ * unverified; they are never silently treated as integrity-checked.
  */
+import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma';
 import { config } from './config';
 import { CryptoUtils } from './crypto';
 
-interface AuditEvent {
-  userId?: string;
+export interface AuditEvent {
+  userId?: string | null;
   action: string;
   ipAddress?: string;
   userAgent?: string;
@@ -15,118 +19,117 @@ interface AuditEvent {
   severity?: 'INFO' | 'WARNING' | 'CRITICAL';
 }
 
+type AuditRow = {
+  id: string;
+  userId: string | null;
+  action: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: string | null;
+  createdAt: Date;
+};
+
+const AUDIT_CHAIN_LOCK_ID = 8675309;
+
+export function buildAuditHash(previousHash: string, row: AuditRow): string {
+  // JSON array encoding preserves field boundaries. Delimiter concatenation
+  // is ambiguous when attacker-controlled metadata or headers contain "|".
+  const payload = JSON.stringify([
+    previousHash,
+    row.id,
+    row.createdAt.toISOString(),
+    row.userId,
+    row.action,
+    row.ipAddress,
+    row.userAgent,
+    row.metadata,
+  ]);
+  return CryptoUtils.sha256(payload);
+}
+
+/**
+ * Append inside an existing Prisma transaction. This is exported for callers
+ * that must atomically write an audit event alongside their business change.
+ */
+export async function appendAuditLog(
+  tx: Prisma.TransactionClient,
+  event: AuditEvent,
+): Promise<void> {
+  // A transaction-scoped lock prevents two app servers from selecting the same
+  // predecessor and creating competing branches in the hash chain.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID})`;
+
+  const previous = await tx.securityLog.findFirst({
+    where: { hash: { not: null } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: { hash: true, createdAt: true },
+  });
+  const previousHash = previous?.hash ?? '';
+  const actorUserId = typeof event.userId === 'string' && event.userId.trim()
+    ? event.userId.trim()
+    : null;
+  // Keep chain timestamps strictly increasing, even when two appends happen
+  // within the same millisecond. The verifier uses this order across restarts.
+  const now = Date.now();
+  const createdAt = new Date(previous?.createdAt ? Math.max(now, previous.createdAt.getTime() + 1) : now);
+  const metadata = event.metadata === undefined ? null : JSON.stringify(event.metadata);
+
+  // Create and then fill the digest in the same transaction. The generated
+  // database id is included in the digest, preventing row substitution.
+  const row = await tx.securityLog.create({
+    data: {
+      userId: actorUserId,
+      action: event.action,
+      ipAddress: event.ipAddress || null,
+      userAgent: event.userAgent || null,
+      metadata,
+      createdAt,
+      previousHash,
+      hash: null,
+    },
+  });
+  const hash = buildAuditHash(previousHash, row);
+  await tx.securityLog.update({
+    where: { id: row.id },
+    data: { hash },
+  });
+}
+
 class AuditLogger {
-  private previousHash: string = '';
-  private initialized: boolean = false;
-
-  constructor() {
-    this.initialize();
-  }
-
-  /**
-   * Initialize the audit log chain
-   */
-  private async initialize(): Promise<void> {
-    try {
-      const lastLog = await prisma.securityLog.findFirst({
-        orderBy: { createdAt: 'desc' },
-      });
-      if (lastLog && (lastLog as any).hash) {
-        this.previousHash = (lastLog as any).hash;
-      }
-      this.initialized = true;
-    } catch {
-      // Table may not exist yet
-    }
-  }
-
-  /**
-   * Log a security event with tamper-resistant hashing
-   */
   async log(event: AuditEvent): Promise<void> {
     if (!config.auditLog.enabled) return;
 
     try {
-      const timestamp = new Date().toISOString();
-      const metadataStr = event.metadata ? JSON.stringify(event.metadata) : null;
+      await prisma.$transaction(async (tx) => {
+        await appendAuditLog(tx, event);
+      // The advisory lock serializes appenders; READ COMMITTED ensures the
+      // predecessor query after lock acquisition sees the prior commit.
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
 
-      // userId is optional and nullable. For anonymous/system events (no
-      // authenticated actor) we store NULL — we must NEVER fabricate a synthetic
-      // id (e.g. 'anonymous') because SecurityLog.userId is a foreign key to
-      // User.id and a synthetic value causes a P2003 FK violation.
-      const actorUserId = event.userId && typeof event.userId === 'string' && event.userId.trim().length > 0
-        ? event.userId.trim()
-        : (event.userId || null);
-
-      // Create hash chain for tamper resistance
-      const hashInput = `${this.previousHash}|${timestamp}|${actorUserId || 'anonymous'}|${event.action}|${event.ipAddress || 'unknown'}|${metadataStr}`;
-      const hash = CryptoUtils.sha256(hashInput);
-
-      const auditEntry = await prisma.securityLog.create({
-        data: {
-          userId: actorUserId,
-          action: event.action,
-          ipAddress: event.ipAddress || null,
-          userAgent: event.userAgent || null,
-          metadata: metadataStr,
-        },
-      });
-
-      // Update the chain hash (stored in metadata for chain continuity)
-      this.previousHash = hash;
-
-      // Log to console in development
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[AUDIT] ${event.action} by ${event.userId || 'anonymous'} from ${event.ipAddress || 'unknown'}`);
       }
-
-      // Trigger alerts for critical events
       if (event.severity === 'CRITICAL' || this.isCriticalAction(event.action)) {
         await this.handleCriticalEvent(event);
       }
-
-      return auditEntry as any;
     } catch (error) {
       console.error('[AUDIT] Failed to log event:', error);
     }
   }
 
-  /**
-   * Determine if an action is critical
-   */
   private isCriticalAction(action: string): boolean {
     const criticalActions = [
-      'LOGIN_FAILED',
-      'RATE_LIMIT_HIT',
-      'SUSPICIOUS_LOGIN',
-      'ACCOUNT_LOCKED',
-      '2FA_DISABLED',
-      'ROLE_CHANGED',
-      'ADMIN_ACTION',
-      'DATA_EXPORT',
-      'ACCOUNT_DELETION',
-      'PAYMENT_FAILED',
-      'WITHDRAWAL_REQUESTED',
-      'BOT_DETECTED',
+      'LOGIN_FAILED', 'RATE_LIMIT_HIT', 'SUSPICIOUS_LOGIN', 'ACCOUNT_LOCKED',
+      '2FA_DISABLED', 'ROLE_CHANGED', 'ADMIN_ACTION', 'DATA_EXPORT',
+      'ACCOUNT_DELETION', 'PAYMENT_FAILED', 'WITHDRAWAL_REQUESTED', 'BOT_DETECTED',
     ];
-    return criticalActions.some(a => action.startsWith(a) || action.includes(a));
+    return criticalActions.some((item) => action.startsWith(item) || action.includes(item));
   }
 
-  /**
-   * Handle critical security events
-   */
   private async handleCriticalEvent(event: AuditEvent): Promise<void> {
-    // In production, this would trigger email/SMS alerts to admins
-    // For now, log to console with high visibility
-    console.error(`[SECURITY ALERT] ${event.action} - User: ${event.userId || 'anonymous'} - IP: ${event.ipAddress}`);
-    
-    // Could integrate with external monitoring service here
-    // e.g., Sentry, Datadog, PagerDuty
+    console.error(`[SECURITY ALERT] ${event.action} - User: ${event.userId || 'anonymous'} - IP: ${event.ipAddress || 'unknown'}`);
   }
 
-  /**
-   * Query audit logs with filters
-   */
   async query(filters: {
     userId?: string;
     action?: string;
@@ -136,7 +139,6 @@ class AuditLogger {
     offset?: number;
   }): Promise<any[]> {
     const where: any = {};
-
     if (filters.userId) where.userId = filters.userId;
     if (filters.action) where.action = { contains: filters.action };
     if (filters.startDate || filters.endDate) {
@@ -144,36 +146,68 @@ class AuditLogger {
       if (filters.startDate) where.createdAt.gte = filters.startDate;
       if (filters.endDate) where.createdAt.lte = filters.endDate;
     }
-
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+    const offset = Math.max(filters.offset ?? 0, 0);
     return prisma.securityLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
-      take: filters.limit || 50,
-      skip: filters.offset || 0,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      skip: offset,
     });
   }
 
-  /**
-   * Verify the integrity of the audit log chain
-   */
-  async verifyIntegrity(): Promise<{ valid: boolean; lastValidHash: string }> {
+  async verifyIntegrity(): Promise<{
+    valid: boolean;
+    complete: boolean;
+    lastValidHash: string;
+    verifiedEntries: number;
+    unverifiedLegacyEntries: number;
+    firstInvalidLogId?: string;
+  }> {
     const logs = await prisma.securityLog.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
 
     let previousHash = '';
+    let verifiedEntries = 0;
+    let unverifiedLegacyEntries = 0;
+    let firstInvalidLogId: string | undefined;
+    let chainStarted = false;
+
     for (const log of logs) {
-      const metadata = (log as any).metadata || 'null';
-      const hashInput = `${previousHash}|${log.createdAt.toISOString()}|${log.userId}|${log.action}|${log.ipAddress || 'unknown'}|${metadata}`;
-      const expectedHash = CryptoUtils.sha256(hashInput);
-      
-      // In production, store hash on each record and verify
-      previousHash = expectedHash;
+      if (!log.hash) {
+        if (chainStarted) {
+          firstInvalidLogId = log.id;
+          break;
+        }
+        unverifiedLegacyEntries += 1;
+        continue;
+      }
+
+      chainStarted = true;
+      if ((log.previousHash ?? '') !== previousHash) {
+        firstInvalidLogId = log.id;
+        break;
+      }
+
+      const expectedHash = buildAuditHash(previousHash, log);
+      if (expectedHash !== log.hash) {
+        firstInvalidLogId = log.id;
+        break;
+      }
+
+      previousHash = log.hash;
+      verifiedEntries += 1;
     }
 
+    const valid = firstInvalidLogId === undefined;
     return {
-      valid: true,
+      valid,
+      complete: valid && unverifiedLegacyEntries === 0,
       lastValidHash: previousHash,
+      verifiedEntries,
+      unverifiedLegacyEntries,
+      ...(firstInvalidLogId ? { firstInvalidLogId } : {}),
     };
   }
 }
