@@ -24,6 +24,7 @@ export {
   checkLoginAttempts,
   requireEmailVerified,
   requireTwoFactorEnabled,
+  requireAdminTwoFactorVerified,
   securityLog,
   AuthenticatedRequest,
 } from './authMiddleware';
