@@ -9,6 +9,17 @@ import { isVerificationPlanKey, VERIFICATION_PLAN_KEYS } from '../services/verif
 import { appealService, AppealError } from '../services/appeal.service';
 import { followerRewardService, FollowerRewardError } from '../services/follower-reward.service';
 
+// Bound every admin list query before it reaches Prisma. Negative, malformed,
+// fractional and excessively large pagination values must never reach the DB.
+function parseAdminQueryInt(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = typeof value === 'string' && /^-?\d+$/.test(value.trim())
+    ? Number(value.trim())
+    : Number.NaN;
+  if (!Number.isSafeInteger(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+
+
 // ============================================================================
 // DASHBOARD
 // ============================================================================
@@ -34,8 +45,8 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
 
 export const getUsers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 100, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const users = await prisma.user.findMany({
       select: {
@@ -63,9 +74,9 @@ export const getUsers = async (req: AuthenticatedRequest, res: Response): Promis
 
 export const getUserManagement = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 25, 1), 100);
-    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
-    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = parseAdminQueryInt(req.query.limit, 25, 1, 100);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
+    const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
     const search = normalizeAdminUserSearch(req.query.search as string);
     const status = req.query.status as string;
     const role = req.query.role as string;
@@ -297,9 +308,9 @@ export const deleteUser = async (req: AuthenticatedRequest, res: Response): Prom
 
 export const getCreators = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-    const offset = parseInt(req.query.offset as string) || 0;
-    const page = parseInt(req.query.page as string);
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
+    const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
     const skip = page && page > 1 ? (page - 1) * limit : offset;
     const search = (req.query.search as string)?.trim() ?? '';
     const category = (req.query.category as string)?.trim() ?? '';
@@ -597,8 +608,8 @@ export const approveSubscription = async (req: AuthenticatedRequest, res: Respon
 
 export const getCommunities = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [communities, total] = await Promise.all([
       prisma.community.findMany({
@@ -632,8 +643,8 @@ export const getCommunities = async (req: AuthenticatedRequest, res: Response): 
 
 export const getLiveStreams = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
     const activeOnly = req.query.active !== 'false';
 
     const where: any = {};
@@ -675,8 +686,8 @@ export const getLiveStreams = async (req: AuthenticatedRequest, res: Response): 
 
 export const getWalletTransactions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [transactions, total] = await Promise.all([
       prisma.walletTransaction.findMany({
@@ -709,8 +720,8 @@ export const getWalletTransactions = async (req: AuthenticatedRequest, res: Resp
 
 export const getCoinManagement = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [coinTransactions, total, totalCoinsInCirculation] = await Promise.all([
       prisma.coinTransaction.findMany({
@@ -749,8 +760,8 @@ export const getCoinManagement = async (req: AuthenticatedRequest, res: Response
 
 export const getReports = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const reports = await moderationService.getReports(limit, offset);
     res.status(200).json(reports);
@@ -1032,8 +1043,8 @@ export const getAppeals = async (req: AuthenticatedRequest, res: Response): Prom
     const result = await appealService.listAppeals({
       status: req.query.status as string,
       search: req.query.search as string,
-      page: parseInt(req.query.page as string) || 1,
-      limit: parseInt(req.query.limit as string) || 25,
+      page: parseAdminQueryInt(req.query.page, 1, 1, 100000),
+      limit: parseAdminQueryInt(req.query.limit, 25, 1, 200),
     });
     res.status(200).json(result);
   } catch (error) {
@@ -1103,7 +1114,7 @@ export const decideAppeal = async (req: AuthenticatedRequest, res: Response): Pr
 
 export const getWithdrawals = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseAdminQueryInt(req.query.limit, 20, 1, 200);
 
     const withdrawals = await prisma.withdrawal.findMany({
       include: {
@@ -1294,8 +1305,8 @@ export const updatePlatformSettings = async (req: AuthenticatedRequest, res: Res
 
 export const getSystemLogs = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 100, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
     const severity = req.query.severity as string;
 
     const where: any = {};
@@ -1390,8 +1401,8 @@ export const getWalletAnalytics = async (req: AuthenticatedRequest, res: Respons
 
 export const getAllTransactions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
     const type = req.query.type as string;
     const status = req.query.status as string;
 
@@ -1419,8 +1430,8 @@ export const getAllTransactions = async (req: AuthenticatedRequest, res: Respons
 
 export const getAllDeposits = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [deposits, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
@@ -1451,8 +1462,8 @@ export const getCoinPaymentsDashboard = async (req: AuthenticatedRequest, res: R
 
 export const listCoinPayments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
     const status = req.query.status as string | undefined;
     const result = await coinPaymentService.listCoinPurchases({ limit, offset, status });
     res.status(200).json(result);
@@ -1481,8 +1492,8 @@ export const refundCoinPurchase = async (req: AuthenticatedRequest, res: Respons
 
 export const getAllTransfers = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [transfers, total] = await Promise.all([
       prisma.coinTransfer.findMany({
@@ -1506,8 +1517,8 @@ export const getAllTransfers = async (req: AuthenticatedRequest, res: Response):
 
 export const getAllGifts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [gifts, total] = await Promise.all([
       prisma.giftTransaction.findMany({
@@ -1532,8 +1543,8 @@ export const getAllGifts = async (req: AuthenticatedRequest, res: Response): Pro
 
 export const getAllWithdrawals = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
 
     const [withdrawals, total] = await Promise.all([
       prisma.withdrawal.findMany({
@@ -1683,8 +1694,8 @@ export const getCampaign = async (req: AuthenticatedRequest, res: Response): Pro
 export const getCampaigns = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const status = req.query.status as string;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
+    const offset = parseAdminQueryInt(req.query.offset, 0, 0, 1000000);
     const result = await adService.getCampaigns({ status, limit, offset });
     res.status(200).json(result);
   } catch (error) {
@@ -1743,8 +1754,8 @@ export const getAuditLogs = async (req: AuthenticatedRequest, res: Response): Pr
   try {
     const action = req.query.action as string;
     const adminId = req.query.admin as string;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
     const result = await adminService.getAuditLogs({ action, adminId, page, limit });
     res.status(200).json(result);
   } catch (error) {
@@ -1851,8 +1862,8 @@ export const getFollowerRewardTransactions = async (req: AuthenticatedRequest, r
 
 export const getFinanceTransactions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
     const type = req.query.type as string;
     const status = req.query.status as string;
     const search = req.query.search as string;
@@ -1908,8 +1919,8 @@ export const reviewContentItem = async (req: AuthenticatedRequest, res: Response
 
 export const getNotificationCenter = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
+    const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
     const result = await adminService.getNotificationCenter({ page, limit });
     res.status(200).json(result);
   } catch (error) {
