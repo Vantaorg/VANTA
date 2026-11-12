@@ -6,6 +6,11 @@ import { PurchasePackageNotFoundError, isSystemOrDatabaseError } from '../errors
 
 const router = Router();
 
+const purchasesUnderMaintenance = (_req: any, res: any) => res.status(503).json({
+  code: 'PURCHASES_UNDER_MAINTENANCE',
+  error: 'Purchases are temporarily under maintenance. Please try again later.',
+});
+
 // ==========================================
 // VANTA COINS
 // ==========================================
@@ -26,7 +31,12 @@ router.get('/packages', async (req: Request, res: Response) => {
 });
 
 // POST /api/monetization/purchase - Create purchase order
-router.post('/purchase', authenticateJWT, async (req: AuthRequest, res: Response) => {
+router.post('/purchase', purchasesUnderMaintenance);
+router.post('/purchase/complete', purchasesUnderMaintenance);
+router.post('/premium/purchase', purchasesUnderMaintenance);
+router.post('/subscribe', purchasesUnderMaintenance);
+
+router.post('/purchase-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const { packageId } = req.body;
@@ -51,7 +61,7 @@ router.post('/purchase', authenticateJWT, async (req: AuthRequest, res: Response
 // POST /api/monetization/purchase/complete - Complete purchase
 // Completion is server-guarded (simulate token in test mode; provider
 // verification in live mode) — a client can never self-credit coins.
-router.post('/purchase/complete', authenticateJWT, async (req: AuthRequest, res: Response) => {
+router.post('/purchase-complete-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const { orderId, providerOrderId, paymentMethod, simulateToken } = req.body;
@@ -188,7 +198,7 @@ router.get('/earnings', authenticateJWT, async (req: AuthRequest, res: Response)
 // ==========================================
 
 // POST /api/monetization/subscribe - Subscribe to a creator
-router.post('/subscribe', authenticateJWT, async (req: AuthRequest, res: Response) => {
+router.post('/subscribe-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
     const { creatorId, tier } = req.body;
     if (!creatorId || !tier) return res.status(400).json({ error: 'creatorId and tier required' });
@@ -236,7 +246,7 @@ router.get('/premium/plans', async (req: Request, res: Response) => {
 });
 
 // POST /api/monetization/premium/purchase - Purchase premium
-router.post('/premium/purchase', authenticateJWT, async (req: AuthRequest, res: Response) => {
+router.post('/premium/purchase-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
     const { planSlug } = req.body;
     if (!planSlug) return res.status(400).json({ error: 'planSlug required' });
