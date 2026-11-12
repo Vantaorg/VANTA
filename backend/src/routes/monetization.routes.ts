@@ -36,53 +36,6 @@ router.post('/purchase/complete', purchasesUnderMaintenance);
 router.post('/premium/purchase', purchasesUnderMaintenance);
 router.post('/subscribe', purchasesUnderMaintenance);
 
-router.post('/purchase-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user!.userId;
-    const { packageId } = req.body;
-    if (!packageId) return res.status(400).json({ error: 'packageId is required' });
-    const order = await monetizationService.createPurchaseOrder(userId, packageId);
-    res.status(201).json(order);
-  } catch (error: any) {
-    if (error instanceof PurchasePackageNotFoundError) {
-      // The referenced package is not a real, active database record — clean 404.
-      res.status(404).json({ error: error.message });
-      return;
-    }
-    if (isSystemOrDatabaseError(error)) {
-      console.error('[MONETIZATION] purchase failed:', error);
-      res.status(400).json({ error: 'Unable to start this purchase. Please try again.' });
-      return;
-    }
-    res.status(400).json({ error: error?.message || 'Unable to start this purchase.' });
-  }
-});
-
-// POST /api/monetization/purchase/complete - Complete purchase
-// Completion is server-guarded (simulate token in test mode; provider
-// verification in live mode) — a client can never self-credit coins.
-router.post('/purchase-complete-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user!.userId;
-    const { orderId, providerOrderId, paymentMethod, simulateToken } = req.body;
-    if (!orderId) return res.status(400).json({ error: 'orderId is required' });
-    const result = await monetizationService.completePurchase(userId, orderId, {
-      providerOrderId,
-      paymentMethod,
-      simulateToken,
-      ipAddress: req.ip,
-    });
-    res.json(result);
-  } catch (error: any) {
-    if (isSystemOrDatabaseError(error)) {
-      console.error('[MONETIZATION] purchase/complete failed:', error);
-      res.status(400).json({ error: 'Unable to confirm this payment. Please try again.' });
-      return;
-    }
-    res.status(400).json({ error: error?.message || 'Unable to confirm this payment.' });
-  }
-});
-
 // ==========================================
 // GIFTS
 // ==========================================
@@ -198,17 +151,6 @@ router.get('/earnings', authenticateJWT, async (req: AuthRequest, res: Response)
 // ==========================================
 
 // POST /api/monetization/subscribe - Subscribe to a creator
-router.post('/subscribe-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  try {
-    const { creatorId, tier } = req.body;
-    if (!creatorId || !tier) return res.status(400).json({ error: 'creatorId and tier required' });
-    const subscription = await monetizationService.subscribe(req.user!.userId, creatorId, tier);
-    res.status(201).json(subscription);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
 // POST /api/monetization/subscribe/cancel - Cancel subscription
 router.post('/subscribe/cancel', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
@@ -246,17 +188,6 @@ router.get('/premium/plans', async (req: Request, res: Response) => {
 });
 
 // POST /api/monetization/premium/purchase - Purchase premium
-router.post('/premium/purchase-disabled-legacy', authenticateJWT, async (req: AuthRequest, res: Response) => {
-  try {
-    const { planSlug } = req.body;
-    if (!planSlug) return res.status(400).json({ error: 'planSlug required' });
-    const membership = await monetizationService.purchasePremium(req.user!.userId, planSlug);
-    res.status(201).json(membership);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
 // GET /api/monetization/premium/status - Get premium status
 router.get('/premium/status', authenticateJWT, async (req: AuthRequest, res: Response) => {
   try {
