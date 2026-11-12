@@ -216,6 +216,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { latestNotification: notificationToast, dismissLatestNotification } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFloatingCreateOpen, setIsFloatingCreateOpen] = useState(false);
+  const [bottomNavHidden, setBottomNavHidden] = useState(false);
+
+  // The bottom navigation is shared by the whole app, so observe scrolls at
+  // the document capture phase. This catches the shell scroller and page-owned
+  // nested scrollers (Home, Discover, Profile, Chat, and standard pages) alike.
+  useEffect(() => {
+    const lastPositions = new WeakMap<Element, number>();
+
+    const handleScroll = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const scroller = target === document ? document.scrollingElement : target;
+      if (!(scroller instanceof Element)) return;
+
+      const position = scroller.scrollTop;
+      const previous = lastPositions.get(scroller) ?? position;
+      lastPositions.set(scroller, position);
+
+      // Returning to the top always restores navigation. Ignore tiny movement
+      // to prevent jitter from touch momentum and browser viewport adjustments.
+      if (position <= 8) {
+        setBottomNavHidden(false);
+        return;
+      }
+
+      const delta = position - previous;
+      if (Math.abs(delta) < 6) return;
+      setBottomNavHidden(delta > 0);
+    };
+
+    document.addEventListener('scroll', handleScroll, true);
+    return () => document.removeEventListener('scroll', handleScroll, true);
+  }, []);
+
+  useEffect(() => {
+    setBottomNavHidden(false);
+  }, [pathname]);
 
   useEffect(() => {
     const handleFloatingCreate = (event: Event) => {
@@ -512,10 +549,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {(!isEditProfilePage && !isPostDetailPage && (!isReelsPage || isReelsFeed) && !isLiveViewer && !isStoryPage && !isGoLivePage && !isChatConversation && !createHubOpen && !activeFlow && !isFloatingCreateOpen) && (
           <motion.nav
             initial={{ y: 64, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 64, opacity: 0 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[var(--nav-surface)] pb-[env(safe-area-inset-bottom)] shadow-none"
+            animate={{ y: bottomNavHidden ? '100%' : 0, opacity: bottomNavHidden ? 0 : 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            style={{ pointerEvents: bottomNavHidden ? 'none' : 'auto' }}
+            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[var(--nav-surface)] pb-[env(safe-area-inset-bottom)] shadow-none will-change-transform"
             aria-label="Mobile navigation"
           >
             <div className="mx-auto grid min-h-16 w-full max-w-5xl grid-cols-5 items-center px-2 pt-1">
