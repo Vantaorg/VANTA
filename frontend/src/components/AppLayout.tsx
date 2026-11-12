@@ -223,7 +223,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // nested scrollers (Home, Discover, Profile, Chat, and standard pages) alike.
   useEffect(() => {
     const lastPositions = new WeakMap<Element, number>();
-    let lastActiveScroller: Element | null = null;
 
     const handleScroll = (event: Event) => {
       const target = event.target;
@@ -239,13 +238,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       // to prevent jitter from touch momentum and browser viewport adjustments.
       if (position <= 8) {
         setBottomNavHidden(false);
-        lastActiveScroller = scroller;
         return;
       }
 
       const delta = position - previous;
       if (Math.abs(delta) < 6) return;
-      lastActiveScroller = scroller;
       setBottomNavHidden(delta > 0);
     };
 
