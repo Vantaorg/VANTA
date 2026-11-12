@@ -120,12 +120,12 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="w-full min-w-0 space-y-9 pb-8 sm:space-y-11">
-      <section className="flex flex-wrap items-end justify-between gap-4">
+    <div className="admin-overview w-full min-w-0 space-y-8 pb-8 sm:space-y-9">
+      <section className="flex flex-wrap items-center justify-between gap-4 border-b border-console-border pb-5">
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-console-gold">VANTA / ADMINISTRATION</p>
-          <h2 className="text-2xl font-semibold tracking-tight text-console-text sm:text-3xl">Platform overview</h2>
-          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-console-text-3 sm:text-sm">A live operational view of your community, activity and platform systems.</p>
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-console-text-3">VANTA / ADMINISTRATION</p>
+          <h2 className="text-[25px] font-semibold tracking-[-0.035em] text-console-text sm:text-[29px]">Platform overview</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-console-text-3">A live operational view of your community, activity and platform systems.</p>
         </div>
         <button type="button" onClick={() => void load()} disabled={refreshing} aria-busy={refreshing || undefined} className="vc-focus inline-flex min-h-9 items-center gap-2 rounded-[var(--vc-radius)] border border-console-border px-3 text-xs font-medium text-console-text-2 transition-colors hover:border-console-border-strong hover:text-console-text disabled:opacity-60">
           <RefreshCw size={13} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
@@ -133,17 +133,17 @@ export default function AdminPage() {
         </button>
       </section>
 
-      <section aria-label="Platform metrics" className="border-y border-console-border py-5 sm:py-6">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-console-border">
+      <section aria-label="Platform metrics" className="rounded-xl border border-console-border bg-console-bg2/60 px-4 py-5 sm:px-5">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-console-border">
           <Metric label="Registered users" value={fmtCompact(data.totalUsers)} note="All-time accounts" icon={Users} highlight />
           <Metric label="Active today" value={fmtCompact(data.activeUsersToday)} note={fmtCompact(data.onlineUsers) + ' online now'} icon={Activity} />
           <Metric label="Purchase revenue" value={fmtCompactCurrency(data.revenue)} note="Completed purchases" icon={Wallet} />
           <Metric label="Live streams" value={fmtCompact(data.activeStreams)} note={fmtCompact(data.totalStreams) + ' total streams'} icon={Radio} />
         </div>
-        <p className="mt-5 text-[10px] leading-relaxed text-console-text-3">Figures reflect the data returned by the admin service. Registered users and total streams are cumulative totals.</p>
+        <p className="mt-4 text-[10px] leading-relaxed text-console-text-3">Figures reflect the data returned by the admin service. Registered users and total streams are cumulative totals.</p>
       </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-9 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.8fr)] xl:gap-10">
+      <div className="grid min-w-0 grid-cols-1 gap-7 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.8fr)] xl:gap-8">
         <section className="min-w-0" aria-label="User growth">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -158,7 +158,7 @@ export default function AdminPage() {
               ))}
             </div>
           </div>
-          <div className="min-w-0 border-y border-console-border py-4">
+          <div className="min-w-0 rounded-lg border border-console-border bg-console-bg2/40 px-3 py-3">
             {growth.length ? (
               <TrendChart data={growth} variant="bar" height={220} formatValue={fmtCompact} ariaLabel={'New user accounts over the ' + PERIODS.find((p) => p.key === period)?.description} />
             ) : (
@@ -208,7 +208,7 @@ export default function AdminPage() {
 
       <section aria-label="Admin workspaces">
         <div className="mb-4"><h3 className="text-base font-semibold text-console-text">Workspaces</h3><p className="mt-1 text-xs text-console-text-3">Jump directly into a platform area.</p></div>
-        <nav className="grid grid-cols-2 gap-x-5 sm:grid-cols-3 xl:grid-cols-6">
+        <nav className="grid grid-cols-2 gap-x-4 sm:grid-cols-3 xl:grid-cols-6">
           {WORKSPACES.map((workspace) => {
             const Icon = workspace.icon;
             return <Link key={workspace.href} href={workspace.href} className="vc-focus group flex min-w-0 items-start gap-3 border-t border-console-border py-4 transition-colors hover:border-console-gold"><Icon size={16} className="mt-0.5 shrink-0 text-console-text-3 transition-colors group-hover:text-console-gold" aria-hidden /><span className="min-w-0"><span className="block truncate text-xs font-semibold text-console-text">{workspace.label}</span><span className="mt-1 block text-[10px] leading-relaxed text-console-text-3">{workspace.detail}</span></span><ArrowUpRight size={12} className="ml-auto mt-0.5 shrink-0 text-console-text-3 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></Link>;
@@ -216,7 +216,7 @@ export default function AdminPage() {
         </nav>
       </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-9 xl:grid-cols-2 xl:gap-10">
+      <div className="grid min-w-0 grid-cols-1 gap-7 xl:grid-cols-2 xl:gap-8">
         <section className="min-w-0" aria-label="Recent signups">
           <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-base font-semibold text-console-text">Recent signups</h3><p className="mt-1 text-xs text-console-text-3">Newest accounts on VANTA</p></div><Link href="/admin/users" className="vc-focus shrink-0 text-xs font-semibold text-console-gold hover:text-console-gold-hover">All users <ChevronRight size={12} className="inline" aria-hidden /></Link></div>
           {!Array.isArray(data.recentUsers) || data.recentUsers.length === 0 ? (
