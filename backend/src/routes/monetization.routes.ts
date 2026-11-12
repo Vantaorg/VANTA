@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { monetizationService } from '../services/monetization.service';
 import { giftService } from '../services/gift.service';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.middleware';
-import { PurchasePackageNotFoundError, isSystemOrDatabaseError } from '../errors/purchase.errors';
+import { isSystemOrDatabaseError } from '../errors/purchase.errors';
 
 const router = Router();
 
