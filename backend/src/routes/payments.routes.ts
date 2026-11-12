@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { coinPaymentService, PaymentWebhookError } from '../services/coin-payment.service';
 import { rateLimiter } from '../security/rateLimiter';
 
 const router = Router();
@@ -21,39 +20,10 @@ const router = Router();
  * authenticates via HMAC. It must be reachable by the payment provider, so it
  * lives outside the JWT-protected wallet router.
  */
-router.post('/webhook', rateLimiter.coinWebhook, async (req: Request, res: Response) => {
-  // Capture the raw body for signature verification. express.json() has already
-  // parsed req.body; we reconstruct the exact bytes the provider signed.
-  const rawBody = typeof (req as any).rawBody === 'string' ? (req as any).rawBody : JSON.stringify(req.body || {});
-
-  try {
-    const result = await coinPaymentService.processPaymentWebhook({
-      rawBody,
-      signature: req.headers['x-vanta-signature'] || req.headers['x-signature'],
-      eventId: req.body?.eventId,
-      orderId: req.body?.orderId,
-      txHash: req.body?.txHash,
-      network: req.body?.network,
-      asset: req.body?.asset,
-      amount: req.body?.amount,
-      status: req.body?.status,
-      confirmations: req.body?.confirmations,
-      confirmedAt: req.body?.confirmedAt,
-      recipient: req.body?.recipient,
-    });
-
-    // Always acknowledge so the provider stops retrying; the payload tells the
-    // provider whether it was a duplicate/ignored/failed result.
-    res.status(200).json(result);
-  } catch (error) {
-    if (error instanceof PaymentWebhookError) {
-      res.status(error.statusCode).json({ error: error.message });
-      return;
-    }
-    // Never leak internals. The provider will retry; the event is marked FAILED.
-    console.error('[PAYMENTS] Webhook processing error:', error);
-    res.status(500).json({ error: 'Webhook processing failed.' });
-  }
+router.post('/webhook', rateLimiter.coinWebhook, (_req: Request, res: Response) => {
+  res.status(503).json({ code: 'PURCHASES_UNDER_MAINTENANCE', error: 'Crypto coin purchases are temporarily disabled.' });
 });
+
+
 
 export default router;

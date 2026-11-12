@@ -2,19 +2,12 @@ import { Router } from 'express';
 import {
   getVerificationStatus,
   getSubscriptionPlans,
-  submitVerificationRequest,
-  subscribeToPlan,
   cancelMembership,
   getVerificationHistory,
   checkStudioAccess,
-  createCryptoPayment,
-  confirmCryptoPayment,
   expireOverdue,
   getBadgePurchasePlans,
-  initializeVerificationPurchase,
-  verifyVerificationPurchase,
   getVerificationPurchases,
-  verificationPurchaseWebhook,
   adminGetAllBadges,
   adminGetAllMemberships,
   adminGetPendingRequests,
@@ -39,10 +32,15 @@ const router = Router();
 // The ONLY path that can activate a badge for a LIVE payment. Must be mounted
 // BEFORE the authenticate guard below.
 // ============================================================================
-router.post('/purchase/webhook', rateLimiter.coinWebhook, verificationPurchaseWebhook);
+router.post('/purchase/webhook', rateLimiter.coinWebhook, (_req, res) => res.status(503).json({ code: 'VERIFICATION_UNDER_MAINTENANCE', error: 'Verification payments are temporarily under maintenance.' }));
 
 // All remaining routes require authentication
 router.use(authenticate);
+
+const verificationUnderMaintenance = (_req: any, res: any) => res.status(503).json({
+  code: 'VERIFICATION_UNDER_MAINTENANCE',
+  error: 'Verification is temporarily under maintenance. Please try again later.',
+});
 
 // ============================================================================
 // USER ROUTES
@@ -58,10 +56,10 @@ router.get('/plans', getSubscriptionPlans);
 router.get('/badge-plans', getBadgePurchasePlans);
 
 // Submit a verification request
-router.post('/request', submitVerificationRequest);
+router.post('/request', verificationUnderMaintenance);
 
 // Activate a creator/badge plan from a server-VERIFIED completed purchase
-router.post('/subscribe', subscribeToPlan);
+router.post('/subscribe', verificationUnderMaintenance);
 
 // Cancel current membership
 router.post('/cancel', cancelMembership);
@@ -77,10 +75,10 @@ router.get('/studio-access', checkStudioAccess);
 // ============================================================================
 
 // Start a Verified Badge purchase (PENDING — never activates anything)
-router.post('/purchase/init', rateLimiter.coinPurchase, initializeVerificationPurchase);
+router.post('/purchase/init', verificationUnderMaintenance);
 
 // Confirm / check a Verified Badge purchase payment
-router.post('/purchase/verify', rateLimiter.coinPurchase, verifyVerificationPurchase);
+router.post('/purchase/verify', verificationUnderMaintenance);
 
 // The authenticated user's Verified Badge purchase history
 router.get('/purchases', getVerificationPurchases);
@@ -90,10 +88,10 @@ router.get('/purchases', getVerificationPurchases);
 // ============================================================================
 
 // Create a crypto payment
-router.post('/crypto/payment', createCryptoPayment);
+router.post('/crypto/payment', verificationUnderMaintenance);
 
 // Confirm a crypto payment
-router.post('/crypto/confirm', confirmCryptoPayment);
+router.post('/crypto/confirm', verificationUnderMaintenance);
 
 // ============================================================================
 // CRON / MAINTENANCE

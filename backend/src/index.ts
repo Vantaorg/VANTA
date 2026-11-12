@@ -808,16 +808,9 @@ async function startServer() {
       console.warn('[SEED] Purchase catalog provisioning skipped:', catalogError);
     }
 
-    // Start the continuously running on-chain payment monitor after database
-    // provisioning. It independently watches BSC USDT and Base USDC transfers
-    // to the dedicated Coin and Verified Badge wallets and routes uniquely
-    // matched payments through the existing idempotent fulfillment services.
-    try {
-      const { startBlockchainPaymentMonitor } = await import('./services/blockchain-payment-monitor.service');
-      startBlockchainPaymentMonitor();
-    } catch (monitorError) {
-      console.error('[CHAIN-WATCH] Failed to start payment monitor:', monitorError);
-    }
+    // Crypto purchase monitoring is intentionally paused while purchases and
+    // verification are under maintenance. Existing wallet balances, ledgers,
+    // withdrawals, and completed entitlements remain untouched.
 
     // Start HTTP server
     httpServer.listen(PORT, () => {
