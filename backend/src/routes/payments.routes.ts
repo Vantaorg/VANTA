@@ -21,6 +21,10 @@ const router = Router();
  * authenticates via HMAC. It must be reachable by the payment provider, so it
  * lives outside the JWT-protected wallet router.
  */
+router.post('/webhook', rateLimiter.coinWebhook, (_req: Request, res: Response) => {
+  res.status(503).json({ code: 'PURCHASES_UNDER_MAINTENANCE', error: 'Crypto coin purchases are temporarily disabled.' });
+});
+
 router.post('/webhook', rateLimiter.coinWebhook, async (req: Request, res: Response) => {
   // Capture the raw body for signature verification. express.json() has already
   // parsed req.body; we reconstruct the exact bytes the provider signed.
