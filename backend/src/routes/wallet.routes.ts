@@ -15,6 +15,11 @@ import { rateLimiter } from '../security/rateLimiter';
 
 const router = Router();
 
+const purchasesUnderMaintenance = (_req: any, res: any) => res.status(503).json({
+  code: 'PURCHASES_UNDER_MAINTENANCE',
+  error: 'Purchases are temporarily under maintenance. Please try again later.',
+});
+
 router.use(authenticateJWT);
 
 // Wallet info
@@ -56,8 +61,8 @@ router.post('/address', saveWalletAddress);
 
 // Coin packages (Buy Coins flow)
 router.get('/packages', getCoinPackages);
-router.post('/payment-address', rateLimiter.coinPurchase, getPaymentAddress);
-router.post('/verify-payment', rateLimiter.coinPurchase, verifyPayment);
+router.post('/payment-address', purchasesUnderMaintenance);
+router.post('/verify-payment', purchasesUnderMaintenance);
 // Coin purchase history for the authenticated user
 router.get('/purchases', getCoinPurchases);
 
