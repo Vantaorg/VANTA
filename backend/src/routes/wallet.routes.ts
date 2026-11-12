@@ -6,7 +6,7 @@ import {
   processDeposit, transferCoins,
   setupPin, updatePin, verifyPin,
   updateTransferLimit,
-  getCoinPackages, getPaymentAddress, verifyPayment, searchWalletUsers,
+  getCoinPackages, searchWalletUsers,
   getCoinPurchases,
   exportTransactions,
 } from '../controllers/wallet.controller';
