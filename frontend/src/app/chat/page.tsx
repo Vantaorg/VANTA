@@ -2852,7 +2852,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   
                   <h2 id="entity-create-title" className="truncate text-base font-semibold tracking-tight">{createType === 'group' ? 'New Group' : 'New Channel'}</h2><p className="mt-0.5 text-[11px] text-white/40">{createType === 'group' ? 'Bring your people together' : 'Share updates with your audience'}</p>
                 </div>
-                <button type="button" onClick={() => void handleCreateEntity()} disabled={isCreatingEntity || isUploadingAvatar || !createName.trim()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f2c75c] transition hover:bg-white/[0.07] disabled:opacity-40" aria-label="Create"><Check size={22} /></button>
+                <span className="h-9 w-9 shrink-0" aria-hidden="true" />
               </header>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-7 sm:py-6 [-webkit-overflow-scrolling:touch]">
                 <div className="mx-auto grid w-full max-w-2xl gap-5 pb-6">
@@ -2902,12 +2902,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                     </section>
                   )}
-                  <section className="grid gap-3 rounded-2xl border border-white/[0.07] bg-[#18212b] p-4">
+                  {createType === 'group' && (<section className="grid gap-3 rounded-2xl border border-white/[0.07] bg-[#18212b] p-4">
                     <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-white">Members</h3><span className="text-xs tabular-nums text-[#e6bd58]">{selectedMembers.filter((member) => member.id !== user?.id).length} selected</span></div>
                     {selectedMembers.length > 0 && <div className="flex flex-wrap gap-2">{selectedMembers.map(member => <button key={member.id} type="button" onClick={() => toggleMemberSelection(member)} className="flex items-center gap-2 rounded-full bg-[#26313e] py-1.5 pl-1.5 pr-3 text-xs text-white/80 transition hover:bg-[#303d4b]"><Avatar src={member.avatar} alt={member.username || member.fullName} size="xs" /><span>{member.id === user?.id ? 'You' : member.username || member.fullName}</span>{member.id !== user?.id && <X size={12} className="text-white/40" />}</button>)}</div>}
                     <div className="relative"><Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" /><input value={memberSearch} onChange={e => handleSearchMembers(e.target.value)} placeholder="Search VANTA members" className="h-11 w-full rounded-xl border border-white/[0.07] bg-[#202b37] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/60" /></div>
                     {createType === 'group' && <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain">{followersLoading ? <p className="px-3 py-5 text-center text-xs text-white/40">Loading your followers…</p> : memberSearchResults.map((item: any) => <button key={item.id} type="button" onClick={() => toggleMemberSelection(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"><Avatar src={item.avatar} alt={item.username || item.fullName} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{item.fullName || item.username}</span><span className="mt-0.5 block truncate text-[10px] text-white/40">@{item.username}</span></span><UserPlus size={15} className="text-[#d6a83f]" /></button>)}{!followersLoading && memberSearchResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">{memberSearch ? 'No matching followers found.' : 'No followers available to add.'}</p>}</div>}
-                  </section>
+                  </section>)}
                 </div>
               </div>
               <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.07] bg-[#1F2630] px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7">
