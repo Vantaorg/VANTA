@@ -34,9 +34,6 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          # Use the version pinned by android/gradle/wrapper/gradle-wrapper.properties.
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
