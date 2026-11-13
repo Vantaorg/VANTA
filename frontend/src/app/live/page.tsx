@@ -87,7 +87,7 @@ export default function LivePage() {
     <motion.main
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="mx-auto min-w-0 w-full space-y-4 pb-24"
+      data-vanta-page="live" className="mx-auto min-w-0 w-full space-y-4 pb-24"
     >
       <header className="sticky top-0 z-30 -mx-4 flex h-14 w-[calc(100%+2rem)] items-center gap-3 border-b border-white/[.07] bg-[var(--header-surface)] px-4">
         <button type="button" onClick={openAppMenu} aria-label="Open menu" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-white">

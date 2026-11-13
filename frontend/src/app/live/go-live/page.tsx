@@ -995,7 +995,7 @@ export default function GoLivePage() {
   }, [isLiveRoom, user?.id, user?.verified, displayName, avatar, roomVideo, cam.stream, lk.isCameraOn, lk.isMicrophoneOn, stageGuests]);
 
   return (
-    <main className="fixed inset-0 z-40 overflow-hidden bg-black text-white">
+    <main data-vanta-page="go-live" className="fixed inset-0 z-40 overflow-hidden bg-black text-white">
       {/* The stage: a solo host keeps the full-bleed camera; with guests the
           existing split grid shows HOST + GUEST with real media tracks. */}
 

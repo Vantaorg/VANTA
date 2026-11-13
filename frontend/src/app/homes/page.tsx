@@ -50,7 +50,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Promis
   ];
 
   return (
-    <main className="relative left-1/2 flex h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
+    <main data-vanta-page="homes" className="relative left-1/2 flex h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 flex-col overflow-hidden bg-[var(--background)] text-white">
       <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[var(--header-surface)] px-4">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
