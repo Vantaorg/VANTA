@@ -94,17 +94,17 @@ export default function ChatSettingsPage() {
   };
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-5 pb-24">
       <PageHeader sticky bleed title="Chat" back="/settings" />
 
-      <div className="-mt-2">
-        <p className="text-sm leading-relaxed text-white/45">
+      <div className="-mt-1">
+        <p className="text-sm leading-5 text-white/45">
           Tune how chats behave — messages, previews, typing and voice.
         </p>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="skeleton h-24 w-full rounded-[var(--radius-md)]" />
           <div className="skeleton h-52 w-full rounded-[var(--radius-md)]" />
         </div>

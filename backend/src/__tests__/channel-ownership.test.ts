@@ -119,6 +119,21 @@ describe('ChannelService permission enforcement', () => {
     ).rejects.toThrow('Only the channel owner can manage channel information');
   });
 
+  it('prevents admins from changing channel permission grants', async () => {
+    const channel = makeChannel();
+    channel.members = [{ userId: 'admin-1', role: 'ADMIN' }];
+    (db.channel.findUnique as jest.Mock).mockResolvedValue(channel);
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({
+      visibility: 'PUBLIC', permissions: '{}',
+    });
+
+    await expect(
+      service.updateChannel('channel-1', 'admin-1', { permissions: { manageChannelInfo: true, manageSubscribers: true } })
+    ).rejects.toThrow('Only the channel owner can change channel permissions');
+    expect(db.channel.update).not.toHaveBeenCalled();
+    expect(db.conversation.update).not.toHaveBeenCalled();
+  });
+
   it('blocks subscriber changes from admins when manageSubscribers is disabled', async () => {
     const channel = makeChannel();
     channel.members = [{ userId: 'admin-1', role: 'ADMIN' }];
