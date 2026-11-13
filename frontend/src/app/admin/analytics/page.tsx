@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, BarChart3, Users, DollarSign, Activity, Target,
@@ -50,12 +50,6 @@ export default function AnalyticsPage() {
   // Auto-refresh critical data
   useAutoRefresh(executive.refresh, 60000);
   
-  // Subscribe to realtime WebSocket updates
-  useEffect(() => {
-    const unsub = realtime.subscribe();
-    return () => unsub();
-  }, [realtime.subscribe]);
-
   const tabs: { key: TabType; label: string; icon: any }[] = [
     { key: 'executive', label: 'Executive', icon: BarChart3 },
     { key: 'revenue', label: 'Revenue', icon: DollarSign },

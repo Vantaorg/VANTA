@@ -20,8 +20,8 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
@@ -37,11 +37,17 @@ export default function AuditPage() {
     } catch (err: any) {
       setError(err?.message || 'Failed to load audit logs.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [actionFilter, page]);
 
-  useEffect(() => { void fetchData(); }, [fetchData]);
+  // Audit entries are persisted in the backend. Refresh the current page
+  // every five seconds without replacing the table with a loading skeleton.
+  useEffect(() => {
+    void fetchData();
+    const interval = window.setInterval(() => { void fetchData(true); }, 5000);
+    return () => window.clearInterval(interval);
+  }, [fetchData]);
 
   const actions = [...new Set(logs.map((l) => l.action))];
 

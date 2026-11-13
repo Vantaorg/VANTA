@@ -46,22 +46,40 @@ export function useRealtimeMetrics(): AnalyticsState<any> & { subscribe: () => (
   const [metrics, setMetrics] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const unsubRef = useRef<(() => void) | null>(null);
 
+  // The backend exposes an authenticated realtime snapshot and also broadcasts
+  // the same metrics over Socket.IO. Polling this canonical endpoint keeps the
+  // dashboard connected even when a browser/proxy drops a WebSocket connection.
   const subscribe = useCallback(() => {
-    // Initial fetch
-    analyticsApi.getRealtimeMetrics()
-      .then(setMetrics)
-      .catch((e: any) => setError(e.message))
-      .finally(() => setLoading(false));
+    let active = true;
+    let inFlight = false;
 
-    return () => {};
+    const refresh = async () => {
+      if (!active || inFlight) return;
+      inFlight = true;
+      try {
+        const nextMetrics = await analyticsApi.getRealtimeMetrics();
+        if (active) {
+          setMetrics(nextMetrics);
+          setError(null);
+        }
+      } catch (e: any) {
+        if (active) setError(e?.message || 'Unable to refresh live platform metrics.');
+      } finally {
+        inFlight = false;
+        if (active) setLoading(false);
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => { void refresh(); }, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
-  useEffect(() => {
-    const unsub = subscribe();
-    return () => { unsub(); };
-  }, [subscribe]);
+  useEffect(() => subscribe(), [subscribe]);
 
   return { data: metrics, metrics, loading, error, subscribe };
 }
