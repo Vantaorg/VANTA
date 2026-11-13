@@ -141,6 +141,10 @@ export class ChannelService {
       throw new Error("Only channel administrators can edit this channel");
     }
 
+    if (data.permissions !== undefined && requesterId !== channel.ownerId) {
+      throw new Error("Only the channel owner can change channel permissions");
+    }
+
     // Backend enforcement of the channel permission toggles. A non-owner may
     // edit channel info / subscribers only while the owner granted it.
     const channelPermissions = channel.conversationId
