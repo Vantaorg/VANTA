@@ -5,24 +5,26 @@ import Link from 'next/link';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AtSign, Check, ChevronDown, ChevronUp, Copy, Edit3, Flag, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Reply, Send, Share2, Smile, Trash2, X } from 'lucide-react';
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/apiClient';
+import { AtSign, Check, ChevronDown, ChevronUp, Copy, Edit3, FilePlus2, Flag, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Reply, Send, Smile, Trash2, X } from 'lucide-react';
+import { apiDelete, apiGet, apiPost, apiPut, apiUpload } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import { useToast } from '@/components/ui/Toast';
 import { renderTextWithLinks } from '@/lib/linkify';
+import { resolveMediaUrl } from '@/lib/mediaUrl';
 import type { VerificationType } from '@/types/verification';
 
 type User = { id: string; username: string; fullName?: string | null; avatar?: string | null; verified?: boolean; verificationType?: VerificationType | null; role?: string };
-export type CommentItem = { id: string; userId: string; content: string; createdAt: string; updatedAt?: string; edited?: boolean; liked?: boolean; parentId?: string | null; user: User; _count?: { likes: number; replies: number }; replies?: CommentItem[] };
-type Props = { postId: string; postAuthor?: User; initialCount: number; token: string; currentUser?: User | null; onClose?: () => void; onCountChange: (count: number) => void; kind?: 'post' | 'reel'; inline?: boolean; compact?: boolean; hideEmojiPicker?: boolean; postShareAction?: () => void };
+export type CommentMedia = { fileId: string; url: string; type: 'IMAGE' | 'VIDEO' };
+export type CommentItem = { id: string; userId: string; content: string; media?: CommentMedia[]; createdAt: string; updatedAt?: string; edited?: boolean; liked?: boolean; parentId?: string | null; user: User; _count?: { likes: number; replies: number }; replies?: CommentItem[] };
+type Props = { postId: string; postAuthor?: User; initialCount: number; token: string; currentUser?: User | null; onClose?: () => void; onCountChange: (count: number) => void; kind?: 'post' | 'reel'; inline?: boolean; compact?: boolean; hideEmojiPicker?: boolean; enableAttachments?: boolean };
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🙌', '👏', '🔥', '❤️', '💜', '✨', '🎉', '🌹', '💯', '🙏', '😅', '🤔', '😭', '🤣', '🚀', '👑', '💎', '🫶', '😮'];
 const timeAgo = (value: string) => { const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return 'now'; if (seconds < 3600) return `${Math.floor(seconds / 60)}m`; if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`; return `${Math.floor(seconds / 86400)}d`; };
 const cnSort = (active: boolean) => `rounded-full px-3 py-1.5 text-[11px] font-medium transition ${active ? 'bg-[#d6a83f]/15 text-[#f2c75c]' : 'text-[#858585] hover:text-white'}`;
 
-export default function CommentPanel({ postId, postAuthor, initialCount, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false, hideEmojiPicker = false, postShareAction }: Props) {
+export default function CommentPanel({ postId, postAuthor, initialCount, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false, hideEmojiPicker = false, enableAttachments = false }: Props) {
   const toast = useToast();
   const isInline = Boolean(inline);
   // Reels are stored in the prisma.video table and their comments live under
@@ -31,6 +33,7 @@ export default function CommentPanel({ postId, postAuthor, initialCount, token, 
   // two comment models (replies, like/update/report) are guarded below.
   const base = kind === 'reel' ? '/api/reels' : '/api/feed';
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [cursor, setCursor] = useState<string>();
@@ -40,6 +43,7 @@ export default function CommentPanel({ postId, postAuthor, initialCount, token, 
   const [sort, setSort] = useState<'newest' | 'top'>('newest');
   const [search, setSearch] = useState('');
   const [text, setText] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
   const [editing, setEditing] = useState<CommentItem | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
@@ -134,21 +138,50 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
     }
   };
 
+  const selectCommentFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    const incoming = Array.from(files).filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'));
+    if (incoming.length !== files.length) toast.error('Unsupported file', 'Select images or videos only.');
+    setSelectedFiles(previous => {
+      const merged = [...previous];
+      for (const file of incoming) {
+        if (!merged.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) merged.push(file);
+      }
+      if (merged.length > 4) toast.error('Attachment limit', 'You can add up to 4 images or videos.');
+      return merged.slice(0, 4);
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const submit = async (event?: FormEvent) => {
-    event?.preventDefault(); const clean = text.trim(); if (!clean || submitting || submittingRef.current) return; submittingRef.current = true; setSubmitting(true);
+    event?.preventDefault();
+    const clean = text.trim();
+    if ((!clean && selectedFiles.length === 0) || submitting || submittingRef.current) return;
+    submittingRef.current = true; setSubmitting(true);
     try {
-      // Reel comment editing is not supported by the backend (/api/reels has no PUT).
-      if (kind === 'post' && editing) { const updated = await apiPut<CommentItem>(`${base}/${postId}/comments/${editing.id}`, { content: clean }, token); setComments(items => items.map(item => item.id === updated.id ? { ...item, ...updated } : item)); setEditing(null); setText(''); setEmojiOpen(false); return; }
-      // Reel comment creation returns the bare comment (no post-style { comment, commentCount }).
+      if (kind === 'post' && editing) {
+        const updated = await apiPut<CommentItem>(`${base}/${postId}/comments/${editing.id}`, { content: clean }, token);
+        setComments(items => items.map(item => item.id === updated.id ? { ...item, ...updated } : item));
+        setEditing(null); setText(''); setEmojiOpen(false); return;
+      }
+      let mediaFileIds: string[] = [];
+      if (kind === 'post' && enableAttachments && selectedFiles.length) {
+        for (const file of selectedFiles) {
+          const form = new FormData();
+          form.append('file', file);
+          form.append('category', 'comment-media');
+          const uploaded = await apiUpload<{ id: string; url: string; type: 'IMAGE' | 'VIDEO' }>('/api/upload', form, token);
+          mediaFileIds.push(uploaded.id);
+        }
+      }
       const result = kind === 'reel'
         ? await apiPost<CommentItem>(`${base}/${postId}/comments`, { content: clean }, token)
-        : await apiPost<{ comment: CommentItem; commentCount: number }>(`${base}/${postId}/comments`, { content: clean, parentId: replyTo?.id }, token);
-      if (kind === 'post' && replyTo) setComments(items => items.map(item => item.id === (replyTo as CommentItem).id ? { ...item, replies: [...(item.replies || []), (result as { comment: CommentItem }).comment], _count: { likes: item._count?.likes || 0, replies: (item._count?.replies || 0) + 1 } } : item));
+        : await apiPost<{ comment: CommentItem; commentCount: number }>(`${base}/${postId}/comments`, { content: clean, parentId: replyTo?.id, mediaFileIds }, token);
+      if (kind === 'post' && replyTo) setComments(items => items.map(item => item.id === replyTo.id ? { ...item, replies: [...(item.replies || []), (result as { comment: CommentItem }).comment], _count: { likes: item._count?.likes || 0, replies: (item._count?.replies || 0) + 1 } } : item));
       else if (kind === 'post') setComments(items => [(result as { comment: CommentItem }).comment, ...items]);
       else setComments(items => [result as CommentItem, ...items]);
-      // For reels the backend does not echo the total; report from local state.
       onCountChange(kind === 'reel' ? comments.length + 1 : (result as { commentCount: number }).commentCount);
-      setReplyTo(null); setText(''); setEmojiOpen(false);
+      setReplyTo(null); setText(''); setSelectedFiles([]); setEmojiOpen(false);
     } catch (error: any) { toast.error('Comment not saved', error.message); }
     finally { setSubmitting(false); submittingRef.current = false; }
   };
@@ -166,7 +199,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   };
   const report = async (comment: CommentItem) => { if (kind === 'reel') return; const reason = window.prompt('Report reason: SPAM, HARASSMENT, HATE, THREATS, MISINFORMATION, or OTHER'); if (!reason) return; try { await apiPost(`${base}/${postId}/comments/${comment.id}/report`, { reason }, token); toast.success('Report submitted'); } catch (error: any) { toast.error('Report failed', error.message); } setMenu(null); };
 
-  const CommentRow = ({ comment, depth = 0 }: { comment: CommentItem; depth?: number }) => <article className={`group relative px-1 ${compact ? 'py-2.5 first:pt-2.5' : 'py-3 first:pt-3'} transition-colors sm:px-2`} style={{ marginLeft: Math.min(depth, 4) * 14 }}><div className="flex gap-2.5"><Link href={`/profile/${encodeURIComponent(comment.user.username)}`} aria-label={`Open @${comment.user.username}'s profile`} className="h-9 w-9 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a227]"><Avatar src={comment.user.avatar} alt={comment.user.username} size="sm" /></Link><div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px]"><strong className="inline-flex min-w-0 items-center gap-1 font-semibold text-white"><Link href={`/profile/${encodeURIComponent(comment.user.username)}`} onClick={() => onClose?.()} className="truncate hover:underline">{comment.user.fullName || comment.user.username}</Link></strong>{comment.user.verified && comment.user.verificationType && <VerificationBadge verified type={comment.user.verificationType} size="xs" className="shrink-0 align-[-1px]" />}{comment.user.role === 'CREATOR' && <span className="rounded bg-fuchsia-500/15 px-1.5 py-0.5 text-[9px] text-fuchsia-200">CREATOR</span>}<span className="truncate text-white/35">@{comment.user.username}</span><span className="text-white/25">·</span><span className="shrink-0 text-white/35">{timeAgo(comment.createdAt)}</span>{comment.edited && <span className="text-white/30">· edited</span>}</div><p className={`${compact ? 'mt-1 text-[13px] leading-[1.5]' : 'mt-1.5 text-[13px] leading-[1.65] sm:text-sm'} whitespace-pre-wrap break-words text-white/80`}>{renderTextWithLinks(comment.content, 'linkify', { mentions: true })}</p><div className={`mt-2 flex items-center gap-1.5 text-[12px] text-white/50 ${compact ? 'mt-1.5' : ''}`}><button onClick={() => toggleLike(comment)} aria-label={comment.liked ? 'Unlike comment' : 'Like comment'} className={`rounded-full px-2.5 py-1 transition hover:bg-white/[0.06] ${comment.liked ? 'text-[#f2c75c]' : 'hover:text-white'}`}><Heart size={13} className="mr-1 inline" fill={comment.liked ? 'currentColor' : 'none'} />Like {comment._count?.likes || 0}</button><button onClick={() => { setReplyTo(comment); inputRef.current?.focus(); }} aria-label="Reply to comment" className="rounded-full px-2.5 py-1 transition hover:bg-white/[0.06] hover:text-white"><Reply size={13} className="mr-1 inline" />Reply</button><button onClick={() => setMenu(menu === comment.id ? null : comment.id)} aria-label="More comment actions"><MoreHorizontal size={15} /></button></div>{menu === comment.id && <div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/[.04] p-2 text-[11px] text-white/70"><button onClick={() => { navigator.clipboard.writeText(comment.content); setMenu(null); toast.success('Comment copied'); }}><Copy size={12} className="mr-1 inline" />Copy</button>{comment.userId === currentUser?.id && <><button onClick={() => { setEditing(comment); setText(comment.content); setMenu(null); inputRef.current?.focus(); }}><Edit3 size={12} className="mr-1 inline" />Edit</button><button onClick={() => void remove(comment)} className="text-rose-300"><Trash2 size={12} className="mr-1 inline" />Delete</button></>}<button onClick={() => void report(comment)} className="text-amber-200"><Flag size={12} className="mr-1 inline" />Report</button></div>}{(comment._count?.replies || 0) > 0 && <div className="mt-3">{!expanded[comment.id] ? <button onClick={() => void loadReplies(comment)} className="text-xs font-semibold text-[#c8c8cc]">View {comment._count?.replies} {comment._count?.replies === 1 ? 'reply' : 'replies'} <ChevronDown size={13} className="inline" /></button> : <><button onClick={() => setExpanded(items => ({ ...items, [comment.id]: false }))} className="text-xs font-semibold text-[#c8c8cc]">Hide replies <ChevronUp size={13} className="inline" /></button>{replyLoading === comment.id ? <Loader2 size={14} className="ml-2 inline animate-spin" /> : comment.replies?.map(reply => <CommentRow key={reply.id} comment={reply} depth={depth + 1} />)}{replyCursors[comment.id] && <button onClick={() => void loadReplies(comment, false)} className="mt-2 text-xs text-white/50">Load more replies</button>}</>}</div>}</div></div></article>;
+  const CommentRow = ({ comment, depth = 0 }: { comment: CommentItem; depth?: number }) => <article className={`group relative px-1 ${compact ? 'py-2.5 first:pt-2.5' : 'py-3 first:pt-3'} transition-colors sm:px-2`} style={{ marginLeft: Math.min(depth, 4) * 14 }}><div className="flex gap-2.5"><Link href={`/profile/${encodeURIComponent(comment.user.username)}`} aria-label={`Open @${comment.user.username}'s profile`} className="h-9 w-9 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a227]"><Avatar src={comment.user.avatar} alt={comment.user.username} size="sm" /></Link><div className="min-w-0 flex-1"><div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px]"><strong className="inline-flex min-w-0 items-center gap-1 font-semibold text-white"><Link href={`/profile/${encodeURIComponent(comment.user.username)}`} onClick={() => onClose?.()} className="truncate hover:underline">{comment.user.fullName || comment.user.username}</Link></strong>{comment.user.verified && comment.user.verificationType && <VerificationBadge verified type={comment.user.verificationType} size="xs" className="shrink-0 align-[-1px]" />}{comment.user.role === 'CREATOR' && <span className="rounded bg-fuchsia-500/15 px-1.5 py-0.5 text-[9px] text-fuchsia-200">CREATOR</span>}<span className="truncate text-white/35">@{comment.user.username}</span><span className="text-white/25">·</span><span className="shrink-0 text-white/35">{timeAgo(comment.createdAt)}</span>{comment.edited && <span className="text-white/30">· edited</span>}</div><p className={`${compact ? 'mt-1 text-[13px] leading-[1.5]' : 'mt-1.5 text-[13px] leading-[1.65] sm:text-sm'} whitespace-pre-wrap break-words text-white/80`}>{renderTextWithLinks(comment.content, 'linkify', { mentions: true })}</p>{comment.media && comment.media.length > 0 && <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-md">{comment.media.map(media => media.type === 'VIDEO' ? <video key={media.fileId} src={resolveMediaUrl(media.url)} controls playsInline preload="metadata" className="max-h-64 w-full rounded-xl bg-black object-contain" /> : <img key={media.fileId} src={resolveMediaUrl(media.url)} alt="Comment attachment" loading="lazy" className="max-h-64 w-full rounded-xl bg-black/20 object-cover" />)}</div>}<div className={`mt-2 flex items-center gap-1.5 text-[12px] text-white/50 ${compact ? 'mt-1.5' : ''}`}><button onClick={() => toggleLike(comment)} aria-label={comment.liked ? 'Unlike comment' : 'Like comment'} className={`rounded-full px-2.5 py-1 transition hover:bg-white/[0.06] ${comment.liked ? 'text-[#f2c75c]' : 'hover:text-white'}`}><Heart size={13} className="mr-1 inline" fill={comment.liked ? 'currentColor' : 'none'} />Like {comment._count?.likes || 0}</button><button onClick={() => { setReplyTo(comment); inputRef.current?.focus(); }} aria-label="Reply to comment" className="rounded-full px-2.5 py-1 transition hover:bg-white/[0.06] hover:text-white"><Reply size={13} className="mr-1 inline" />Reply</button><button onClick={() => setMenu(menu === comment.id ? null : comment.id)} aria-label="More comment actions"><MoreHorizontal size={15} /></button></div>{menu === comment.id && <div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/[.04] p-2 text-[11px] text-white/70"><button onClick={() => { navigator.clipboard.writeText(comment.content); setMenu(null); toast.success('Comment copied'); }}><Copy size={12} className="mr-1 inline" />Copy</button>{comment.userId === currentUser?.id && <><button onClick={() => { setEditing(comment); setText(comment.content); setMenu(null); inputRef.current?.focus(); }}><Edit3 size={12} className="mr-1 inline" />Edit</button><button onClick={() => void remove(comment)} className="text-rose-300"><Trash2 size={12} className="mr-1 inline" />Delete</button></>}<button onClick={() => void report(comment)} className="text-amber-200"><Flag size={12} className="mr-1 inline" />Report</button></div>}{(comment._count?.replies || 0) > 0 && <div className="mt-3">{!expanded[comment.id] ? <button onClick={() => void loadReplies(comment)} className="text-xs font-semibold text-[#c8c8cc]">View {comment._count?.replies} {comment._count?.replies === 1 ? 'reply' : 'replies'} <ChevronDown size={13} className="inline" /></button> : <><button onClick={() => setExpanded(items => ({ ...items, [comment.id]: false }))} className="text-xs font-semibold text-[#c8c8cc]">Hide replies <ChevronUp size={13} className="inline" /></button>{replyLoading === comment.id ? <Loader2 size={14} className="ml-2 inline animate-spin" /> : comment.replies?.map(reply => <CommentRow key={reply.id} comment={reply} depth={depth + 1} />)}{replyCursors[comment.id] && <button onClick={() => void loadReplies(comment, false)} className="mt-2 text-xs text-white/50">Load more replies</button>}</>}</div>}</div></div></article>;
 
   // Shared delete-confirmation dialog (used by both the sheet and inline modes).
   const deleteConfirmDialog = deleteConfirm && <DeleteConfirmDialog title="Delete this comment?" description="This cannot be undone. The comment will be removed permanently." confirmLabel="Delete comment" onCancel={() => setDeleteConfirm(null)} onConfirm={() => void confirmDeleteComment()} />;
@@ -177,7 +210,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   // detail pages so comments live directly under the content.
   if (isInline) {
     return (
-      <section aria-label="Comments" className="w-full min-w-0">
+      <section aria-label="Comments" className="flex w-full min-w-0 flex-col">
         <header className={`flex shrink-0 items-center justify-between gap-3 px-1 ${compact ? 'pt-2' : 'pt-3'}`}>
           <div className="flex min-w-0 items-center gap-2">
             <h2 id="comments-title" className="truncate text-sm font-bold text-[#f5f5f5]">Comments <span className="font-normal text-white/40">· {initialCount}</span></h2>
@@ -207,17 +240,18 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
           </div>
         )}
         {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
-        <form onSubmit={submit} className={`relative shrink-0 px-1 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))] ${isInline ? `sticky z-[60] border-t border-white/[0.08] bg-[#050505] ${compact ? 'bottom-0' : 'bottom-[calc(4.25rem+env(safe-area-inset-bottom))]'}` : ''}`}>
+        <form onSubmit={submit} className="relative mt-2 border-t border-white/[0.08] bg-[#050505] px-1 pt-3 pb-[calc(.75rem+env(safe-area-inset-bottom))]">
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
           </div>
+          {selectedFiles.length > 0 && <div className="mb-2 flex flex-wrap gap-1.5">{selectedFiles.map((file, index) => <span key={`${file.name}-${file.lastModified}-${index}`} className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-white/[.06] px-2 py-1 text-[10px] text-white/70"><span className="max-w-40 truncate">{file.name}</span><button type="button" onClick={() => setSelectedFiles(items => items.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="text-white/45 hover:text-white"><X size={12} /></button></span>)}</div>}
           <div className="flex items-center gap-2">
-            {postShareAction ? <button type="button" onClick={postShareAction} aria-label="Share post" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-[#d7b548]"><Share2 size={18} /></button> : <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />}
+            {enableAttachments ? <><button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Select images or videos" title="Select images or videos" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-[#d7b548]"><FilePlus2 size={19} /></button><input ref={fileInputRef} type="file" accept="image/*,video/*" multiple hidden onChange={event => selectCommentFiles(event.target.files)} /></> : <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />}
             <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-full border-0 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:bg-white/[0.07]" />
             {!hideEmojiPicker && <button type="button" onClick={() => setEmojiOpen(value => !value)} aria-label="Add emoji" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white"><Smile size={17} /></button>}
             <button type="button" onClick={() => setText(value => `${value}${value ? ' ' : ''}@`)} aria-label="Mention a user" className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white sm:grid"><AtSign size={17} /></button>
-            <button type="submit" aria-label="Send comment" disabled={!text.trim() || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#d7b548] transition hover:bg-white/[.06] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
+            <button type="submit" aria-label="Send comment" disabled={(!text.trim() && selectedFiles.length === 0) || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#d7b548] transition hover:bg-white/[.06] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
           </div>
           {!hideEmojiPicker && emojiOpen && <div className="absolute bottom-16 right-4 grid w-64 max-w-[calc(100vw-2rem)] grid-cols-8 gap-1 rounded-lg border border-white/10 bg-[#151517] p-3 shadow-2xl">{EMOJIS.map(emoji => <button type="button" key={emoji} onClick={() => setText(value => value + emoji)} className="rounded-md p-1 text-lg hover:bg-white/10" aria-label={`Add ${emoji}`}>{emoji}</button>)}</div>}
           </form>

@@ -330,7 +330,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             <CommentPanel
               kind="post"
               hideEmojiPicker
-              postShareAction={() => setShareOpen(true)}
+              enableAttachments
               postId={id}
               postAuthor={post.author}
               initialCount={commentCount}
