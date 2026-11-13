@@ -84,7 +84,7 @@ const postAttachments = (item: Item): PostAttachment[] => {
   const single = mediaUrl(item);
   return single ? [{ url: single }] : [];
 };
-export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, compactCaption = false, feedCompactMedia = false, hideFollowButton = false }: FeedPostCardProps) {
+export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, feedCompactMedia = false, hideFollowButton = false }: FeedPostCardProps) {
   const router = useRouter();
   const { prefs: contentPrefs, hydrated: contentPrefsHydrated } = useContentPrefs();
   // Feed video autoplay follows the persisted Video Autoplay preference.
