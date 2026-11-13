@@ -233,7 +233,7 @@ export default function DiscoverPage() {
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
     <header className="relative z-30 flex h-12 shrink-0 items-center justify-between border-b border-white/[.06] bg-[var(--header-surface)] px-3">
       <button type="button" onClick={openAppMenu} aria-label="Open menu" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8a8a8a] transition hover:bg-white/[.04] hover:text-white"><Menu size={19}/></button>
-      <button type="button" onClick={() => { searchRef.current?.focus(); scrollPageTop(pageScrollRef.current); }} aria-label="Search" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8a8a8a] transition hover:bg-white/[.04] hover:text-white"><Search size={18}/></button>
+      
     </header>
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshDiscover}>
     <div className="w-full min-w-0 max-w-none space-y-4 px-0 pb-28 pt-1">
