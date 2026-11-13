@@ -412,7 +412,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/'];
+    const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/terms', '/privacy', '/community-guidelines', '/'];
     const isPublicRoute = publicRoutes.includes(pathname);
 
     // A refresh token represents a recoverable persisted session. Do not turn
