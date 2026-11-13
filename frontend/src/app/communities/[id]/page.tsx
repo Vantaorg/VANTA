@@ -17,6 +17,7 @@ type Community = {
   description?: string;
   avatar?: string;
   category?: string;
+  handle?: string;
   conversationId?: string;
   joined: boolean;
   owner?: { id: string; username: string; avatar?: string } | null;
@@ -44,7 +45,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) { setLoading(false); setError('Sign in to view this Group or Channel.'); return; }
     let current = true;
     setLoading(true);
     setError('');
@@ -108,7 +109,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
   }
 
   const channel = community.kind === 'channel';
-  const handle = channel && community.name ? `@${community.name.toLowerCase().replace(/\s+/g, '-')}` : '';
+  const handle = channel ? `@${community.handle || community.name.toLowerCase().replace(/\s+/g, '-')}` : '';
   const owner = community.owner;
   return (
     <main className="min-h-[100dvh] w-full bg-[var(--background)] text-[var(--text-primary)]">
@@ -120,7 +121,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
               {community.avatar ? <img src={resolveMediaUrl(community.avatar)} alt="" loading="lazy" className="h-full w-full object-cover" /> : channel ? <Hash size={28} /> : <Users size={28} />}
             </span>
             <h1 className="mt-3 flex items-center gap-1.5 text-base font-semibold">{community.name}{channel ? <Hash size={14} className="shrink-0 text-[#c9a227]" /> : <Users size={14} className="shrink-0 text-[#c9a227]" />}</h1>
-            <p className="mt-1 text-xs text-[#8a8a8a]"><span className="font-semibold uppercase tracking-[.14em]">{channel ? 'Channel' : 'Group'}</span>{handle ? ` · ${handle}` : ''}{community._count ? ` · ${countLabel(community._count.members)} members` : ''}</p>
+            <p className="mt-1 text-xs text-[#8a8a8a]"><span className="font-semibold uppercase tracking-[.14em]">{channel ? 'Channel' : 'Group'}</span>{handle ? ` · ${handle}` : ''}{community._count ? ` · ${countLabel(community._count.members)} ${channel ? 'subscribers' : 'members'}` : ''}</p>
             <p className="mt-2 max-w-md break-words whitespace-pre-wrap text-sm leading-6 text-[#b8b8b8]">{community.description || community.category || (channel ? 'A public channel on VANTA — join to follow along.' : 'A public group on VANTA — join to take part.')}</p>
             {owner?.username && <p className="mt-3 text-[11px] text-[#666]">Created by @{owner.username}</p>}
           </div>
@@ -128,7 +129,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
             {community.joined ? (
               <button type="button" onClick={() => void toggleJoin()} disabled={joining} className="min-h-11 flex-1 rounded-lg border border-white/[.12] text-sm font-semibold text-[#b8b8b8] hover:bg-white/[.04] disabled:opacity-60">{joining ? 'Working…' : 'Leave'}</button>
             ) : (
-              <button type="button" onClick={() => void toggleJoin()} disabled={joining} className="min-h-11 flex-1 rounded-lg bg-[#f5f5f5] text-sm font-semibold text-black hover:bg-white disabled:opacity-60">{joining ? 'Joining…' : 'Join'}</button>
+              <button type="button" onClick={() => void toggleJoin()} disabled={joining} className="min-h-11 flex-1 rounded-lg bg-[#d6a83f] text-sm font-semibold text-black hover:bg-[#e4b94f] disabled:opacity-60">{joining ? 'Joining…' : 'Join'}</button>
             )}
             {community.joined && community.conversationId && (
               <button type="button" onClick={() => router.push(`/chat?conversation=${encodeURIComponent(community.conversationId || '')}`)} className="min-h-11 flex-1 rounded-lg border border-white/[.12] text-sm font-semibold text-[#f5f5f5] hover:bg-white/[.05]"><MessageCircle size={16} className="mr-1.5" />Open in Chat</button>
