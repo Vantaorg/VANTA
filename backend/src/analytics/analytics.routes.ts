@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { analyticsEngine } from './analytics.service';
+import { prisma } from '../prisma';
 import { authenticate, requireRole, Role } from '../security';
 import { rateLimiter } from '../security';
 import { METRIC_DEFINITIONS, AnalyticsCategory } from './analytics.types';
@@ -150,9 +151,22 @@ router.post('/track/batch', requireAuth, async (req: Request, res: Response) => 
  * Get all current real-time metrics
  * Access: Admin, Moderator, Creator
  */
-router.get('/realtime', requireAuth, analyticsRateLimit, (req: Request, res: Response) => {
-  const metrics = analyticsEngine.getRealtimeMetrics();
-  res.json(metrics);
+router.get('/realtime', requireAuth, analyticsRateLimit, async (req: Request, res: Response) => {
+  try {
+    const metrics = analyticsEngine.getRealtimeMetrics();
+    // Online presence is sourced from persisted, unexpired sessions rather
+    // than relying on an in-memory counter that resets on every deploy.
+    const activeSince = new Date(Date.now() - 5 * 60 * 1000);
+    const onlineUsers = await prisma.session.count({
+      where: {
+        expiresAt: { gt: new Date() },
+        lastActiveAt: { gte: activeSince },
+      },
+    });
+    res.json({ ...metrics, activeUsers: onlineUsers, onlineUsers });
+  } catch (error: any) {
+    res.status(503).json({ error: 'Unable to read live platform presence', message: error?.message });
+  }
 });
 
 /**
