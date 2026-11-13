@@ -73,7 +73,7 @@ function buildStoryGroups(raw: Item[]): Array<{ user: Item; stories: Item[]; has
 }
 
 function FeedSkeleton() {
-  return <div className="divide-y divide-white/[.06]" aria-label="Loading feed">{[1, 2, 3].map(index => <div key={index} className="px-1 py-4"><div className="flex items-center gap-3"><div className="h-11 w-11 animate-pulse rounded-full bg-white/[.06]"/><div className="space-y-2"><div className="h-3 w-32 animate-pulse rounded bg-white/[.06]"/><div className="h-2.5 w-20 animate-pulse rounded bg-white/[.04]"/></div></div><div className="mt-4 aspect-[4/3] animate-pulse rounded-lg bg-white/[.035]"/></div>)}</div>;
+  return <div className="divide-y divide-white/[.06]" aria-label="Loading feed">{[1, 2, 3].map(index => <div key={index} className="px-1 py-4"><div className="flex items-center gap-3"><div className="h-11 w-11 animate-pulse rounded-full bg-white/[.06]"/><div className="space-y-2"><div className="h-3 w-32 animate-pulse rounded bg-white/[.06]"/><div className="h-2.5 w-20 animate-pulse rounded bg-white/[.04]"/></div></div><div className="mt-4 aspect-[3/2] animate-pulse rounded-lg bg-white/[.035]"/></div>)}</div>;
 }
 
 export default function HomePage() {
