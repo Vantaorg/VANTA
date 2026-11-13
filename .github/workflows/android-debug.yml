@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/unified-media-picker-vanta
+      - refresh-vanta-app-icon-2026-11-13
     paths:
       - "android/**"
       - ".github/workflows/android-debug.yml"
