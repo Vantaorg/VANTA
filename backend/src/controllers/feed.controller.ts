@@ -177,12 +177,16 @@ export const commentOnPost = async (req: AuthRequest, res: Response): Promise<vo
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
     const { content, parentId } = req.body;
-    if (!content || !content.trim()) {
-      res.status(400).json({ error: "Content is required" });
+    const cleanContent = typeof content === "string" ? content.trim() : "";
+    const mediaFileIds = Array.isArray(req.body.mediaFileIds)
+      ? req.body.mediaFileIds.filter((value: unknown): value is string => typeof value === "string")
+      : [];
+    if (!cleanContent && mediaFileIds.length === 0) {
+      res.status(400).json({ error: "Write a comment or attach an image or video." });
       return;
     }
 
-    const comment = await feedService.commentOnPost(req.params.id, userId, content.trim(), typeof parentId === "string" ? parentId : undefined);
+    const comment = await feedService.commentOnPost(req.params.id, userId, cleanContent, typeof parentId === "string" ? parentId : undefined, mediaFileIds);
     res.status(201).json(comment);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
