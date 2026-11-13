@@ -132,13 +132,15 @@ class AnalyticsAPI {
   // Realtime Metrics
   // ============================================================
 
-  async getRealtimeMetrics(): Promise<{
-    onlineUsers: number;
-    activeStreams: number;
-    messagesPerMinute: number;
-    giftsPerMinute: number;
-  }> {
-    return unwrap<any>(`${this.baseUrl}/realtime`);
+  async getRealtimeMetrics(): Promise<any> {
+    // Live metrics must bypass the shared 30-second GET cache. A cached
+    // response makes the dashboard appear stale even while the backend is up.
+    const body = await apiGet<{ success?: boolean; data?: any }>(
+      `${this.baseUrl}/realtime`,
+      undefined,
+      { skipCache: true, cacheTTL: 0 }
+    );
+    return body?.data ?? body;
   }
 
   // ============================================================
