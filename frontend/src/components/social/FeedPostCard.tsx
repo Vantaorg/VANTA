@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Bookmark, Gift, Heart, MessageCircle, MoreHorizontal, Repeat2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import PostMedia, { PostMediaCarousel, type PostAttachment } from '@/components/social/PostMedia';
@@ -99,7 +99,26 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
-  const displayedCaption = compactCaption && typeof caption === 'string' && caption.length > 120 ? `${caption.slice(0, Math.ceil(caption.length * 0.65)).trimEnd()}…` : caption;
+  const captionText = typeof caption === 'string' ? caption : '';
+  const captionRef = useRef<HTMLParagraphElement>(null);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [captionOverflows, setCaptionOverflows] = useState(false);
+
+  // Measure the real rendered text so the expand control appears only when
+  // the five-line preview actually clips content at the current screen width.
+  useEffect(() => {
+    const element = captionRef.current;
+    if (!element || !captionText) {
+      setCaptionOverflows(false);
+      return;
+    }
+    const measure = () => setCaptionOverflows(element.scrollHeight > element.clientHeight + 2);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [captionText]);
 
   // Tapping anywhere on the card (except an interactive control) opens the
   // canonical post/reel detail page — the same single detail route the comment
@@ -134,7 +153,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
           <button type="button" onClick={() => onMore(item)} aria-label="More post options" className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-[#666] transition hover:bg-white/[.05] hover:text-white"><MoreHorizontal size={17}/></button>
         </div>
         {item.location && <p className="truncate text-[10px] text-[#666]">{item.location}</p>}
-        {displayedCaption && <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-[#dedede]">{renderTextWithLinks(displayedCaption, 'linkify')}</p>}
+        {captionText && <><p ref={captionRef} style={captionExpanded ? undefined : { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 5, overflow: 'hidden' }} className="whitespace-pre-wrap break-words text-[15px] leading-5 text-[#dedede]">{renderTextWithLinks(captionText, 'linkify')}</p>{captionOverflows && <button type="button" onClick={() => setCaptionExpanded(value => !value)} aria-expanded={captionExpanded} className="-mt-0.5 self-start text-[13px] font-medium text-[#c9a227] transition hover:text-[#e0bb4f]">{captionExpanded ? 'Show less' : 'Show more'}</button>}</>}
         {item.hashtags && <p className="text-[11px] text-[#c9a227]">{Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => `#${tag}`).join(' ') : item.hashtags}</p>}
         {/* Media sits INSIDE the content column so it aligns with the caption,
             matching text posts exactly. No full-bleed, no negative margins. */}
