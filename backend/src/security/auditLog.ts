@@ -61,7 +61,7 @@ export async function appendAuditLog(
   // value directly makes Prisma try to deserialize an unsupported column.
   // Project a harmless integer instead while still acquiring the same
   // transaction-scoped lock before reading the previous chain entry.
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID})`;
+  await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID}) IS NOT NULL AS locked`;
 
   const previous = await tx.securityLog.findFirst({
     where: { hash: { not: null } },
