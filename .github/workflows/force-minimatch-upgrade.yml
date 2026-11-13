@@ -1,4 +1,4 @@
-name: Remediate frontend minimatch audit findings
+name: Diagnose minimatch dependency chain
 
 on:
   push:
@@ -8,43 +8,28 @@ on:
       - ".github/workflows/force-minimatch-upgrade.yml"
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  upgrade-and-verify:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: security/force-minimatch-upgrade
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply npm's compatible security fixes
-        run: |
-          npm audit fix --workspace=frontend
-          npm ls minimatch --all
-      - name: Confirm frontend audit is clear
-        run: npm audit --workspace=frontend --audit-level=moderate
-      - name: Verify clean lockfile installation
+      - name: Install current lockfile
         run: npm ci
-      - name: Recheck frontend audit after clean install
-        run: npm audit --workspace=frontend --audit-level=moderate
-      - name: Run frontend lint
-        run: npm --prefix frontend run lint
-      - name: Run frontend tests
-        run: npm --prefix frontend run test
-      - name: Build frontend
-        run: npm --prefix frontend run build
-      - name: Remove temporary remediation workflows and commit dependency update
+      - name: Show dependency ownership and resolved versions
         run: |
-          git rm .github/workflows/force-minimatch-upgrade.yml
-          git rm .github/workflows/refresh-frontend-audit.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json frontend/package.json
-          git commit -m "fix(deps): remediate minimatch audit findings"
-          git push origin HEAD:security/force-minimatch-upgrade
+          npm ls @typescript-eslint/parser @typescript-eslint/eslint-plugin @typescript-eslint/typescript-estree minimatch --all || true
+          npm explain minimatch || true
+      - name: Check published patched releases and dependency ranges
+        run: |
+          npm view @typescript-eslint/parser version
+          npm view @typescript-eslint/eslint-plugin version
+          npm view @typescript-eslint/typescript-estree version
+          npm view @typescript-eslint/typescript-estree@latest dependencies.minimatch
+          npm view minimatch version
+          npm view minimatch@11.0.1 engines
