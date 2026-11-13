@@ -235,13 +235,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       if (!(scroller instanceof Element)) return;
 
       const position = scroller.scrollTop;
-      const previous = lastPositions.get(scroller) ?? position;
+      const previous = lastPositions.get(scroller);
       lastPositions.set(scroller, position);
 
       // Returning to the top always restores navigation. Ignore tiny movement
       // to prevent jitter from touch momentum and browser viewport adjustments.
       if (position <= 8) {
         setBottomNavHidden(false);
+        return;
+      }
+
+      // A newly encountered page scroller has no previous position yet. Its
+      // first non-zero scroll event is already evidence that the user moved
+      // down the page, so hide the shared navigation instead of waiting for a
+      // second event. This matters when a page receives one large scroll jump.
+      if (previous === undefined) {
+        setBottomNavHidden(true);
         return;
       }
 
