@@ -3393,3 +3393,54 @@ html.light .feed-item:hover {
     max-width: none !important;
   }
 }
+
+
+/* Admin Command Center: unify legacy pages without changing their API contracts. */
+[data-vanta-console-workspace="admin"] {
+  --admin-page-gap: 1.125rem;
+  color: var(--vc-text);
+}
+[data-vanta-console-workspace="admin"] > .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--admin-page-gap);
+}
+[data-vanta-console-workspace="admin"] :where(.glass, .card-premium) {
+  background: color-mix(in srgb, var(--vc-surface) 94%, transparent) !important;
+  border-color: var(--vc-border) !important;
+  border-radius: var(--vc-radius) !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+[data-vanta-console-workspace="admin"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-height: 2.5rem;
+  border-color: var(--vc-border) !important;
+  border-radius: var(--vc-radius) !important;
+  background-color: var(--vc-bg2);
+}
+[data-vanta-console-workspace="admin"] :where(button:not([aria-haspopup="menu"]), a) {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-vanta-console-workspace="admin"] :where(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+[data-vanta-console-workspace="admin"] :where(thead th) {
+  color: var(--vc-text-3);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+[data-vanta-console-workspace="admin"] :where(tbody tr) {
+  border-color: var(--vc-border);
+}
+[data-vanta-console-workspace="admin"] :where(tbody tr:hover) {
+  background: rgba(255,255,255,.025);
+}
+@media (max-width: 700px) {
+  [data-vanta-console-workspace="admin"] > .space-y-6 {
+    gap: .875rem;
+  }
+  [data-vanta-console-workspace="admin"] :where(.glass, .card-premium) {
+    border-radius: 12px !important;
+  }
+}
