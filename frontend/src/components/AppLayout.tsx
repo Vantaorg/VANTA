@@ -323,7 +323,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('vanta:open-menu', open);
   }, []);
 
-  const isAuthPage = ['/login', '/register', '/forgot-password', '/'].includes(pathname || '');
+  const isAuthPage = ['/login', '/register', '/forgot-password', '/terms', '/privacy', '/community-guidelines', '/'].includes(pathname || '');
   // Chat is a separate application surface with /chat as its only route.
   const isChatPage = pathname?.startsWith('/chat');
   // Conversation view (direct, group, or channel) is immersive; keep the
