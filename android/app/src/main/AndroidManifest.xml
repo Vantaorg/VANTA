@@ -4,6 +4,8 @@
     <application
         android:allowBackup="false"
         android:label="VANTA"
+        android:icon="@drawable/vanta_app_icon"
+        android:roundIcon="@drawable/vanta_app_icon"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
