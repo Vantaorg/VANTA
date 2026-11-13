@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./vanta-page-polish.css";
 import "./auth.css";
 import "@/components/landing/landing.css";
 import "@/components/profile/v2/creator-hub.css";

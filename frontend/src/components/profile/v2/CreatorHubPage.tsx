@@ -249,7 +249,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   const avatar = profile.avatarUrl || profile.profile?.avatarUrl || profile.avatar || '';
 
   return <PullToRefresh onRefresh={refreshProfile} ariaLabel="Profile feed" className="profile-pull-refresh">
-    <main className="profile-page">
+    <main data-vanta-page="profile" className="profile-page">
     <ProfileHeader profile={profile} own={own} onFollow={() => { void follow(); }} onMessage={() => { void messageProfile(); }} onGift={() => { void openGift(profile); }} onCopy={() => { void copyProfile(); }} onPeople={setPeople} followPending={followPending} />
     {!own && <FollowerRewardGiftBox creatorUsername={profile.username} token={token} />}
     <nav className="profile-tabs" aria-label="Profile content">{TABS.filter(item => !item.ownOnly || own).map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}><Icon size={16} strokeWidth={tab === id ? 2.4 : 1.9} /><span className="tab-label">{label}</span></button>)}</nav>

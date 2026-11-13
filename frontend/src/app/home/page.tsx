@@ -240,7 +240,7 @@ export default function HomePage() {
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
 
-  return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-white">
+  return <div data-vanta-page="home" className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--background)] text-white">
     <PullToRefresh scrollRef={pageScrollRef} onRefresh={refreshFeed}>
     <div className="w-full min-w-0 px-0 pb-28 pt-1">
       <main className="mx-auto w-full max-w-[670px] min-w-0 px-3 sm:px-2 lg:px-0">
