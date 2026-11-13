@@ -3268,3 +3268,128 @@ html.light .feed-item:hover {
     animation-duration: .01ms !important;
   }
 }
+
+
+/* Clean full-screen treatment for channel/group creation, info and settings. */
+.vanta-entity-create,
+.vanta-conversation-info,
+.vanta-entity-settings {
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #1f2630 !important;
+}
+
+.vanta-entity-create > div.flex-1 > div,
+.vanta-entity-settings > div {
+  width: 100%;
+  max-width: none !important;
+  margin-inline: 0;
+}
+
+.vanta-entity-create > div.flex-1 > div > section,
+.vanta-entity-settings section,
+.vanta-conversation-info section:not([role="dialog"]) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+.vanta-entity-create > div.flex-1 > div > section:not(:first-child) {
+  padding: 1rem 0;
+  border-top: 1px solid rgba(255,255,255,.08) !important;
+}
+
+.vanta-entity-create > div.flex-1 > div > section:first-child {
+  padding: .5rem 0 1rem;
+}
+
+.vanta-entity-settings > div {
+  padding-left: clamp(1rem, 4vw, 3rem);
+  padding-right: clamp(1rem, 4vw, 3rem);
+}
+
+.vanta-entity-settings section {
+  margin-top: 1.25rem;
+  padding: 0 0 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,.09) !important;
+}
+
+.vanta-entity-settings section > div:first-child {
+  border-color: rgba(255,255,255,.08);
+}
+
+.vanta-entity-settings input:not([type="file"]),
+.vanta-entity-settings textarea,
+.vanta-entity-settings select,
+.vanta-entity-create input:not([type="file"]),
+.vanta-entity-create textarea,
+.vanta-entity-create select {
+  border-radius: .35rem;
+  border-width: 0 0 1px;
+  border-color: rgba(255,255,255,.18);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vanta-entity-settings input:focus,
+.vanta-entity-settings textarea:focus,
+.vanta-entity-create input:focus,
+.vanta-entity-create textarea:focus {
+  border-color: #d6a83f;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.vanta-conversation-info {
+  inset: 0;
+  height: var(--chat-viewport-height, 100dvh);
+  overflow-y: auto;
+}
+
+.vanta-conversation-info .vanta-info-hero > div.mt-4,
+.vanta-conversation-info .mb-4.grid.grid-cols-2 {
+  display: none !important;
+}
+
+.vanta-conversation-info section:not([role="dialog"]) {
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom: 1px solid rgba(255,255,255,.09) !important;
+}
+
+.vanta-info-hero {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vanta-info-hero img {
+  box-shadow: none !important;
+}
+
+.vanta-entity-settings section[class*="border-red"] {
+  background: transparent !important;
+  border-color: rgba(248,113,113,.35) !important;
+}
+
+.vanta-entity-settings section[class*="border-[#d6a83f]"] {
+  background: transparent !important;
+  border-color: rgba(214,168,63,.35) !important;
+}
+
+.vanta-entity-create footer {
+  box-shadow: none !important;
+}
+
+@media (min-width: 768px) {
+  .vanta-conversation-info,
+  .vanta-entity-settings {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
