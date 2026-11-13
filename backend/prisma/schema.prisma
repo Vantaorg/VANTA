@@ -785,6 +785,7 @@ model PostComment {
   postId    String
   parentId  String?
   content   String
+  media     String? // JSON array of validated image/video attachments
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   parent    PostComment?      @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
