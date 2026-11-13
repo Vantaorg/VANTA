@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Gift, Plus, Edit3, Search, Grid3X3, List, ToggleLeft,
   ToggleRight, Sparkles, Crown, Snowflake, Heart, PanelTop,
-  Info, Database, CheckCircle, XCircle
+  Info, Database, CheckCircle, XCircle, RefreshCw
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
@@ -15,6 +15,7 @@ import VantaCoinIcon from '@/components/ui/VantaCoinIcon';
 import { useToast } from '@/components/ui/Toast';
 import GiftArtwork from '@/components/gifts/GiftArtwork';
 import { giftVisualQuality } from '@/lib/giftCatalog';
+import { ConsoleErrorState, ConsoleEmptyState, ConsoleLoading } from '@/components/console/States';
 
 
 const categoryColors: Record<string, string> = {
@@ -35,22 +36,24 @@ export default function GiftsPage() {
   const [priceValue, setPriceValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-        if (!token) return;
-        const data = await getGifts(token);
-        setGifts(data);
-      } catch (err) {
-        console.error('Failed to fetch gifts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
+      if (!token) throw new Error('Your admin session is unavailable. Sign in again.');
+      const data = await getGifts(token);
+      setGifts(data);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load the gift catalog.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filtered = categoryFilter === 'all' ? gifts : gifts.filter(g => g.category === categoryFilter);
 
@@ -98,8 +101,8 @@ export default function GiftsPage() {
             <Gift size={14} className="text-[#d6a83f]" />
             <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-semibold">Gifts</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Gift Management</h1>
-          <p className="text-sm text-gray-400 mt-1">Create, edit, and manage virtual gifts. No code changes needed for new gifts.</p>
+          <h1 className="text-2xl font-bold text-white">Gift catalog</h1>
+          <p className="text-sm text-gray-400 mt-1">Manage existing gift artwork, pricing, visibility and catalog order.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-colors ${viewMode === 'grid' ? 'bg-[#151517]0/20 text-[#f2c75c]' : 'text-gray-500 hover:text-gray-300'}`}>
@@ -108,10 +111,11 @@ export default function GiftsPage() {
           <button onClick={() => setViewMode('table')} className={`p-2 rounded-xl transition-colors ${viewMode === 'table' ? 'bg-[#151517]0/20 text-[#f2c75c]' : 'text-gray-500 hover:text-gray-300'}`}>
             <List size={16} />
           </button>
-          <Button variant="primary" size="sm" icon={<Plus size={14} />}>Add Gift</Button>
+          <button type="button" onClick={() => void fetchData()} disabled={loading} className="vc-focus inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-semibold text-gray-300 hover:bg-white/[.04] disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>
         </div>
       </div>
 
+      {error ? <ConsoleErrorState title="Gift catalog unavailable" message={error} onRetry={() => void fetchData()} /> : loading ? <ConsoleLoading label="Loading gift catalog…" /> : gifts.length === 0 ? <ConsoleEmptyState icon={<Gift size={19} />} title="No gifts in the catalog" description="No gift records were returned by the admin catalog endpoint." /> : <>
       {/* Category Filter */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {categories.map(cat => (
@@ -241,6 +245,7 @@ export default function GiftsPage() {
           </div>
         </div>
       </GlassCard>
+      </>}
     </div>
   );
 }
