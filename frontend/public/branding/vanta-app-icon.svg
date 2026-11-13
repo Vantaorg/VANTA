@@ -1,18 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F7D985"/>
-      <stop offset=".48" stop-color="#D7AE48"/>
-      <stop offset="1" stop-color="#A97920"/>
+      <stop offset="0" stop-color="#FFF3A8"/>
+      <stop offset=".24" stop-color="#FFD84D"/>
+      <stop offset=".58" stop-color="#D88A12"/>
+      <stop offset=".82" stop-color="#FFE56B"/>
+      <stop offset="1" stop-color="#A85C08"/>
     </linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFF0B5" stop-opacity=".85"/>
-      <stop offset="1" stop-color="#FFF0B5" stop-opacity="0"/>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF8C5"/>
+      <stop offset=".5" stop-color="#E9A51C"/>
+      <stop offset="1" stop-color="#8F4D08"/>
     </linearGradient>
+    <radialGradient id="shine" cx=".25" cy=".12" r=".9">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".16"/>
+      <stop offset=".52" stop-color="#FFFFFF" stop-opacity=".025"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".3"/>
+    </radialGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#090909"/>
-  <path d="M96 112h88l72 210 72-210h88L285 407h-58z" fill="url(#gold)"/>
-  <path d="M143 139h26l87 243-13 0z" fill="url(#shine)" opacity=".45"/>
-  <path d="M256 83l19 29-19 29-19-29z" fill="#F5D681"/>
-  <path d="M256 398l15 22-15 22-15-22z" fill="#D7AE48"/>
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="#050505"/>
+  <rect x="7" y="7" width="498" height="498" rx="104" fill="url(#shine)"/>
+  <rect x="8" y="8" width="496" height="496" rx="103" fill="none" stroke="url(#edge)" stroke-width="8"/>
+  <path d="M91 112h93l72 207 72-207h93L285 370c-7 17-14 25-29 25s-22-8-29-25z" fill="url(#gold)" stroke="#FFE78A" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M111 127h33l93 252-13-2z" fill="#FFF7C8" opacity=".24"/>
+  <path d="M75 289C134 222 252 162 369 128c51-15 87-7 94 20 10 39-56 90-136 126-89 40-186 67-239 69-44 2-63-15-54-42 5-15 20-32 41-49-13 21-17 38-8 49 16 20 78 10 155-15 89-29 183-78 220-116 16-17 21-30 15-39-9-15-44-10-92 7-93 33-206 96-290 160z" fill="url(#gold)" filter="url(#glow)"/>
+  <path d="M365 221l76 47-76 47z" fill="url(#gold)" stroke="#FFF0A0" stroke-width="2"/>
+  <text x="256" y="462" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="61" font-weight="700" letter-spacing="9" text-anchor="middle">VANTA</text>
 </svg>
