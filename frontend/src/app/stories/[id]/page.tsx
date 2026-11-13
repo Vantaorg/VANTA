@@ -500,8 +500,6 @@ const creator = current.group.user || {};
       } else {
         try {
           await navigator.clipboard.writeText(url);
-          setShareOpen(false);
-          resumeStory('share');
           toast.success('Story link copied');
         } catch (reason: any) {
           toast.error('Could not copy link', reason?.message);
