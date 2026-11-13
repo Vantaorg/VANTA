@@ -69,7 +69,7 @@ export default function MessagesCreateButton({
           </>
         )}
       </AnimatePresence>
-      <motion.button type="button" onClick={() => setOpen(value => !value)} initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: open ? 45 : 0 }} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 420, damping: 24 }} className="fixed bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem+var(--vanta-kb,0px)))] right-4 z-[79] grid h-14 w-14 place-items-center rounded-full border border-[#ffe59a]/45 bg-gradient-to-br from-[#f6d675] via-[#d6a83f] to-[#aa8028] text-[#15110a] shadow-[0_12px_32px_rgba(0,0,0,.55)] ring-1 ring-black/25 md:bottom-6 md:right-6" aria-label={open ? 'Close new conversation menu' : 'New conversation'} aria-haspopup="dialog" aria-expanded={open}><Plus size={27} strokeWidth={2.4}/></motion.button>
+      <button type="button" onClick={() => setOpen(value => !value)} className="vanta-floating-action fixed bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4.25rem+var(--vanta-kb,0px)))] right-4 z-[79] grid h-[52px] w-[52px] place-items-center md:bottom-6 md:right-6" aria-label={open ? 'Close new conversation menu' : 'New conversation'} aria-haspopup="dialog" aria-expanded={open}><Plus size={25} strokeWidth={2.2} className={open ? 'rotate-45' : 'rotate-0'}/></button>
     </>
   );
 }

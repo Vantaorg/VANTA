@@ -1170,22 +1170,81 @@
     background: var(--gradient-gold);
   }
 
+  /* Shared VANTA floating action button: restrained, consistent, and touch-friendly. */
+  .vanta-floating-action {
+    width: 52px;
+    height: 52px;
+    border: 1px solid rgba(214, 168, 63, 0.48);
+    border-radius: 9999px;
+    background: rgba(31, 38, 48, 0.96);
+    color: #f2c75c;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .vanta-floating-action:hover {
+    border-color: rgba(242, 199, 92, 0.66);
+    background: #293442;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .vanta-floating-action:active {
+    transform: scale(0.96);
+  }
+
+  .vanta-floating-action:focus-visible {
+    outline: 2px solid #f2d47c;
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vanta-floating-action {
+      transition: none;
+    }
+  }
+
   /* ═══ Create FAB ═══ */
   .create-fab {
-    @apply w-14 h-14 rounded-full flex items-center justify-center;
-    background: var(--gradient-primary);
-    @apply text-black shadow-lg;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
-    @apply transition-all duration-300;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(214, 168, 63, 0.48);
+    border-radius: 9999px;
+    background: rgba(31, 38, 48, 0.96);
+    color: #f2c75c;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .create-fab:hover {
-    transform: scale(1.05) rotate(90deg);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.52);
+    border-color: rgba(242, 199, 92, 0.66);
+    background: #293442;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+    transform: translateY(-1px);
   }
 
   .create-fab:active {
-    transform: scale(0.95) rotate(90deg);
+    transform: scale(0.96);
+  }
+
+  .create-fab:focus-visible {
+    outline: 2px solid #f2d47c;
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .create-fab {
+      transition: none;
+    }
   }
 
   /* ═══ Reel Player Controls ═══ */
