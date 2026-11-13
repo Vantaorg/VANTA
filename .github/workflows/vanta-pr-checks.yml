@@ -71,3 +71,5 @@ jobs:
           src/__tests__/wallet.service.test.ts
       - name: Build backend
         run: npm --prefix backend run build
+
+# CI verification trigger only; no runtime or dependency changes.
