@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Gift, Plus, Edit3, Search, Grid3X3, List, ToggleLeft,
+  Gift, Edit3, Search, Grid3X3, List, ToggleLeft,
   ToggleRight, Sparkles, Crown, Snowflake, Heart, PanelTop,
   Info, Database, CheckCircle, XCircle, RefreshCw
 } from 'lucide-react';
