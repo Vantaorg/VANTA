@@ -83,12 +83,23 @@ export function seededShuffle<T>(items: T[], seed: string): T[] {
   return arr;
 }
 
-const formatComment = (comment: any) => ({
-  ...enrichItemAuthors(comment),
-  liked: Array.isArray(comment.likes) ? comment.likes.length > 0 : Boolean(comment.liked),
-  likes: undefined,
-  edited: new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000,
-});
+const formatComment = (comment: any) => {
+  let media: Array<{ fileId: string; url: string; type: "IMAGE" | "VIDEO" }> = [];
+  try {
+    const parsed = typeof comment.media === "string" ? JSON.parse(comment.media) : comment.media;
+    if (Array.isArray(parsed)) media = parsed.filter((item: any) =>
+      item && typeof item.fileId === "string" && typeof item.url === "string" &&
+      (item.type === "IMAGE" || item.type === "VIDEO")
+    );
+  } catch { /* Ignore malformed legacy attachment metadata. */ }
+  return {
+    ...enrichItemAuthors(comment),
+    liked: Array.isArray(comment.likes) ? comment.likes.length > 0 : Boolean(comment.liked),
+    likes: undefined,
+    media,
+    edited: new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000,
+  };
+};
 
 export class FeedService {
   async getFeed(userId: string, cursor?: string, limit: number = 20) {
@@ -709,9 +720,12 @@ export class FeedService {
     return result;
   }
 
-  async commentOnPost(postId: string, userId: string, content: string, parentId?: string) {
-    const cleanContent = normalizeComment(content);
-    if (!cleanContent || cleanContent.length > COMMENT_MAX_LENGTH) throw new Error(`Comments must be between 1 and ${COMMENT_MAX_LENGTH} characters`);
+  async commentOnPost(postId: string, userId: string, content: string, parentId?: string, mediaFileIds: string[] = []) {
+    const cleanContent = normalizeComment(content || "");
+    const uniqueMediaIds = [...new Set(mediaFileIds)].slice(0, 4);
+    if (!cleanContent && uniqueMediaIds.length === 0) throw new Error("Write a comment or attach at least one image or video.");
+    if (cleanContent.length > COMMENT_MAX_LENGTH) throw new Error(`Comments must be between 1 and ${COMMENT_MAX_LENGTH} characters`);
+    if (mediaFileIds.length > 4) throw new Error("You can attach up to 4 images or videos to a comment.");
 
     const [post, actor, recent, parent] = await Promise.all([
       prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } }),
@@ -722,9 +736,28 @@ export class FeedService {
     if (!post) throw new Error("Post not found");
     if (!actor || actor.status !== "ACTIVE") throw new Error("Commenting is unavailable for this account");
     if (parentId && !parent) throw new Error("Parent comment not found");
-    if (recent && Date.now() - recent.createdAt.getTime() < COMMENT_FLOOD_WINDOW_MS && normalizeComment(recent.content).toLowerCase() === cleanContent.toLowerCase()) {
+    if (cleanContent && recent && Date.now() - recent.createdAt.getTime() < COMMENT_FLOOD_WINDOW_MS && normalizeComment(recent.content).toLowerCase() === cleanContent.toLowerCase()) {
       throw new Error("Duplicate comment detected. Please wait before posting it again");
     }
+
+    const uploadedMedia = uniqueMediaIds.length ? await prisma.uploadedFile.findMany({
+      where: {
+        id: { in: uniqueMediaIds },
+        userId,
+        category: "comment-media",
+        recordType: null,
+        recordId: null,
+        deletedAt: null,
+      },
+      select: { id: true, url: true, fileType: true },
+    }) : [];
+    if (uploadedMedia.length !== uniqueMediaIds.length || uploadedMedia.some(file => file.fileType !== "IMAGE" && file.fileType !== "VIDEO")) {
+      throw new Error("One or more selected files are invalid. Please select images or videos and try again.");
+    }
+    const orderedMedia = uniqueMediaIds.map(id => {
+      const file = uploadedMedia.find(item => item.id === id)!;
+      return { fileId: file.id, url: file.url, type: file.fileType as "IMAGE" | "VIDEO" };
+    });
 
     const mentionedUsers = mentionNames(cleanContent).length ? await prisma.user.findMany({
       where: { username: { in: mentionNames(cleanContent) }, status: "ACTIVE" },
@@ -733,13 +766,23 @@ export class FeedService {
 
     const comment = await prisma.$transaction(async tx => {
       const created = await tx.postComment.create({
-        data: { postId, userId, content: cleanContent, parentId },
+        data: { postId, userId, content: cleanContent, parentId, media: orderedMedia.length ? JSON.stringify(orderedMedia) : null },
         include: { user: { select: COMMENT_USER }, _count: { select: { likes: true, replies: true } } },
       });
       await tx.interactionEvent.create({ data: {
         userId, eventType: parentId ? "comment.reply" : "comment.created", targetType: "POST", targetId: postId,
         metadata: JSON.stringify({ commentId: created.id, parentId: parentId || null, mentions: mentionedUsers.map(user => user.id) }),
       }});
+      if (uniqueMediaIds.length) {
+        const linked = await tx.uploadedFile.updateMany({
+          where: {
+            id: { in: uniqueMediaIds }, userId, category: "comment-media",
+            recordType: null, recordId: null, deletedAt: null,
+          },
+          data: { recordType: "PostComment", recordId: created.id },
+        });
+        if (linked.count !== uniqueMediaIds.length) throw new Error("A selected file is no longer available. Please select it again.");
+      }
       await appendAuditLog(tx, {
         userId,
         action: parentId ? "COMMENT_REPLY_CREATED" : "COMMENT_CREATED",
