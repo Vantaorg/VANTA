@@ -210,7 +210,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   // detail pages so comments live directly under the content.
   if (isInline) {
     return (
-      <section aria-label="Comments" className="w-full min-w-0">
+      <section aria-label="Comments" className="flex w-full min-w-0 flex-col">
         <header className={`flex shrink-0 items-center justify-between gap-3 px-1 ${compact ? 'pt-2' : 'pt-3'}`}>
           <div className="flex min-w-0 items-center gap-2">
             <h2 id="comments-title" className="truncate text-sm font-bold text-[#f5f5f5]">Comments <span className="font-normal text-white/40">· {initialCount}</span></h2>
@@ -240,7 +240,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
           </div>
         )}
         {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
-        <form onSubmit={submit} className={`relative shrink-0 px-1 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))] ${isInline ? `sticky z-[60] border-t border-white/[0.08] bg-[#050505] ${compact ? 'bottom-0' : 'bottom-[calc(4.25rem+env(safe-area-inset-bottom))]'}` : ''}`}>
+        <form onSubmit={submit} className="relative mt-2 border-t border-white/[0.08] bg-[#050505] px-1 pt-3 pb-[calc(.75rem+env(safe-area-inset-bottom))]">
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
