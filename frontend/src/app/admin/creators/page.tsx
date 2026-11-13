@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Search, Shield, XCircle, DollarSign, Check,
   TrendingUp, Star, Crown, Clock, Eye, MessageCircle, Activity,
-  MoreHorizontal, Music, Gamepad2, Palette, Monitor, Camera
+  MoreHorizontal, Music, Gamepad2, Palette, Monitor, Camera, RefreshCw
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,7 @@ import type { CreatorRecord } from '@/types/admin';
 import type { VerificationType } from '@/types/verification';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import { useToast } from '@/components/ui/Toast';
+import { ConsoleErrorState, ConsoleEmptyState, ConsoleLoading } from '@/components/console/States';
 
 export default function CreatorsPage() {
   const toast = useToast();
@@ -22,22 +23,24 @@ export default function CreatorsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-        if (!token) return;
-        const data = await getCreators(token);
-        setCreators(data.creators || (Array.isArray(data) ? data : []));
-      } catch (err) {
-        console.error('Failed to fetch creators:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
+      if (!token) throw new Error('Your admin session is unavailable. Sign in again.');
+      const data = await getCreators(token);
+      setCreators(data.creators || (Array.isArray(data) ? data : []));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load creators.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filtered = creators.filter(c =>
     !search || c.username.toLowerCase().includes(search.toLowerCase()) || c.displayName?.toLowerCase().includes(search.toLowerCase())
@@ -99,7 +102,7 @@ export default function CreatorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col   justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-[#d6a83f]" />
@@ -108,6 +111,7 @@ export default function CreatorsPage() {
           <h1 className="text-2xl font-bold text-white">Creator Management</h1>
           <p className="text-sm text-gray-400 mt-1">Manage creators, verify accounts, and review monetization requests.</p>
         </div>
+        <button type="button" onClick={() => void fetchData()} disabled={loading} className="vc-focus inline-flex min-h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-semibold text-gray-300 hover:bg-white/[.04] disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>
       </div>
 
       {/* Search */}
@@ -120,6 +124,7 @@ export default function CreatorsPage() {
       </GlassCard>
 
       {/* Creators List */}
+      {loading ? <ConsoleLoading label="Loading creators…" /> : error ? <ConsoleErrorState title="Creators unavailable" message={error} onRetry={() => void fetchData()} /> : filtered.length === 0 ? <ConsoleEmptyState title={search ? 'No matching creators' : 'No creators yet'} description={search ? 'Try a different username or display name.' : 'Creator accounts will appear here when available.'} /> : (
       <div className="space-y-2">
         {filtered.map((creator, i) => (
           <motion.div key={creator.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
@@ -187,6 +192,7 @@ export default function CreatorsPage() {
           </motion.div>
         ))}
       </div>
+      )}
     </div>
   );
 }
