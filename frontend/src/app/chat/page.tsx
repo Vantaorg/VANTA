@@ -1918,7 +1918,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const canManageEntityPermissions = activeConv?.type === 'group' ? ['OWNER', 'ADMIN'].includes(activeConv.currentRole || '') : isManagedOwner;
-  const toggleManagedPermission = (key: string) => setManagedEntity((previous: any) => ({ ...previous, permissions: { ...(previous?.permissions || {}), [key]: !(previous?.permissions?.[key] ?? true) } }));
+  const toggleManagedPermission = (key: string) => setManagedEntity((previous: any) => { const current = previous?.permissions?.[key] ?? (activeConv?.type === 'channel' ? ['deleteMessages', 'manageChannelInfo', 'manageSubscribers'].includes(key) : ['sendMessages', 'sendMedia', 'sendLinks'].includes(key)); return { ...previous, permissions: { ...(previous?.permissions || {}), [key]: !current } }; });
 
   const confirmOwnershipTransfer = async () => {
     if (!token || !activeConv || !editEntityId || !ownershipConfirm || activeConv.type === 'direct') return;
