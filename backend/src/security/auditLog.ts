@@ -57,7 +57,11 @@ export async function appendAuditLog(
 ): Promise<void> {
   // A transaction-scoped lock prevents two app servers from selecting the same
   // predecessor and creating competing branches in the hash chain.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID})`;
+  // pg_advisory_xact_lock returns PostgreSQL's `void` type. Selecting that
+  // value directly makes Prisma try to deserialize an unsupported column.
+  // Project a harmless integer instead while still acquiring the same
+  // transaction-scoped lock before reading the previous chain entry.
+  await tx.$queryRaw<Array<{ locked: number }>>`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID})) AS advisory_lock`;
 
   const previous = await tx.securityLog.findFirst({
     where: { hash: { not: null } },
