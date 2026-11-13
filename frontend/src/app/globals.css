@@ -2941,3 +2941,54 @@ html.light .feed-item:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* VANTA messaging entity screens — restrained surfaces and predictable sizing. */
+.vanta-entity-create,
+.vanta-conversation-info,
+.vanta-entity-settings {
+  color-scheme: dark;
+}
+
+.vanta-entity-create input,
+.vanta-entity-create textarea,
+.vanta-entity-create select,
+.vanta-entity-settings input,
+.vanta-entity-settings textarea,
+.vanta-entity-settings select {
+  accent-color: #d6a83f;
+}
+
+.vanta-entity-create button:focus-visible,
+.vanta-conversation-info button:focus-visible,
+.vanta-entity-settings button:focus-visible,
+.vanta-entity-settings a:focus-visible {
+  outline: 2px solid #f2d47c;
+  outline-offset: 2px;
+}
+
+.vanta-conversation-info > div:not([role="dialog"]) {
+  scroll-margin-top: 4rem;
+}
+
+.vanta-entity-settings section {
+  scroll-margin-top: 5rem;
+}
+
+@media (min-width: 768px) {
+  .vanta-entity-create > div:nth-of-type(2) {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vanta-entity-create *,
+  .vanta-conversation-info *,
+  .vanta-entity-settings * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
