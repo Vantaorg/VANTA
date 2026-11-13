@@ -2992,3 +2992,40 @@ html.light .feed-item:hover {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+.vanta-info-hero {
+  background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent 85%);
+}
+
+.vanta-conversation-info section:not([role="dialog"]),
+.vanta-entity-settings section {
+  border-color: rgba(255, 255, 255, 0.075);
+}
+
+.vanta-entity-settings section:not([class*="border-red"]) {
+  background-color: #18212b;
+}
+
+.vanta-entity-settings input,
+.vanta-entity-settings textarea,
+.vanta-entity-settings select {
+  background-color: #202b37;
+}
+
+.vanta-entity-create input,
+.vanta-entity-create textarea,
+.vanta-entity-create select {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .vanta-entity-settings {
+    border-left: 0;
+  }
+
+  .vanta-entity-settings > div {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+  }
+}
