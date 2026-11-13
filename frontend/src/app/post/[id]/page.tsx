@@ -248,8 +248,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               </div>
               {token && !isOwn && <button type="button" onClick={() => void toggleFollow()} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#c9a227]/60 px-3 text-[12px] font-semibold text-[#e3c354] transition hover:bg-[#c9a227]/10"><UserPlus size={14} />{Boolean(post.author.following ?? post.author.isFollowing) ? 'Following' : 'Follow'}</button>}
             </header>
-            <div className="mx-4 flex items-center gap-2 py-2 text-[11px] text-white/45"><span className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.06] text-[10px] text-[#d2ad35]">文</span><span>Translated from original</span><span className="text-white/20">·</span><button type="button" className="text-[#d2ad35] hover:underline">Show original</button></div>
-
             {post.content && (
               <div className="px-4 pb-2 pt-3">
                 <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.5] tracking-[0.005em] text-[#f0f0f0]">
@@ -331,6 +329,8 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           {token ? (
             <CommentPanel
               kind="post"
+              hideEmojiPicker
+              postShareAction={() => setShareOpen(true)}
               postId={id}
               postAuthor={post.author}
               initialCount={commentCount}
@@ -364,6 +364,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           <FeedPostMoreSheet
             item={{ saved: savedState }}
             isOwn={isOwn}
+            dropdown
             close={() => setMoreOpen(false)}
             openProfile={() => { setMoreOpen(false); router.push(`/profile/${post.author.username}`); }}
             save={() => { void toggleSave(); setMoreOpen(false); }}

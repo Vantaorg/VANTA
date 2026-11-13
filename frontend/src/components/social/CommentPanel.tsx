@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AtSign, Check, ChevronDown, ChevronUp, Copy, Edit3, Flag, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Reply, Send, Smile, Trash2, X } from 'lucide-react';
+import { AtSign, Check, ChevronDown, ChevronUp, Copy, Edit3, Flag, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Reply, Send, Share2, Smile, Trash2, X } from 'lucide-react';
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
 import Avatar from '@/components/ui/Avatar';
@@ -16,13 +16,13 @@ import type { VerificationType } from '@/types/verification';
 
 type User = { id: string; username: string; fullName?: string | null; avatar?: string | null; verified?: boolean; verificationType?: VerificationType | null; role?: string };
 export type CommentItem = { id: string; userId: string; content: string; createdAt: string; updatedAt?: string; edited?: boolean; liked?: boolean; parentId?: string | null; user: User; _count?: { likes: number; replies: number }; replies?: CommentItem[] };
-type Props = { postId: string; postAuthor?: User; initialCount: number; token: string; currentUser?: User | null; onClose?: () => void; onCountChange: (count: number) => void; kind?: 'post' | 'reel'; inline?: boolean; compact?: boolean };
+type Props = { postId: string; postAuthor?: User; initialCount: number; token: string; currentUser?: User | null; onClose?: () => void; onCountChange: (count: number) => void; kind?: 'post' | 'reel'; inline?: boolean; compact?: boolean; hideEmojiPicker?: boolean; postShareAction?: () => void };
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🙌', '👏', '🔥', '❤️', '💜', '✨', '🎉', '🌹', '💯', '🙏', '😅', '🤔', '😭', '🤣', '🚀', '👑', '💎', '🫶', '😮'];
 const timeAgo = (value: string) => { const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return 'now'; if (seconds < 3600) return `${Math.floor(seconds / 60)}m`; if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`; return `${Math.floor(seconds / 86400)}d`; };
 const cnSort = (active: boolean) => `rounded-full px-3 py-1.5 text-[11px] font-medium transition ${active ? 'bg-[#d6a83f]/15 text-[#f2c75c]' : 'text-[#858585] hover:text-white'}`;
 
-export default function CommentPanel({ postId, postAuthor, initialCount, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false }: Props) {
+export default function CommentPanel({ postId, postAuthor, initialCount, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false, hideEmojiPicker = false, postShareAction }: Props) {
   const toast = useToast();
   const isInline = Boolean(inline);
   // Reels are stored in the prisma.video table and their comments live under
@@ -213,13 +213,13 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
           </div>
           <div className="flex items-center gap-2">
-            <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />
+            {postShareAction ? <button type="button" onClick={postShareAction} aria-label="Share post" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-[#d7b548]"><Share2 size={18} /></button> : <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />}
             <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-full border-0 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:bg-white/[0.07]" />
-            <button type="button" onClick={() => setEmojiOpen(value => !value)} aria-label="Add emoji" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white"><Smile size={17} /></button>
+            {!hideEmojiPicker && <button type="button" onClick={() => setEmojiOpen(value => !value)} aria-label="Add emoji" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white"><Smile size={17} /></button>}
             <button type="button" onClick={() => setText(value => `${value}${value ? ' ' : ''}@`)} aria-label="Mention a user" className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white sm:grid"><AtSign size={17} /></button>
             <button type="submit" aria-label="Send comment" disabled={!text.trim() || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#d7b548] transition hover:bg-white/[.06] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
           </div>
-          {emojiOpen && <div className="absolute bottom-16 right-4 grid w-64 max-w-[calc(100vw-2rem)] grid-cols-8 gap-1 rounded-lg border border-white/10 bg-[#151517] p-3 shadow-2xl">{EMOJIS.map(emoji => <button type="button" key={emoji} onClick={() => setText(value => value + emoji)} className="rounded-md p-1 text-lg hover:bg-white/10" aria-label={`Add ${emoji}`}>{emoji}</button>)}</div>}
+          {!hideEmojiPicker && emojiOpen && <div className="absolute bottom-16 right-4 grid w-64 max-w-[calc(100vw-2rem)] grid-cols-8 gap-1 rounded-lg border border-white/10 bg-[#151517] p-3 shadow-2xl">{EMOJIS.map(emoji => <button type="button" key={emoji} onClick={() => setText(value => value + emoji)} className="rounded-md p-1 text-lg hover:bg-white/10" aria-label={`Add ${emoji}`}>{emoji}</button>)}</div>}
           </form>
         {deleteConfirmDialog}
       </section>

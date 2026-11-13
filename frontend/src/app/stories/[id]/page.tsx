@@ -5,7 +5,7 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, Eye, Link2, Loader2, MessageCircle, MoreVertical, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
+import { Eye, Loader2, MessageCircle, MoreVertical, Repeat, Send, Share2, ThumbsUp, Trash2, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -17,6 +17,7 @@ import { openStoryLayer, closeStoryLayer, longPressStartStory, longPressEndStory
 import { renderTextWithLinks } from '@/lib/linkify';
 import { cn } from '@/lib/utils';
 import StoryTextCanvas from '@/components/story/StoryTextCanvas';
+import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
 
 type ViewerUser = { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null };
 type Story = { id: string; userId: string; mediaUrl: string; mediaType?: string; caption?: string; textStyle?: string | null; views?: number; viewed?: boolean; duration?: number; likeCount?: number; reshareCount?: number; commentCount?: number; likedByMe?: boolean; resharedFromUsername?: string; user?: ViewerUser; author?: ViewerUser };
@@ -81,7 +82,6 @@ export default function StoryViewerPage({ params }: { params: Promise<{ id: stri
   // commentCount / likedByMe so the owner sees real engagement numbers.
   const [shareOpen, setShareOpen] = useState(false);
   const [storyMenuOpen, setStoryMenuOpen] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
   const [reshareOpen, setReshareOpen] = useState(false);
   const [reshareText, setReshareText] = useState('');
   const [reshareSending, setReshareSending] = useState(false);
@@ -484,8 +484,9 @@ const creator = current.group.user || {};
     if (destination === 'COPY_LINK') {
       try {
         await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        window.setTimeout(() => setShareCopied(false), 1500);
+        setShareOpen(false);
+        resumeStory('share');
+        toast.success('Story link copied');
       } catch (reason: any) {
         toast.error('Could not copy link', reason?.message);
       }
@@ -499,8 +500,7 @@ const creator = current.group.user || {};
       } else {
         try {
           await navigator.clipboard.writeText(url);
-          setShareCopied(true);
-          window.setTimeout(() => setShareCopied(false), 1500);
+          toast.success('Story link copied');
         } catch (reason: any) {
           toast.error('Could not copy link', reason?.message);
         }
@@ -754,32 +754,7 @@ const creator = current.group.user || {};
           </section>
         </>
       )}
-{/* Generic Share sheet (Copy link / Share / Message) — kept separate from Reshare */}
-      {shareOpen && (
-        <>
-          <button type="button" onClick={() => { setShareOpen(false); resumeStory('share'); }} aria-label="Close share options" className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" />
-          <section role="dialog" aria-modal="true" aria-label="Share story" className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto w-full max-w-md rounded-t-3xl border border-white/10 bg-[#151517] p-5 pb-[env(safe-area-inset-bottom)]">
-            <header className="mb-4 flex items-center justify-between">
-              <div><h2 className="font-semibold">Share story</h2><p className="text-xs text-[#c8c8cc]/55">{creator.fullName || creator.username || 'VANTA'}</p></div>
-              <button type="button" onClick={() => { setShareOpen(false); resumeStory('share'); }} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full text-[#c8c8cc]"><X size={20}/></button>
-            </header>
-            <div className="grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => void handleShareAction('COPY_LINK')} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-xs text-[#b8b8b8] transition hover:bg-white/[0.06]">
-                {shareCopied ? <Check size={19} className="mx-auto mb-2 text-[#c9a227]" /> : <Link2 size={19} className="mx-auto mb-2 text-white" />}
-                {shareCopied ? 'Copied' : 'Copy link'}
-              </button>
-              <button type="button" onClick={() => void handleShareAction('NATIVE')} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-xs text-[#b8b8b8] transition hover:bg-white/[0.06]">
-                <Share2 size={19} className="mx-auto mb-2 text-white" />
-                Share
-              </button>
-              <button type="button" onClick={() => void handleShareAction('MESSAGE')} className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-xs text-[#b8b8b8] transition hover:bg-white/[0.06]">
-                <MessageCircle size={19} className="mx-auto mb-2 text-white" />
-                Message
-              </button>
-            </div>
-          </section>
-        </>
-      )}
+{shareOpen && <FeedPostShareSheet title="Share story" close={() => { setShareOpen(false); resumeStory('share'); }} share={destination => void handleShareAction(destination)} />}
 
       {/* Reshare composer — posts this story to MY OWN Status (WhatsApp-style
           status reshare). It never opens a share sheet or a send-to-people menu. */}
