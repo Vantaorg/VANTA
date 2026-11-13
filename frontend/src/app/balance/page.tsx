@@ -95,13 +95,13 @@ function formatTime(dateStr: string) {
 
 function BalanceSkeleton() {
   return (
-    <div className="mx-auto min-h-[calc(100dvh-6rem)] w-full min-w-0 space-y-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+    <div className="mx-auto min-h-[calc(100dvh-6rem)] w-full min-w-0 space-y-2.5 pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-between">
         <div className="skeleton h-10 w-36 rounded-lg" />
         <div className="skeleton h-10 w-10 rounded-lg" />
       </div>
       <div className="skeleton h-44 rounded-lg" />
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[1, 2, 3, 4].map(i => <div key={i} className="skeleton h-14 rounded-lg" />)}
       </div>
       <div className="skeleton h-11 w-full rounded-lg" />
@@ -317,7 +317,7 @@ export default function BalancePage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="mx-auto min-h-[calc(100dvh-5rem)] w-full min-w-0 space-y-3 pb-[calc(5rem+env(safe-area-inset-bottom))]"
+      className="mx-auto min-h-[calc(100dvh-5rem)] w-full min-w-0 space-y-2.5 pb-[calc(5rem+env(safe-area-inset-bottom))]"
     >
       {/* Header — Discover-style full-bleed sticky bar that stays fixed at the top
           while the balance and transaction content scroll beneath it. */}
@@ -340,12 +340,12 @@ export default function BalancePage() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-lg border border-white/[0.09] bg-[#0D0D0F] px-3.5 py-4 shadow-[0_16px_48px_rgba(0,0,0,.24)]"
+        className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#11151b] px-4 py-4"
         aria-label="Available balance"
       >
         <div className="relative">
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.16em] text-[#8A8A8A]">
+            <div className="flex items-center gap-2 text-xs font-medium text-white/55">
               <Sparkles size={14} className="text-[#F5F5F5]" />
           VANTA Coins
             </div>
@@ -366,7 +366,7 @@ export default function BalancePage() {
           <motion.div key={coinBalance} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
             <div className="flex min-w-0 items-center gap-2.5">
               <VantaCoinIcon size={24} className="shrink-0 text-[var(--vanta-gold)]" />
-              <h2 className="min-w-0 truncate text-[2rem] font-semibold leading-none text-[#F5F5F5] tabular-nums">
+              <h2 className="min-w-0 truncate text-[2rem] font-semibold leading-none tracking-tight text-white tabular-nums">
                 {hideBalance ? '••••••' : coinBalance.toLocaleString()}
               </h2>
             </div>
@@ -419,7 +419,7 @@ export default function BalancePage() {
       </motion.section>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-1.5" aria-label="Balance summary">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Balance summary">
         {[
           { label: 'Purchased', value: formatCoinsCompact(totalCoinsPurchased), icon: <Plus size={16} /> },
           { label: 'Received', value: formatCoinsCompact(totalCoinsReceived), icon: <ArrowDownLeft size={16} /> },
@@ -432,7 +432,7 @@ export default function BalancePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 + i * 0.04 }}
-            className="min-w-0 rounded-lg border border-white/[0.06] bg-[#0D0D0F] px-2 py-2.5"
+            className="min-w-0 rounded-lg bg-[#11151b] px-3 py-3"
           >
             <div className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-white/[0.05] text-[#8A8A8A]">
               {stat.icon}
@@ -444,7 +444,7 @@ export default function BalancePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex w-full min-w-0 items-center gap-1 overflow-x-auto rounded-lg border border-white/[0.06] bg-[#0D0D0F] p-1 scrollbar-hide">
+      <div className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-b border-white/[0.08] pb-1 scrollbar-hide">
         {[
           { id: 'overview', label: 'Overview', icon: <Wallet size={12} /> },
           { id: 'transactions', label: 'Transactions', icon: <History size={12} /> },
@@ -475,7 +475,7 @@ export default function BalancePage() {
           className="space-y-3"
         >
           {/* Recent Transactions */}
-          <section className="rounded-lg border border-white/[0.08] bg-[#0D0D0F] p-3">
+          <section className="rounded-xl border border-white/[0.07] bg-[#11151b] p-3">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <History size={16} className="text-[#8A8A8A]" />
@@ -508,7 +508,7 @@ export default function BalancePage() {
                       onClick={() => setSelectedTx(tx)}
                       className="flex min-h-14 w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/[0.03]"
                     >
-                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center border shrink-0', getTxColor(tx.type))}>
+                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center border shrink-0', getTxColor(tx.type))}>
                         {getTxIcon(tx.type)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -537,7 +537,7 @@ export default function BalancePage() {
           </section>
 
           {/* Recent Gifts */}
-          <section className="rounded-lg border border-white/[0.08] bg-[#0D0D0F] p-3">
+          <section className="rounded-xl border border-white/[0.07] bg-[#11151b] p-3">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Gift size={16} className="text-[#8A8A8A]" />
@@ -564,8 +564,8 @@ export default function BalancePage() {
                   const counterparty = isIncoming ? gift.sender : gift.receiver;
                   const displayName = counterparty?.fullName || counterparty?.username || 'Unknown';
                   return (
-                    <div key={gift.id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/[0.03] transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                    <div key={gift.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/[0.03] transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-white/[0.035] flex items-center justify-center shrink-0">
                         {gift.gift ? <GiftArtwork slug={gift.gift.slug} name={gift.gift.name} size={38} quality={giftVisualQuality(gift.gift)} /> : <Gift size={16} className="text-[#8A8A8A]" />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -697,9 +697,9 @@ export default function BalancePage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i * 0.02, 0.5) }}
                     onClick={() => setSelectedTx(tx)}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/[0.03] transition-all text-left"
+                    className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-white/[0.03] transition-colors text-left"
                   >
-                    <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center border shrink-0', getTxColor(tx.type))}>
+                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center border shrink-0', getTxColor(tx.type))}>
                       {getTxIcon(tx.type)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -784,9 +784,9 @@ export default function BalancePage() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i * 0.02, 0.5) }}
-                    className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/[0.03] transition-all"
+                    className="flex items-center gap-4 p-4 rounded-lg hover:bg-white/[0.03] transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.035] flex items-center justify-center shrink-0">
                       {gift.gift ? <GiftArtwork slug={gift.gift.slug} name={gift.gift.name} size={38} quality={giftVisualQuality(gift.gift)} /> : <Gift size={16} className="text-[#8A8A8A]" />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -906,8 +906,8 @@ export default function BalancePage() {
           ) : (
             <div className="space-y-1">
               {withdrawals.map((wd: any) => (
-                <div key={wd.id} className="flex items-center gap-4 p-4 rounded-2xl hover:bg-white/[0.03] transition-all">
-                  <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                <div key={wd.id} className="flex items-center gap-4 p-4 rounded-lg hover:bg-white/[0.03] transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-white/[0.035] flex items-center justify-center shrink-0">
                     <ArrowUpFromLine size={16} className="text-[#8A8A8A]" />
                   </div>
                   <div className="flex-1 min-w-0">

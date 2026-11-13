@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const languageLabel = privacy.language || 'English';
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-5 pb-24">
       <PageHeader
         sticky
         bleed
@@ -97,12 +97,12 @@ export default function SettingsPage() {
           <div className="skeleton h-56 w-full rounded-[var(--radius-md)]" />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* ── Account hero ── */}
           <SettingsGroup>
             <a
               href="/settings/account"
-              className="group flex items-center gap-4 px-4 py-4"
+              className="group flex items-center gap-3 px-3 py-3"
             >
               <Avatar
                 src={profile?.avatarUrl || undefined}
@@ -267,7 +267,7 @@ export default function SettingsPage() {
           </SettingsGroup>
 
           {/* ── Sign out ── */}
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               type="button"
               onClick={() => {

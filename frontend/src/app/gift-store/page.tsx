@@ -127,13 +127,19 @@ export default function GiftStorePage() {
         <header className="sticky top-0 z-30 relative -mx-4 flex h-14 w-[calc(100%+2rem)] shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[#080808]/90 px-4 backdrop-blur-xl">
           <button type="button" onClick={() => router.back()} aria-label="Go back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><ArrowLeft size={20} /></button>
           <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#f5f5f5]">Gift Store</h1>
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <button type="button" aria-pressed={featuredOnly} onClick={() => setFeaturedOnly(value => !value)} aria-label={featuredOnly ? 'Showing featured gifts' : 'Filter featured gifts'} className={`grid h-9 w-9 place-items-center rounded-lg transition ${featuredOnly ? 'bg-[var(--vanta-gold)]/15 text-[var(--vanta-gold)]' : 'text-white/55 hover:bg-white/[.05] hover:text-white'}`}>
+              <SlidersHorizontal size={16} />
+            </button>
             {balance !== null && (
-              <span className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#0D0D0F] px-2.5 text-xs font-bold text-white tabular-nums">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/[.045] px-2.5 text-xs font-semibold text-white tabular-nums">
                 <VantaCoinIcon size={14} className="shrink-0 text-[var(--vanta-gold)]" />
                 {balance.toLocaleString()}
               </span>
             )}
+            <button type="button" onClick={() => setShowPurchase(true)} className="flex h-9 items-center justify-center gap-1 rounded-lg bg-[var(--vanta-gold)] px-3 text-xs font-semibold text-black active:scale-[.98]">
+              <VantaCoinIcon size={13} className="text-black" /> Buy
+            </button>
           </div>
         </header>
         <div className="mt-4 flex min-h-[55dvh] w-full min-w-0 flex-col items-center justify-center px-5 text-center">
@@ -200,30 +206,9 @@ export default function GiftStorePage() {
             )}
           </div>
         </header>
-        <div className="mt-4 w-full min-w-0 space-y-4">
-        <div className="rounded-lg border border-white/[0.08] bg-[#0D0D0F] p-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--vanta-gold)]/25 bg-[var(--vanta-gold)]/[0.06]">
-                <VantaCoinIcon size={18} className="text-[var(--vanta-gold)]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400">Available balance</p>
-                <p className="mt-0.5 flex items-center gap-1 truncate text-lg font-bold text-white">
-                  {balance?.toLocaleString()}
-                  <VantaCoinIcon size={14} className="inline-block shrink-0 text-[#d8d8d8]" />
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button type="button" aria-pressed={featuredOnly} onClick={() => setFeaturedOnly(value => !value)} className={`grid h-10 w-10 place-items-center rounded-lg border transition ${featuredOnly ? 'border-[var(--vanta-gold)]/35 bg-[var(--vanta-gold)]/[.08] text-[var(--vanta-gold)]' : 'border-white/10 bg-white/[.04] text-white/55 hover:text-white'}`} aria-label={featuredOnly ? 'Showing featured gifts' : 'Filter featured gifts'}><SlidersHorizontal size={15} /></button>
-              <button type="button" onClick={() => setShowPurchase(true)} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[var(--vanta-gold)] px-3.5 text-xs font-bold text-black active:scale-[.98]"><VantaCoinIcon size={14} className="text-black" />Buy</button>
-            </div>
-          </div>
-        </div>
-
+        <div className="mt-3 w-full min-w-0 space-y-3">
         {/* Search and Categories */}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2">
           {/* Search */}
           <div className="relative">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -246,7 +231,7 @@ export default function GiftStorePage() {
           </div>
 
           {/* Categories */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
             {visibleCategories.map((cat) => {
               const count = getCategoryCount(cat.id);
               const isActive = activeCategory === cat.id;
@@ -255,10 +240,10 @@ export default function GiftStorePage() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`flex flex-shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition whitespace-nowrap ${
+                  className={`flex flex-shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium transition whitespace-nowrap ${
                     isActive
-                      ? 'bg-[#F5F5F5] text-black'
-                      : 'border border-white/[0.08] bg-[#101010] text-gray-400 hover:text-white'
+                      ? 'bg-[var(--vanta-gold)] text-black'
+                      : 'bg-white/[0.045] text-white/55 hover:text-white'
                   }`}
                 >
                   <Icon size={14} />
@@ -276,7 +261,7 @@ export default function GiftStorePage() {
         {filteredGifts.length === 0 ? (
           <div className="rounded-lg border border-white/[0.08] bg-[#101010] px-5 py-12 text-center">
             <GiftIcon size={28} className="mx-auto mb-3 text-white/25" />
-            <h3 className="text-sm font-semibold text-white">{gifts.length ? 'No gifts found' : 'No gifts available right now'}</h3>
+            <h3 className="text-sm font-medium text-white">{gifts.length ? 'No gifts found' : 'No gifts available right now'}</h3>
             <p className="mx-auto mt-1.5 max-w-xs text-xs leading-5 text-gray-400">{gifts.length ? 'Try a different category or search term.' : 'The live gift catalog is currently empty.'}</p>
           </div>
 
@@ -296,7 +281,7 @@ export default function GiftStorePage() {
                   key={gift.id}
                   onClick={() => setSendingGift(gift)}
                   aria-label={`Send ${gift.name} for ${gift.price.toLocaleString()} coins`}
-                  className="group relative flex min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-xl border border-white/[.09] bg-[linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)_58%,rgba(0,0,0,.18))] px-1.5 pb-2.5 pt-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.035)] transition duration-200 hover:border-[#d8b44b]/35 hover:bg-[linear-gradient(180deg,rgba(214,177,73,.09),rgba(255,255,255,.018)_58%,rgba(0,0,0,.2))] active:scale-[.97]"
+                  className="group relative flex min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-lg px-1 pb-2 pt-1 text-center transition-colors hover:bg-white/[.04] active:scale-[.98]"
                 >
                   <div className="relative flex aspect-square w-full max-h-[112px] items-center justify-center">
                     <div className="absolute inset-3 rounded-full opacity-25 blur-2xl transition-opacity group-active:opacity-40" style={{ backgroundColor: gift.glowColor || 'transparent' }} />
