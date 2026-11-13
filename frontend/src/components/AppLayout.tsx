@@ -226,8 +226,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const handleScroll = (event: Event) => {
       const target = event.target;
-      if (!(target instanceof Element)) return;
-      const scroller = target === document ? document.scrollingElement : target;
+      const scroller =
+        target instanceof Document
+          ? target.scrollingElement
+          : target instanceof Element
+            ? target
+            : null;
       if (!(scroller instanceof Element)) return;
 
       const position = scroller.scrollTop;
