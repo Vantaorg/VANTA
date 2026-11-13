@@ -1,1 +1,1 @@
-ALTER TABLE "PostComment" ADD COLUMN "media" TEXT;
+ALTER TABLE "PostComment" ADD COLUMN IF NOT EXISTS "media" TEXT;
