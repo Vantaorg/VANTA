@@ -58,11 +58,19 @@ export default function AdminCompliancePage() {
   };
 
   useEffect(() => {
-    if (token) loadTabData();
+    if (!token) return;
+    void loadTabData();
+    if (activeTab !== 'reports') return;
+
+    // Reports are stored in the backend database. Poll the protected admin
+    // endpoint while this queue is open so new submissions and status changes
+    // appear without requiring a manual refresh.
+    const interval = window.setInterval(() => { void loadTabData(true); }, 5000);
+    return () => window.clearInterval(interval);
   }, [token, activeTab]);
 
-  const loadTabData = async () => {
-    setLoading(true);
+  const loadTabData = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       switch (activeTab) {
@@ -88,9 +96,10 @@ export default function AdminCompliancePage() {
           break;
       }
     } catch (err: any) {
-      showToast(err.message, 'error');
+      if (silent) setError(err?.message || 'Unable to refresh moderation data.');
+      else showToast(err.message, 'error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
