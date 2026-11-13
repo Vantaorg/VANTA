@@ -1,4 +1,4 @@
-name: Force minimatch dependency remediation
+name: Remediate frontend minimatch audit findings
 
 on:
   push:
@@ -23,12 +23,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Force patched minimatch release throughout dependency tree
+      - name: Apply npm's compatible security fixes
         run: |
-          npm view minimatch@11.0.1 version
-          npm pkg set 'overrides.minimatch=11.0.1'
-          npm install --package-lock-only --ignore-scripts --no-audit
-      - name: Confirm vulnerable dependency chain is gone
+          npm audit fix --workspace=frontend
+          npm ls minimatch --all
+      - name: Confirm frontend audit is clear
         run: npm audit --workspace=frontend --audit-level=moderate
       - name: Verify clean lockfile installation
         run: npm ci
@@ -46,6 +45,6 @@ jobs:
           git rm .github/workflows/refresh-frontend-audit.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "fix(deps): pin patched minimatch release"
+          git add package.json package-lock.json frontend/package.json
+          git commit -m "fix(deps): remediate minimatch audit findings"
           git push origin HEAD:security/force-minimatch-upgrade
