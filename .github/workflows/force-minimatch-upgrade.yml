@@ -23,8 +23,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Upgrade TypeScript ESLint parser and plugin
-        run: npm install --workspace=frontend --save-dev @typescript-eslint/parser@latest @typescript-eslint/eslint-plugin@latest
+      - name: Force patched minimatch release throughout dependency tree
+        run: |
+          npm view minimatch@11.0.1 version
+          npm pkg set 'overrides.minimatch=11.0.1'
+          npm install --package-lock-only --ignore-scripts --no-audit
       - name: Confirm vulnerable dependency chain is gone
         run: npm audit --workspace=frontend --audit-level=moderate
       - name: Verify clean lockfile installation
@@ -43,6 +46,6 @@ jobs:
           git rm .github/workflows/refresh-frontend-audit.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package.json package-lock.json
-          git commit -m "fix(deps): upgrade TypeScript ESLint security chain"
+          git add package.json package-lock.json
+          git commit -m "fix(deps): pin patched minimatch release"
           git push origin HEAD:security/force-minimatch-upgrade
