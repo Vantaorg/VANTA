@@ -9,11 +9,11 @@
  * IMPORTANT: served verbatim from frontend/public/vanta-sw.js (never processed
  * by Next.js). Plain JavaScript, no imports. Bump the version to force updates.
  */
-/* vanta-sw version: 1.0.0 */
+/* vanta-sw version: 1.1.0 */
 
 'use strict';
 
-var VANTA_ICON = '/branding/vanta-icon-192.png';
+var VANTA_ICON = '/branding/vanta-app-icon.svg';
 var VANTA_RINGTONE = '/sounds/vanta-ringtone.mp3';
 
 // Call events that only dismiss a visible incoming-call notification.

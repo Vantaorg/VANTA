@@ -287,7 +287,7 @@ async sendToToken(
       requireInteraction: true,
       vibrate: "[[400,200,300,200,400]]",
       sound: "/sounds/vanta-ringtone.mp3",
-      icon: "/branding/vanta-icon-192.png",
+      icon: "/branding/vanta-app-icon.svg",
       actions: [
         { action: "answer", title: "Answer" },
         { action: "decline", title: "Decline" },

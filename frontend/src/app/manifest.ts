@@ -19,8 +19,8 @@ export default function manifest(): MetadataRoute.Manifest {
     // it); the live screens additionally use the runtime Screen Orientation
     // API (see lib/orientationLock.ts).
     orientation: "portrait",
-    background_color: "#050505",
-    theme_color: "#050505",
+    background_color: "#1F2630",
+    theme_color: "#1F2630",
     icons: [
       { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
