@@ -1,0 +1,48 @@
+name: Refresh frontend audit lockfile
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/refresh-frontend-audit.yml"
+      - "package-lock.json"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/refresh-minimatch-audit
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply compatible frontend audit fixes
+        run: npm audit fix --workspace=frontend
+      - name: Verify frontend audit is clean
+        run: npm audit --workspace=frontend --audit-level=moderate
+      - name: Verify clean lockfile installation
+        run: npm ci
+      - name: Verify frontend lint
+        run: npm --prefix frontend run lint
+      - name: Verify frontend tests
+        run: npm --prefix frontend run test
+      - name: Verify frontend production build
+        run: npm --prefix frontend run build
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "No lockfile changes were produced."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(deps): refresh frontend minimatch security chain"
+          git push origin HEAD:security/refresh-minimatch-audit
