@@ -127,13 +127,19 @@ export default function GiftStorePage() {
         <header className="sticky top-0 z-30 relative -mx-4 flex h-14 w-[calc(100%+2rem)] shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[#080808]/90 px-4 backdrop-blur-xl">
           <button type="button" onClick={() => router.back()} aria-label="Go back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><ArrowLeft size={20} /></button>
           <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#f5f5f5]">Gift Store</h1>
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <button type="button" aria-pressed={featuredOnly} onClick={() => setFeaturedOnly(value => !value)} aria-label={featuredOnly ? 'Showing featured gifts' : 'Filter featured gifts'} className={`grid h-9 w-9 place-items-center rounded-lg transition ${featuredOnly ? 'bg-[var(--vanta-gold)]/15 text-[var(--vanta-gold)]' : 'text-white/55 hover:bg-white/[.05] hover:text-white'}`}>
+              <SlidersHorizontal size={16} />
+            </button>
             {balance !== null && (
-              <span className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#0D0D0F] px-2.5 text-xs font-bold text-white tabular-nums">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/[.045] px-2.5 text-xs font-semibold text-white tabular-nums">
                 <VantaCoinIcon size={14} className="shrink-0 text-[var(--vanta-gold)]" />
                 {balance.toLocaleString()}
               </span>
             )}
+            <button type="button" onClick={() => setShowPurchase(true)} className="flex h-9 items-center justify-center gap-1 rounded-lg bg-[var(--vanta-gold)] px-3 text-xs font-semibold text-black active:scale-[.98]">
+              <VantaCoinIcon size={13} className="text-black" /> Buy
+            </button>
           </div>
         </header>
         <div className="mt-4 flex min-h-[55dvh] w-full min-w-0 flex-col items-center justify-center px-5 text-center">
