@@ -204,7 +204,7 @@ export default function AdminCompliancePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold text-white">Compliance Overview</p>
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={loadTabData}>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
             Refresh
           </Button>
         </div>
