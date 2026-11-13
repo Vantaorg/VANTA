@@ -554,7 +554,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
 
         {(isHomePage || isDiscoverPage || pathname === '/profile' || (pathname?.startsWith('/profile/') && !isEditProfilePage)) && (
-          <button type="button" onClick={openCreateHub} aria-label="Create" className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#c9a227] text-black shadow-[0_8px_28px_rgba(201,162,39,0.28)] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+          <button type="button" onClick={openCreateHub} aria-label="Create" className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-14 w-14 place-items-center rounded-full border border-[#d6a83f] bg-[#1F2630]/90 text-[#f2c75c] shadow-[0_8px_26px_rgba(0,0,0,.42)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#293442] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2d47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#101114]">
             <Plus size={25} strokeWidth={2.5} />
           </button>
         )}
