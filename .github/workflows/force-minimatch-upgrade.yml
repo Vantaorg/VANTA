@@ -1,0 +1,48 @@
+name: Force minimatch dependency remediation
+
+on:
+  push:
+    branches:
+      - security/force-minimatch-upgrade
+    paths:
+      - ".github/workflows/force-minimatch-upgrade.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/force-minimatch-upgrade
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Upgrade TypeScript ESLint parser and plugin
+        run: npm install --workspace=frontend --save-dev @typescript-eslint/parser@latest @typescript-eslint/eslint-plugin@latest
+      - name: Confirm vulnerable dependency chain is gone
+        run: npm audit --workspace=frontend --audit-level=moderate
+      - name: Verify clean lockfile installation
+        run: npm ci
+      - name: Recheck frontend audit after clean install
+        run: npm audit --workspace=frontend --audit-level=moderate
+      - name: Run frontend lint
+        run: npm --prefix frontend run lint
+      - name: Run frontend tests
+        run: npm --prefix frontend run test
+      - name: Build frontend
+        run: npm --prefix frontend run build
+      - name: Remove temporary remediation workflows and commit dependency update
+        run: |
+          git rm .github/workflows/force-minimatch-upgrade.yml
+          git rm .github/workflows/refresh-frontend-audit.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package.json package-lock.json
+          git commit -m "fix(deps): upgrade TypeScript ESLint security chain"
+          git push origin HEAD:security/force-minimatch-upgrade
