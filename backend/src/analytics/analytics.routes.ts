@@ -157,12 +157,15 @@ router.get('/realtime', requireAuth, analyticsRateLimit, async (req: Request, re
     // Online presence is sourced from persisted, unexpired sessions rather
     // than relying on an in-memory counter that resets on every deploy.
     const activeSince = new Date(Date.now() - 5 * 60 * 1000);
-    const onlineUsers = await prisma.session.count({
+    const activeSessions = await prisma.session.findMany({
       where: {
         expiresAt: { gt: new Date() },
         lastActiveAt: { gte: activeSince },
       },
+      distinct: ['userId'],
+      select: { userId: true },
     });
+    const onlineUsers = activeSessions.length;
     res.json({ ...metrics, activeUsers: onlineUsers, onlineUsers });
   } catch (error: any) {
     res.status(503).json({ error: 'Unable to read live platform presence', message: error?.message });
