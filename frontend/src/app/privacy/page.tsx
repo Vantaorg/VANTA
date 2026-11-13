@@ -39,17 +39,11 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2 className="text-xl font-bold text-white mb-4">1. WHO IS RESPONSIBLE FOR YOUR DATA?</h2>
-            <p>The entity responsible for processing your personal information is:</p>
-            <p><strong className="text-white/90">VANTA Legal Entity:</strong> [INSERT LEGAL COMPANY NAME]</p>
-            <p><strong className="text-white/90">Registered Address:</strong> [INSERT ADDRESS]</p>
-            <p><strong className="text-white/90">Country:</strong> [INSERT COUNTRY]</p>
-            <p>For privacy-related questions:</p>
-            <p><strong className="text-white/90">Privacy Team:</strong> [INSERT PRIVACY EMAIL]</p>
-            <p><strong className="text-white/90">Data Protection Officer:</strong> [INSERT DPO EMAIL, IF APPLICABLE]</p>
-            <p>
-              Where local law requires a different data controller, representative, or privacy contact, VANTA may
-              provide additional jurisdiction-specific information.
-            </p>
+            <p>VANTA is responsible for handling personal information in connection with the Service, subject to applicable data protection laws.</p>
+            <p>For questions about how your information is collected, used, stored, or protected, contact us:</p>
+            <p><strong className="text-white/90">Email:</strong> <a className="text-white underline underline-offset-4" href="mailto:vantapp74@gmail.com">vantapp74@gmail.com</a></p>
+            <p><strong className="text-white/90">Telegram:</strong> <a className="text-white underline underline-offset-4" href="https://t.me/VANTA_HQ" target="_blank" rel="noreferrer">https://t.me/VANTA_HQ</a></p>
+            <p>We will handle privacy requests in accordance with applicable data protection laws.</p>
           </section>
 
           <section>
@@ -623,7 +617,8 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4">22. HOW TO EXERCISE YOUR RIGHTS</h2>
             <p>You can submit a privacy request by contacting:</p>
-            <p><strong className="text-white/90">Privacy Team:</strong> [INSERT PRIVACY EMAIL]</p>
+            <p><strong className="text-white/90">Email:</strong> <a className="text-white underline underline-offset-4" href="mailto:vantapp74@gmail.com">vantapp74@gmail.com</a></p>
+            <p><strong className="text-white/90">Telegram:</strong> <a className="text-white underline underline-offset-4" href="https://t.me/VANTA_HQ" target="_blank" rel="noreferrer">VANTA on Telegram</a></p>
             <p>Your request should include enough information for us to understand what you are asking for.</p>
             <p>We may need to verify your identity before fulfilling certain requests.</p>
             <p>This is intended to protect your information from unauthorized disclosure.</p>
@@ -642,7 +637,8 @@ export default function PrivacyPage() {
               If you believe a child has provided personal information to VANTA in violation of applicable requirements,
               contact:
             </p>
-            <p><strong className="text-white/90">Child Safety / Privacy:</strong> [INSERT EMAIL]</p>
+            <p><strong className="text-white/90">Child Safety / Privacy:</strong> <a className="text-white underline underline-offset-4" href="mailto:vantapp74@gmail.com">vantapp74@gmail.com</a></p>
+            <p>You may also contact us through <a className="text-white underline underline-offset-4" href="https://t.me/VANTA_HQ" target="_blank" rel="noreferrer">VANTA on Telegram</a>.</p>
             <p>We may take appropriate steps to investigate and delete information where legally required.</p>
             <p>Certain VANTA features may have additional age restrictions.</p>
           </section>
@@ -705,13 +701,9 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4">28. CONTACT US</h2>
             <p>For privacy questions, requests, or concerns:</p>
-            <p><strong className="text-white/90">VANTA Privacy Team</strong></p>
-            <p>Email: [PRIVACY EMAIL]</p>
-            <p>Website: [VANTA WEBSITE]</p>
-            <p><strong className="text-white/90">Data Protection Officer:</strong> [DPO NAME / EMAIL, IF APPLICABLE]</p>
-            <p><strong className="text-white/90">VANTA Legal Entity:</strong> [LEGAL COMPANY NAME]</p>
-            <p><strong className="text-white/90">Registered Address:</strong> [LEGAL ADDRESS]</p>
-            <p>You may also have the right to contact your local data protection or privacy regulator.</p>
+            <p><strong className="text-white/90">Email:</strong> <a className="text-white underline underline-offset-4" href="mailto:vantapp74@gmail.com">vantapp74@gmail.com</a></p>
+            <p><strong className="text-white/90">Telegram:</strong> <a className="text-white underline underline-offset-4" href="https://t.me/VANTA_HQ" target="_blank" rel="noreferrer">https://t.me/VANTA_HQ</a></p>
+            <p>You may also have the right to contact the relevant data protection or privacy regulator in your country.</p>
           </section>
 
           <section>
