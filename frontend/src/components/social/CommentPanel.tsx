@@ -219,7 +219,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   // detail pages so comments live directly under the content.
   if (isInline) {
     return (
-      <section aria-label="Comments" className="flex w-full min-w-0 flex-col">
+      <section aria-label="Comments" className="flex h-[calc(100dvh-3rem)] min-h-[320px] w-full min-w-0 flex-col">
         <header className={`flex shrink-0 items-center justify-between gap-3 px-1 ${compact ? 'pt-2' : 'pt-3'}`}>
           <h2 id="comments-title" className="truncate text-sm font-bold text-[#f5f5f5]">Comments</h2>
           <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.045] p-0.5" role="group" aria-label="Comment sorting">
@@ -227,26 +227,28 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
             <button type="button" onClick={() => setSort('newest')} aria-pressed={sort === 'newest'} className={cnSort(sort === 'newest')}>Latest</button>
           </div>
         </header>
-        {loading ? (
-          <div className="space-y-4 py-6">{[1, 2, 3].map(item => <div key={item} className="flex animate-pulse gap-3"><div className="h-9 w-9 rounded-full bg-white/10" /><div className="h-14 flex-1 rounded-lg bg-white/[.05]" /></div>)}</div>
-        ) : loadError ? (
-          <div className="py-10 text-center">
-            <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={18} className="text-white/25" /></div>
-            <p className="mt-3 text-sm font-medium text-white/55">Comments could not load</p>
-            <p className="mt-1 text-xs text-white/30">Check your connection and try again.</p>
-            <button type="button" onClick={() => void load(true)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] px-4 text-xs font-medium text-white transition hover:bg-white/[0.1]"><RefreshCw size={14} /> Retry</button>
-          </div>
-        ) : comments.length ? (
-          <div>{comments.map(comment => <CommentRow key={comment.id} comment={comment} />)}</div>
-        ) : (
-          <div className="py-10 text-center">
-            <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={18} className="text-white/25" /></div>
-            <p className="mt-3 text-sm font-medium text-white/55">{search.trim() ? 'No matching comments' : 'No replies yet'}</p>
-            <p className="mt-1 text-xs text-white/30">{search.trim() ? 'Try a different search or clear the search to see all comments.' : 'Start the conversation — your thoughts belong here.'}</p>
-            {search.trim() && <button type="button" onClick={() => { setSearch(''); void load(true); }} className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-white/10 bg-white/[0.05] px-3.5 text-xs font-medium text-white transition hover:bg-white/[0.1]">Clear search</button>}
-          </div>
-        )}
-        {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
+          {loading ? (
+            <div className="space-y-4 py-6">{[1, 2, 3].map(item => <div key={item} className="flex animate-pulse gap-3"><div className="h-9 w-9 rounded-full bg-white/10" /><div className="h-14 flex-1 rounded-lg bg-white/[.05]" /></div>)}</div>
+          ) : loadError ? (
+            <div className="py-10 text-center">
+              <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={18} className="text-white/25" /></div>
+              <p className="mt-3 text-sm font-medium text-white/55">Comments could not load</p>
+              <p className="mt-1 text-xs text-white/30">Check your connection and try again.</p>
+              <button type="button" onClick={() => void load(true)} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] px-4 text-xs font-medium text-white transition hover:bg-white/[0.1]"><RefreshCw size={14} /> Retry</button>
+            </div>
+          ) : comments.length ? (
+            <div>{comments.map(comment => <CommentRow key={comment.id} comment={comment} />)}</div>
+          ) : (
+            <div className="py-10 text-center">
+              <div className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white/[0.04]"><MessageCircle size={18} className="text-white/25" /></div>
+              <p className="mt-3 text-sm font-medium text-white/55">{search.trim() ? 'No matching comments' : 'No replies yet'}</p>
+              <p className="mt-1 text-xs text-white/30">{search.trim() ? 'Try a different search or clear the search to see all comments.' : 'Start the conversation — your thoughts belong here.'}</p>
+              {search.trim() && <button type="button" onClick={() => { setSearch(''); void load(true); }} className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-white/10 bg-white/[0.05] px-3.5 text-xs font-medium text-white transition hover:bg-white/[0.1]">Clear search</button>}
+            </div>
+          )}
+          {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
+        </div>
         <form onSubmit={submit} className="relative z-20 mt-2 bg-transparent px-0 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))]">
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
