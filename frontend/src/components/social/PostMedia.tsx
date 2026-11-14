@@ -88,29 +88,48 @@ export default function PostMedia({
   const resolved = resolveMediaUrl(src);
   const video = isVideo ?? (resolved ? isVideoSource(resolved) : false);
 
-  // Autoplay/pause the video while it is sufficiently on screen.
+  // Feed videos must stop as soon as the user starts scrolling, even when
+  // autoplay is disabled and the video was started manually. Autoplay remains
+  // preference-controlled; visibility always controls pausing.
   useEffect(() => {
-    if (!video || !autoplayOnView) return;
+    if (!video) return;
     const frame = frameRef.current;
     const element = videoRef.current;
     if (!frame || !element) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.25;
+        if (visible && autoplayOnView && !document.hidden) {
           void element.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-        } else {
+        } else if (!visible || document.hidden) {
           element.pause();
           setPlaying(false);
         }
       },
-      { threshold: [0, 0.65, 1] },
+      { threshold: [0, 0.25, 0.65, 1] },
     );
+    const pauseWhileScrolling = () => {
+      if (feedCompact && !element.paused) {
+        element.pause();
+        setPlaying(false);
+      }
+    };
+    const pauseWhenHidden = () => {
+      if (document.hidden) {
+        element.pause();
+        setPlaying(false);
+      }
+    };
     observer.observe(frame);
+    if (feedCompact) window.addEventListener('scroll', pauseWhileScrolling, true);
+    document.addEventListener('visibilitychange', pauseWhenHidden);
     return () => {
       observer.disconnect();
+      window.removeEventListener('scroll', pauseWhileScrolling, true);
+      document.removeEventListener('visibilitychange', pauseWhenHidden);
       element.pause();
     };
-  }, [video, autoplayOnView]);
+  }, [video, autoplayOnView, feedCompact]);
 
   const togglePlay = () => {
     const element = videoRef.current;
