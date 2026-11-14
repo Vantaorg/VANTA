@@ -2376,30 +2376,30 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               type="button"
                               onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)}
                               aria-label={`View @${handle}'s profile`}
-                              className="group relative block w-[min(82vw,340px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70"
+                              className="group relative block w-[min(78vw,280px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70"
                             >
                               <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(ellipse at 92% 8%, rgba(214,168,63,.18), transparent 42%), radial-gradient(ellipse at 0% 100%, rgba(214,168,63,.09), transparent 38%)' }} />
-                              <div className="relative flex items-center justify-between border-b border-[#d6a83f]/20 px-3.5 py-2.5">
+                              <div className="relative flex items-center justify-between border-b border-[#d6a83f]/20 px-3 py-2">
                                 <span className="text-[9px] font-bold uppercase tracking-[.24em] text-[#e8bd59]">VANTA · CONTACT</span>
                                 <span className="rounded-full border border-[#d6a83f]/30 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[.12em] text-[#e8bd59]">Profile</span>
                               </div>
-                              <div className="relative flex items-center gap-3 px-3.5 pb-3 pt-3.5">
-                                <span className="shrink-0 rounded-full bg-gradient-to-br from-[#f6d77d] via-[#b98225] to-[#6b4715] p-[2px] shadow-[0_0_18px_rgba(214,168,63,.18)]">
-                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="2xl" wrapperClassName="!h-[68px] !w-[68px] rounded-full border-2 border-[#090a0c]" />
+                              <div className="relative flex items-center gap-3 px-3 pb-2.5 pt-2.5">
+                                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f6d77d] via-[#b98225] to-[#6b4715] p-[3px] shadow-[0_0_12px_rgba(214,168,63,.16)]">
+                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="md" className="!h-10 !w-10 rounded-full border border-[#090a0c]" wrapperClassName="!h-10 !w-10 !min-h-10 !min-w-10 !rounded-full" />
                                 </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="flex min-w-0 items-center gap-1.5">
-                                    <span className="truncate text-[17px] font-semibold tracking-tight text-white">{cardName}</span>
+                                    <span className="truncate text-[15px] font-semibold tracking-tight text-white">{cardName}</span>
                                     {contact?.verified && <VerificationBadge type={contact?.verificationType || undefined} size="xs" />}
                                   </span>
                                   <span className="mt-0.5 block truncate text-xs text-white/50">@{handle}</span>
                                   {contact?.bio && <span className="mt-1.5 line-clamp-2 block break-words text-[11px] leading-relaxed text-white/65">{contact.bio}</span>}
                                 </span>
                               </div>
-                              <div className="relative grid grid-cols-4 divide-x divide-[#d6a83f]/20 border-y border-[#d6a83f]/20 bg-white/[.025] px-1 py-2.5">
+                              <div className="relative grid grid-cols-4 divide-x divide-[#d6a83f]/20 border-y border-[#d6a83f]/20 bg-white/[.025] px-1 py-2">
                                 {stats.map(stat => (
                                   <span key={stat.label} className="min-w-0 px-1 text-center">
-                                    <span className="block truncate text-[15px] font-semibold tabular-nums text-white">{stat.value.toLocaleString()}</span>
+                                    <span className="block truncate text-[13px] font-semibold tabular-nums text-white">{stat.value.toLocaleString()}</span>
                                     <span className="mt-0.5 block truncate text-[8px] font-medium uppercase tracking-[.09em] text-white/45">{stat.label}</span>
                                   </span>
                                 ))}
