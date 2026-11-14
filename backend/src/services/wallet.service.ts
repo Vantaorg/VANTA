@@ -73,6 +73,35 @@ const OUTGOING_TYPES = new Set([
 // records which party the row belongs to in `metadata.side`.
 const FOLLOWER_REWARD_CLAIM_TYPE = TX_TYPES.FOLLOWER_REWARD_CLAIM;
 
+/**
+ * Resolve the signed coin movement represented by a wallet ledger row.
+ * Follower reward claims use one transaction type for both parties, so their
+ * metadata.side field is required to distinguish creator debit from claimant
+ * credit. Unknown/missing side data fails closed instead of guessing.
+ */
+function resolveWalletTransactionDelta(transaction: {
+  type: string;
+  amount: number;
+  metadata?: string | null;
+}): number | null {
+  if (transaction.type === FOLLOWER_REWARD_CLAIM_TYPE) {
+    let metadata: any = null;
+    try {
+      metadata = typeof transaction.metadata === 'string'
+        ? JSON.parse(transaction.metadata)
+        : transaction.metadata;
+    } catch {
+      metadata = null;
+    }
+    if (metadata?.side === 'creator') return -Math.abs(transaction.amount);
+    if (metadata?.side === 'claimant') return Math.abs(transaction.amount);
+    return null;
+  }
+  if (INCOMING_TYPES.has(transaction.type as any)) return transaction.amount;
+  if (OUTGOING_TYPES.has(transaction.type as any)) return -transaction.amount;
+  return null;
+}
+
 /** Available (spendable) coins = coinBalance - lockedCoins (reserved). */
 export function resolveAvailableCoins(wallet: { coinBalance: number; lockedCoins?: number }): number {
   return Math.max(0, (wallet.coinBalance || 0) - (wallet.lockedCoins || 0));
@@ -765,8 +794,8 @@ export class WalletService {
       throw new Error("Cannot send coins to yourself");
     }
 
-    // Validate amount as a whole (integer) number of coins.
-    const safeAmount = Math.trunc(Number(amount));
+    // Never silently truncate a fractional coin transfer.
+    const safeAmount = Number(amount);
     if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
       throw new Error("Transfer amount must be a positive whole number");
     }
@@ -825,6 +854,16 @@ export class WalletService {
         where: { senderId_requestId: { senderId, requestId } },
       });
       if (existing) {
+        // An idempotency key is bound to the original transfer intent. Reusing
+        // it with a different recipient, amount or note must not silently
+        // return an unrelated transfer as though the new request succeeded.
+        if (
+          existing.receiverId !== receiverId ||
+          existing.amount !== safeAmount ||
+          (existing.note || undefined) !== (note || undefined)
+        ) {
+          throw new Error("This requestId is already used for a different transfer");
+        }
         return {
           transfer: existing,
           replayed: true,
@@ -866,7 +905,7 @@ export class WalletService {
       where: {
         senderId,
         receiverId,
-        amount,
+        amount: safeAmount,
         createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }, // 5 min window
         status: "COMPLETED",
       },
@@ -1109,22 +1148,24 @@ export class WalletService {
       return { transfer, updatedSender, updatedReceiver };
     });
 
-    // Send notifications (outside transaction)
-    await notificationService.createNotification(
-      senderId,
-      "WALLET_TRANSFER_SENT",
-      "Transfer Sent",
-      `You sent ${safeAmount.toLocaleString()} coins (fee: ${fee}) to ${receiverLabel}.`,
-      { transferId: result.transfer.id, amount: safeAmount, fee, receiverId }
-    );
-
-    await notificationService.createNotification(
-      receiverId,
-      "WALLET_TRANSFER_RECEIVED",
-      "Coins Received",
-      `You received ${netReceived.toLocaleString()} coins from ${senderLabel}.`,
-      { transferId: result.transfer.id, amount: netReceived, senderId }
-    );
+    // The transfer is already committed. Notification delivery must not
+    // make the API report a failed transfer and encourage an unsafe retry.
+    await Promise.allSettled([
+      notificationService.createNotification(
+        senderId,
+        "WALLET_TRANSFER_SENT",
+        "Transfer Sent",
+        `You sent ${safeAmount.toLocaleString()} coins (fee: ${fee}) to ${receiverLabel}.`,
+        { transferId: result.transfer.id, amount: safeAmount, fee, receiverId }
+      ),
+      notificationService.createNotification(
+        receiverId,
+        "WALLET_TRANSFER_RECEIVED",
+        "Coins Received",
+        `You received ${netReceived.toLocaleString()} coins from ${senderLabel}.`,
+        { transferId: result.transfer.id, amount: netReceived, senderId }
+      ),
+    ]);
 
     return { transfer: result.transfer, updatedBalance: result.updatedSender.coinBalance };
   }
@@ -2103,16 +2144,12 @@ export class WalletService {
         throw new Error("Only VANTA Coin transactions can be reversed");
       }
 
-      // Derive the original ledger movement using the same sign rules as
-      // reconcileWallet. REFUND rows may have a negative amount, so type alone
-      // is not enough to determine whether the original movement was incoming.
-      const originalDelta = INCOMING_TYPES.has(transaction.type as any)
-        ? transaction.amount
-        : OUTGOING_TYPES.has(transaction.type as any)
-          ? -transaction.amount
-          : null;
+      // Use the same signed movement resolver as wallet reconciliation.
+      // Follower reward rows require metadata.side to distinguish the creator
+      // debit from the claimant credit.
+      const originalDelta = resolveWalletTransactionDelta(transaction);
       if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
-        throw new Error("Transaction type or amount cannot be safely reversed");
+        throw new Error("Transaction type, amount or direction cannot be safely reversed");
       }
       const reversalDelta = -originalDelta;
 
@@ -2228,15 +2265,14 @@ export class WalletService {
     const wallet = await this.ensureWallet(userId);
     const txns = await prisma.walletTransaction.findMany({
       where: { userId, currency: "VANTA" },
-      select: { type: true, amount: true, currency: true },
+      select: { type: true, amount: true, currency: true, metadata: true },
     });
     const ledgerBalance = txns.reduce((sum, t) => {
       // Defensive filter: USD/USDT earnings movements must never be applied to
       // the VANTA Coin balance, even if a legacy/misconfigured query returns one.
       if (t.currency && t.currency !== "VANTA") return sum;
-      if (INCOMING_TYPES.has(t.type as any)) return sum + Math.trunc(t.amount);
-      if (OUTGOING_TYPES.has(t.type as any)) return sum - Math.trunc(t.amount);
-      return sum; // unknown types do not affect the coin ledger
+      const delta = resolveWalletTransactionDelta(t);
+      return delta === null ? sum : sum + Math.trunc(delta);
     }, 0);
     const storedBalance = wallet.coinBalance || 0;
     const difference = storedBalance - ledgerBalance;
