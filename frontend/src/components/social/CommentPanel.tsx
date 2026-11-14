@@ -24,7 +24,7 @@ const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🙌', '👏', '🔥', 
 const timeAgo = (value: string) => { const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000)); if (seconds < 60) return 'now'; if (seconds < 3600) return `${Math.floor(seconds / 60)}m`; if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`; return `${Math.floor(seconds / 86400)}d`; };
 const cnSort = (active: boolean) => `rounded-full px-3 py-1.5 text-[11px] font-medium transition ${active ? 'bg-[#d6a83f]/15 text-[#f2c75c]' : 'text-[#858585] hover:text-white'}`;
 
-export default function CommentPanel({ postId, postAuthor, initialCount, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false, hideEmojiPicker = false, enableAttachments = false }: Props) {
+export default function CommentPanel({ postId, postAuthor, token, currentUser, onClose, onCountChange, kind = 'post', inline = false, compact = false, hideEmojiPicker = false, enableAttachments = false }: Props) {
   const toast = useToast();
   const isInline = Boolean(inline);
   // Reels are stored in the prisma.video table and their comments live under
