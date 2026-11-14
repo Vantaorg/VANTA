@@ -304,6 +304,7 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
   const [contactSearching, setContactSearching] = useState(false);
+  const contactSearchSequenceRef = useRef(0);
   const [specialSending, setSpecialSending] = useState(false);
   const musicInputRef = useRef<HTMLInputElement>(null);
   const [createName, setCreateName] = useState('');
@@ -1123,20 +1124,54 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const searchContacts = async (query: string) => {
     setContactSearch(query);
-    if (query.trim().length < 2) { setContactResults([]); return; }
+    const sequence = ++contactSearchSequenceRef.current;
+    const prefix = query.trim().replace(/^@/, '');
+    if (!prefix) { setContactResults([]); setContactSearching(false); return; }
+    if (!token) return;
     setContactSearching(true);
     try {
-      const result = await apiGet<any>(`/api/users/search?query=${encodeURIComponent(query.trim())}`, token as string)
-      setContactResults((Array.isArray(result) ? result : result?.data ?? result?.users ?? []).slice(0, 10));
-    } catch { setContactResults([]); }
-    setContactSearching(false);
+      const result = await apiGet<any>(`/api/search?q=${encodeURIComponent(prefix)}&type=users&limit=30`, token);
+      if (sequence !== contactSearchSequenceRef.current) return;
+      const users = Array.isArray(result?.users) ? result.users : [];
+      setContactResults(users
+        .filter((person: any) => String(person.username || '').toLowerCase().startsWith(prefix.toLowerCase()))
+        .sort((a: any, b: any) => String(a.username || '').localeCompare(String(b.username || '')))
+        .slice(0, 20));
+    } catch {
+      if (sequence === contactSearchSequenceRef.current) setContactResults([]);
+    } finally {
+      if (sequence === contactSearchSequenceRef.current) setContactSearching(false);
+    }
   };
 
   const sendContactMessage = async (person: any) => {
-    setContactPickerOpen(false);
-    setShowAttachmentSheet(false);
-    setContactSearch(''); setContactResults([]);
-    await sendSpecialMessage('CONTACT', { username: person.username, name: person.fullName || person.username }, person.fullName || 'Contact');
+    if (!token || !person?.username) return;
+    setContactSearching(true);
+    try {
+      const profile = await apiGet<any>(`/api/profiles/public/${encodeURIComponent(person.username)}`, token);
+      const profileCard = {
+        userId: profile.id || person.id,
+        username: profile.username || person.username,
+        fullName: profile.fullName || person.fullName || person.username,
+        avatarUrl: profile.avatarUrl || person.avatar || null,
+        bannerUrl: profile.bannerUrl || null,
+        bio: profile.bio || person.bio || '',
+        verified: Boolean(profile.verified ?? person.verified),
+        counts: {
+          followers: Number(profile.counts?.followers ?? person._count?.followers ?? 0),
+          following: Number(profile.counts?.following ?? 0),
+        },
+      };
+      setContactPickerOpen(false);
+      setShowAttachmentSheet(false);
+      setContactSearch('');
+      setContactResults([]);
+      await sendSpecialMessage('CONTACT', profileCard, profileCard.fullName || profileCard.username);
+    } catch (error: any) {
+      showToast?.({ type: 'error', title: 'Profile not shared', message: errorMessage(error, { action: 'share this profile', fallback: 'This profile may be private or unavailable.' }) });
+    } finally {
+      setContactSearching(false);
+    }
   };
 
   const handleMusicAttachment = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2293,12 +2328,38 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </button>
                         ) : msg.type === 'CONTACT' ? (() => {
                           let contact: any = null;
-                          try { contact = JSON.parse(msg.text); } catch {}
+                          try { contact = JSON.parse(msg.text || msg.content || '{}'); } catch {}
                           const handle = String(contact?.username || 'user');
+                          const cardName = String(contact?.fullName || contact?.name || handle);
+                          const followers = Number(contact?.counts?.followers ?? 0);
+                          const following = Number(contact?.counts?.following ?? 0);
                           return (
-                            <button type="button" onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left">
-                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1E9DE9]/15 text-[#6cc4ff]"><User size={19}/></span>
-                              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{String(contact?.name || handle)}</span><span className="block truncate text-[11px] text-white/45">@{handle} · Tap to view profile</span></span>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)}
+                              aria-label={`View @${handle}'s profile`}
+                              className="block w-[min(76vw,320px)] overflow-hidden rounded-2xl text-left"
+                            >
+                              <div className="relative h-[86px] overflow-hidden bg-[#354252]">
+                                {contact?.bannerUrl ? <img src={resolveMediaUrl(contact.bannerUrl)} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-[#354252] via-[#27313d] to-[#1F2630]" />}
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#1F2630]/85 to-transparent" />
+                              </div>
+                              <div className="relative bg-[#1F2630] px-3 pb-3">
+                                <div className="-mt-8 flex items-end justify-between">
+                                  <Avatar src={contact?.avatarUrl || contact?.avatar || null} alt={cardName} size="2xl" wrapperClassName="!h-16 !w-16 rounded-full border-[3px] border-[#1F2630]" />
+                                  <span className="mb-1 rounded-full bg-[#c9a227]/15 px-2.5 py-1 text-[10px] font-semibold text-[#f2c75c]">View profile</span>
+                                </div>
+                                <div className="mt-2 flex min-w-0 items-center gap-1.5">
+                                  <span className="truncate text-sm font-semibold text-white">{cardName}</span>
+                                  {contact?.verified && <VerificationBadge size="xs" />}
+                                </div>
+                                <p className="text-[11px] text-white/50">@{handle}</p>
+                                {contact?.bio && <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-white/75">{contact.bio}</p>}
+                                <div className="mt-3 flex items-center gap-4 border-t border-white/[0.08] pt-2.5 text-[11px]">
+                                  <span><strong className="text-white">{followers.toLocaleString()}</strong><span className="ml-1 text-white/45">Followers</span></span>
+                                  <span><strong className="text-white">{following.toLocaleString()}</strong><span className="ml-1 text-white/45">Following</span></span>
+                                </div>
+                              </div>
                             </button>
                           );
                         })() : msg.type === 'WALLET' ? (
@@ -2576,18 +2637,18 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     </div>
                     <div className="relative">
                       <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                      <input value={contactSearch} onChange={event => void searchContacts(event.target.value)} placeholder="Search people" autoFocus className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                      <input value={contactSearch} onChange={event => void searchContacts(event.target.value)} placeholder="Search username" autoFocus className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
                     </div>
                     <div className="mt-2 max-h-56 overflow-y-auto scrollbar-hide">
                       {contactSearching && <p className="px-2 py-3 text-xs text-white/35">Searching...</p>}
-                      {!contactSearching && contactSearch.trim().length >= 2 && contactResults.length === 0 && <p className="px-2 py-3 text-xs text-white/35">No matching users found.</p>}
+                      {!contactSearching && contactSearch.trim().length >= 1 && contactResults.length === 0 && <p className="px-2 py-3 text-xs text-white/35">No usernames starting with that match.</p>}
                       {contactResults.map(person => (
                         <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.05]">
                           <Avatar src={person.avatar} alt={person.username || person.fullName} size="sm" />
                           <span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{person.fullName || person.username}</span><span className="block truncate text-[11px] text-white/40">@{person.username}</span></span>
                         </button>
                       ))}
-                      {contactSearch.trim().length < 2 && <p className="px-2 py-3 text-xs text-white/35">Search for the person you want to share.</p>}
+                      {contactSearch.trim().length === 0 && <p className="px-2 py-3 text-xs text-white/35">Type a username to find a person.</p>}
                     </div>
                   </section>
                 </>

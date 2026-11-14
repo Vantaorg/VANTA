@@ -22,17 +22,23 @@ export class SearchService {
       // a query ("a@b", "foo@bar.com") is left untouched and searches without
       // "@" behave exactly as before. This also means autocomplete-style user
       // searches ("@alex") reuse the existing user lookup API unchanged.
-      const userQuery = query.startsWith("@") && query.length > 1 ? query.slice(1) : query;
+      const userQuery = (query.startsWith("@") && query.length > 1 ? query.slice(1) : query).toLowerCase();
 
       if (!type || type === "users" || type === "all") {
         results.users = await prisma.user.findMany({
           where: {
-            OR: [
-              { username: { contains: userQuery } },
-              { fullName: { contains: userQuery } },
-            ],
+            OR: type === "users"
+              ? [
+                  { username: { startsWith: userQuery } },
+                  { fullName: { startsWith: userQuery } },
+                ]
+              : [
+                  { username: { contains: userQuery } },
+                  { fullName: { contains: userQuery } },
+                ],
             status: "ACTIVE",
           },
+          orderBy: { username: "asc" },
           select: {
             id: true,
             username: true,
