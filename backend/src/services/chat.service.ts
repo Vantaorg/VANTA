@@ -370,7 +370,7 @@ export class ChatService {
       const replyTarget = await prisma.message.findFirst({ where: { id: replyToId, conversationId }, select: { id: true } });
       if (!replyTarget) throw new Error("Reply target not found");
     }
-    const allowedTypes = new Set(["TEXT", "IMAGE", "VIDEO", "AUDIO", "FILE", "STORY_REPLY"]);
+    const allowedTypes = new Set(["TEXT", "IMAGE", "VIDEO", "AUDIO", "FILE", "STORY_REPLY", "CONTACT", "LOCATION", "WALLET"]);
     // Story replies are private direct messages about a specific Story. The
     // client passes snapshot metadata so the reference survives Story expiry.
     const storyReplyRef = storyReply && typeof storyReply.storyId === "string" && storyReply.storyId.length > 0
