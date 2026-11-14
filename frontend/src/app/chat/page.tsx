@@ -1180,10 +1180,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         bannerUrl: resolveMediaUrl(profile.bannerUrl || null) || null,
         bio: profile.bio || person.bio || '',
         verified: Boolean(profile.verified ?? person.verified),
+        verificationType: profile.verificationType || person.verificationType || null,
         counts: {
           followers: Number(profile.counts?.followers ?? person._count?.followers ?? 0),
           following: Number(profile.counts?.following ?? 0),
+          posts: Number(profile.counts?.posts ?? profile.stats?.totalPosts ?? 0),
         },
+        totalLikes: Number(profile.stats?.totalLikes ?? 0),
+        joinedAt: profile.joinedAt || profile.createdAt || null,
+        online: typeof profile.online === 'boolean' ? profile.online : typeof person.online === 'boolean' ? person.online : null,
       };
       setContactPickerOpen(false);
       setShowAttachmentSheet(false);
@@ -2354,34 +2359,60 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           try { contact = JSON.parse(msg.text || msg.content || '{}'); } catch {}
                           const handle = String(contact?.username || 'user');
                           const cardName = String(contact?.fullName || contact?.name || handle);
-                          const followers = Number(contact?.counts?.followers ?? 0);
-                          const following = Number(contact?.counts?.following ?? 0);
+                          const counts = contact?.counts || {};
+                          const stats = [
+                            { label: 'Followers', value: Number(counts.followers ?? 0) },
+                            { label: 'Following', value: Number(counts.following ?? 0) },
+                            { label: 'Posts', value: Number(counts.posts ?? 0) },
+                            { label: 'Likes', value: Number(contact?.totalLikes ?? 0) },
+                          ];
+                          const joined = contact?.joinedAt ? new Date(contact.joinedAt) : null;
+                          const joinedLabel = joined && Number.isFinite(joined.getTime())
+                            ? new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(joined)
+                            : null;
+                          const presenceKnown = typeof contact?.online === 'boolean';
                           return (
                             <button
                               type="button"
                               onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)}
                               aria-label={`View @${handle}'s profile`}
-                              className="block w-[min(76vw,320px)] overflow-hidden rounded-2xl text-left"
+                              className="group relative block w-[min(82vw,340px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70"
                             >
-                              <div className="relative h-[86px] overflow-hidden bg-[#354252]">
-                                {contact?.bannerUrl ? <img src={resolveMediaUrl(contact.bannerUrl)} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-[#354252] via-[#27313d] to-[#1F2630]" />}
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#1F2630]/85 to-transparent" />
+                              <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(ellipse at 92% 8%, rgba(214,168,63,.18), transparent 42%), radial-gradient(ellipse at 0% 100%, rgba(214,168,63,.09), transparent 38%)' }} />
+                              <div className="relative flex items-center justify-between border-b border-[#d6a83f]/20 px-3.5 py-2.5">
+                                <span className="text-[9px] font-bold uppercase tracking-[.24em] text-[#e8bd59]">VANTA · CONTACT</span>
+                                <span className="rounded-full border border-[#d6a83f]/30 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[.12em] text-[#e8bd59]">Profile</span>
                               </div>
-                              <div className="relative bg-[#1F2630] px-3 pb-3">
-                                <div className="-mt-8 flex items-end justify-between">
-                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="2xl" wrapperClassName="!h-16 !w-16 rounded-full border-[3px] border-[#1F2630]" />
-                                  <span className="mb-1 rounded-full bg-[#c9a227]/15 px-2.5 py-1 text-[10px] font-semibold text-[#f2c75c]">View profile</span>
-                                </div>
-                                <div className="mt-2 flex min-w-0 items-center gap-1.5">
-                                  <span className="truncate text-sm font-semibold text-white">{cardName}</span>
-                                  {contact?.verified && <VerificationBadge size="xs" />}
-                                </div>
-                                <p className="text-[11px] text-white/50">@{handle}</p>
-                                {contact?.bio && <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-relaxed text-white/75">{contact.bio}</p>}
-                                <div className="mt-3 flex items-center gap-4 border-t border-white/[0.08] pt-2.5 text-[11px]">
-                                  <span><strong className="text-white">{followers.toLocaleString()}</strong><span className="ml-1 text-white/45">Followers</span></span>
-                                  <span><strong className="text-white">{following.toLocaleString()}</strong><span className="ml-1 text-white/45">Following</span></span>
-                                </div>
+                              <div className="relative flex items-center gap-3 px-3.5 pb-3 pt-3.5">
+                                <span className="shrink-0 rounded-full bg-gradient-to-br from-[#f6d77d] via-[#b98225] to-[#6b4715] p-[2px] shadow-[0_0_18px_rgba(214,168,63,.18)]">
+                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="2xl" wrapperClassName="!h-[68px] !w-[68px] rounded-full border-2 border-[#090a0c]" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex min-w-0 items-center gap-1.5">
+                                    <span className="truncate text-[17px] font-semibold tracking-tight text-white">{cardName}</span>
+                                    {contact?.verified && <VerificationBadge type={contact?.verificationType || undefined} size="xs" />}
+                                  </span>
+                                  <span className="mt-0.5 block truncate text-xs text-white/50">@{handle}</span>
+                                  {contact?.bio && <span className="mt-1.5 line-clamp-2 block break-words text-[11px] leading-relaxed text-white/65">{contact.bio}</span>}
+                                </span>
+                              </div>
+                              <div className="relative grid grid-cols-4 divide-x divide-[#d6a83f]/20 border-y border-[#d6a83f]/20 bg-white/[.025] px-1 py-2.5">
+                                {stats.map(stat => (
+                                  <span key={stat.label} className="min-w-0 px-1 text-center">
+                                    <span className="block truncate text-[15px] font-semibold tabular-nums text-white">{stat.value.toLocaleString()}</span>
+                                    <span className="mt-0.5 block truncate text-[8px] font-medium uppercase tracking-[.09em] text-white/45">{stat.label}</span>
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="relative flex items-center justify-between gap-2 px-3.5 py-2.5">
+                                <span className="min-w-0 truncate text-[10px] text-white/45">{joinedLabel ? `Member since ${joinedLabel}` : 'VANTA member'}</span>
+                                {presenceKnown && (
+                                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[.12em]', contact.online ? 'text-emerald-400' : 'text-white/40')}>
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', contact.online ? 'bg-emerald-400' : 'bg-white/35')} />
+                                    {contact.online ? 'Online' : 'Offline'}
+                                  </span>
+                                )}
+                                <span className="shrink-0 text-[10px] font-semibold text-[#e8bd59] transition group-hover:text-[#ffe39a]">View profile ↗</span>
                               </div>
                             </button>
                           );
@@ -2652,26 +2683,38 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               )}
               {contactPickerOpen && (
                 <>
-                  <button type="button" aria-label="Close contact picker" onClick={() => setContactPickerOpen(false)} className="fixed inset-0 z-30 bg-black/45" />
-                  <section role="dialog" aria-label="Share a contact" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-white">Share a contact</h3>
-                      <button type="button" onClick={() => setContactPickerOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
+                  <button type="button" aria-label="Close contact picker" onClick={() => { setContactPickerOpen(false); setContactSearch(''); setContactResults([]); }} className="fixed inset-0 z-30 bg-black/55" />
+                  <section role="dialog" aria-modal="true" aria-label="Share a contact" className="absolute inset-x-2 bottom-[calc(100%+0.65rem)] z-[70] overflow-hidden rounded-[22px] border border-[#d6a83f]/30 bg-[#0b0c0e] shadow-[0_18px_60px_rgba(0,0,0,.72)] sm:inset-x-0">
+                    <div className="flex items-center justify-between border-b border-white/[.07] px-4 py-3">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-white">Share a contact</span>
+                        <span className="mt-0.5 block text-[10px] text-white/40">Find someone on VANTA</span>
+                      </span>
+                      <button type="button" onClick={() => { setContactPickerOpen(false); setContactSearch(''); setContactResults([]); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/55 transition hover:bg-white/[.07] hover:text-white" aria-label="Close"><X size={17}/></button>
                     </div>
-                    <div className="relative">
-                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                      <input value={contactSearch} onChange={event => void searchContacts(event.target.value)} placeholder="Search username" autoFocus className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
-                    </div>
-                    <div className="mt-2 max-h-56 overflow-y-auto scrollbar-hide">
-                      {contactSearching && <p className="px-2 py-3 text-xs text-white/35">Searching...</p>}
-                      {!contactSearching && contactSearch.trim().length >= 1 && contactResults.length === 0 && <p className="px-2 py-3 text-xs text-white/35">No usernames starting with that match.</p>}
-                      {contactResults.map(person => (
-                        <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.05]">
-                          <Avatar src={person.avatar} alt={person.username || person.fullName} size="sm" />
-                          <span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{person.fullName || person.username}</span><span className="block truncate text-[11px] text-white/40">@{person.username}</span></span>
-                        </button>
-                      ))}
-                      {contactSearch.trim().length === 0 && <p className="px-2 py-3 text-xs text-white/35">Type a username to find a person.</p>}
+                    <div className="p-3">
+                      <div className="relative">
+                        <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" />
+                        <input value={contactSearch} onChange={event => void searchContacts(event.target.value)} placeholder="Search by username" autoFocus autoComplete="off" className="h-11 w-full rounded-xl border border-white/[.09] bg-[#141619] pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6a83f]/55" />
+                      </div>
+                      <div className="mt-2 max-h-60 overflow-y-auto scrollbar-hide">
+                        {contactSearching && <p className="px-3 py-4 text-center text-xs text-white/45"><Loader2 size={14} className="mr-2 inline animate-spin text-[#e8bd59]"/>Searching VANTA…</p>}
+                        {!contactSearching && contactSearch.trim().length > 0 && contactResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No matching usernames. Check the spelling and try again.</p>}
+                        {!contactSearching && contactResults.map(person => (
+                          <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} disabled={specialSending} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-white/[.045] disabled:cursor-wait disabled:opacity-50">
+                            <Avatar src={person.avatar} alt={person.username || person.fullName} size="md" />
+                            <span className="min-w-0 flex-1">
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className="truncate text-sm font-medium text-white">{person.fullName || person.username}</span>
+                                {person.verified && <VerificationBadge type={person.verificationType || undefined} size="xs" />}
+                              </span>
+                              <span className="mt-0.5 block truncate text-[11px] text-white/40">@{person.username}</span>
+                            </span>
+                            <span className="rounded-full border border-[#d6a83f]/30 px-2.5 py-1 text-[10px] font-semibold text-[#e8bd59]">Send</span>
+                          </button>
+                        ))}
+                        {contactSearch.trim().length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">Enter a username to find and share a profile.</p>}
+                      </div>
                     </div>
                   </section>
                 </>
