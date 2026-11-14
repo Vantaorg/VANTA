@@ -520,6 +520,21 @@ export const toggleMonetization = async (req: AuthenticatedRequest, res: Respons
       select: { premium: true },
     });
 
+    await auditLog.log({
+      userId: req.user?.userId,
+      action: updated.premium ? 'CREATOR_MONETIZATION_ENABLED' : 'CREATOR_MONETIZATION_DISABLED',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        resource: 'User',
+        resourceId: creatorId,
+        targetId: creatorId,
+        previousValue: { premium: user.premium },
+        newValue: { premium: updated.premium },
+      },
+      severity: 'WARNING',
+    });
+
     res.status(200).json({
       isMonetized: Boolean(updated.premium),
       message: updated.premium ? 'Monetization enabled' : 'Monetization disabled',
@@ -569,8 +584,8 @@ export const approveSubscription = async (req: AuthenticatedRequest, res: Respon
           renewalDate,
           autoRenew: false,
           cancelledAt: null,
-          paymentMethod: null,
-          paymentTxHash: null,
+          // Preserve any existing payment evidence. Manual access approval must
+          // never erase a provider method or transaction reference.
           updatedAt: now,
         },
       });
@@ -587,6 +602,36 @@ export const approveSubscription = async (req: AuthenticatedRequest, res: Respon
         },
       });
     }
+
+    await auditLog.log({
+      userId: req.user?.userId,
+      action: 'CREATOR_SUBSCRIPTION_MANUALLY_APPROVED',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        resource: 'CreatorMembership',
+        resourceId: membership.id,
+        targetId: creatorId,
+        reason: 'Manual admin approval',
+        previousValue: existing ? {
+          status: existing.status,
+          planId: existing.planId,
+          startDate: existing.startDate?.toISOString?.() || null,
+          endDate: existing.endDate?.toISOString?.() || null,
+          paymentMethod: existing.paymentMethod,
+          paymentTxHash: existing.paymentTxHash,
+        } : null,
+        newValue: {
+          status: membership.status,
+          planId: membership.planId,
+          startDate: membership.startDate.toISOString(),
+          endDate: membership.endDate.toISOString(),
+          paymentMethod: membership.paymentMethod,
+          paymentTxHash: membership.paymentTxHash,
+        },
+      },
+      severity: 'CRITICAL',
+    });
 
     res.status(200).json({
       subscriptionApproved: true,
