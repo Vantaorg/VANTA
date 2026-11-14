@@ -201,7 +201,7 @@ export default function ChatCallOverlay(props: ChatCallOverlayProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
-        className="fixed inset-0 z-[120] grid place-items-center bg-[#050507]/95 px-6 backdrop-blur-2xl"
+        className="fixed inset-0 z-[120] grid place-items-center bg-[#1F2630]/[0.98] px-6 backdrop-blur-2xl"
         role="dialog"
         aria-modal="true"
         aria-label={endedReason || 'Call ended'}
@@ -218,7 +218,7 @@ export default function ChatCallOverlay(props: ChatCallOverlayProps) {
           <button
             type="button"
             onClick={onEnd}
-            className="rounded-full bg-white/10 px-8 py-2.5 text-sm font-medium text-white ring-1 ring-white/15 transition hover:bg-white/20 active:scale-95"
+            className="rounded-full bg-[#354252] px-8 py-2.5 text-sm font-medium text-white ring-1 ring-white/10 transition hover:bg-[#435267] active:scale-95"
           >
             Done
           </button>
@@ -250,8 +250,8 @@ export default function ChatCallOverlay(props: ChatCallOverlayProps) {
         danger
           ? 'bg-red-500/90 text-white hover:bg-red-400'
           : active === false
-            ? 'bg-white/15 text-white ring-1 ring-white/25'
-            : 'bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/20'
+            ? 'bg-[#c9a227]/20 text-[#f2c75c] ring-1 ring-[#c9a227]/40'
+            : 'bg-[#354252] text-white ring-1 ring-white/10 hover:bg-[#435267]'
       )}
     >
       {icon}
@@ -264,7 +264,7 @@ return (
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[120] flex flex-col overflow-hidden bg-[#050507]/95 backdrop-blur-2xl"
+      className="fixed inset-0 z-[120] flex flex-col overflow-hidden bg-[#1F2630]/[0.98] backdrop-blur-2xl"
       role="dialog"
       aria-modal="true"
       aria-label={connectionLabel}
@@ -291,7 +291,7 @@ return (
             className="absolute inset-0 h-full w-full bg-black object-contain"
           />
         ) : (
-          <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_35%,#1a1712_0%,#08080a_70%)]">
+          <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_35%,#354252_0%,#1F2630_72%)]">
             <div className="flex flex-col items-center gap-5 text-center">
               <div className="relative flex h-20 w-20 items-center justify-center">
                 <span className="absolute -inset-1 animate-ping rounded-full border-2 border-[#d6a83f]/25" aria-hidden="true" />
@@ -327,7 +327,7 @@ return (
         )}
 
         {isVideo && localStream && (status === 'active' || status === 'connecting') && (
-          <div className="absolute right-4 top-4 z-20 w-28 overflow-hidden rounded-2xl border border-white/20 bg-black shadow-2xl sm:right-6 sm:top-6 sm:w-36">
+          <div className="absolute right-4 top-4 z-20 w-28 overflow-hidden rounded-2xl border border-white/15 bg-[#1F2630] shadow-2xl sm:right-6 sm:top-6 sm:w-36">
             <StreamVideo
               stream={localStream}
               muted
@@ -415,7 +415,7 @@ return (
           </div>
         )}
         <p className="mt-4 text-center text-[10px] text-white/30">
-          Calls are end-to-end direct between you and {peerName || 'the other person'}.
+          Private call between you and {peerName || 'the other person'}.
         </p>
       </div>
     </motion.div>
