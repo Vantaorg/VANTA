@@ -5,7 +5,7 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 import { use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Bookmark, Eye, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Share2, UserPlus } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
@@ -103,7 +103,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     const before = post;
     const nowLiked = Boolean(post.liked ?? post.isLiked);
     const count = Number(post.likes ?? post.likesCount ?? 0);
-    setPost({ ...post, isLiked: !nowLiked, liked: !nowLiked, likesCount: Math.max(0, count + (nowLiked ? -1 : 1)) });
+    setPost({ ...post, isLiked: !nowLiked, liked: !nowLiked, likes: Math.max(0, count + (nowLiked ? -1 : 1)), likesCount: Math.max(0, count + (nowLiked ? -1 : 1)) });
     try { await apiPost(`/api/feed/${post.id}/like`, {}, token); }
     catch { setPost(before); }
   };
@@ -202,7 +202,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         back={() => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/home'); }}
         sticky
         bleed
-        className="h-12 min-h-12 border-b border-white/[0.08] bg-[var(--header-surface)] px-3"
+        className="h-12 min-h-12 bg-[var(--header-surface)] px-3"
         actions={
           <button
             type="button"
@@ -218,7 +218,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       <div className="mx-auto min-h-[calc(100dvh-3rem)] w-full min-w-0 max-w-[680px]">
         <section className="min-w-0">
           <article className="w-full min-w-0">
-            <header className="flex min-w-0 items-center gap-2.5 border-b border-white/[0.08] px-4 py-2.5">
+            <header className="flex min-w-0 items-center gap-2.5 px-3.5 py-2">
               <Link
                 href={`/profile/${post.author.username}`}
                 className="grid shrink-0 place-items-center"
@@ -233,31 +233,31 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                 />
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                   <Link
                     href={`/profile/${post.author.username}`}
-                    className="truncate text-[14px] font-bold text-white hover:underline"
+                    className="max-w-full truncate text-[13px] font-bold text-white hover:underline"
                   >
                     {post.author.fullName || post.author.username}
                   </Link>
                   {post.author.verified && post.author.verificationType && (
                     <VerificationBadge verified type={post.author.verificationType} size="sm" />
                   )}
+                  <span className="truncate text-[11px] text-white/40">@{post.author.username}</span>
                 </div>
-                <p className="truncate text-[12px] text-white/40">@{post.author.username}</p>
               </div>
               {token && !isOwn && <button type="button" onClick={() => void toggleFollow()} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#c9a227]/60 px-3 text-[12px] font-semibold text-[#e3c354] transition hover:bg-[#c9a227]/10"><UserPlus size={14} />{Boolean(post.author.following ?? post.author.isFollowing) ? 'Following' : 'Follow'}</button>}
             </header>
             {post.content && (
-              <div className="px-4 pb-2 pt-3">
-                <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.5] tracking-[0.005em] text-[#f0f0f0]">
+              <div className="px-3.5 pb-2 pt-2">
+                <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.4] tracking-normal text-[#f0f0f0]">
                   {renderTextWithLinks(post.content, 'linkify')}
                 </p>
               </div>
             )}
 
             {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
-              <p className="px-4 pb-2 text-[13px] font-medium leading-5 text-[#d2ad35]">
+              <p className="px-3.5 pb-2 text-[12px] font-medium leading-5 text-[#d2ad35]">
                 {post.hashtags.map(tag => `#${tag}`).join(' ')}
               </p>
             )}
@@ -282,21 +282,25 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            <div className="px-4 pt-1">
-              <div className="flex min-h-8 items-center gap-2 border-b border-white/[0.08] pb-2 text-[11px] text-white/40">
+            <div className="px-3.5 pt-1">
+              <div className="flex min-h-8 items-center gap-2 pb-2 text-[10px] text-white/40">
                 <time className="tabular-nums">{new Date(post.createdAt).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric', year: 'numeric' })}</time><span>·</span><Eye size={13} /><span className="tabular-nums">{typeof post.views === 'number' ? formatCount(post.views) : '0'} views</span>
               </div>
-              <footer className="flex min-h-12 w-full min-w-0 items-center gap-1 border-b border-white/[0.08]">
-                <button
+              <footer className="flex min-h-10 w-full min-w-0 items-center gap-1">
+                <motion.button
                   type="button"
                   onClick={() => void toggleLike()}
+                  whileTap={{ scale: 0.82 }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 18 }}
                   className={toolClass(liked ? '!text-[#d2ad35]' : 'text-white/55')}
                   aria-label={liked ? 'Unlike post' : 'Like post'}
                   aria-pressed={liked}
                 >
-                  <Heart size={18} className={liked ? 'fill-current' : ''} />
-                  <span className="text-xs tabular-nums">{formatCount(likeCount)}</span>
-                </button>
+                  <motion.span animate={{ scale: liked ? [1, 1.32, 1] : 1 }} transition={{ duration: 0.28, ease: 'easeOut' }}>
+                    <Heart size={18} className={liked ? 'fill-current' : ''} />
+                  </motion.span>
+                  <motion.span key={likeCount} initial={{ y: 3, opacity: 0.55 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.16 }} className="text-xs tabular-nums">{formatCount(likeCount)}</motion.span>
+                </motion.button>
                 <button type="button" onClick={openComments} className={toolClass()} aria-label="Go to comments">
                   <MessageCircle size={18} />
                   <span className="text-xs tabular-nums">{formatCount(commentCount)}</span>
@@ -324,7 +328,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         <aside
           ref={conversationRef}
           aria-label="Post comments"
-          className="min-w-0 scroll-mt-12 border-t border-white/[0.08] bg-[#050505]"
+          className="min-w-0 scroll-mt-12 bg-[var(--background)]"
         >
           {token ? (
             <CommentPanel
