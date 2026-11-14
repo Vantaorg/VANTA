@@ -125,6 +125,23 @@ describe('WalletService.rejectWithdrawal', () => {
     expect(tx.wallet.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ earningsBalance: { increment: 100 } }) })
     );
+    expect(tx.walletTransaction.updateMany).toHaveBeenCalledWith({
+      where: { reference: 'wd1', type: 'WITHDRAWAL', status: 'PENDING' },
+      data: { status: 'FAILED' },
+    });
+  });
+
+  test('does not refund or mark the withdrawal failed when its pending ledger row is missing', async () => {
+    const tx = txMock();
+    tx.walletTransaction.updateMany.mockResolvedValue({ count: 0 });
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+
+    await expect(walletService.rejectWithdrawal('wd1', 'admin1', 'policy'))
+      .rejects.toThrow('Withdrawal ledger entry is missing or already processed');
+
+    // The transaction must abort before any refund or audit record is written.
+    expect(tx.wallet.update).not.toHaveBeenCalled();
+    expect(tx.walletAuditLog.create).not.toHaveBeenCalled();
   });
 
   test('a concurrent double-rejection is impossible', async () => {
