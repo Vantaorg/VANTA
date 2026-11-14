@@ -614,6 +614,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       type: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toLowerCase(),
         name: conv.name || conv.partner?.fullName || conv.partner?.username || 'Conversation',
         avatar: conv.partner?.avatar || conv.avatar,
+        updatedAt: conv.updatedAt,
         lastMessage: conv.lastMessage ? {
           text: conv.lastMessage.content ?? conv.lastMessage.text ?? '',
           sender: conv.lastMessage.sender?.username ?? 'Unknown',
@@ -640,6 +641,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         handle: conv.handle,
         participants: conv.participants ?? conv.members?.map((member: any) => ({ ...member, user: member.user || member })) ?? [],
       }));
+      normalizedConversations.sort((a: any, b: any) => {
+        const aTime = new Date(a.lastMessage?.timestamp || a.updatedAt || 0).getTime();
+        const bTime = new Date(b.lastMessage?.timestamp || b.updatedAt || 0).getTime();
+        return bTime - aTime;
+      });
       setConversations(normalizedConversations);
       setConversationCursor(data?.nextCursor ?? null);
     } catch (err: any) {
@@ -1153,8 +1159,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         userId: profile.id || person.id,
         username: profile.username || person.username,
         fullName: profile.fullName || person.fullName || person.username,
-        avatarUrl: profile.avatarUrl || person.avatar || null,
-        bannerUrl: profile.bannerUrl || null,
+        avatarUrl: resolveMediaUrl(profile.avatarUrl || person.avatar || null) || null,
+        bannerUrl: resolveMediaUrl(profile.bannerUrl || null) || null,
         bio: profile.bio || person.bio || '',
         verified: Boolean(profile.verified ?? person.verified),
         counts: {
@@ -2824,10 +2830,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         {messageContextId && (() => {
           const selected = messages.find(message => message.id === messageContextId);
           if (!selected) return null;
-          return <motion.div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/65 px-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMessageContextId(null)}>
-            <motion.section role="dialog" aria-modal="true" aria-label="Message actions" initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} transition={{ type: 'spring', damping: 28, stiffness: 340 }} onClick={event => event.stopPropagation()} className="w-full max-w-[510px] overflow-hidden rounded-t-2xl border border-white/[0.09] bg-[#151517] shadow-[0_-24px_64px_rgba(0,0,0,.7)]">
+          return <motion.div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 px-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMessageContextId(null)}>
+            <motion.section role="dialog" aria-modal="true" aria-label="Message actions" initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} transition={{ type: 'spring', damping: 28, stiffness: 340 }} onClick={event => event.stopPropagation()} className="w-full max-w-[420px] overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#1F2630] shadow-[0_20px_64px_rgba(0,0,0,.55)]">
               <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" />
-              <div className="border-b border-white/[0.07] px-4 pb-3 pt-2"><p className="text-[10px] font-semibold uppercase text-white/30">Message actions</p><p className="mt-1 line-clamp-2 text-xs text-white/55">{selected.text || 'Attachment'}</p></div>
+              <div className="border-b border-white/[0.07] px-4 pb-3 pt-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#d6a83f]">Message</p><p className="mt-1 line-clamp-2 text-xs text-white/55">{selected.text || (selected.attachments?.length ? 'Attachment' : 'Message')}</p></div>
               <div className="flex items-center justify-around border-b border-white/[0.07] px-3 py-3">{['❤️','😂','🔥','👏','👍'].map(reaction => <button key={reaction} onClick={() => { void reactToMessage(selected, reaction); setMessageContextId(null); }} className="grid h-10 w-10 place-items-center rounded-full bg-[#202023] text-lg active:scale-90">{reaction}</button>)}</div>
               <div className="grid grid-cols-3 gap-1.5 p-2">
                 <button onClick={() => { void reactToMessage(selected, '❤️'); setMessageContextId(null); }} className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 text-xs text-[#c8c8cc] active:bg-white/[0.05] hover:bg-white/[0.04]"><Smile size={17}/><span className="text-[10px]">React</span></button>
