@@ -248,7 +248,7 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   if (loading) {
-    return <main className="relative h-[100dvh] w-full overflow-hidden bg-[#050505] text-white">
+    return <main className="relative h-[100dvh] w-full overflow-hidden bg-[var(--background)] text-white">
       <ReelOverlayBack back={back} />
       <ReelDetailSkeleton />
     </main>;
@@ -264,10 +264,10 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
   const posterSrc = resolveMediaUrl(reel.thumbnailUrl);
   const captionText = reel.description || reel.title || '';
 
-  return <main className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
+  return <main className="relative h-[100dvh] w-full overflow-hidden bg-[var(--background)] text-white">
     {/* Immersive stage — edge-to-edge on mobile, centred on desktop. The video
         keeps its intrinsic aspect ratio (object-contain, never stretched). */}
-    <div className="relative mx-auto h-full w-full max-w-[520px] overflow-hidden bg-black">
+    <div className="relative mx-auto h-full w-full max-w-[520px] overflow-hidden bg-[var(--background)]">
       {/* Poster frame beneath the video while it loads or when it fails. */}
       {posterSrc && (
         <img
