@@ -39,6 +39,9 @@ jest.mock('../prisma', () => ({
     walletAuditLog: {
       create: jest.fn(),
     },
+    walletReconciliationLog: {
+      create: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -274,6 +277,40 @@ describe('WalletService', () => {
       }));
     });
 
+    test('reverses a creator-side follower reward claim as a credit', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.FOLLOWER_REWARD_CLAIM, currency: 'VANTA', amount: 30, metadata: JSON.stringify({ side: 'creator' }), status: 'COMPLETED' };
+      const wallet = { ...mockWallet, coinBalance: 70 };
+      const updatedWallet = { ...wallet, coinBalance: 100 };
+      const { tx } = await runReversal(transaction, wallet, updatedWallet);
+      expect(tx.wallet.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        data: { coinBalance: { increment: 30 } },
+      }));
+      expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ type: TX_TYPES.ADMIN_CREDIT, amount: 30 }),
+      }));
+    });
+
+    test('reverses a claimant-side follower reward claim as a debit', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.FOLLOWER_REWARD_CLAIM, currency: 'VANTA', amount: 30, metadata: JSON.stringify({ side: 'claimant' }), status: 'COMPLETED' };
+      const wallet = { ...mockWallet, coinBalance: 100 };
+      const updatedWallet = { ...wallet, coinBalance: 70 };
+      const { tx } = await runReversal(transaction, wallet, updatedWallet);
+      expect(tx.wallet.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        data: { coinBalance: { increment: -30 } },
+      }));
+      expect(tx.walletTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ type: TX_TYPES.ADMIN_DEBIT, amount: 30 }),
+      }));
+    });
+
+    test('refuses to reverse a follower reward claim with missing side metadata', async () => {
+      const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.FOLLOWER_REWARD_CLAIM, currency: 'VANTA', amount: 30, status: 'COMPLETED' };
+      const tx = { walletTransaction: { findUnique: jest.fn().mockResolvedValue(transaction), updateMany: jest.fn() } };
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
+      await expect(walletService.reverseTransaction('tx1', 'admin1', 'review')).rejects.toThrow('direction cannot be safely reversed');
+      expect(tx.walletTransaction.updateMany).toHaveBeenCalled();
+    });
+
     test('refuses to consume locked coins when reversing an incoming transaction', async () => {
       const transaction = { id: 'tx1', userId: 'user1', type: TX_TYPES.PURCHASE, currency: 'VANTA', amount: 90, status: 'COMPLETED' };
       const wallet = { ...mockWallet, coinBalance: 100, lockedCoins: 20 };
@@ -295,6 +332,36 @@ describe('WalletService', () => {
       };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
       await expect(walletService.reverseTransaction('tx1', 'admin1', 'fraud review')).rejects.toThrow('Wallet changed');
+    });
+  });
+
+  describe('reconcileWallet follower reward claim direction', () => {
+    test.each([
+      ['creator', 70, 70],
+      ['claimant', 30, 30],
+    ])('reconciles %s-side follower reward entries with the correct sign', async (side, storedBalance, expectedLedgerBalance) => {
+      (prisma.wallet.findUnique as jest.Mock).mockResolvedValue({ ...mockWallet, coinBalance: storedBalance });
+      (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
+        { type: TX_TYPES.FOLLOWER_REWARD_CLAIM, amount: 30, currency: 'VANTA', metadata: JSON.stringify({ side }) },
+        ...(side === 'creator' ? [{ type: TX_TYPES.PURCHASE, amount: 100, currency: 'VANTA', metadata: null }] : []),
+      ]);
+      (prisma.walletReconciliationLog.create as jest.Mock).mockImplementation(async ({ data }: any) => ({ id: 'recon1', ...data }));
+
+      const result = await walletService.reconcileWallet('user1');
+      expect(result.ledgerBalance).toBe(expectedLedgerBalance);
+      expect(result.status).toBe('MATCH');
+    });
+
+    test('does not guess when follower reward side metadata is missing', async () => {
+      (prisma.wallet.findUnique as jest.Mock).mockResolvedValue({ ...mockWallet, coinBalance: 30 });
+      (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
+        { type: TX_TYPES.FOLLOWER_REWARD_CLAIM, amount: 30, currency: 'VANTA', metadata: null },
+      ]);
+      (prisma.walletReconciliationLog.create as jest.Mock).mockImplementation(async ({ data }: any) => ({ id: 'recon2', ...data }));
+
+      const result = await walletService.reconcileWallet('user1');
+      expect(result.ledgerBalance).toBe(0);
+      expect(result.status).toBe('DISCREPANCY');
     });
   });
 
