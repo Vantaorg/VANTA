@@ -2370,8 +2370,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         ) : msg.type === 'CONTACT' ? (() => {
                           let contact: any = null;
                           try { contact = JSON.parse(msg.text || msg.content || '{}'); } catch {}
-                          const handle = String(contact?.username || 'user');
-                          const cardName = String(contact?.fullName || contact?.name || handle);
+                          const hasProfileHandle = typeof contact?.username === 'string' && contact.username.trim().length > 0;
+                          const handle = hasProfileHandle ? contact.username.trim() : '';
+                          const cardName = String(contact?.fullName || contact?.name || (handle ? `@${handle}` : 'Unavailable profile'));
                           const counts = contact?.counts || {};
                           const stats = [
                             { label: 'Followers', value: counts.followers },
@@ -2387,9 +2388,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <button
                               type="button"
-                              onClick={() => router.push(`/profile/${encodeURIComponent(handle)}`)}
-                              aria-label={`View @${handle}'s profile`}
-                              className="group relative block w-[min(78vw,280px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70"
+                              onClick={() => { if (hasProfileHandle) router.push(`/profile/${encodeURIComponent(handle)}`); }}
+                              disabled={!hasProfileHandle}
+                              aria-label={hasProfileHandle ? `View @${handle}'s profile` : 'This shared contact is unavailable'}
+                              className="group relative block w-[min(78vw,280px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70 disabled:cursor-default disabled:hover:border-[#d6a83f]/45"
                             >
                               <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(ellipse at 92% 8%, rgba(214,168,63,.18), transparent 42%), radial-gradient(ellipse at 0% 100%, rgba(214,168,63,.09), transparent 38%)' }} />
                               <div className="relative flex items-center justify-between border-b border-[#d6a83f]/20 px-3 py-2">
