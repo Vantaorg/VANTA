@@ -6,7 +6,7 @@ import { use, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bookmark, Eye, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Share2, UserPlus } from 'lucide-react';
+import { Bookmark, Eye, Heart, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Share2 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
@@ -117,23 +117,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       if (savedState) await apiDelete(`/api/feed/${post.id}/save`, token);
       else await apiPost(`/api/feed/${post.id}/save`, {}, token);
     } catch { setPost(before); }
-  };
-
-  const followBusy = useRef(false);
-  const toggleFollow = async () => {
-    if (!token || !post || isOwn || followBusy.current) return;
-    followBusy.current = true;
-    const wasFollowing = Boolean(post.author.following ?? post.author.isFollowing);
-    setPost(current => current ? { ...current, author: { ...current.author, following: !wasFollowing, isFollowing: !wasFollowing } } : current);
-    try {
-      if (wasFollowing) await apiDelete(`/api/profiles/${encodeURIComponent(post.author.username)}/follow`, token);
-      else await apiPost(`/api/profiles/${encodeURIComponent(post.author.username)}/follow`, {}, token);
-    } catch {
-      setPost(current => current ? { ...current, author: { ...current.author, following: wasFollowing, isFollowing: wasFollowing } } : current);
-      toast.error('Follow update failed');
-    } finally {
-      followBusy.current = false;
-    }
   };
 
   const share = async (destination: string) => {
@@ -247,7 +230,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                   <span className="truncate text-[11px] text-white/40">@{post.author.username}</span>
                 </div>
               </div>
-              {token && !isOwn && <button type="button" onClick={() => void toggleFollow()} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#c9a227]/60 px-3 text-[12px] font-semibold text-[#e3c354] transition hover:bg-[#c9a227]/10"><UserPlus size={14} />{Boolean(post.author.following ?? post.author.isFollowing) ? 'Following' : 'Follow'}</button>}
             </header>
             {post.content && (
               <div className="px-3.5 pb-2 pt-2">
