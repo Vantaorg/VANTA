@@ -521,26 +521,15 @@ useEffect(() => {
   const active = useMemo(() => items.find((item) => item.id === activeId) || items[0] || null, [items, activeId]);
   const isVerified = Boolean(user?.verified);
 
-  // Auto-open the initial source (this screen was opened by a user tap), just
-  // like the original single-file flow did.
-  const initialOpenedRef = useRef(false);
-  useEffect(() => {
-    if (initialOpenedRef.current) return;
-    initialOpenedRef.current = true;
-    const frame = requestAnimationFrame(() => {
-      if (source === 'camera-photo') openCameraPhoto();
-      else if (source === 'camera-video') openCameraVideo();
-      else openGalleryPicker();
-    });
-    return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Keep the Add status screen visible until the user chooses Text,
+  // Photo & Video, or Camera. This prevents the device picker from appearing
+  // unexpectedly as soon as the Status composer opens.
 const sourceLabel = source === 'camera-video' ? 'Record a video'
     : source === 'camera-photo' ? 'Take a photo'
     : 'Photo & Video Status';
 
   return (
-    <div className="flex h-full flex-col bg-[#050506]">
+    <div className="flex h-full flex-col bg-[#1F2630]">
       {/* Hidden inputs */}
       <input
         ref={galleryInputRef}
@@ -1015,7 +1004,7 @@ function EmptyPicker({
       animate={{ opacity: 1, scale: 1 }}
       className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 pb-[max(env(safe-area-inset-bottom,0px),16px)] text-center"
     >
-      <span className="grid h-20 w-20 place-items-center rounded-[22px] border border-white/[0.1] bg-gradient-to-br from-white/[0.05] to-white/[0.01] text-[#dfbd55] shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+      <span className="grid h-16 w-16 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-[#dfbd55]">
         {camera ? <Camera size={32} /> : <ImageIcon size={32} />}
       </span>
       <div>
@@ -1044,7 +1033,7 @@ function EmptyPicker({
             <button
               type="button"
               onClick={videoCamera ? onCameraVideo : onCameraPhoto}
-              className="flex h-12 items-center gap-2 rounded-full bg-[#c9a227] px-5 text-[15px] font-bold text-black transition hover:bg-[#dfbd55] active:scale-[0.98]"
+              className="flex h-12 items-center gap-2 rounded-xl bg-[#c9a227] px-5 text-[15px] font-bold text-black transition hover:bg-[#dfbd55] active:scale-[0.98]"
             >
               <Camera size={16} />
               {videoCamera ? 'Record video' : 'Take photo'}
@@ -1052,7 +1041,7 @@ function EmptyPicker({
             <button
               type="button"
               onClick={onGallery}
-              className="flex h-12 items-center gap-2 rounded-full bg-white px-5 text-[15px] font-semibold text-black transition hover:bg-white/85 active:scale-[0.98]"
+              className="flex h-12 items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.06] px-5 text-[15px] font-semibold text-white transition hover:bg-white/[0.1] active:scale-[0.98]"
             >
               <ImageIcon size={16} />
               Gallery
