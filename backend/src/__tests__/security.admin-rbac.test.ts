@@ -25,7 +25,10 @@ describe('admin section permissions', () => {
     expect(hasPermission(Role.ADMIN, Permission.VIEW_ADMIN_DASHBOARD)).toBe(true);
     expect(hasPermission(Role.ADMIN, Permission.MANAGE_GIFTS)).toBe(true);
     expect(hasPermission(Role.ADMIN, Permission.MANAGE_WALLET)).toBe(true);
+    expect(hasPermission(Role.ADMIN, Permission.MANAGE_VERIFICATION)).toBe(true);
     expect(hasPermission(Role.CEO, Permission.MANAGE_VERIFICATION)).toBe(true);
+    expect(hasPermission(Role.SUPER_ADMIN, Permission.MANAGE_VERIFICATION)).toBe(true);
+    expect(hasPermission(Role.MODERATOR, Permission.MANAGE_VERIFICATION)).toBe(false);
     expect(hasPermission(Role.SUPER_ADMIN, Permission.MANAGE_ADS)).toBe(true);
   });
 });

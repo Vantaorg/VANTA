@@ -22,7 +22,7 @@ import {
   adminVerificationPurchaseDashboard,
   adminRefundVerificationPurchase,
 } from '../controllers/verification.controller';
-import { authenticate, requireRole, Role } from '../security';
+import { authenticate, requireRole, requirePermission, requireAdminTwoFactorVerified, Permission, Role } from '../security';
 import { rateLimiter } from '../security/rateLimiter';
 
 const router = Router();
@@ -102,7 +102,9 @@ router.post('/crypto/confirm', verificationUnderMaintenance);
 // ============================================================================
 
 // All admin routes require ADMIN role
-router.use(requireRole(Role.ADMIN, Role.SUPER_ADMIN));
+router.use(requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN));
+router.use(requireAdminTwoFactorVerified);
+router.use(requirePermission(Permission.MANAGE_VERIFICATION));
 
 // Maintenance is privileged; scheduled callers must use an admin service identity.
 router.post('/expire-overdue', expireOverdue);
