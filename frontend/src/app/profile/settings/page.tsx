@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const languageLabel = privacy.language || 'English';
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <PageHeader
         sticky
         bleed
@@ -91,18 +91,18 @@ export default function SettingsPage() {
       />
 
       {loading ? (
-        <div className="space-y-4">
-          <div className="skeleton h-24 w-full rounded-[var(--radius-md)]" />
-          <div className="skeleton h-56 w-full rounded-[var(--radius-md)]" />
-          <div className="skeleton h-56 w-full rounded-[var(--radius-md)]" />
+        <div className="space-y-3 px-1">
+          <div className="skeleton h-20 w-full rounded-xl" />
+          <div className="skeleton h-44 w-full rounded-xl" />
+          <div className="skeleton h-44 w-full rounded-xl" />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 px-1">
           {/* ── Account hero ── */}
           <SettingsGroup>
             <a
               href="/settings/account"
-              className="group flex items-center gap-3 px-3 py-3"
+              className="group flex items-center gap-3 px-3 py-2.5"
             >
               <Avatar
                 src={profile?.avatarUrl || undefined}
@@ -273,7 +273,7 @@ export default function SettingsPage() {
               onClick={() => {
                 if (window.confirm('Log out of VANTA?')) logout();
               }}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-white/[0.09] text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[var(--surface)] text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.05] hover:text-white"
             >
               <LogOut size={15} aria-hidden="true" />
               Log out
