@@ -117,6 +117,23 @@ const normalizeAttachmentType = (value: unknown, url: string): string => {
 
 const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
   const content = msg.content ?? msg.text ?? '';
+  // Older CONTACT shares were persisted as TEXT in some environments. Recover
+  // the structured profile card from its JSON payload instead of rendering the
+  // serialized object as a chat bubble. Require multiple profile-specific fields
+  // so ordinary JSON messages are not misclassified.
+  let legacyContact = false;
+  if (typeof content === 'string' && (!msg.type || ['TEXT', 'CONTACT'].includes(String(msg.type).toUpperCase()))) {
+    try {
+      const parsed = JSON.parse(content);
+      legacyContact = Boolean(
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+        typeof parsed.username === 'string' && parsed.username.trim() &&
+        (typeof parsed.userId === 'string' || typeof parsed.fullName === 'string' ||
+          typeof parsed.avatarUrl === 'string' || typeof parsed.bannerUrl === 'string' ||
+          (parsed.counts && typeof parsed.counts === 'object'))
+      );
+    } catch { /* ordinary text */ }
+  }
   let legacyPoll: { question: string; options: string[] } | null = null;
   let pollPayload = false;
   if (typeof content === 'string' && (msg.type == null || ['TEXT', 'POLL'].includes(String(msg.type).toUpperCase()))) {
@@ -151,7 +168,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
 
   return {
     ...msg,
-    ...(safeLegacyPoll ? { type: 'POLL', legacyPoll: safeLegacyPoll, text: '' } : (pollPayload || msg.type === 'POLL' || msg.type === 'WALLET' ? { text: '' } : {})),
+    ...(safeLegacyPoll ? { type: 'POLL', legacyPoll: safeLegacyPoll, text: '' } : (legacyContact ? { type: 'CONTACT' } : (pollPayload || msg.type === 'POLL' || msg.type === 'WALLET' ? { text: '' } : {}))),
     id: msg.id,
     text: (safeLegacyPoll || pollPayload || msg.type === 'POLL' || msg.type === 'WALLET') ? '' : content,
     sender: msg.sender ?? { id: msg.senderId, username: 'User' },
@@ -2352,7 +2369,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               </div>
                               <div className="relative bg-[#1F2630] px-3 pb-3">
                                 <div className="-mt-8 flex items-end justify-between">
-                                  <Avatar src={contact?.avatarUrl || contact?.avatar || null} alt={cardName} size="2xl" wrapperClassName="!h-16 !w-16 rounded-full border-[3px] border-[#1F2630]" />
+                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="2xl" wrapperClassName="!h-16 !w-16 rounded-full border-[3px] border-[#1F2630]" />
                                   <span className="mb-1 rounded-full bg-[#c9a227]/15 px-2.5 py-1 text-[10px] font-semibold text-[#f2c75c]">View profile</span>
                                 </div>
                                 <div className="mt-2 flex min-w-0 items-center gap-1.5">
