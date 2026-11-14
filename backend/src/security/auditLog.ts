@@ -61,7 +61,10 @@ export async function appendAuditLog(
   // value directly makes Prisma try to deserialize an unsupported column.
   // Project a harmless integer instead while still acquiring the same
   // transaction-scoped lock before reading the previous chain entry.
-  await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID}) IS NOT NULL AS locked`;
+  // Keep the void-returning lock call inside a FROM subquery and return only
+  // a supported scalar to Prisma. This prevents "Failed to deserialize
+  // column of type 'void'" during comment creation's atomic audit append.
+  await tx.$queryRaw<Array<{ locked: number }>>`SELECT 1::int AS locked FROM (SELECT pg_advisory_xact_lock(${AUDIT_CHAIN_LOCK_ID})) AS audit_lock`;
 
   const previous = await tx.securityLog.findFirst({
     where: { hash: { not: null } },
