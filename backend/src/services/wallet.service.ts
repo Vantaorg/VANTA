@@ -1659,13 +1659,17 @@ export class WalletService {
       return updated;
     });
 
-    await notificationService.createNotification(
-      withdrawal.userId,
-      'WALLET_WITHDRAWAL_COMPLETED',
-      'Withdrawal Completed',
-      `Your withdrawal of $${withdrawal.netAmount.toFixed(2)} USDT has been confirmed on BNB Smart Chain.`,
-      { withdrawalId, amount: withdrawal.netAmount, transactionHash: normalizedHash, network: 'usdt-bep20' }
-    );
+    try {
+      await notificationService.createNotification(
+        withdrawal.userId,
+        'WALLET_WITHDRAWAL_COMPLETED',
+        'Withdrawal Completed',
+        `Your withdrawal of ${withdrawal.netAmount.toFixed(2)} USDT has been confirmed on BNB Smart Chain.`,
+        { withdrawalId, amount: withdrawal.netAmount, transactionHash: normalizedHash, network: 'usdt-bep20' }
+      );
+    } catch (notificationError) {
+      console.error("[WALLET] withdrawal completion committed; notification failed:", notificationError);
+    }
     return result;
   }
 
@@ -1709,11 +1713,14 @@ export class WalletService {
         },
       });
 
-      // Update the wallet transaction status
-      await tx.walletTransaction.updateMany({
-        where: { reference: withdrawalId, type: "WITHDRAWAL" },
+      // Require exactly one matching reservation ledger row before refunding.
+      const ledgerUpdate = await tx.walletTransaction.updateMany({
+        where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "FAILED" },
       });
+      if (ledgerUpdate.count !== 1) {
+        throw new Error("Pending withdrawal ledger entry is missing or already processed");
+      }
 
       // Log audit
       await tx.walletAuditLog.create({
@@ -1732,14 +1739,19 @@ export class WalletService {
       return updated;
     });
 
-    // Send notification
-    await notificationService.createNotification(
-      withdrawal.userId,
-      "WALLET_WITHDRAWAL_FAILED",
-      "Withdrawal Rejected",
-      `Your withdrawal of $${withdrawal.amount.toFixed(2)} was rejected. ${reason || "Please contact support."}`,
-      { withdrawalId, amount: withdrawal.amount, reason }
-    );
+    // Financial state is committed; notification delivery must not make a
+    // successful rejection/refund appear to have failed.
+    try {
+      await notificationService.createNotification(
+        withdrawal.userId,
+        "WALLET_WITHDRAWAL_FAILED",
+        "Withdrawal Rejected",
+        `Your withdrawal of ${withdrawal.amount.toFixed(2)} was rejected. ${reason || "Please contact support."}`,
+        { withdrawalId, amount: withdrawal.amount, reason }
+      );
+    } catch (notificationError) {
+      console.error("[WALLET] withdrawal rejection committed; notification failed:", notificationError);
+    }
 
     return result;
   }
@@ -1784,10 +1796,13 @@ export class WalletService {
         },
       });
 
-      await tx.walletTransaction.updateMany({
-        where: { reference: withdrawalId, type: "WITHDRAWAL" },
+      const ledgerUpdate = await tx.walletTransaction.updateMany({
+        where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "CANCELLED" },
       });
+      if (ledgerUpdate.count !== 1) {
+        throw new Error("Pending withdrawal ledger entry is missing or already processed");
+      }
 
       await tx.walletAuditLog.create({
         data: {
@@ -1800,13 +1815,17 @@ export class WalletService {
       return updated;
     });
 
-    await notificationService.createNotification(
-      userId,
-      "WALLET_WITHDRAWAL_CANCELLED",
-      "Withdrawal Cancelled",
-      `Your withdrawal request of $${withdrawal.amount.toFixed(2)} was cancelled and the funds returned to your earnings balance.`,
-      { withdrawalId, amount: withdrawal.amount }
-    );
+    try {
+      await notificationService.createNotification(
+        userId,
+        "WALLET_WITHDRAWAL_CANCELLED",
+        "Withdrawal Cancelled",
+        `Your withdrawal request of ${withdrawal.amount.toFixed(2)} was cancelled and the funds returned to your earnings balance.`,
+        { withdrawalId, amount: withdrawal.amount }
+      );
+    } catch (notificationError) {
+      console.error("[WALLET] withdrawal cancellation committed; notification failed:", notificationError);
+    }
 
     return result;
   }
