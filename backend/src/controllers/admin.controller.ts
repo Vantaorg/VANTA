@@ -584,8 +584,8 @@ export const approveSubscription = async (req: AuthenticatedRequest, res: Respon
           renewalDate,
           autoRenew: false,
           cancelledAt: null,
-          paymentMethod: null,
-          paymentTxHash: null,
+          // Preserve any existing payment evidence. Manual access approval must
+          // never erase a provider method or transaction reference.
           updatedAt: now,
         },
       });
