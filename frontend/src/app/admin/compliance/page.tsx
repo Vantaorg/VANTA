@@ -312,7 +312,7 @@ export default function AdminCompliancePage() {
               <option value="ACTIONED">Actioned</option>
               <option value="DISMISSED">Dismissed</option>
             </select>
-            <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={loadTabData}>
+            <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
               Refresh
             </Button>
           </div>
@@ -422,7 +422,7 @@ export default function AdminCompliancePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold text-white">Appeal Management</p>
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={loadTabData}>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
             Refresh
           </Button>
         </div>
@@ -521,7 +521,7 @@ export default function AdminCompliancePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold text-white">Copyright Claims</p>
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={loadTabData}>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
             Refresh
           </Button>
         </div>
@@ -615,7 +615,7 @@ export default function AdminCompliancePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold text-white">Compliance Audit Logs</p>
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={loadTabData}>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
             Refresh
           </Button>
         </div>
