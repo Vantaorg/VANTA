@@ -253,12 +253,27 @@ const formatVoiceTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-/** Compact relative timestamps for presence metadata. */
+/** Human-readable presence timestamps that remain unambiguous after several days. */
 const formatRelativePresenceTime = (value?: string | Date | null): string => {
   if (!value) return 'recently';
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'recently';
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const timestamp = date.getTime();
+  if (!Number.isFinite(timestamp)) return 'recently';
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
 };
 
 export default function MessagesPage() {
@@ -2483,8 +2498,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   Camera / Photos / Files sheet from MainActivity instead. */}
               {showAttachmentSheet && (
                 <>
-                  <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-30 bg-black/45" />
-                  <section role="dialog" aria-label="Choose an attachment" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                  <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-[60] bg-black/55" />
+                  <section role="dialog" aria-label="Choose an attachment" className="fixed inset-x-3 bottom-[calc(var(--vanta-kb,0px)+5.25rem)] z-[70] mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-2xl border border-white/[0.09] bg-[#1F2630] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-white">Share a file</h3>
@@ -2509,19 +2524,19 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={24}/></span>
                         <span className="text-xs font-semibold text-white">Location</span>
                       </button>
-                      <button type="button" onClick={() => setPollDraft({ question: '', options: ['', ''] })} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''] }); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/15 text-sky-300"><BarChart3 size={24}/></span>
                         <span className="text-xs font-semibold text-white">Poll</span>
                       </button>
-                      <button type="button" onClick={() => { setContactPickerOpen(true); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-violet-500/15 text-violet-300"><User size={24}/></span>
                         <span className="text-xs font-semibold text-white">Contact</span>
                       </button>
-                      <button type="button" onClick={() => musicInputRef.current?.click()} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Music2 size={24}/></span>
                         <span className="text-xs font-semibold text-white">Music</span>
                       </button>
-                      <button type="button" onClick={openWallet} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={24}/></span>
                         <span className="text-xs font-semibold text-white">Wallet</span>
                       </button>
@@ -2532,7 +2547,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               {pollDraft && (
                 <>
                   <button type="button" aria-label="Close poll composer" onClick={() => setPollDraft(null)} className="fixed inset-0 z-30 bg-black/45" />
-                  <section role="dialog" aria-label="Create a poll" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                  <section role="dialog" aria-label="Create a poll" className="fixed inset-x-3 bottom-[calc(var(--vanta-kb,0px)+5.25rem)] z-[70] mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-2xl border border-white/[0.09] bg-[#1F2630] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-white">Create a poll</h3>
                       <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
