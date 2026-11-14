@@ -61,6 +61,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [likePulse, setLikePulse] = useState(0);
   const conversationRef = useRef<HTMLDivElement>(null);
   const id = useMemo(() => decodeURIComponent(routeId).trim(), [routeId]);
 
@@ -289,14 +290,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               <footer className="flex min-h-10 w-full min-w-0 items-center gap-1">
                 <motion.button
                   type="button"
-                  onClick={() => void toggleLike()}
-                  whileTap={{ scale: 0.82 }}
+                  onClick={() => { setLikePulse(value => value + 1); void toggleLike(); }}
+                  whileTap={{ scale: 0.9 }}
                   transition={{ type: 'spring', stiffness: 520, damping: 18 }}
                   className={toolClass(liked ? '!text-[#d2ad35]' : 'text-white/55')}
                   aria-label={liked ? 'Unlike post' : 'Like post'}
                   aria-pressed={liked}
                 >
-                  <motion.span animate={{ scale: liked ? [1, 1.32, 1] : 1 }} transition={{ duration: 0.28, ease: 'easeOut' }}>
+                  <motion.span key={likePulse} initial={{ scale: 0.55, rotate: -24 }} animate={{ scale: [0.55, 1.38, 0.94, 1], rotate: [-24, 9, -4, 0] }} transition={{ duration: 0.42, times: [0, 0.42, 0.72, 1], ease: 'easeOut' }}>
                     <Heart size={18} className={liked ? 'fill-current' : ''} />
                   </motion.span>
                   <motion.span key={likeCount} initial={{ y: 3, opacity: 0.55 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.16 }} className="text-xs tabular-nums">{formatCount(likeCount)}</motion.span>

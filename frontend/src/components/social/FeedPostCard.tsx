@@ -102,6 +102,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const captionText = typeof caption === 'string' ? caption : '';
   const captionRef = useRef<HTMLParagraphElement>(null);
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [likePulse, setLikePulse] = useState(0);
   const [captionOverflows, setCaptionOverflows] = useState(false);
 
   // Measure the real rendered text so the expand control appears only when
@@ -174,7 +175,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         )}
         <footer className="flex min-w-0 items-center justify-between gap-1 pt-0.5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <motion.button type="button" onClick={() => onLike(item)} whileTap={{ scale: 0.82 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, 'transition-colors', item.liked && 'text-[#f2c75c]')}><motion.span animate={{ scale: item.liked ? [1, 1.32, 1] : 1 }} transition={{ duration: 0.28, ease: 'easeOut' }}><Heart size={17} className={item.liked ? 'fill-current' : ''}/></motion.span><motion.span key={Number(item.likes || 0)} initial={{ y: 3, opacity: 0.55 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.16 }}>{formatCount(item.likes)}</motion.span></motion.button>
+            <motion.button type="button" onClick={() => { setLikePulse(value => value + 1); onLike(item); }} whileTap={{ scale: 0.9 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, 'transition-colors', item.liked && 'text-[#f2c75c]')}><motion.span key={likePulse} initial={{ scale: 0.55, rotate: -24 }} animate={{ scale: [0.55, 1.38, 0.94, 1], rotate: [-24, 9, -4, 0] }} transition={{ duration: 0.42, times: [0, 0.42, 0.72, 1], ease: 'easeOut' }}><Heart size={17} className={item.liked ? 'fill-current' : ''}/></motion.span><motion.span key={Number(item.likes || 0)} initial={{ y: 3, opacity: 0.55 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.16 }}>{formatCount(item.likes)}</motion.span></motion.button>
             <button type="button" onClick={() => onComment(item)} aria-label="Open comments" className={actionClass}><MessageCircle size={17}/><span>{formatCount(item.comments)}</span></button>
             <button type="button" onClick={() => onShare(item)} aria-label="Share post" className={actionClass}><Repeat2 size={17}/><span>{formatCount(item.reposts ?? item.shares)}</span></button>
             {!isOwn ? <button type="button" onClick={() => onGift(item)} aria-label="Send gift" className={cn(actionClass, 'hover:text-[#c9a227]')}><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></button> : <span className={cn(actionClass, 'pointer-events-none')} aria-label="Tips"><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></span>}
