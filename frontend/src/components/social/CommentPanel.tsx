@@ -44,6 +44,7 @@ export default function CommentPanel({ postId, postAuthor, initialCount, token, 
   const [search, setSearch] = useState('');
   const [text, setText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<Array<{ file: File; url: string }>>([]);
   const [replyTo, setReplyTo] = useState<CommentItem | null>(null);
   const [editing, setEditing] = useState<CommentItem | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
@@ -53,6 +54,14 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   const [replyCursors, setReplyCursors] = useState<Record<string, string | undefined>>({});
   const [replyLoading, setReplyLoading] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Create temporary local previews as soon as the user selects media. Revoke
+  // every object URL when the selection changes or the panel unmounts.
+  useEffect(() => {
+    const previews = selectedFiles.map(file => ({ file, url: URL.createObjectURL(file) }));
+    setFilePreviews(previews);
+    return () => previews.forEach(preview => URL.revokeObjectURL(preview.url));
+  }, [selectedFiles]);
 
   const load = useCallback(async (reset = true) => {
     if (reset) setLoading(true); else setLoadingMore(true);
@@ -240,15 +249,15 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
           </div>
         )}
         {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
-        <form onSubmit={submit} className="relative mt-2 border-t border-white/[0.08] bg-[#050505] px-1 pt-3 pb-[calc(.75rem+env(safe-area-inset-bottom))]">
+        <form onSubmit={submit} className="sticky bottom-0 z-20 mt-2 border-t-0 bg-[var(--background)] px-1 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,.22)]">
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
           </div>
-          {selectedFiles.length > 0 && <div className="mb-2 flex flex-wrap gap-1.5">{selectedFiles.map((file, index) => <span key={`${file.name}-${file.lastModified}-${index}`} className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-white/[.06] px-2 py-1 text-[10px] text-white/70"><span className="max-w-40 truncate">{file.name}</span><button type="button" onClick={() => setSelectedFiles(items => items.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="text-white/45 hover:text-white"><X size={12} /></button></span>)}</div>}
+          {filePreviews.length > 0 && <div className="mb-2 flex gap-2 overflow-x-auto pb-1">{filePreviews.map(({ file, url }, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-white/[.06]">{file.type.startsWith('video/') ? <video src={url} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : <img src={url} alt={`Selected image ${index + 1}`} className="h-full w-full object-cover" />}<button type="button" onClick={() => setSelectedFiles(items => items.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove attachment ${index + 1}`} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/75 text-white"><X size={12} /></button></div>)}</div>}
           <div className="flex items-center gap-2">
             {enableAttachments ? <><button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Select images or videos" title="Select images or videos" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-[#d7b548]"><FilePlus2 size={19} /></button><input ref={fileInputRef} type="file" accept="image/*,video/*" multiple hidden onChange={event => selectCommentFiles(event.target.files)} /></> : <Avatar src={currentUser?.avatar} alt={currentUser?.username || 'Your avatar'} size="xs" />}
-            <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-full border-0 bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:bg-white/[0.07]" />
+            <input ref={inputRef} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Add a comment..." aria-label="Add a comment" maxLength={2000} className="min-w-0 flex-1 rounded-full border-0 bg-white/[0.045] px-3.5 py-2.5 text-[13px] text-white outline-none transition placeholder:text-white/35 focus:bg-white/[0.07]" />
             {!hideEmojiPicker && <button type="button" onClick={() => setEmojiOpen(value => !value)} aria-label="Add emoji" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white"><Smile size={17} /></button>}
             <button type="button" onClick={() => setText(value => `${value}${value ? ' ' : ''}@`)} aria-label="Mention a user" className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-[#858585] hover:bg-white/[.06] hover:text-white sm:grid"><AtSign size={17} /></button>
             <button type="submit" aria-label="Send comment" disabled={(!text.trim() && selectedFiles.length === 0) || submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[#d7b548] transition hover:bg-white/[.06] disabled:opacity-30">{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
