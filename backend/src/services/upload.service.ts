@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { v2 as cloudinary } from "cloudinary";
 import { prisma } from "../prisma";
 import { imageOptimizer } from "./image-optimizer.service";
+import { createPrivateMediaUrl } from "./private-media.service";
 
 const configuredUploadDir = process.env.UPLOAD_STORAGE_DIR;
 // Resolve relative storage paths against the backend project, not process.cwd().
