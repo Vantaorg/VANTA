@@ -794,8 +794,8 @@ export class WalletService {
       throw new Error("Cannot send coins to yourself");
     }
 
-    // Validate amount as a whole (integer) number of coins.
-    const safeAmount = Math.trunc(Number(amount));
+    // Never silently truncate a fractional coin transfer.
+    const safeAmount = Number(amount);
     if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
       throw new Error("Transfer amount must be a positive whole number");
     }
@@ -854,6 +854,16 @@ export class WalletService {
         where: { senderId_requestId: { senderId, requestId } },
       });
       if (existing) {
+        // An idempotency key is bound to the original transfer intent. Reusing
+        // it with a different recipient, amount or note must not silently
+        // return an unrelated transfer as though the new request succeeded.
+        if (
+          existing.receiverId !== receiverId ||
+          existing.amount !== safeAmount ||
+          (existing.note || undefined) !== (note || undefined)
+        ) {
+          throw new Error("This requestId is already used for a different transfer");
+        }
         return {
           transfer: existing,
           replayed: true,
@@ -895,7 +905,7 @@ export class WalletService {
       where: {
         senderId,
         receiverId,
-        amount,
+        amount: safeAmount,
         createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }, // 5 min window
         status: "COMPLETED",
       },
@@ -1138,22 +1148,24 @@ export class WalletService {
       return { transfer, updatedSender, updatedReceiver };
     });
 
-    // Send notifications (outside transaction)
-    await notificationService.createNotification(
-      senderId,
-      "WALLET_TRANSFER_SENT",
-      "Transfer Sent",
-      `You sent ${safeAmount.toLocaleString()} coins (fee: ${fee}) to ${receiverLabel}.`,
-      { transferId: result.transfer.id, amount: safeAmount, fee, receiverId }
-    );
-
-    await notificationService.createNotification(
-      receiverId,
-      "WALLET_TRANSFER_RECEIVED",
-      "Coins Received",
-      `You received ${netReceived.toLocaleString()} coins from ${senderLabel}.`,
-      { transferId: result.transfer.id, amount: netReceived, senderId }
-    );
+    // The transfer is already committed. Notification delivery must not
+    // make the API report a failed transfer and encourage an unsafe retry.
+    await Promise.allSettled([
+      notificationService.createNotification(
+        senderId,
+        "WALLET_TRANSFER_SENT",
+        "Transfer Sent",
+        `You sent ${safeAmount.toLocaleString()} coins (fee: ${fee}) to ${receiverLabel}.`,
+        { transferId: result.transfer.id, amount: safeAmount, fee, receiverId }
+      ),
+      notificationService.createNotification(
+        receiverId,
+        "WALLET_TRANSFER_RECEIVED",
+        "Coins Received",
+        `You received ${netReceived.toLocaleString()} coins from ${senderLabel}.`,
+        { transferId: result.transfer.id, amount: netReceived, senderId }
+      ),
+    ]);
 
     return { transfer: result.transfer, updatedBalance: result.updatedSender.coinBalance };
   }
