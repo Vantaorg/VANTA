@@ -27,12 +27,18 @@ export class SearchService {
       if (!type || type === "users" || type === "all") {
         results.users = await prisma.user.findMany({
           where: {
-            OR: [
-              { username: { contains: userQuery } },
-              { fullName: { contains: userQuery } },
-            ],
+            OR: type === "users"
+              ? [
+                  { username: { startsWith: userQuery } },
+                  { fullName: { startsWith: userQuery } },
+                ]
+              : [
+                  { username: { contains: userQuery } },
+                  { fullName: { contains: userQuery } },
+                ],
             status: "ACTIVE",
           },
+          orderBy: { username: "asc" },
           select: {
             id: true,
             username: true,
