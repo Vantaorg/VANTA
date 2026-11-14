@@ -219,7 +219,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   // detail pages so comments live directly under the content.
   if (isInline) {
     return (
-      <section aria-label="Comments" className="flex h-[calc(100dvh-3rem)] min-h-[320px] w-full min-w-0 flex-col">
+      <section aria-label="Comments" className="flex min-h-[320px] w-full min-w-0 flex-col">
         <header className={`flex shrink-0 items-center justify-between gap-3 px-1 ${compact ? 'pt-2' : 'pt-3'}`}>
           <h2 id="comments-title" className="truncate text-sm font-bold text-[#f5f5f5]">Comments</h2>
           <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.045] p-0.5" role="group" aria-label="Comment sorting">
@@ -227,7 +227,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
             <button type="button" onClick={() => setSort('newest')} aria-pressed={sort === 'newest'} className={cnSort(sort === 'newest')}>Latest</button>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
+        <div className="min-w-0 px-1">
           {loading ? (
             <div className="space-y-4 py-6">{[1, 2, 3].map(item => <div key={item} className="flex animate-pulse gap-3"><div className="h-9 w-9 rounded-full bg-white/10" /><div className="h-14 flex-1 rounded-lg bg-white/[.05]" /></div>)}</div>
           ) : loadError ? (
@@ -249,7 +249,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
           )}
           {loadingMore && <Loader2 className="mx-auto my-4 animate-spin text-white/50" />}
         </div>
-        <form onSubmit={submit} className="relative z-20 mt-2 bg-transparent px-0 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))]">
+        <form onSubmit={submit} className="sticky bottom-0 z-30 mt-2 bg-[var(--background)]/95 px-0 pt-2 pb-[calc(.75rem+env(safe-area-inset-bottom))] backdrop-blur-md">
           <div className="mb-2 flex items-center gap-2 text-[11px] text-white/50">
             {replyTo && <><span>Replying to @{replyTo.user.username}</span><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={12} /></button></>}
             {editing && <><span>Editing comment</span><button type="button" onClick={() => { setEditing(null); setText(''); }} aria-label="Cancel edit"><X size={12} /></button></>}
