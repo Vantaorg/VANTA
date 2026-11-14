@@ -321,7 +321,9 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
   const [contactSearching, setContactSearching] = useState(false);
+  const [contactSearchError, setContactSearchError] = useState<string | null>(null);
   const contactSearchSequenceRef = useRef(0);
+  const contactSendInFlightRef = useRef(false);
   const [specialSending, setSpecialSending] = useState(false);
   const musicInputRef = useRef<HTMLInputElement>(null);
   const [createName, setCreateName] = useState('');
@@ -1149,9 +1151,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setContactSearch(query);
     const sequence = ++contactSearchSequenceRef.current;
     const prefix = query.trim().replace(/^@/, '');
-    if (!prefix) { setContactResults([]); setContactSearching(false); return; }
-    if (!token) return;
+    if (!prefix) { setContactResults([]); setContactSearching(false); setContactSearchError(null); return; }
+    if (!token) { setContactSearchError('Sign in again to search VANTA members.'); return; }
     setContactSearching(true);
+    setContactSearchError(null);
     try {
       const result = await apiGet<any>(`/api/search?q=${encodeURIComponent(prefix)}&type=users&limit=30`, token);
       if (sequence !== contactSearchSequenceRef.current) return;
@@ -1161,15 +1164,19 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         .sort((a: any, b: any) => String(a.username || '').localeCompare(String(b.username || '')))
         .slice(0, 20));
     } catch {
-      if (sequence === contactSearchSequenceRef.current) setContactResults([]);
+      if (sequence === contactSearchSequenceRef.current) {
+        setContactResults([]);
+        setContactSearchError('Could not search VANTA right now. Check your connection and try again.');
+      }
     } finally {
       if (sequence === contactSearchSequenceRef.current) setContactSearching(false);
     }
   };
 
   const sendContactMessage = async (person: any) => {
-    if (!token || !person?.username) return;
-    setContactSearching(true);
+    if (!token || !person?.username || contactSendInFlightRef.current) return;
+    contactSendInFlightRef.current = true;
+    setSpecialSending(true);
     try {
       const profile = await apiGet<any>(`/api/profiles/public/${encodeURIComponent(person.username)}`, token);
       const profileCard = {
@@ -1182,22 +1189,25 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         verified: Boolean(profile.verified ?? person.verified),
         verificationType: profile.verificationType || person.verificationType || null,
         counts: {
-          followers: Number(profile.counts?.followers ?? person._count?.followers ?? 0),
-          following: Number(profile.counts?.following ?? 0),
-          posts: Number(profile.counts?.posts ?? profile.stats?.totalPosts ?? 0),
+          followers: Number.isFinite(Number(profile.counts?.followers ?? person._count?.followers)) && (profile.counts?.followers ?? person._count?.followers) != null ? Number(profile.counts?.followers ?? person._count?.followers) : null,
+          following: Number.isFinite(Number(profile.counts?.following)) && profile.counts?.following != null ? Number(profile.counts.following) : null,
+          posts: Number.isFinite(Number(profile.counts?.posts ?? profile.stats?.totalPosts)) && (profile.counts?.posts ?? profile.stats?.totalPosts) != null ? Number(profile.counts?.posts ?? profile.stats?.totalPosts) : null,
         },
-        totalLikes: Number(profile.stats?.totalLikes ?? 0),
+        totalLikes: Number.isFinite(Number(profile.stats?.totalLikes)) && profile.stats?.totalLikes != null ? Number(profile.stats.totalLikes) : null,
         joinedAt: profile.joinedAt || profile.createdAt || null,
         online: typeof profile.online === 'boolean' ? profile.online : typeof person.online === 'boolean' ? person.online : null,
       };
+      await sendSpecialMessage('CONTACT', profileCard, profileCard.fullName || profileCard.username);
       setContactPickerOpen(false);
       setShowAttachmentSheet(false);
       setContactSearch('');
       setContactResults([]);
-      await sendSpecialMessage('CONTACT', profileCard, profileCard.fullName || profileCard.username);
+      setContactSearchError(null);
     } catch (error: any) {
       showToast?.({ type: 'error', title: 'Profile not shared', message: errorMessage(error, { action: 'share this profile', fallback: 'This profile may be private or unavailable.' }) });
     } finally {
+      contactSendInFlightRef.current = false;
+      setSpecialSending(false);
       setContactSearching(false);
     }
   };
@@ -2361,10 +2371,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           const cardName = String(contact?.fullName || contact?.name || handle);
                           const counts = contact?.counts || {};
                           const stats = [
-                            { label: 'Followers', value: Number(counts.followers ?? 0) },
-                            { label: 'Following', value: Number(counts.following ?? 0) },
-                            { label: 'Posts', value: Number(counts.posts ?? 0) },
-                            { label: 'Likes', value: Number(contact?.totalLikes ?? 0) },
+                            { label: 'Followers', value: counts.followers },
+                            { label: 'Following', value: counts.following },
+                            { label: 'Posts', value: counts.posts },
+                            { label: 'Likes', value: contact?.totalLikes },
                           ];
                           const joined = contact?.joinedAt ? new Date(contact.joinedAt) : null;
                           const joinedLabel = joined && Number.isFinite(joined.getTime())
@@ -2399,7 +2409,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               <div className="relative grid grid-cols-4 divide-x divide-[#d6a83f]/20 border-y border-[#d6a83f]/20 bg-white/[.025] px-1 py-2">
                                 {stats.map(stat => (
                                   <span key={stat.label} className="min-w-0 px-1 text-center">
-                                    <span className="block truncate text-[13px] font-semibold tabular-nums text-white">{stat.value.toLocaleString()}</span>
+                                    <span className="block truncate text-[13px] font-semibold tabular-nums text-white">{typeof stat.value === 'number' && Number.isFinite(stat.value) ? stat.value.toLocaleString() : '—'}</span>
                                     <span className="mt-0.5 block truncate text-[8px] font-medium uppercase tracking-[.09em] text-white/45">{stat.label}</span>
                                   </span>
                                 ))}
@@ -2699,7 +2709,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                       <div className="mt-2 max-h-60 overflow-y-auto scrollbar-hide">
                         {contactSearching && <p className="px-3 py-4 text-center text-xs text-white/45"><Loader2 size={14} className="mr-2 inline animate-spin text-[#e8bd59]"/>Searching VANTA…</p>}
-                        {!contactSearching && contactSearch.trim().length > 0 && contactResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No matching usernames. Check the spelling and try again.</p>}
+                        {!contactSearching && contactSearchError && <p role="alert" className="px-3 py-5 text-center text-xs text-rose-300">{contactSearchError}</p>}
+                        {!contactSearching && !contactSearchError && contactSearch.trim().length > 0 && contactResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No matching usernames. Check the spelling and try again.</p>}
                         {!contactSearching && contactResults.map(person => (
                           <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} disabled={specialSending} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-white/[.045] disabled:cursor-wait disabled:opacity-50">
                             <Avatar src={person.avatar} alt={person.username || person.fullName} size="md" />
