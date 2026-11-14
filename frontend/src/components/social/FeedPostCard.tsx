@@ -97,7 +97,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const source = mediaUrl(item);
   const attachments = postAttachments(item);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
-  const actionClass = 'flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
+  const actionClass = 'flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
   const captionText = typeof caption === 'string' ? caption : '';
   const captionRef = useRef<HTMLParagraphElement>(null);
@@ -144,16 +144,16 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
             onClick={() => router.push(profilePath)}
             className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 text-left"
           >
-            <span className="min-w-0 truncate text-[13px] font-semibold text-[#f5f5f5]">{creator.fullName || creator.username || 'VANTA creator'}</span>
+            <span className="min-w-0 truncate text-[12px] font-semibold text-[#f5f5f5]">{creator.fullName || creator.username || 'VANTA creator'}</span>
             {creator.verified && creator.verificationType && <VerificationBadge type={creator.verificationType} size="sm" />}
-            <span className="truncate text-[11px] text-[#666]">@{creator.username}</span>
+            <span className="truncate text-[11px] text-[#777]">@{creator.username}</span>
             <span className="text-[11px] text-[#666]">· {relativeTime(item.createdAt)}</span>
           </button>
           {!isOwn && !hideFollowButton && <button type="button" onClick={() => onFollow(item)} className="shrink-0 min-h-8 rounded-lg border border-white/[.12] px-2.5 text-[11px] font-semibold text-[#d8d8d8] transition hover:bg-white hover:text-black">{item.following ? 'Following' : 'Follow'}</button>}
           <button type="button" onClick={() => onMore(item)} aria-label="More post options" className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-[#666] transition hover:bg-white/[.05] hover:text-white"><MoreHorizontal size={17}/></button>
         </div>
         {item.location && <p className="truncate text-[10px] text-[#666]">{item.location}</p>}
-        {captionText && <><p ref={captionRef} style={captionExpanded ? undefined : { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 5, overflow: 'hidden' }} className="whitespace-pre-wrap break-words text-[15px] leading-5 text-[#dedede]">{renderTextWithLinks(captionText, 'linkify')}</p>{captionOverflows && <button type="button" onClick={() => setCaptionExpanded(value => !value)} aria-expanded={captionExpanded} className="-mt-0.5 self-start text-[13px] font-medium text-[#c9a227] transition hover:text-[#e0bb4f]">{captionExpanded ? 'Show less' : 'Show more'}</button>}</>}
+        {captionText && <><p ref={captionRef} style={captionExpanded ? undefined : { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 5, overflow: 'hidden' }} className="whitespace-pre-wrap break-words text-[14px] leading-[1.4] text-[#dedede]">{renderTextWithLinks(captionText, 'linkify')}</p>{captionOverflows && <button type="button" onClick={() => setCaptionExpanded(value => !value)} aria-expanded={captionExpanded} className="-mt-0.5 self-start text-[13px] font-medium text-[#c9a227] transition hover:text-[#e0bb4f]">{captionExpanded ? 'Show less' : 'Show more'}</button>}</>}
         {item.hashtags && <p className="text-[11px] text-[#c9a227]">{Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => `#${tag}`).join(' ') : item.hashtags}</p>}
         {/* Media sits INSIDE the content column so it aligns with the caption,
             matching text posts exactly. No full-bleed, no negative margins. */}
@@ -174,7 +174,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         )}
         <footer className="flex min-w-0 items-center justify-between gap-1 pt-0.5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <button type="button" onClick={() => onLike(item)} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, item.liked && 'text-[#f2c75c]')}><Heart size={17} className={item.liked ? 'fill-current' : ''}/><span>{formatCount(item.likes)}</span></button>
+            <motion.button type="button" onClick={() => onLike(item)} whileTap={{ scale: 0.82 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }} aria-label={item.liked ? 'Unlike post' : 'Like post'} aria-pressed={item.liked} className={cn(actionClass, 'transition-colors', item.liked && 'text-[#f2c75c]')}><motion.span animate={{ scale: item.liked ? [1, 1.32, 1] : 1 }} transition={{ duration: 0.28, ease: 'easeOut' }}><Heart size={17} className={item.liked ? 'fill-current' : ''}/></motion.span><motion.span key={Number(item.likes || 0)} initial={{ y: 3, opacity: 0.55 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.16 }}>{formatCount(item.likes)}</motion.span></motion.button>
             <button type="button" onClick={() => onComment(item)} aria-label="Open comments" className={actionClass}><MessageCircle size={17}/><span>{formatCount(item.comments)}</span></button>
             <button type="button" onClick={() => onShare(item)} aria-label="Share post" className={actionClass}><Repeat2 size={17}/><span>{formatCount(item.reposts ?? item.shares)}</span></button>
             {!isOwn ? <button type="button" onClick={() => onGift(item)} aria-label="Send gift" className={cn(actionClass, 'hover:text-[#c9a227]')}><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></button> : <span className={cn(actionClass, 'pointer-events-none')} aria-label="Tips"><Gift size={17}/><span>{formatCount(item.tips ?? item.tipCount ?? item.giftsReceived ?? 0)}</span></span>}
