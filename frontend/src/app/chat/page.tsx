@@ -2425,8 +2425,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
-                <div className="mb-2 flex items-center gap-3 rounded-lg border border-[#d6a83f]/25 bg-[#151517] px-3 py-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-red-500/15 text-red-300">
+                <div className="mb-2 flex items-center gap-3 rounded-xl border border-white/[0.08] bg-[#27313d] px-3 py-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#c9a227]/15 text-[#f2c75c]">
                     {recordingState === 'recording' ? <Square size={12} /> : recordingState === 'uploading' ? <Loader2 size={13} className="animate-spin" /> : <Mic size={13} />}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -2436,7 +2436,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <>
                         <p className="text-xs font-medium text-white/80">{recordingState === 'recording' ? 'Recording voice note…' : recordingState === 'uploading' ? 'Uploading voice note…' : 'Voice note ready'}</p>
                         <div className="mt-1 flex items-center gap-2">
-                          <span className="text-[10px] tabular-nums text-[#f2c75c]">{formatVoiceTime(recordingDuration)}</span>
+                          <span className="text-[11px] font-medium tabular-nums text-[#f2c75c]">{formatVoiceTime(recordingDuration)}</span>
                           {recordingState === 'recording' && <span className="flex items-center gap-1 text-[10px] text-red-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" /> live</span>}
                           {recordingError && <span className="truncate text-[10px] text-red-300">{recordingError}</span>}
                         </div>
@@ -2639,7 +2639,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     }}
                     disabled={recordingState !== 'idle'}
                     placeholder="Message"
-                    className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-[20px] border-0 bg-[#19191c] px-3.5 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#202024]"
+                    className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-2xl border-0 bg-[#27313d] px-3.5 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#354252]"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
                     }}
@@ -2648,7 +2648,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 {messageInput.trim() || attachmentDrafts.length ? (
                   <button
                     onClick={sendComposer}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1E9DE9] text-white transition-colors hover:bg-[#168bd0]"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#c9a227] text-[#171b20] transition-colors hover:bg-[#e0b638]"
                     aria-label="Send message"
                   >
                     <Send size={16} />
@@ -2673,7 +2673,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     animate={{ scale: 1 }}
                     type="button"
                     onClick={() => void sendVoiceNote()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/60 bg-[#d6a83f] text-black transition-all hover:bg-[#f2c75c]"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d6a83f]/60 bg-[#d6a83f] text-[#171b20] transition-all hover:bg-[#f2c75c]"
                     aria-label="Send voice note"
                     title="Send voice note"
                   >
