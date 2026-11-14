@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import CommentPanel from '@/components/social/CommentPanel';
 import { useAuth } from '@/context/AuthContext';
