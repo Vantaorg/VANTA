@@ -103,7 +103,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     const before = post;
     const nowLiked = Boolean(post.liked ?? post.isLiked);
     const count = Number(post.likes ?? post.likesCount ?? 0);
-    setPost({ ...post, isLiked: !nowLiked, liked: !nowLiked, likesCount: Math.max(0, count + (nowLiked ? -1 : 1)) });
+    setPost({ ...post, isLiked: !nowLiked, liked: !nowLiked, likes: Math.max(0, count + (nowLiked ? -1 : 1)), likesCount: Math.max(0, count + (nowLiked ? -1 : 1)) });
     try { await apiPost(`/api/feed/${post.id}/like`, {}, token); }
     catch { setPost(before); }
   };
