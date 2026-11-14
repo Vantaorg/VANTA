@@ -1094,8 +1094,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   // Telegram-style rich messages (location / poll / contact / wallet) travel as
   // typed messages with a JSON payload in `content`. Rendering is client-side.
-  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string) => {
-    if (!token || !user || !activeConversation || specialSending) return;
+  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string): Promise<boolean> => {
+    if (!token || !user || !activeConversation || specialSending) return false;
     setSpecialSending(true);
     const pendingId = `pending-${Date.now()}`;
     const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, createdAt: new Date().toISOString(), pending: true, pendingLabel });
@@ -1105,11 +1105,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       const saved = normalizeMessage(result.data ?? result.message ?? result);
       setMessages(previous => [...previous.filter(item => item.id !== pendingId && item.id !== saved.id), saved]);
       fetchConversations();
+      setSpecialSending(false);
+      return true;
     } catch (err: any) {
       setMessages(previous => previous.map(item => item.id === pendingId ? { ...item, pending: false, failed: true } : item));
       showToast?.({ type: 'error', title: 'Message not sent', message: errorMessage(err, { action: 'send it', fallback: 'Try again.' }) });
+      setSpecialSending(false);
+      return false;
     }
-    setSpecialSending(false);
   };
 
   const sendLocationMessage = () => {
@@ -1176,7 +1179,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const sendContactMessage = async (person: any) => {
     if (!token || !person?.username || contactSendInFlightRef.current) return;
     contactSendInFlightRef.current = true;
-    setSpecialSending(true);
+    setContactSearching(true);
     try {
       const profile = await apiGet<any>(`/api/profiles/public/${encodeURIComponent(person.username)}`, token);
       const profileCard = {
@@ -1197,7 +1200,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         joinedAt: profile.joinedAt || profile.createdAt || null,
         online: typeof profile.online === 'boolean' ? profile.online : typeof person.online === 'boolean' ? person.online : null,
       };
-      await sendSpecialMessage('CONTACT', profileCard, profileCard.fullName || profileCard.username);
+      const sent = await sendSpecialMessage('CONTACT', profileCard, profileCard.fullName || profileCard.username);
+      if (!sent) return;
       setContactPickerOpen(false);
       setShowAttachmentSheet(false);
       setContactSearch('');
@@ -1207,7 +1211,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       showToast?.({ type: 'error', title: 'Profile not shared', message: errorMessage(error, { action: 'share this profile', fallback: 'This profile may be private or unavailable.' }) });
     } finally {
       contactSendInFlightRef.current = false;
-      setSpecialSending(false);
       setContactSearching(false);
     }
   };
@@ -2712,7 +2715,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         {!contactSearching && contactSearchError && <p role="alert" className="px-3 py-5 text-center text-xs text-rose-300">{contactSearchError}</p>}
                         {!contactSearching && !contactSearchError && contactSearch.trim().length > 0 && contactResults.length === 0 && <p className="px-3 py-5 text-center text-xs text-white/40">No matching usernames. Check the spelling and try again.</p>}
                         {!contactSearching && contactResults.map(person => (
-                          <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} disabled={specialSending} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-white/[.045] disabled:cursor-wait disabled:opacity-50">
+                          <button key={person.id} type="button" onClick={() => void sendContactMessage(person)} disabled={specialSending || contactSearching} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-white/[.045] disabled:cursor-wait disabled:opacity-50">
                             <Avatar src={person.avatar} alt={person.username || person.fullName} size="md" />
                             <span className="min-w-0 flex-1">
                               <span className="flex min-w-0 items-center gap-1.5">
