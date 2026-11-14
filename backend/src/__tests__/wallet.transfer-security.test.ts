@@ -260,6 +260,12 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  test('rejects fractional coin amounts instead of truncating them', async () => {
+    await expect(transferWithPin('user1', 'user2', 100.75)).rejects.toThrow('positive whole number');
+    expect(prisma.coinTransfer.findUnique).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   test('CAS debit of count 0 aborts the transfer and writes no ledger rows', async () => {
     (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => {
       const tx = txMock();
@@ -276,9 +282,28 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
     expect(first.transfer.id).toBe('transfer1');
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 
-    (prisma.coinTransfer.findUnique as jest.Mock).mockResolvedValue({ id: 'transfer1', senderId: 'user1', amount: 100 });
+    (prisma.coinTransfer.findUnique as jest.Mock).mockResolvedValue({ id: 'transfer1', senderId: 'user1', receiverId: 'user2', amount: 100, note: 'note' });
     const replay = await transferWithPin('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123');
     expect(replay.replayed).toBe(true);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  test('rejects reuse of an idempotency key for a different transfer intent', async () => {
+    (prisma.coinTransfer.findUnique as jest.Mock).mockResolvedValue({
+      id: 'transfer1', senderId: 'user1', receiverId: 'user3', amount: 100, note: 'note',
+    });
+    await expect(transferWithPin('user1', 'user2', 100, 'note', undefined, 'ip', undefined, 'req-abc-123'))
+      .rejects.toThrow('requestId is already used for a different transfer');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test('does not report a committed transfer as failed when notification delivery fails', async () => {
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(txMock()));
+    (notificationService.createNotification as jest.Mock).mockRejectedValueOnce(new Error('notification service unavailable'));
+
+    await expect(transferWithPin('user1', 'user2', 100)).resolves.toMatchObject({
+      transfer: { id: 'transfer1' },
+    });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
