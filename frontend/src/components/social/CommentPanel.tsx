@@ -270,14 +270,14 @@ const [deleteConfirm, setDeleteConfirm] = useState<CommentItem | null>(null);
   return <AnimatePresence><motion.div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} /><motion.section role="dialog" aria-modal="true" aria-labelledby="comments-title" initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ duration: .22, ease: 'easeOut' }} className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-[80] mx-auto flex h-[var(--vanta-vh,100dvh)] w-full max-w-[760px] flex-col overflow-hidden bg-[var(--background)] sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[min(86dvh,820px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:ring-1 sm:ring-white/[0.06]">
     <header className="flex h-14 max-h-14 min-h-14 shrink-0 items-center justify-between gap-3 px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
-        <h2 id="comments-title" className="min-w-0 truncate text-base font-semibold leading-none tracking-[-0.02em] text-[#f5f5f5]">Comments <span className="ml-1 text-sm font-normal text-white/45">· {initialCount}</span></h2>
+        <h2 id="comments-title" className="min-w-0 truncate text-base font-semibold leading-none tracking-[-0.02em] text-[#f5f5f5]">Comments</h2>
       </div>
       <button onClick={onClose} aria-label="Close comments" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[#b8b8b8] transition hover:bg-white/[0.06] hover:text-white"><X size={17} /></button>
     </header>
     <div className="flex shrink-0 items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.012] px-4 py-3 sm:px-6">
-      <span className="p-0.5">
-        <button onClick={() => setSort('newest')} className={cnSort(sort === 'newest')}>Newest</button>
-        <button onClick={() => setSort('top')} className={cnSort(sort === 'top')}>Top</button>
+      <span className="flex items-center gap-1 rounded-full bg-white/[0.045] p-0.5" role="group" aria-label="Comment sorting">
+        <button type="button" onClick={() => setSort('top')} aria-pressed={sort === 'top'} className={cnSort(sort === 'top')}>Relevant</button>
+        <button type="button" onClick={() => setSort('newest')} aria-pressed={sort === 'newest'} className={cnSort(sort === 'newest')}>Latest</button>
       </span>
       <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && void load(true)} placeholder="Search comments" aria-label="Search comments" className="ml-auto min-w-0 w-36 rounded-xl border border-white/[0.08] bg-white/[0.025] py-2 pl-3 pr-3 text-xs text-white outline-none transition placeholder:text-white/30 focus:border-[#c9a227]/40 focus:bg-white/[0.04] sm:w-48" />
     </div>
