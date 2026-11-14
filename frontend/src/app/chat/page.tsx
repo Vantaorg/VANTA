@@ -253,12 +253,27 @@ const formatVoiceTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-/** Compact relative timestamps for presence metadata. */
+/** Human-readable presence timestamps that remain unambiguous after several days. */
 const formatRelativePresenceTime = (value?: string | Date | null): string => {
   if (!value) return 'recently';
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'recently';
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const timestamp = date.getTime();
+  if (!Number.isFinite(timestamp)) return 'recently';
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
 };
 
 export default function MessagesPage() {
@@ -2483,8 +2498,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   Camera / Photos / Files sheet from MainActivity instead. */}
               {showAttachmentSheet && (
                 <>
-                  <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-30 bg-black/45" />
-                  <section role="dialog" aria-label="Choose an attachment" className="absolute inset-x-3 bottom-[calc(100%+0.75rem)] z-[70] rounded-3xl border border-white/10 bg-[#111113] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                  <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-[60] bg-black/55" />
+                  <section role="dialog" aria-label="Choose an attachment" className="fixed inset-x-3 bottom-[calc(var(--vanta-kb,0px)+5.25rem)] z-[70] mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-2xl border border-white/[0.09] bg-[#1F2630] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-white">Share a file</h3>
