@@ -128,7 +128,7 @@ export default function IncomingCallBanner({
           role="dialog"
           aria-label={label}
         >
-          <div className="pointer-events-auto mx-auto w-full max-w-[480px] overflow-hidden rounded-2xl border border-[#d6a83f]/30 bg-[#0d0d0f]/95 shadow-[0_18px_50px_rgba(0,0,0,0.55),0_0_0_1px_rgba(201,162,39,0.08)] backdrop-blur-2xl">
+          <div className="pointer-events-auto mx-auto w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/[0.10] bg-[#1F2630]/[0.98] shadow-[0_18px_50px_rgba(0,0,0,0.55),0_0_0_1px_rgba(201,162,39,0.08)] backdrop-blur-2xl">
             {/* Gold accent line */}
             <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[#c9a227] to-transparent" />
 
@@ -136,7 +136,7 @@ export default function IncomingCallBanner({
               {/* Caller avatar */}
               <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
                 <span className="absolute -inset-[2px] rounded-full bg-gradient-to-br from-[#d6a83f] via-[#c8c8cc] to-[#f5f5f5]" aria-hidden="true" />
-                <Avatar src={peerAvatar} alt={peerName || 'Caller'} size="md" wrapperClassName="!h-full !w-full" className="ring-2 ring-[#0d0d0f]" />
+                <Avatar src={peerAvatar} alt={peerName || 'Caller'} size="md" wrapperClassName="!h-full !w-full" className="ring-2 ring-[#1F2630]" />
                 <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#0d0d0f]" aria-hidden="true" />
               </div>
 
