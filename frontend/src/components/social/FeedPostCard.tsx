@@ -84,7 +84,7 @@ const postAttachments = (item: Item): PostAttachment[] => {
   const single = mediaUrl(item);
   return single ? [{ url: single }] : [];
 };
-export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, feedCompactMedia = false, hideFollowButton = false }: FeedPostCardProps) {
+export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onMore, feedCompactMedia = false }: FeedPostCardProps) {
   const router = useRouter();
   const { prefs: contentPrefs, hydrated: contentPrefsHydrated } = useContentPrefs();
   // Feed video autoplay follows the persisted Video Autoplay preference.
@@ -150,7 +150,6 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
             <span className="truncate text-[11px] text-[#777]">@{creator.username}</span>
             <span className="text-[11px] text-[#666]">· {relativeTime(item.createdAt)}</span>
           </button>
-          {!isOwn && !hideFollowButton && <button type="button" onClick={() => onFollow(item)} className="shrink-0 min-h-8 rounded-lg border border-white/[.12] px-2.5 text-[11px] font-semibold text-[#d8d8d8] transition hover:bg-white hover:text-black">{item.following ? 'Following' : 'Follow'}</button>}
           <button type="button" onClick={() => onMore(item)} aria-label="More post options" className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-[#666] transition hover:bg-white/[.05] hover:text-white"><MoreHorizontal size={17}/></button>
         </div>
         {item.location && <p className="truncate text-[10px] text-[#666]">{item.location}</p>}
