@@ -672,12 +672,12 @@ const creator = current.group.user || {};
             {storyMenuOpen && (
               <>
                 <button type="button" aria-label="Close story options" className="fixed inset-0 z-30 cursor-default" onClick={() => setStoryMenuOpen(false)} />
-                <div className="absolute right-0 top-12 z-40 min-w-40 overflow-hidden rounded-xl border border-white/10 bg-[#111113] p-1 shadow-xl">
-                  <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('share'); setShareOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-white/90 transition hover:bg-white/[0.06]">
+                <div className="absolute right-0 top-12 z-40 min-w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-[#1F2630] p-1.5 shadow-[0_16px_48px_rgba(0,0,0,.55)]">
+                  <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('share'); setShareOpen(true); }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-white/90 transition hover:bg-white/[0.06]">
                     <Share2 size={15}/> Share
                   </button>
                   {isOwner && (
-                    <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('delete'); setDeleteConfirmOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-300 transition hover:bg-white/[0.06]">
+                    <button type="button" onClick={() => { setStoryMenuOpen(false); pauseStory('delete'); setDeleteConfirmOpen(true); }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-300 transition hover:bg-white/[0.06]">
                       <Trash2 size={15}/> Delete
                     </button>
                   )}
@@ -737,7 +737,7 @@ const creator = current.group.user || {};
       {viewers && (
         <>
           <button type="button" onClick={() => { setViewers(null); resumeStory('viewers'); }} aria-label="Close viewers" className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm"/>
-          <section role="dialog" aria-modal="true" aria-label="Story viewers" className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto flex max-h-[72dvh] w-full max-w-md flex-col rounded-t-3xl border border-white/10 bg-[#151517] pb-[env(safe-area-inset-bottom)]">
+          <section role="dialog" aria-modal="true" aria-label="Story viewers" className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto flex max-h-[72dvh] w-full max-w-md flex-col rounded-t-2xl border border-white/[0.08] bg-[#1F2630] pb-[env(safe-area-inset-bottom)] shadow-2xl">
             <header className="flex min-h-16 items-center justify-between border-b border-white/[.08] px-5">
               <div><h2 className="font-semibold">Story viewers</h2><p className="text-xs text-[#c8c8cc]/55">{viewers.length} unique views</p></div>
               <button type="button" onClick={() => { setViewers(null); resumeStory('viewers'); }} className="grid h-11 w-11 place-items-center rounded-full text-[#c8c8cc]" aria-label="Close"><X size={20}/></button>
@@ -761,7 +761,7 @@ const creator = current.group.user || {};
       {reshareOpen && current && (
         <>
           <button type="button" onClick={() => { setReshareOpen(false); resumeStory('reshare'); }} aria-label="Close reshare composer" className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" />
-          <section role="dialog" aria-modal="true" aria-label="Reshare to your Story" className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto w-full max-w-md rounded-t-3xl border border-white/10 bg-[#151517] p-5 pb-[env(safe-area-inset-bottom)]">
+          <section role="dialog" aria-modal="true" aria-label="Reshare to your Story" className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-50 mx-auto w-full max-w-md rounded-t-2xl border border-white/[0.08] bg-[#1F2630] p-4 pb-[env(safe-area-inset-bottom)] shadow-2xl">
             <header className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold">Reshare to your Story</h2>
