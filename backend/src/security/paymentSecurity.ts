@@ -1,6 +1,8 @@
 import { prisma } from '../prisma';
-import { auditLog } from './auditLog';
 import { CryptoUtils } from './crypto';
+
+const FINANCE_MUTATIONS_UNDER_DEVELOPMENT =
+  'Legacy payment and payout mutations are disabled. Use the audited wallet flows; coin purchases and payment verification remain under development.';
 
 export class PaymentSecurity {
   async verifyWebhookSignature(payload: string, signature: string, secret: string): Promise<boolean> {
@@ -8,61 +10,31 @@ export class PaymentSecurity {
     return CryptoUtils.constantTimeCompare(expectedSig, signature);
   }
 
-  async processPayment(userId: string, amount: number, provider: string, providerOrderId: string): Promise<void> {
-    const existing = await prisma.purchaseOrder.findUnique({
-      where: { providerOrderId },
-    });
-    if (existing) throw new Error('Duplicate payment detected');
-
-    await prisma.purchaseOrder.create({
-      data: { userId, amount, provider, providerOrderId, status: 'COMPLETED', coins: Math.floor(amount) },
-    });
-
-    await prisma.wallet.upsert({
-      where: { userId },
-      update: { coinBalance: { increment: Math.floor(amount) } },
-      create: { userId, coinBalance: Math.floor(amount) },
-    });
-
-    await prisma.walletTransaction.create({
-      data: { userId, type: 'PURCHASE', amount, status: 'COMPLETED', description: `Purchase via ${provider}` },
-    });
+  /**
+   * Legacy direct-credit path intentionally disabled.
+   * It marked provider orders completed and credited coins without independent
+   * provider verification, idempotent state claiming, or the audited purchase
+   * completion service. Do not re-enable until a verified provider flow exists.
+   */
+  async processPayment(_userId: string, _amount: number, _provider: string, _providerOrderId: string): Promise<void> {
+    throw new Error(FINANCE_MUTATIONS_UNDER_DEVELOPMENT);
   }
 
-  async processWithdrawal(userId: string, amount: number, method: string): Promise<void> {
-    const wallet = await prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) throw new Error('Wallet not found');
-    if (wallet.earningsBalance < amount) throw new Error('Insufficient earnings');
-
-    const fee = amount * 0.05;
-    const netAmount = amount - fee;
-
-    await prisma.withdrawal.create({
-      data: { userId, amount, fee, netAmount, method, status: 'PENDING' },
-    });
-
-    await prisma.wallet.update({
-      where: { userId },
-      data: { earningsBalance: { decrement: amount } },
-    });
-
-    auditLog.log({
-      userId, action: 'WITHDRAWAL_REQUESTED',
-      metadata: { amount, method, fee },
-      severity: 'INFO',
-    });
+  /**
+   * Legacy withdrawal path intentionally disabled.
+   * It bypassed PIN verification, wallet row locking/CAS, ledger reservation,
+   * and the withdrawal state machine in WalletService.
+   */
+  async processWithdrawal(_userId: string, _amount: number, _method: string): Promise<void> {
+    throw new Error(FINANCE_MUTATIONS_UNDER_DEVELOPMENT);
   }
 
-  async handleSubscription(userId: string, tier: string, price: number, provider: string): Promise<void> {
-    const start = new Date();
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + 1);
-
-    await prisma.creatorSubscription.upsert({
-      where: { subscriberId_creatorId: { subscriberId: userId, creatorId: userId } },
-      update: { tier, price, status: 'ACTIVE', currentPeriodStart: start, currentPeriodEnd: end },
-      create: { subscriberId: userId, creatorId: userId, tier, price, status: 'ACTIVE', currentPeriodStart: start, currentPeriodEnd: end },
-    });
+  /**
+   * Legacy subscription mutation intentionally disabled because it activated
+   * subscriptions without a verified payment or an audited wallet debit.
+   */
+  async handleSubscription(_userId: string, _tier: string, _price: number, _provider: string): Promise<void> {
+    throw new Error(FINANCE_MUTATIONS_UNDER_DEVELOPMENT);
   }
 
   async validateRefund(transactionId: string): Promise<{ valid: boolean; reason?: string }> {
