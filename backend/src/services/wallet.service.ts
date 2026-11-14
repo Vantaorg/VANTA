@@ -1709,11 +1709,16 @@ export class WalletService {
         },
       });
 
-      // Update the wallet transaction status
-      await tx.walletTransaction.updateMany({
-        where: { reference: withdrawalId, type: "WITHDRAWAL" },
+      // The withdrawal and its pending ledger entry must transition together.
+      // If the ledger row is missing or already processed, abort the transaction
+      // so the status change and wallet refund are rolled back as well.
+      const ledgerUpdate = await tx.walletTransaction.updateMany({
+        where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "FAILED" },
       });
+      if (ledgerUpdate.count !== 1) {
+        throw new Error("Withdrawal ledger entry is missing or already processed");
+      }
 
       // Log audit
       await tx.walletAuditLog.create({
