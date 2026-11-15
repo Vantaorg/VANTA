@@ -1,89 +1,151 @@
 import type { Prisma } from '@prisma/client';
 
+export type ModeratedFileReference = { id: string; filename: string };
+
+const REMOVAL_TIMESTAMP = () => new Date();
+
 /**
- * Permanently removes a reported content record and tombstones its uploaded
- * file metadata inside the same transaction. Unknown target types fail closed:
- * a moderation queue item must never be marked REMOVED when no content action
- * was actually performed.
+ * Reversibly hides a supported content record. Content remains in the database
+ * so a mistaken moderation decision can be restored without reconstructing
+ * relationships, comments, likes, or creator metadata.
  */
 export async function removeModeratedContent(
   tx: Prisma.TransactionClient,
   targetType: string,
   targetId: string,
-): Promise<Array<{ id: string; filename: string }>> {
+): Promise<ModeratedFileReference[]> {
   if (!targetId?.trim()) throw new Error('Moderation target ID is required');
 
-  let removedFiles: Array<{ id: string; filename: string }> = [];
+  const removedAt = REMOVAL_TIMESTAMP();
+  let recordTypes: string[] = [];
 
-  const removeRecord = async (
-    delegate: any,
-    label: string,
-  ) => {
-    const result = await delegate.deleteMany({ where: { id: targetId } });
-    if (result.count !== 1) throw new Error(label + ' not found');
-  };
-
-  const tombstoneUploads = async (recordTypes: string[]) => {
-    const where = { recordType: { in: recordTypes }, recordId: targetId, deletedAt: null };
-    const files = await tx.uploadedFile.findMany({
-      where,
-      select: { id: true, filename: true },
+  const hideRecord = async (delegate: any, label: string, data: Record<string, unknown> = {}) => {
+    const result = await delegate.updateMany({
+      where: { id: targetId, moderationRemovedAt: null },
+      data: { ...data, moderationRemovedAt: removedAt },
     });
-    await tx.uploadedFile.updateMany({
-      where,
-      data: { deletedAt: new Date() },
-    });
-    return files;
+    if (result.count !== 1) throw new Error(label + ' not found or already removed');
   };
 
   switch (targetType.trim().toUpperCase()) {
     case 'POST':
-      await removeRecord(tx.post, 'Post');
-      removedFiles = await tombstoneUploads(['Post']);
+      await hideRecord(tx.post, 'Post');
+      recordTypes = ['Post'];
       break;
     case 'VIDEO':
-      await removeRecord(tx.video, 'Video');
-      removedFiles = await tombstoneUploads(['Video', 'Reel']);
+      await hideRecord(tx.video, 'Video');
+      recordTypes = ['Video', 'Reel'];
       break;
     case 'STORY':
-      await removeRecord(tx.story, 'Story');
-      removedFiles = await tombstoneUploads(['Story']);
+      await hideRecord(tx.story, 'Story');
+      recordTypes = ['Story'];
       break;
     case 'POST_COMMENT':
-      await removeRecord(tx.postComment, 'Post comment');
-      removedFiles = await tombstoneUploads(['PostComment']);
+      await hideRecord(tx.postComment, 'Post comment');
+      recordTypes = ['PostComment'];
       break;
     case 'VIDEO_COMMENT':
-      await removeRecord(tx.videoComment, 'Video comment');
-      removedFiles = await tombstoneUploads(['VideoComment']);
+      await hideRecord(tx.videoComment, 'Video comment');
+      recordTypes = ['VideoComment'];
       break;
     case 'COMMENT': {
-      const postComment = await tx.postComment.findUnique({ where: { id: targetId }, select: { id: true } });
+      const postComment = await tx.postComment.findUnique({
+        where: { id: targetId },
+        select: { id: true, moderationRemovedAt: true },
+      });
       if (postComment) {
-        await removeRecord(tx.postComment, 'Post comment');
-        removedFiles = await tombstoneUploads(['PostComment']);
+        if (postComment.moderationRemovedAt) throw new Error('Post comment not found or already removed');
+        await hideRecord(tx.postComment, 'Post comment');
+        recordTypes = ['PostComment'];
         break;
       }
-      await removeRecord(tx.videoComment, 'Video comment');
-      removedFiles = await tombstoneUploads(['VideoComment']);
+      await hideRecord(tx.videoComment, 'Video comment');
+      recordTypes = ['VideoComment'];
       break;
     }
     case 'MESSAGE':
-      await removeRecord(tx.message, 'Message');
-      removedFiles = await tombstoneUploads(['Message']);
+      await hideRecord(tx.message, 'Message');
+      recordTypes = ['Message'];
       break;
     case 'STREAM':
-    case 'LIVE_STREAM': {
-      const result = await tx.liveStream.updateMany({
-        where: { id: targetId },
-        data: { active: false, status: 'ENDED', endedAt: new Date() },
+    case 'LIVE_STREAM':
+      await hideRecord(tx.liveStream, 'Live stream', {
+        active: false,
+        status: 'ENDED',
+        endedAt: new Date(),
       });
-      if (result.count !== 1) throw new Error('Live stream not found');
-      removedFiles = await tombstoneUploads(['LiveStream']);
+      recordTypes = ['LiveStream'];
       break;
-    }
     default:
       throw new Error('Unsupported moderation target type: ' + targetType);
   }
-  return removedFiles;
+
+  if (!recordTypes.length) return [];
+  const where = { recordType: { in: recordTypes }, recordId: targetId, deletedAt: null };
+  const files = await tx.uploadedFile.findMany({
+    where,
+    select: { id: true, filename: true },
+  });
+  await tx.uploadedFile.updateMany({
+    where,
+    data: { deletedAt: removedAt },
+  });
+  return files;
+}
+
+/** Restore a hidden record inside the same transaction as the moderation audit. */
+export async function restoreModeratedContent(
+  tx: Prisma.TransactionClient,
+  targetType: string,
+  targetId: string,
+): Promise<void> {
+  if (!targetId?.trim()) throw new Error('Moderation target ID is required');
+
+  const restoreRecord = async (delegate: any, label: string) => {
+    const result = await delegate.updateMany({
+      where: { id: targetId, moderationRemovedAt: { not: null } },
+      data: { moderationRemovedAt: null },
+    });
+    if (result.count !== 1) throw new Error(label + ' is not in a restorable removed state');
+  };
+
+  switch (targetType.trim().toUpperCase()) {
+    case 'POST':
+      await restoreRecord(tx.post, 'Post');
+      break;
+    case 'VIDEO':
+      await restoreRecord(tx.video, 'Video');
+      break;
+    case 'STORY':
+      await restoreRecord(tx.story, 'Story');
+      break;
+    case 'POST_COMMENT':
+      await restoreRecord(tx.postComment, 'Post comment');
+      break;
+    case 'VIDEO_COMMENT':
+      await restoreRecord(tx.videoComment, 'Video comment');
+      break;
+    case 'COMMENT': {
+      const postComment = await tx.postComment.findUnique({
+        where: { id: targetId },
+        select: { id: true, moderationRemovedAt: true },
+      });
+      if (postComment?.moderationRemovedAt) {
+        await restoreRecord(tx.postComment, 'Post comment');
+        break;
+      }
+      await restoreRecord(tx.videoComment, 'Video comment');
+      break;
+    }
+    case 'MESSAGE':
+      await restoreRecord(tx.message, 'Message');
+      break;
+    case 'STREAM':
+    case 'LIVE_STREAM':
+      // Restored streams remain ENDED; moderation must never restart a broadcast.
+      await restoreRecord(tx.liveStream, 'Live stream');
+      break;
+    default:
+      throw new Error('Unsupported moderation target type: ' + targetType);
+  }
 }
