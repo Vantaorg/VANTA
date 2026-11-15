@@ -408,7 +408,9 @@ For questions about your data, contact privacy@vanta.app
     const deactivation = await prisma.accountDeactivation.findUnique({ where: { userId } });
     if (!deactivation) throw new Error('No deletion request found.');
     if (deactivation.status === 'DELETED') throw new Error('Account has already been deleted.');
-    if (deactivation.status !== 'SCHEDULED_FOR_DELETION') throw new Error('There is no scheduled deletion to cancel.');
+    if (!['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(deactivation.status)) {
+      throw new Error('There is no recoverable account action to cancel.');
+    }
     const updated = await prisma.$transaction(async (tx) => {
       const record = await tx.accountDeactivation.update({ where: { userId }, data: { status: 'RECOVERED', recoveredAt: new Date(), scheduledFor: null, recoveryPeriodEnd: null, recoveryToken: null } });
       await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
