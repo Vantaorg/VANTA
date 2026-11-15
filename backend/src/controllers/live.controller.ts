@@ -80,10 +80,10 @@ export const getFollowingStreams = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-export const getStream = async (req: Request, res: Response): Promise<void> => {
+export const getStream = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const streamId = getParamString(req.params.streamId);
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, req.user?.userId);
     res.status(200).json(stream);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
