@@ -94,6 +94,17 @@ describe('privacy settings enforcement compatibility', () => {
     }));
   });
 
+  test('does not let community invite preferences overwrite group invitation rules', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', communityInvites: 'nobody', groupInvites: 'everyone', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', { communityInvites: 'nobody' });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ communityInvites: 'nobody' }),
+      update: expect.objectContaining({ communityInvites: 'nobody' }),
+    }));
+    expect((prisma as any).userSettings.upsert.mock.calls[0][0].create).not.toHaveProperty('privacyInvites');
+    expect((prisma as any).userSettings.upsert.mock.calls[0][0].update).not.toHaveProperty('privacyInvites');
+  });
+
   test('maps new message permission values to the existing chat enforcement field', async () => {
     (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', messagePermissions: 'nobody', privacyMessages: 'noone', privacyReadReceipts: 'everyone' });
     await complianceService.updatePrivacySettings('user-1', { messagePermissions: 'nobody' });
