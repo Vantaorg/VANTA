@@ -351,6 +351,15 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await privacyApi.updateSettings({ [key]: value });
         setPrivacySettings(updated);
+        if (key === 'cookieAnalytics' || key === 'cookieMarketing') {
+          const category = key === 'cookieAnalytics' ? 'analytics' : 'marketing';
+          await consentApi.updatePreferences({ [category]: value ? 'granted' : 'denied' });
+          localStorage.setItem(
+            key === 'cookieAnalytics' ? 'vanta_cookie_analytics_consent' : 'vanta_cookie_marketing_consent',
+            value ? 'granted' : 'denied',
+          );
+          window.dispatchEvent(new Event('vanta-consent-updated'));
+        }
         showToast('Privacy setting updated');
       } catch (err: any) {
         showToast(err.message, 'error');
@@ -547,6 +556,23 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await consentApi.updatePreferences({ [key]: value });
         setConsentPrefs(updated);
+        if (key === 'analytics' || key === 'marketing') {
+          localStorage.setItem(
+            key === 'analytics' ? 'vanta_cookie_analytics_consent' : 'vanta_cookie_marketing_consent',
+            value,
+          );
+          window.dispatchEvent(new Event('vanta-consent-updated'));
+          if (key === 'analytics' && privacySettings) {
+            const enabled = value === 'granted';
+            const nextSettings = await privacyApi.updateSettings({ cookieAnalytics: enabled });
+            setPrivacySettings(nextSettings);
+          }
+          if (key === 'marketing' && privacySettings) {
+            const enabled = value === 'granted';
+            const nextSettings = await privacyApi.updateSettings({ cookieMarketing: enabled });
+            setPrivacySettings(nextSettings);
+          }
+        }
         showToast(`${key} preference updated`);
       } catch (err: any) {
         showToast(err.message, 'error');
