@@ -167,9 +167,9 @@ export const getStories = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const getStoryById = async (req: Request, res: Response): Promise<void> => {
+export const getStoryById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const story = await storyService.getStoryById(req.params.id);
+    const story = await storyService.getStoryById(req.params.id, req.user?.userId);
     if (!story) { res.status(404).json({ error: "Story not found" }); return; }
     res.status(200).json(story);
   } catch (error) {
