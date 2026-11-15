@@ -383,7 +383,7 @@ describe('copyright claim enforcement', () => {
   beforeEach(() => { jest.clearAllMocks(); });
   test('removes the actual reported content before resolving the copyright claim', async () => {
     const claim = { id: 'claim-1', status: 'PENDING', infringingContentId: 'post-1', infringingContentType: 'POST' };
-    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn().mockResolvedValue({ ...claim, status: 'ACTIONED' }) } };
+    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn().mockResolvedValue({ ...claim, status: 'ACTIONED' }) }, moderationRemoval: { create: jest.fn().mockResolvedValue({}) } };
     (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
     (removeModeratedContent as jest.Mock).mockResolvedValue([{ id: 'file-1', filename: 'media.jpg' }]);
     await expect(complianceService.processCopyrightClaim('claim-1', 'admin-1', 'remove', 'copyright confirmed')).resolves.toMatchObject({ status: 'ACTIONED' });
