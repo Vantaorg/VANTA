@@ -14,6 +14,7 @@ jest.mock('../prisma', () => ({
     $transaction: jest.fn(),
     user: { update: jest.fn(), findMany: jest.fn() },
     consentRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
+    uploadedFile: { findMany: jest.fn() },
   },
 }));
 
@@ -151,14 +152,48 @@ describe('compliance account lifecycle transactions', () => {
         update: jest.fn().mockResolvedValue({}),
       },
       user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1' }), update: jest.fn().mockResolvedValue({}) },
-      session: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      session: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      trustedDevice: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      providerAccount: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      twoFactorLoginChallenge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      passwordResetToken: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      transferOtpChallenge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      pushDevice: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      pushDelivery: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      uploadSession: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      userPresence: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      notificationPreferences: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      userSettings: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      notification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      userEmbedding: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      userInterest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      interactionEvent: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      aiContent: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      aiAnalytics: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      aiSession: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      profile: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      photo: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      verificationRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      propertyVerification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       post: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       video: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       story: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       message: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      communityPost: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      channelMessage: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      groupMessage: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      liveChatMessage: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      liveStream: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      creatorSubscription: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      premiumMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      creatorMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      walletPIN: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      wallet: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      propertyListing: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       accountDeletionRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
     transaction.mockImplementation(async (callback: any) => callback(tx));
+    (prisma as any).uploadedFile.findMany.mockResolvedValue([]);
     await expect(complianceService.permanentlyDeleteExpiredAccounts()).resolves.toMatchObject({ deleted: 1, unrecovered: 0, failed: 0 });
     expect(tx.user.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'user-1' },
@@ -169,6 +204,22 @@ describe('compliance account lifecycle transactions', () => {
       }),
     }));
     expect(tx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.providerAccount.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.profile.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.communityPost.deleteMany).toHaveBeenCalledWith({ where: { authorId: 'user-1' } });
+    expect(tx.creatorSubscription.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { OR: [{ subscriberId: 'user-1' }, { creatorId: 'user-1' }], status: 'ACTIVE' },
+      data: expect.objectContaining({ status: 'CANCELLED', autoRenew: false }),
+    }));
+    expect(tx.walletPIN.deleteMany).toHaveBeenCalledWith({ where: { wallet: { userId: 'user-1' } } });
+    expect(tx.propertyListing.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { ownerId: 'user-1' },
+      data: expect.objectContaining({ availabilityStatus: 'ARCHIVED', contactWhatsApp: null, contactPhone: null }),
+    }));
+    expect((prisma as any).uploadedFile.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', deletedAt: null },
+    }));
     expect(tx.accountDeactivation.update).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, data: expect.objectContaining({ status: 'DELETED', recoveryToken: null }) }));
   });
 });
