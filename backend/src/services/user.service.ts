@@ -375,7 +375,7 @@ export class UserService {
    */
   async getUserPosts(userId: string, viewerId?: string, cursor?: string, limit: number = 10) {
     const posts = await prisma.post.findMany({
-      where: { authorId: userId },
+      where: { authorId: userId, moderationRemovedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -475,7 +475,7 @@ export class UserService {
           })
         : Promise.resolve([]),
       prisma.post.findMany({
-        where: { authorId: userId, mediaUrl: { not: null }, ...afterCursor },
+        where: { authorId: userId, mediaUrl: { not: null }, moderationRemovedAt: null, ...afterCursor }, 
         select: { id: true, content: true, mediaUrl: true, createdAt: true },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
@@ -511,7 +511,7 @@ export class UserService {
 
   async getUserReplies(userId: string, cursor?: string, limit: number = 10) {
     const replies = await prisma.postComment.findMany({
-      where: { userId },
+      where: { userId, moderationRemovedAt: null, post: { moderationRemovedAt: null } },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -1467,7 +1467,7 @@ export class UserService {
 
   async getPinnedContent(userId: string) {
     const posts = await prisma.post.findMany({
-      where: { authorId: userId, pinned: true },
+      where: { authorId: userId, pinned: true, moderationRemovedAt: null }, 
       orderBy: { createdAt: 'desc' },
       include: {
         author: { select: { id: true, username: true, fullName: true, avatar: true } },
@@ -1512,7 +1512,7 @@ export class UserService {
   // ===== REELS (VIDEOS) =====
   async getUserReels(userId: string, cursor?: string, limit: number = 12) {
     const reels = await prisma.video.findMany({
-      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
+      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null }, moderationRemovedAt: null }, 
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -1552,7 +1552,7 @@ export class UserService {
   // ===== LIVESTREAMS =====
   async getUserLivestreams(userId: string, cursor?: string, limit: number = 10) {
     const streams = await prisma.liveStream.findMany({
-      where: { hostId: userId },
+      where: { hostId: userId, moderationRemovedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
