@@ -257,6 +257,8 @@ model UploadedFile {
   recordType   String? // e.g. User, Post, Story, Video, LiveStream, Message, Group, Channel, Community, VerificationRequest
   recordId     String?
   deletedAt    DateTime?
+  moderationOriginalPath String?
+  moderationOriginalUrl  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -418,6 +420,7 @@ model Story {
   // upload failed and the draft can be retried). Legacy rows default to
   // "PUBLISHED" so existing production data needs no migration value.
   publishStatus String         @default("PUBLISHED")
+  moderationRemovedAt DateTime?
   // JSON styling payload for TEXT (Status) stories — font family, size, color,
   // alignment, weight, style, line-height and the curated background key used to
   // render the Status exactly as the creator designed it in the composer.
@@ -650,6 +653,7 @@ model Video {
   // Publishing lifecycle, mirroring Story.publishStatus. Legacy rows default to
   // "PUBLISHED" so existing production data needs no migration value.
   publishStatus String         @default("PUBLISHED")
+  moderationRemovedAt DateTime?
   creatorId     String
   creator       User           @relation("CreatorVideos", fields: [creatorId], references: [id], onDelete: Cascade)
   likes         VideoLike[]
@@ -686,6 +690,7 @@ model VideoComment {
   userId    String
   videoId   String
   content   String
+  moderationRemovedAt DateTime?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
   likes     VideoCommentLike[]
@@ -749,6 +754,7 @@ model Post {
   saves      PostSave[]
   shareCount Int           @default(0)
   views      Int           @default(0)
+  moderationRemovedAt DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -792,6 +798,7 @@ model PostComment {
   parentId  String?
   content   String
   media     String? // JSON array of validated image/video attachments
+  moderationRemovedAt DateTime?
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   parent    PostComment?      @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
@@ -876,6 +883,7 @@ model Message {
   deletedFor     String?
   editedAt       DateTime?
   deletedAt      DateTime?
+  moderationRemovedAt DateTime?
 
   // Story reply — a private "reply to story" message sent through the normal
   // messaging system. The story reference is denormalized (no FK on purpose):
@@ -985,6 +993,7 @@ model LiveStream {
   duration          Int               @default(0) // in seconds
   startedAt         DateTime?
   endedAt           DateTime?
+  moderationRemovedAt DateTime?
   lastHostHeartbeat DateTime?
   chatPaused        Boolean           @default(false)
   slowMode          Boolean           @default(false)
@@ -2200,6 +2209,7 @@ model ModerationQueue {
   escalated    Boolean            @default(false)
   priority     Int                @default(0)
   actions      ModerationAction[]
+  removal      ModerationRemoval?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
@@ -2222,6 +2232,27 @@ model ModerationAction {
   @@index([queueId])
   @@index([moderatorId])
   @@index([action])
+}
+
+model ModerationRemoval {
+  id                    String          @id @default(cuid())
+  queueId               String          @unique
+  queue                 ModerationQueue @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  targetType            String
+  targetId              String
+  moderatorId           String
+  reason                String?
+  removedAt             DateTime        @default(now())
+  mediaQuarantineStatus String          @default("PENDING")
+  restoredAt            DateTime?
+  restoredBy            String?
+  restorationReason     String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([targetType, targetId, removedAt])
+  @@index([restoredAt])
+  @@index([moderatorId, removedAt])
 }
 
 model AIContent {
