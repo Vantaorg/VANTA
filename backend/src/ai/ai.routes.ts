@@ -914,7 +914,7 @@ privacyRouter.post('/consent', authenticate, async (req: Request, res: Response)
       return;
     }
     const consentKey = consentType === 'training' ? 'aiFeatures' : consentType === 'profiling' ? 'personalization' : 'analytics';
-    await prisma.consentRecord.create({ data: { userId, type: consentKey, granted } });
+    await prisma.consentRecord.create({ data: { userId, type: consentKey, granted, ipAddress: req.ip || null, userAgent: req.headers['user-agent'] || null } });
     res.json({ success: true, data: { consentType, granted } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
