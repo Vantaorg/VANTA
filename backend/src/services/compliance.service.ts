@@ -411,6 +411,9 @@ For questions about your data, contact privacy@vanta.app
     if (!['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(deactivation.status)) {
       throw new Error('There is no recoverable account action to cancel.');
     }
+    if (deactivation.recoveryPeriodEnd && deactivation.recoveryPeriodEnd <= new Date()) {
+      throw new Error('The account recovery period has expired.');
+    }
     const updated = await prisma.$transaction(async (tx) => {
       const record = await tx.accountDeactivation.update({ where: { userId }, data: { status: 'RECOVERED', recoveredAt: new Date(), scheduledFor: null, recoveryPeriodEnd: null, recoveryToken: null } });
       await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
@@ -427,7 +430,7 @@ For questions about your data, contact privacy@vanta.app
     if (deactivation.status === 'DELETED') throw new Error('Account has already been deleted.');
     if (!['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(deactivation.status)) throw new Error('There is no recoverable account action.');
     if (deactivation.recoveryToken !== recoveryToken) throw new Error('Invalid recovery token.');
-    if (deactivation.recoveryPeriodEnd && deactivation.recoveryPeriodEnd < new Date()) throw new Error('Recovery period has expired. Account has been permanently deleted.');
+    if (deactivation.recoveryPeriodEnd && deactivation.recoveryPeriodEnd <= new Date()) throw new Error('Recovery period has expired. Account has been permanently deleted.');
     const updated = await prisma.$transaction(async (tx) => {
       const record = await tx.accountDeactivation.update({ where: { userId }, data: { status: 'RECOVERED', recoveredAt: new Date(), scheduledFor: null, recoveryPeriodEnd: null, recoveryToken: null } });
       await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
