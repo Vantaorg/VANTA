@@ -130,6 +130,68 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     (prisma.session.update as jest.Mock).mockResolvedValue(session);
   }
 
+  test('authenticated telemetry is allowed only by the latest analytics consent record', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(denied.status).toBe(204);
+    expect(prisma.consentRecord.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', type: 'analytics' },
+    }));
+
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValueOnce({ granted: true });
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  test('authenticated marketing events require a separate marketing consent record', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ granted: true })
+      .mockResolvedValueOnce({ granted: false });
+
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    (prisma.consentRecord.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ granted: true })
+      .mockResolvedValueOnce({ granted: true });
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  test('authenticated telemetry fails closed when the consent store is unavailable', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock).mockRejectedValueOnce(new Error('consent store unavailable'));
+
+    const response = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(response.status).toBe(204);
+  });
+
   test('anonymous request is rejected with 401', async () => {
     const res = await fetch(`${baseUrl}/api/analytics/overview`);
     expect(res.status).toBe(401);
