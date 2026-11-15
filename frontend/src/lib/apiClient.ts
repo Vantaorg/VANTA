@@ -88,7 +88,7 @@ export const cancelAllRequests = (): void => {
 const tryBatchRequest = async <T>(
   method: string,
   path: string,
-  options: { body?: unknown; token?: string }
+  options: { body?: unknown; token?: string; skipCache?: boolean }
 ): Promise<T | null> => {
   // Only batch cacheable GET requests to specific endpoints. A skipCache
   // caller explicitly requests an independent fresh network read.
