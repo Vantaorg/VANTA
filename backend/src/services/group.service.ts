@@ -306,7 +306,7 @@ export class GroupService {
     }
     if (inviteModes.some(mode => mode === "followers" || mode === "following")) {
       const targetFollowsRequester = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: userId, followingId: requesterId } },
+        where: { followerId_followingId: { followerId: requesterId, followingId: userId } },
         select: { id: true },
       });
       if (!targetFollowsRequester) throw new Error("This user only accepts group invitations from accounts they follow");
