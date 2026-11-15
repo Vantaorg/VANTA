@@ -32,7 +32,7 @@ class ComplianceService {
   async getPrivacySettings(userId: string) {
     const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId }, update: {} });
     // Preserve the existing boolean readReceipts flag used by chat consumers.
-    return { ...settings, readReceipts: settings.privacyReadReceipts };
+    return { ...settings, readReceipts: settings.privacyReadReceipts, cookieFunctional: true };
   }
 
   async updatePrivacySettings(userId: string, data: Record<string, unknown>) {
@@ -67,7 +67,7 @@ class ComplianceService {
       if (key === 'tagPermissions') {
         updates.privacyTagging = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
       }
-      if (key === 'communityInvites' || key === 'groupInvites') {
+      if (key === 'groupInvites') {
         updates.privacyInvites = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
       }
     }
@@ -75,12 +75,13 @@ class ComplianceService {
       const value = data[key];
       if (value === undefined) continue;
       if (typeof value !== 'boolean') throw new Error(`Invalid boolean privacy value for ${key}.`);
-      updates[key] = value;
+      if (key === 'cookieFunctional' && value === false) throw new Error('Functional cookies are required for essential platform operation.');
+      updates[key] = key === 'cookieFunctional' ? true : value;
     }
     if (Object.keys(updates).length === 0) return this.getPrivacySettings(userId);
     const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId, ...updates }, update: updates });
     await this.logComplianceAction(userId, 'PRIVACY_SETTINGS_UPDATE', 'SETTINGS', userId, updates);
-    return { ...settings, readReceipts: settings.privacyReadReceipts };
+    return { ...settings, readReceipts: settings.privacyReadReceipts, cookieFunctional: true };
   }
 
     // CONSENT MANAGEMENT
