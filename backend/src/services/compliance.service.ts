@@ -505,6 +505,29 @@ For questions about your data, contact privacy@vanta.app
           await tx.profile.deleteMany({ where: { userId } });
           await tx.photo.deleteMany({ where: { userId } });
           await tx.verificationRequest.deleteMany({ where: { userId } });
+          await tx.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } });
+          await tx.postLike.deleteMany({ where: { userId } });
+          await tx.postComment.deleteMany({ where: { userId } });
+          await tx.postCommentLike.deleteMany({ where: { userId } });
+          await tx.postSave.deleteMany({ where: { userId } });
+          await tx.videoLike.deleteMany({ where: { userId } });
+          await tx.videoComment.deleteMany({ where: { userId } });
+          await tx.videoCommentLike.deleteMany({ where: { userId } });
+          await tx.videoSave.deleteMany({ where: { userId } });
+          await tx.watchHistory.deleteMany({ where: { userId } });
+          await tx.contentView.deleteMany({ where: { userId } });
+          await tx.storyView.deleteMany({ where: { userId } });
+          await tx.storyLike.deleteMany({ where: { userId } });
+          await tx.storyComment.deleteMany({ where: { userId } });
+          await tx.participant.deleteMany({ where: { userId } });
+          await tx.messageRead.deleteMany({ where: { userId } });
+          await tx.messageReaction.deleteMany({ where: { userId } });
+          await tx.streamViewer.deleteMany({ where: { userId } });
+          await tx.liveReaction.deleteMany({ where: { userId } });
+          await tx.streamFollower.deleteMany({ where: { OR: [{ streamerId: userId }, { followerId: userId }] } });
+          await tx.blockedUser.deleteMany({ where: { OR: [{ userId }, { targetId: userId }] } });
+          await tx.mutedUser.deleteMany({ where: { OR: [{ userId }, { targetId: userId }] } });
+
           await tx.propertyVerification.deleteMany({ where: { userId } });
 
           // Remove authored social content while retaining the groups,
@@ -524,6 +547,22 @@ For questions about your data, contact privacy@vanta.app
           await tx.liveStream.updateMany({
             where: { coHostId: userId },
             data: { coHostId: null },
+          });
+          await tx.liveStream.updateMany({
+            where: { hostId: userId },
+            data: { thumbnailUrl: null, recordingUrl: null },
+          });
+          await tx.community.updateMany({
+            where: { ownerId: userId },
+            data: { avatar: null, bannerUrl: null },
+          });
+          await tx.channel.updateMany({
+            where: { ownerId: userId },
+            data: { avatar: null },
+          });
+          await tx.group.updateMany({
+            where: { ownerId: userId },
+            data: { avatar: null },
           });
 
           // Stop recurring services without deleting payment/subscription
