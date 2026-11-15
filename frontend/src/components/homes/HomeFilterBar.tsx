@@ -19,7 +19,13 @@ const TYPE_LABEL: Record<string, string> = {
 export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilterBarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(current.q || '');
+  const [draftMinRent, setDraftMinRent] = useState(current.minRent || '');
+  const [draftMaxRent, setDraftMaxRent] = useState(current.maxRent || '');
   useEffect(() => setSearch(current.q || ''), [current.q]);
+  useEffect(() => {
+    setDraftMinRent(current.minRent || '');
+    setDraftMaxRent(current.maxRent || '');
+  }, [current.minRent, current.maxRent]);
   const hasFilters =
     current.city || current.area || current.propertyType || current.minRent || current.maxRent || current.bedrooms || current.bathrooms || current.furnished || current.q || (current.sort && current.sort !== 'newest');
 
@@ -71,15 +77,16 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
             <FilterSelect label="Bathrooms" name="bathrooms" options={['1', '2', '3', '4'].map((v) => ({ value: v, label: v === '4' ? '4+' : v }))} current={current.bathrooms || ''} buildUrl={buildUrl} />
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <FilterInput label="Min rent" name="minRent" current={current.minRent || ''} buildUrl={buildUrl} />
-            <FilterInput label="Max rent" name="maxRent" current={current.maxRent || ''} buildUrl={buildUrl} />
+            <FilterInput label="Min rent" value={draftMinRent} onChange={setDraftMinRent} />
+            <FilterInput label="Max rent" value={draftMaxRent} onChange={setDraftMaxRent} />
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <FilterSelect label="Furnished" name="furnished" options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} current={current.furnished || ''} buildUrl={buildUrl} />
             <FilterSelect label="Sort by" name="sort" options={[{ value: 'newest', label: 'Newest' }, { value: 'price_asc', label: 'Price: low to high' }, { value: 'price_desc', label: 'Price: high to low' }]} current={current.sort || 'newest'} buildUrl={buildUrl} />
           </div>
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => { window.location.search = ''; }}>Clear all</Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setDraftMinRent(''); setDraftMaxRent(''); window.location.search = ''; }}>Clear all</Button>
+            <Button variant="gold" size="sm" onClick={() => buildUrl({ minRent: draftMinRent.trim(), maxRent: draftMaxRent.trim() })}>Apply filters</Button>
           </div>
         </div>
       )}
@@ -99,11 +106,11 @@ function FilterSelect({ label, name, options, current, buildUrl }: { label: stri
   );
 }
 
-function FilterInput({ label, name, current, buildUrl }: { label: string; name: string; current: string; buildUrl: (u: Partial<Record<string, string>>) => void }) {
+function FilterInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs text-white/50">{label}</span>
-      <input type="number" value={current} onChange={(e: React.ChangeEvent<HTMLInputElement>) => buildUrl({ [name]: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-2 focus:ring-[#c9a227] outline-none" />
+      <input type="number" min="0" value={value} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-2 focus:ring-[#c9a227] outline-none" />
     </div>
   );
 }
