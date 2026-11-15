@@ -5,7 +5,8 @@ import { createPrivateMediaUrl } from "./private-media.service";
 
 const userSelect = {
   id: true, username: true, fullName: true, avatar: true, verified: true,
-  userPresence: { select: { isOnline: true, lastActive: true } },
+  // Presence is delivered only by the dedicated presence/profile endpoints,
+  // where the owner's onlineStatus and lastSeen preferences can be applied.
   ...BADGE_USER_SELECT,
 } as const;
 
@@ -78,21 +79,51 @@ async function assertDirectMessageAllowed(senderId: string, recipientId: string)
  * always keeps their own read entries so their local read/unread state stays
  * accurate; senders never see a "Seen" state for a reader who opted out.
  */
-async function sanitizeReadReceipts<T extends { reads?: { userId: string }[] }>(
+async function sanitizeReadReceipts<T extends { reads?: { userId: string }[]; senderId?: string }>(
   items: T[],
   viewerId?: string
 ): Promise<T[]> {
   const readerIds = [...new Set(items.flatMap(item => (item.reads || []).map(read => read.userId)))];
   if (!readerIds.length) return items;
-  const hiddenPrefs = await prisma.userSettings.findMany({
-    where: { userId: { in: readerIds }, readReceipts: false },
-    select: { userId: true },
+  const preferences = await prisma.userSettings.findMany({
+    where: { userId: { in: readerIds } },
+    select: { userId: true, readReceipts: true, privacyReadReceipts: true },
   });
-  if (!hiddenPrefs.length) return items;
-  const hiddenIds = new Set(hiddenPrefs.map(pref => pref.userId));
+  const byReader = new Map(preferences.map(pref => [pref.userId, pref]));
+  const followerChecks = items.flatMap(item => (item.reads || []).flatMap(read => {
+    const pref = byReader.get(read.userId);
+    const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
+    return viewerId && item.senderId === viewerId && read.userId !== viewerId &&
+      pref?.readReceipts !== false && (mode === "followers" || mode === "following")
+      ? [{ followerId: read.userId, followingId: viewerId }]
+      : [];
+  }));
+  const uniqueChecks = [...new Map(followerChecks.map(check => [
+    check.followerId + ":" + check.followingId, check,
+  ])).values()];
+  const allowedFollows = uniqueChecks.length
+    ? await prisma.follow.findMany({
+        where: { OR: uniqueChecks },
+        select: { followerId: true, followingId: true },
+      })
+    : [];
+  const allowedFollowKeys = new Set(allowedFollows.map(follow => follow.followerId + ":" + follow.followingId));
+
   return items.map(item => ({
     ...item,
-    reads: (item.reads || []).filter(read => !hiddenIds.has(read.userId) || read.userId === viewerId),
+    reads: (item.reads || []).filter(read => {
+      if (read.userId === viewerId) return true;
+      // A receipt is private to the message sender, never to every chat member.
+      if (!viewerId || item.senderId !== viewerId) return false;
+      const pref = byReader.get(read.userId);
+      if (pref?.readReceipts === false) return false;
+      const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
+      if (mode === "nobody" || mode === "noone" || mode === "none") return false;
+      if (mode === "followers" || mode === "following") {
+        return allowedFollowKeys.has(read.userId + ":" + viewerId);
+      }
+      return true;
+    }),
   }));
 }
 
@@ -223,10 +254,7 @@ export class ChatService {
           ...enrichPublicUser(p.user),
           role: p.role,
         }));
-        const onlineMemberCount = type === "GROUP"
-          ? participants.filter((p: any) => p.userPresence?.isOnline).length
-          : undefined;
-        const unreadCount = await prisma.message.count({
+          const unreadCount = await prisma.message.count({
           where: {
             conversationId: conversation.id,
             deletedAt: null,
@@ -252,7 +280,6 @@ export class ChatService {
           currentRole: conversation.participants.find((p: any) => p.userId === userId)?.role || "MEMBER",
           mutedAt: conversation.participants.find((p: any) => p.userId === userId)?.mutedAt || null,
           memberCount: conversation.participants.length,
-          onlineMemberCount,
           partner: partner ? enrichPublicUser(partner) : undefined,
           lastMessage: conversation.messages[0] || null,
           unreadCount,
@@ -641,9 +668,10 @@ export class ChatService {
     // other participants as a "messages:read" event.
     const settings = await prisma.userSettings.findUnique({
       where: { userId },
-      select: { readReceipts: true },
+      select: { readReceipts: true, privacyReadReceipts: true },
     });
-    const receiptsHidden = settings?.readReceipts === false && records.length > 0;
+    const receiptMode = String(settings?.privacyReadReceipts || "everyone").toLowerCase();
+    const receiptsHidden = records.length > 0 && (settings?.readReceipts === false || receiptMode === "nobody" || receiptMode === "noone" || receiptMode === "none");
 
     return { count: records.length, receiptsHidden };
   }
