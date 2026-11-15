@@ -1587,11 +1587,11 @@ export class UserService {
         where: { userId: user.id },
         select: { liveStreamVisibility: true, privacyLiveStream: true },
       });
-      const visibility = settings?.liveStreamVisibility || settings?.privacyLiveStream || 'everyone';
-      if (visibility === 'nobody' || visibility === 'noone') {
+      const visibilityValues = [settings?.liveStreamVisibility, settings?.privacyLiveStream].filter(Boolean);
+      if (visibilityValues.some((value) => value === 'nobody' || value === 'noone')) {
         throw new Error('This user does not share live streams publicly');
       }
-      if (visibility === 'followers' || visibility === 'following') {
+      if (visibilityValues.some((value) => value === 'followers' || value === 'following')) {
         if (!viewerId) throw new Error('This user shares live streams with followers only');
         const followsHost = await prisma.follow.findUnique({
           where: { followerId_followingId: { followerId: viewerId, followingId: user.id } },
