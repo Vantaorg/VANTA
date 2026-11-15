@@ -188,7 +188,7 @@ const makeRequestInternal = async <T>(
       const data = await readJson(response);
 
       // Cache successful GET responses
-      if (method === 'GET') {
+      if (method === 'GET' && !options.skipCache) {
         requestCache.set(cacheKey, { data, timestamp: Date.now() });
       }
 
@@ -249,11 +249,12 @@ const makeRequestInternal = async <T>(
     }
   });
 
-  // Store pending promise for deduplication
-  if (method === 'GET') {
+  // Only cacheable GETs participate in shared in-flight deduplication.
+  // skipCache callers explicitly require a fresh, independent network read.
+  if (method === 'GET' && !options.skipCache) {
     pendingRequests.set(cacheKey, promise);
     promise.finally(() => {
-      pendingRequests.delete(cacheKey);
+      if (pendingRequests.get(cacheKey) === promise) pendingRequests.delete(cacheKey);
     });
   }
 
