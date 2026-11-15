@@ -15,6 +15,28 @@ function parsePermissions(value: string | null | undefined): Record<string, bool
 }
 
 export class ChannelService {
+  /** Enforce invitee privacy for subscribers added by an owner/admin. */
+  private async assertCanInviteToChannel(targetUserId: string, requesterId: string): Promise<void> {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: targetUserId },
+      select: { communityInvites: true, privacyInvites: true },
+    });
+    const modes = [settings?.communityInvites, settings?.privacyInvites]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    if (modes.some(mode => ["nobody", "noone", "none"].includes(mode))) {
+      throw new Error("This user is not accepting community invitations");
+    }
+    if (modes.some(mode => mode === "followers" || mode === "following")) {
+      const followsInviter = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: targetUserId, followingId: requesterId } },
+        select: { id: true },
+      });
+      if (!followsInviter) {
+        throw new Error("This user only accepts community invitations from accounts they follow");
+      }
+    }
+  }
+
   private async withConversationSettings(channel: any) {
     if (!channel?.conversationId) return { ...channel, handle: null, visibility: "PUBLIC", permissions: {} };
     const conversation = await prisma.conversation.findUnique({ where: { id: channel.conversationId }, select: { handle: true, visibility: true, permissions: true } });
@@ -40,6 +62,7 @@ export class ChannelService {
 
     const allMemberIds = [ownerId, ...(memberIds?.filter(id => id !== ownerId) || [])];
     const uniqueMemberIds = [...new Set(allMemberIds)];
+    await Promise.all(uniqueMemberIds.filter(id => id !== ownerId).map(userId => this.assertCanInviteToChannel(userId, ownerId)));
 
     const channel = await prisma.channel.create({
       data: {
@@ -194,6 +217,9 @@ export class ChannelService {
     }
     const requestedMemberIds = data.memberIds ? [...new Set([...data.memberIds, channel.ownerId])] : undefined;
     if (requestedMemberIds) {
+      const currentIds = channel.members.map((member: any) => member.userId);
+      const toAdd = requestedMemberIds.filter(id => !currentIds.includes(id));
+      await Promise.all(toAdd.map(userId => this.assertCanInviteToChannel(userId, requesterId)));
       const activeUsers = await prisma.user.count({ where: { id: { in: requestedMemberIds }, status: "ACTIVE" } });
       if (activeUsers !== requestedMemberIds.length) throw new Error("One or more members do not exist");
       const currentPrivilegedIds = channel.members.filter((member: any) => ["ADMIN", "MODERATOR"].includes(member.role)).map((member: any) => member.userId);
