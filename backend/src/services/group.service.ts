@@ -293,6 +293,25 @@ export class GroupService {
     });
     if (existing) throw new Error("Already a member");
 
+    // Group additions are invitations, so the target's privacy preference is
+    // checked even when the requester is an owner or administrator.
+    const inviteSettings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { groupInvites: true, privacyInvites: true },
+    });
+    const inviteModes = [inviteSettings?.groupInvites, inviteSettings?.privacyInvites]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    if (inviteModes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) {
+      throw new Error("This user is not accepting group invitations");
+    }
+    if (inviteModes.some(mode => mode === "followers" || mode === "following")) {
+      const targetFollowsRequester = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: userId, followingId: requesterId } },
+        select: { id: true },
+      });
+      if (!targetFollowsRequester) throw new Error("This user only accepts group invitations from accounts they follow");
+    }
+
     const added = await prisma.groupMember.create({
       data: { groupId, userId },
       include: { user: { select: { id: true, username: true, avatar: true } } },
