@@ -404,6 +404,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const accountRoute = pathname.startsWith('/account/');
     const accountStatus = user?.status || null;
 
+    // Deactivated users can sign in only to cancel deletion or reactivate.
+    // Keep them on the recovery screen instead of sending them into the app.
+    if (['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(accountStatus || '') && pathname !== '/account/deactivated') {
+      router.replace('/account/deactivated');
+      return;
+    }
+
     // A suspended session is valid but restricted: keep the user on the
     // dedicated suspended screen and out of the normal app shell (including
     // the login page, which would otherwise bounce them to /reels).
