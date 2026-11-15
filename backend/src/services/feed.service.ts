@@ -708,7 +708,7 @@ export class FeedService {
       if (existing) await tx.postLike.delete({ where: { id: existing.id } });
       else await tx.postLike.create({ data: { userId, postId } });
       const likeCount = await tx.postLike.count({ where: { postId } });
-      const authorLikes = await tx.postLike.count({ where: { post: { authorId: post.authorId } } });
+      const authorLikes = await tx.postLike.count({ where: { post: { authorId: post.authorId, moderationRemovedAt: null } } });
       await tx.interactionEvent.create({ data: { userId, eventType: existing ? "POST_UNLIKE" : "POST_LIKE", targetType: "POST", targetId: postId } });
       return { liked: !existing, likeCount, authorLikes, authorId: post.authorId };
     });
