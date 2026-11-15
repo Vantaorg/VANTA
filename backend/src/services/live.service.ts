@@ -27,8 +27,33 @@ export class LiveService {
     return enrichItemAuthors(stream) as T;
   }
 
-  async getActiveStreams(cursor?: string, limit: number = 20) {
-    return cacheService.getOrSet(CACHE_KEYS.LIVE_STREAMS, async () => {
+  private async filterVisibleStreams<T extends { hostId: string }>(streams: T[], viewerId?: string): Promise<T[]> {
+    if (!streams.length) return streams;
+    const hostIds = [...new Set(streams.map(stream => stream.hostId))];
+    const [settings, follows] = await Promise.all([
+      prisma.userSettings.findMany({
+        where: { userId: { in: hostIds } },
+        select: { userId: true, liveStreamVisibility: true, privacyLiveStream: true },
+      }),
+      viewerId ? prisma.follow.findMany({
+        where: { followerId: viewerId, followingId: { in: hostIds } },
+        select: { followingId: true },
+      }) : [],
+    ]);
+    const byHost = new Map(settings.map(item => [item.userId, item]));
+    const followed = new Set(follows.map(item => item.followingId));
+    return streams.filter(stream => {
+      if (viewerId && stream.hostId === viewerId) return true;
+      const modes = [byHost.get(stream.hostId)?.liveStreamVisibility, byHost.get(stream.hostId)?.privacyLiveStream]
+        .filter(Boolean).map(value => String(value).toLowerCase());
+      if (modes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) return false;
+      if (modes.some(mode => mode === "followers" || mode === "following")) return Boolean(viewerId && followed.has(stream.hostId));
+      return true;
+    });
+  }
+
+  async getActiveStreams(cursor?: string, limit: number = 20, viewerId?: string) {
+    const result = await cacheService.getOrSet(CACHE_KEYS.LIVE_STREAMS, async () => {
       const queryStart = Date.now();
       
       const streams = await prisma.liveStream.findMany({
@@ -48,6 +73,8 @@ export class LiveService {
       const nextCursor = streams.length > limit ? streams.pop()?.id : undefined;
       return { items: streams.map((s) => this.serializeStream(s)), nextCursor };
     }, CACHE_TTL.SHORT);
+    const visibleItems = await this.filterVisibleStreams(result.items, viewerId);
+    return { ...result, items: visibleItems };
   }
 
   async getStream(streamId: string) {
@@ -597,7 +624,7 @@ export class LiveService {
     }, CACHE_TTL.MEDIUM);
   }
 
-  async getDiscoveryStreams(limit: number = 20, category?: string, search?: string, sort: string = 'trending', cursor?: string) {
+  async getDiscoveryStreams(limit: number = 20, category?: string, search?: string, sort: string = 'trending', cursor?: string, viewerId?: string) {
     const where: any = { active: true, status: 'LIVE' };
     if (category && category !== 'all') {
       where.categoryName = category;
@@ -629,7 +656,8 @@ export class LiveService {
     });
 
     const nextCursor = streams.length > limit ? streams.pop()?.id : undefined;
-    return { items: streams.map((s) => this.serializeStream(s)), nextCursor };
+    const visibleStreams = await this.filterVisibleStreams(streams, viewerId);
+    return { items: visibleStreams.map((s) => this.serializeStream(s)), nextCursor };
   }
 
   async updateStream(streamId: string, hostId: string, input: Record<string, unknown>) {
