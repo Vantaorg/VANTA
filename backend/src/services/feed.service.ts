@@ -117,7 +117,7 @@ export class FeedService {
       const followingIds = [...followedUserIds, userId];
 
       const posts = await prisma.post.findMany({
-        where: { authorId: { in: followingIds } },
+        where: { authorId: { in: followingIds }, moderationRemovedAt: null },
         orderBy: { createdAt: "desc" },
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -180,6 +180,7 @@ export class FeedService {
               hostId: { in: followingIds.filter(id => id !== userId) },
               active: true,
               status: 'LIVE',
+              moderationRemovedAt: null,
             },
             orderBy: { viewerCount: 'desc' },
             take: 3,
@@ -205,6 +206,7 @@ export class FeedService {
       // rotated so refreshes surface different eligible reels — no full-table
       // random sort.
       const trendingVideos = seededShuffle(await prisma.video.findMany({
+        where: { moderationRemovedAt: null, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
         orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
         take: 12,
         include: {
@@ -237,7 +239,7 @@ export class FeedService {
 
       // 4. Trending posts (global). Seed-rotated discovery bucket (capped).
       const trendingPosts = seededShuffle(await prisma.post.findMany({
-        where: { authorId: { notIn: followingIds } },
+        where: { authorId: { notIn: followingIds }, moderationRemovedAt: null },
         orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
         take: 10,
         include: {
@@ -272,6 +274,7 @@ export class FeedService {
         where: {
           active: true,
           status: 'LIVE',
+          moderationRemovedAt: null,
           hostId: { notIn: followingIds.filter(id => id !== userId) },
         },
         orderBy: { viewerCount: 'desc' },
@@ -604,6 +607,7 @@ export class FeedService {
       const queryStart = Date.now();
       
       const posts = await prisma.post.findMany({
+        where: { moderationRemovedAt: null },
         orderBy: [
           { likes: { _count: "desc" } },
           { createdAt: "desc" },
@@ -629,6 +633,7 @@ export class FeedService {
       
       const [posts, streams, videos] = await Promise.all([
         prisma.post.findMany({
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: "desc" },
           take: limit,
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -638,7 +643,7 @@ export class FeedService {
           },
         }),
         prisma.liveStream.findMany({
-          where: { active: true },
+          where: { active: true, moderationRemovedAt: null },
           orderBy: { viewerCount: "desc" },
           take: 10,
           include: {
@@ -647,6 +652,7 @@ export class FeedService {
           },
         }),
         prisma.video.findMany({
+          where: { moderationRemovedAt: null, publishStatus: "PUBLISHED", videoUrl: { not: null } },
           orderBy: { views: "desc" },
           take: limit,
           include: {
