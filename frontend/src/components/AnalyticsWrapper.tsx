@@ -13,6 +13,16 @@ export default function AnalyticsWrapper() {
   const [marketingConsent, setMarketingConsent] = useState<string | null>(null);
 
   useEffect(() => {
+    if (marketingConsent !== "granted") return;
+    const script = document.createElement("script");
+    script.src = "https://app.gomine.social/api/visit/v.js";
+    script.async = true;
+    script.dataset.vantaMarketingConsent = "true";
+    document.head.appendChild(script);
+    return () => script.remove();
+  }, [marketingConsent]);
+
+  useEffect(() => {
     setAnalyticsConsent(localStorage.getItem(ANALYTICS_KEY));
     setMarketingConsent(localStorage.getItem(MARKETING_KEY));
     const sync = () => {
