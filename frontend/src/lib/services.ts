@@ -234,15 +234,15 @@ export const fetchHomes = (params: {
 };
 
 export const fetchHome = (id: string, token?: string | null) =>
-  // Optional auth: the backend derives viewerId from the Authorization header
-  // (optionallyAuthenticateJWT -> req.user.userId). That is what powers
-  // `isSaved` and lets owners preview their own non-published listings.
-  apiGet<any>(`/api/homes/${id}`, authToken(token));
+  // Listing status and owner availability can change after moderation; always
+  // fetch the current detail rather than reusing a browser/shared GET cache.
+  // Optional auth still powers `isSaved` and owner previews.
+  apiGet<any>(`/api/homes/${id}`, authToken(token), { skipCache: true });
 
 export const fetchHomePropertyTypes = () => apiGet<any>('/api/homes/property-types');
 export const fetchHomeRentPeriods = () => apiGet<any>('/api/homes/rent-periods');
 export const fetchHomeContactOptions = (id: string) =>
-  apiGet<any>(`/api/homes/${id}/contact-options`);
+  apiGet<any>(`/api/homes/${id}/contact-options`, undefined, { skipCache: true });
 
 export const createHomeListing = (data: any, token?: string | null) =>
   apiPost<any>('/api/homes', data, authToken(token));
