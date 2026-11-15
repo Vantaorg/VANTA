@@ -727,12 +727,17 @@ For questions about your data, contact privacy@vanta.app
         // actual private/public media after the database transaction commits;
         // cleanup failures are logged and do not undo the completed deletion.
         try {
-          // Verification documents can be evidentiary records for identity,
-          // creator and account-verification decisions. Do not erase them as
-          // ordinary user media during account deletion; retain them under the
-          // platform's applicable compliance-retention policy.
+          // Only delete categories that are known disposable profile/content
+          // media. Unknown, generic, property, message and verification uploads
+          // may contain evidence or records subject to a separate retention
+          // policy, so preserve them until their retention rules are explicit.
+          const disposableMediaCategories = [
+            'avatar', 'banner', 'profile-media', 'thumbnail',
+            'group-avatar', 'channel-avatar', 'community-avatar',
+            'community-banner', 'reel', 'post-media', 'story',
+          ];
           const files = await prisma.uploadedFile.findMany({
-            where: { userId, deletedAt: null, category: { not: 'verification' } },
+            where: { userId, deletedAt: null, category: { in: disposableMediaCategories } },
             select: { id: true, filename: true },
           });
           const { uploadService } = require('./upload.service');
