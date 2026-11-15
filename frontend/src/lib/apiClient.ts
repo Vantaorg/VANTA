@@ -88,10 +88,11 @@ export const cancelAllRequests = (): void => {
 const tryBatchRequest = async <T>(
   method: string,
   path: string,
-  options: { body?: unknown; token?: string }
+  options: { body?: unknown; token?: string; skipCache?: boolean }
 ): Promise<T | null> => {
-  // Only batch GET requests to specific endpoints
-  if (method !== 'GET') return null;
+  // Only batch cacheable GET requests to specific endpoints. A skipCache
+  // caller explicitly requests an independent fresh network read.
+  if (method !== 'GET' || options.skipCache) return null;
   
   const basePath = '/' + path.split('/').slice(1, 3).join('/');
   if (!BATCH_ENDPOINTS.includes(basePath)) return null;
@@ -182,13 +183,13 @@ const makeRequestInternal = async <T>(
         // Enable keep-alive for connection reuse
         keepalive: method !== 'GET',
         // Enable cache mode for GET requests
-        cache: method === 'GET' ? 'default' : 'no-store',
+        cache: method === 'GET' && !options.skipCache ? 'default' : 'no-store',
       });
 
       const data = await readJson(response);
 
       // Cache successful GET responses
-      if (method === 'GET') {
+      if (method === 'GET' && !options.skipCache) {
         requestCache.set(cacheKey, { data, timestamp: Date.now() });
       }
 
@@ -249,11 +250,12 @@ const makeRequestInternal = async <T>(
     }
   });
 
-  // Store pending promise for deduplication
-  if (method === 'GET') {
+  // Only cacheable GETs participate in shared in-flight deduplication.
+  // skipCache callers explicitly require a fresh, independent network read.
+  if (method === 'GET' && !options.skipCache) {
     pendingRequests.set(cacheKey, promise);
     promise.finally(() => {
-      pendingRequests.delete(cacheKey);
+      if (pendingRequests.get(cacheKey) === promise) pendingRequests.delete(cacheKey);
     });
   }
 

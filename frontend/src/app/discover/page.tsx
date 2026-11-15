@@ -80,6 +80,7 @@ export default function DiscoverPage() {
   const [homeListings, setHomeListings] = useState<Item[]>([]);
   const [homesLoading, setHomesLoading] = useState(false);
   const [homesError, setHomesError] = useState('');
+  const [homesRetryCount, setHomesRetryCount] = useState(0);
   const [cursor, setCursor] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -159,7 +160,7 @@ export default function DiscoverPage() {
       .catch((reason: any) => { if (current) setHomesError(reason?.message || 'We could not load available properties. Please try again.'); })
       .finally(() => { if (current) setHomesLoading(false); });
     return () => { current = false; };
-  }, [category, token]);
+  }, [category, token, homesRetryCount]);
   useEffect(() => { const timer = setTimeout(() => setDebouncedQuery(query.trim()), 350); return () => clearTimeout(timer); }, [query]);
   useEffect(() => {
     if (!debouncedQuery || !token) { setSearchResults({}); setSearching(false); return; }
@@ -268,7 +269,7 @@ export default function DiscoverPage() {
 
             </div>
             <div className="flex items-end justify-between gap-3"><div><h3 className="text-base font-semibold text-white">Available properties</h3><p className="mt-1 text-xs text-white/45">Latest listings from landlords and property owners</p></div><button type="button" onClick={() => router.push('/homes')} className="shrink-0 text-xs font-semibold text-[#e0bb4f] hover:text-white">Filters &amp; search</button></div>
-            {homesLoading ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{[0,1,2,3].map((n) => <div key={n} className="animate-pulse overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025]"><div className="aspect-[4/3] bg-white/[.06]"/><div className="space-y-3 p-4"><div className="h-4 w-2/3 rounded bg-white/[.07]"/><div className="h-3 w-1/2 rounded bg-white/[.05]"/></div></div>)}</div> : homesError ? <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-6 text-center"><p className="text-sm text-white/70">{homesError}</p><button type="button" onClick={() => setCategory('homes')} className="mt-3 rounded-lg border border-[#c9a227]/35 px-4 py-2 text-sm text-[#e0bb4f]">Try again</button></div> : homeListings.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{homeListings.map((listing) => <PropertyCard key={listing.id} listing={listing}/>)}</div> : <EmptyState icon={Compass} title="No homes available right now." actionLabel="Explore VANTA Homes" onAction={() => router.push('/homes')}/>}
+            {homesLoading ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{[0,1,2,3].map((n) => <div key={n} className="animate-pulse overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025]"><div className="aspect-[4/3] bg-white/[.06]"/><div className="space-y-3 p-4"><div className="h-4 w-2/3 rounded bg-white/[.07]"/><div className="h-3 w-1/2 rounded bg-white/[.05]"/></div></div>)}</div> : homesError ? <div className="rounded-2xl border border-white/[.08] bg-white/[.025] p-6 text-center"><p className="text-sm text-white/70">{homesError}</p><button type="button" onClick={() => setHomesRetryCount((count) => count + 1)} className="mt-3 rounded-lg border border-[#c9a227]/35 px-4 py-2 text-sm text-[#e0bb4f]">Try again</button></div> : homeListings.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{homeListings.map((listing) => <PropertyCard key={listing.id} listing={listing}/>)}</div> : <EmptyState icon={Compass} title="No homes available right now." actionLabel="Explore VANTA Homes" onAction={() => router.push('/homes')}/>}
           </section>}
           {category === 'communities' && <CommunitySection items={communities} join={joinCommunity} open={(item: Item) => router.push(`/communities/${item.id}`)} copyLink={copyCommunityLink} setCategory={setCategory}/>} 
           {category === 'forYou' && <div ref={sentinel} className="flex min-h-10 items-center justify-center">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}</div>}

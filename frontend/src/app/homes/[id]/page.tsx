@@ -251,7 +251,9 @@ export default function HomeDetailPage() {
   const verif = VERIFICATION_META[listing?.ownerVerificationStatus || 'UNVERIFIED'] || VERIFICATION_META.UNVERIFIED;
   const statusMeta = STATUS_META[listing?.availabilityStatus || ''] || null;
   const isOwner = Boolean(user && owner && user.id === owner.id);
-  const canContact = contactOptions?.vantaMessaging !== false;
+  // Only show VANTA messaging after the published listing's contact settings explicitly allow it.
+  // A failed or pending contact-options request must never default to enabled.
+  const canContact = contactOptions?.vantaMessaging === true;
 
   const handleSave = async () => {
     if (!user) {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiPost } from './apiClient';
+import { apiGet, apiPost } from './apiClient';
 
 /** Build a minimal Response-like object the client's readJson() understands. */
 const jsonResponse = (status: number, body: unknown): Response =>
@@ -46,6 +46,42 @@ describe('apiClient retry policy', () => {
 
     await expect(apiPost('/api/auth/login', {})).rejects.toMatchObject({ statusCode: 400 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+
+  it('skipCache bypasses cached responses and does not populate the shared cache', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { version: 1 }))
+      .mockResolvedValueOnce(jsonResponse(200, { version: 2 }))
+      .mockResolvedValueOnce(jsonResponse(200, { version: 3 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/homes/cache-bypass-regression')).resolves.toEqual({ version: 1 });
+    await expect(apiGet('/api/homes/cache-bypass-regression', undefined, { skipCache: true })).resolves.toEqual({ version: 2 });
+    // The bypassed response must not replace the normal cache entry.
+    await expect(apiGet('/api/homes/cache-bypass-regression')).resolves.toEqual({ version: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ cache: 'no-store' });
+  });
+
+  it('skipCache requests do not join a shared in-flight GET request', async () => {
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>(resolve => { resolveFirst = resolve; });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce(jsonResponse(200, { source: 'fresh' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const cachedRequest = apiGet('/api/homes/inflight-bypass-regression');
+    const freshRequest = apiGet('/api/homes/inflight-bypass-regression', undefined, { skipCache: true });
+
+    await expect(freshRequest).resolves.toEqual({ source: 'fresh' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    resolveFirst(jsonResponse(200, { source: 'shared' }));
+    await expect(cachedRequest).resolves.toEqual({ source: 'shared' });
   });
 
   // Gateway/time-out style 5xx are transient and remain retryable.
