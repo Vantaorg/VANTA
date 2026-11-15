@@ -96,7 +96,8 @@ export function validateConsent(consentType: string) {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 1,
       });
-      const latest = records[0];
+      const canonical = records.find(record => record.type === key || record.type === `${key}:NOT_SET`);
+      const latest = canonical || records.find(record => record.type === `ai_${consentType}`);
       if (!latest || latest.type.endsWith(':NOT_SET') || latest.granted !== true) {
         res.status(403).json({
           error: 'Consent required',
