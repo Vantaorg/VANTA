@@ -42,9 +42,9 @@ export class CallSessionService {
       where: { userId: input.calleeId },
       select: { callPermissions: true, privacyCalls: true },
     });
-    const permission = settings?.callPermissions || settings?.privacyCalls || "everyone";
-    if (permission === "nobody" || permission === "noone") throw new Error("This user is not accepting calls");
-    if (permission === "followers" || permission === "following") {
+    const permissionValues = [settings?.callPermissions, settings?.privacyCalls].filter(Boolean);
+    if (permissionValues.some((value) => value === "nobody" || value === "noone")) throw new Error("This user is not accepting calls");
+    if (permissionValues.some((value) => value === "followers" || value === "following")) {
       const followsCallee = await prisma.follow.findUnique({
         where: { followerId_followingId: { followerId: input.callerId, followingId: input.calleeId } },
         select: { id: true },
