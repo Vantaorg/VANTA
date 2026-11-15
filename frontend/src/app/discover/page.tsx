@@ -158,8 +158,9 @@ export default function DiscoverPage() {
     fetchHomes({ limit: 12, sort: 'newest' })
       .then((result) => { if (current) setHomeListings(Array.isArray(result?.data) ? result.data : []); })
       .catch((reason: any) => { if (current) setHomesError(reason?.message || 'We could not load available properties. Please try again.'); })
-      .finally(() => { if (current) setHom  }, [category, token, homesRetryCount]);  return () => { current = false; };
-  }, [category, token]);
+      .finally(() => { if (current) setHomesLoading(false); });
+    return () => { current = false; };
+  }, [category, token, homesRetryCount]);
   useEffect(() => { const timer = setTimeout(() => setDebouncedQuery(query.trim()), 350); return () => clearTimeout(timer); }, [query]);
   useEffect(() => {
     if (!debouncedQuery || !token) { setSearchResults({}); setSearching(false); return; }
