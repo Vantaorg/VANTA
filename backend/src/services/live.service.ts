@@ -58,7 +58,7 @@ export class LiveService {
       const queryStart = Date.now();
       
       const streams = await prisma.liveStream.findMany({
-        where: { active: true, status: "LIVE" },
+        where: { active: true, status: "LIVE", moderationRemovedAt: null },
         orderBy: { viewerCount: "desc" },
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -83,7 +83,7 @@ export class LiveService {
       const queryStart = Date.now();
       
       const stream = await prisma.liveStream.findUnique({
-        where: { id: streamId },
+        where: { id: streamId, moderationRemovedAt: null },
         include: {
           host: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT, bio: true } },
           category: { select: { name: true } },
@@ -719,7 +719,7 @@ export class LiveService {
 
   async getStreamHistory(hostId: string, limit: number = 10) {
     return prisma.liveStream.findMany({
-      where: { hostId, status: 'ENDED' },
+      where: { hostId, status: 'ENDED', moderationRemovedAt: null }, 
       orderBy: { endedAt: 'desc' },
       take: limit,
       include: {
@@ -921,7 +921,7 @@ export class LiveService {
 
   async getTrendingStreams(limit: number = 10, viewerId?: string) {
     const streams = await prisma.liveStream.findMany({
-      where: { active: true, status: 'LIVE' },
+      where: { active: true, status: 'LIVE', moderationRemovedAt: null }, 
       orderBy: [
         { viewerCount: 'desc' },
         { gifts: 'desc' },
@@ -961,7 +961,7 @@ export class LiveService {
 
   async getRecentlyEnded(limit: number = 10) {
     const streams = await prisma.liveStream.findMany({
-      where: { status: 'ENDED' },
+      where: { status: 'ENDED', moderationRemovedAt: null }, 
       orderBy: { endedAt: 'desc' },
       take: limit,
       include: {
