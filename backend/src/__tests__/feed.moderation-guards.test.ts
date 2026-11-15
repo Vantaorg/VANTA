@@ -22,15 +22,17 @@ jest.mock('../services/public-verification', () => ({
   enrichItemAuthors: jest.fn(value => value),
 }));
 
+const removedCommentActions: Array<[string, () => Promise<unknown>]> = [
+  ['updateComment', () => feedService.updateComment('comment-1', 'user-1', 'edited')],
+  ['deleteComment', () => feedService.deleteComment('comment-1', 'user-1')],
+  ['likeComment', () => feedService.likeComment('comment-1', 'user-1')],
+  ['reportComment', () => feedService.reportComment('comment-1', 'user-1', 'SPAM')],
+];
+
 describe('feed comment moderation guards', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test.each([
-    ['updateComment', () => feedService.updateComment('comment-1', 'user-1', 'edited')],
-    ['deleteComment', () => feedService.deleteComment('comment-1', 'user-1')],
-    ['likeComment', () => feedService.likeComment('comment-1', 'user-1')],
-    ['reportComment', () => feedService.reportComment('comment-1', 'user-1', 'SPAM')],
-  ])('%s fails closed when the comment is already moderation-removed', async (_name, action) => {
+  test.each(removedCommentActions)('%s fails closed when the comment is already moderation-removed', async (_name, action) => {
     (prisma.postComment.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(action()).rejects.toThrow('Comment not found');
