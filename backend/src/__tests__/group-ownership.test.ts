@@ -4,6 +4,8 @@ jest.mock('../prisma', () => ({ prisma: {
   participant: { updateMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },
   conversation: { findUnique: jest.fn(), update: jest.fn() },
   groupMessage: { findMany: jest.fn() },
+  userSettings: { findUnique: jest.fn() },
+  follow: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 } }));
 jest.mock('../security/auditLog', () => ({ auditLog: { log: jest.fn().mockResolvedValue(undefined) } }));
@@ -105,6 +107,38 @@ describe('GroupService member permissions', () => {
     (db.groupMember.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'req', role: 'MEMBER', userId: 'member-1' });
     await expect(service.addMember('group-1', 'newbie', 'member-1')).rejects.toThrow('Unauthorized');
     expect(db.groupMember.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects group invitations when the invitee only accepts invitations from accounts they follow', async () => {
+    (db.group.findUnique as jest.Mock).mockResolvedValue({ id: 'group-1', ownerId: 'owner-1', conversationId: 'conversation-1' });
+    (db.groupMember.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'req', role: 'ADMIN', userId: 'owner-1' })
+      .mockResolvedValueOnce(null);
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ groupInvites: 'followers', privacyInvites: 'everyone' });
+    (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.addMember('group-1', 'invitee-1', 'owner-1')).rejects.toThrow(
+      'This user only accepts group invitations from accounts they follow'
+    );
+    expect(db.follow.findUnique).toHaveBeenCalledWith({
+      where: { followerId_followingId: { followerId: 'invitee-1', followingId: 'owner-1' } },
+      select: { id: true },
+    });
+    expect(db.groupMember.create).not.toHaveBeenCalled();
+  });
+
+  it('allows a group invitation from an account the invitee follows', async () => {
+    (db.group.findUnique as jest.Mock).mockResolvedValue({ id: 'group-1', ownerId: 'owner-1', conversationId: 'conversation-1' });
+    (db.groupMember.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'req', role: 'ADMIN', userId: 'owner-1' })
+      .mockResolvedValueOnce(null);
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ groupInvites: 'followers', privacyInvites: 'everyone' });
+    (db.follow.findUnique as jest.Mock).mockResolvedValue({ id: 'follow-1' });
+    (db.groupMember.create as jest.Mock).mockResolvedValue({ id: 'added', groupId: 'group-1', userId: 'invitee-1' });
+    (db.participant.upsert as jest.Mock).mockResolvedValue({});
+
+    await expect(service.addMember('group-1', 'invitee-1', 'owner-1')).resolves.toMatchObject({ id: 'added' });
+    expect(db.groupMember.create).toHaveBeenCalled();
   });
 
   it('blocks members from editing group info without changeGroupInfo', async () => {
