@@ -1,6 +1,8 @@
 name: VANTA pull request checks
 
 on:
+  push:
+    branches: [fix/analytics-marketing-consent-enforcement-2026-11-15]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -82,6 +84,7 @@ jobs:
           src/__tests__/security.admin-rbac.test.ts
           src/__tests__/security.analytics-routes.test.ts
           src/__tests__/security.analytics-identity.test.ts
+          src/__tests__/analytics-consent.middleware.test.ts
           src/__tests__/security.verification-admin-routes.test.ts
           src/__tests__/security.audit-log-hash.test.ts
           src/__tests__/wallet.service.test.ts

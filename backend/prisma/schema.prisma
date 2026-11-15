@@ -1121,8 +1121,8 @@ model UserSettings {
   discoverability          Boolean  @default(true)
   aiPersonalization        Boolean  @default(true)
   adPersonalization        Boolean  @default(true)
-  cookieAnalytics          Boolean  @default(true)
-  cookieMarketing          Boolean  @default(true)
+  cookieAnalytics          Boolean  @default(false)
+  cookieMarketing          Boolean  @default(false)
   cookieFunctional         Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

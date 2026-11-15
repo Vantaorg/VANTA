@@ -351,6 +351,9 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await privacyApi.updateSettings({ [key]: value });
         setPrivacySettings(updated);
+        if (key === 'cookieAnalytics' || key === 'cookieMarketing') {
+          window.dispatchEvent(new Event('vanta:tracking-consent-changed'));
+        }
         showToast('Privacy setting updated');
       } catch (err: any) {
         showToast(err.message, 'error');
@@ -462,8 +465,8 @@ export default function PrivacyCenterPage() {
         title: 'Cookie Preferences',
         icon: Cookie,
         items: [
-          { label: 'Analytics Cookies', key: 'cookieAnalytics', type: 'toggle', desc: 'Help us improve our platform' },
-          { label: 'Marketing Cookies', key: 'cookieMarketing', type: 'toggle', desc: 'Personalized ads and offers' },
+          { label: 'Analytics Cookies', key: 'cookieAnalytics', type: 'toggle', desc: 'Controls Vercel Analytics and Speed Insights. Off until you opt in.' },
+          { label: 'Marketing Cookies', key: 'cookieMarketing', type: 'toggle', desc: 'Controls GoMine referral and marketing tracking. Off until you opt in.' },
           { label: 'Functional Cookies', key: 'cookieFunctional', type: 'fixed', desc: 'Always enabled for essential platform functionality' },
         ],
       },
@@ -547,6 +550,9 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await consentApi.updatePreferences({ [key]: value });
         setConsentPrefs(updated);
+        if (key === 'analytics' || key === 'marketing') {
+          window.dispatchEvent(new Event('vanta:tracking-consent-changed'));
+        }
         showToast(`${key} preference updated`);
       } catch (err: any) {
         showToast(err.message, 'error');
@@ -557,7 +563,7 @@ export default function PrivacyCenterPage() {
       <div className="space-y-6">
         <p className="text-lg font-semibold text-white">Consent Preferences</p>
         <p className="text-sm text-gray-400">
-          Manage your consent preferences. You can change these at any time.
+          Manage your consent preferences. Analytics and marketing choices also control the matching tracking scripts and can be changed at any time.
         </p>
 
         <div className="space-y-3">

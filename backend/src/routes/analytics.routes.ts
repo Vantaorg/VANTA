@@ -3,6 +3,7 @@ import { analyticsController } from '../controllers/analytics.controller';
 import { authenticateJWT, optionallyAuthenticateJWT } from '../middleware/auth.middleware';
 import { requireRole, AuthenticatedRequest } from '../security/authMiddleware';
 import { Role } from '../security/rbac';
+import { requireAnalyticsConsent } from '../middleware/analyticsConsent';
 
 const router = Router();
 
@@ -57,9 +58,9 @@ function selfOrPrivileged(getResourceUserId: (req: Request) => string | undefine
 }
 
 /**
- * Telemetry endpoints stay unauthenticated (client-side product tracking) but
- * payloads are bounded so an anonymous caller cannot flood the analytics store
- * with unbounded/oversized events or inject arbitrary userId attributes.
+ * Telemetry routes retain optional-auth compatibility for existing clients,
+ * but the consent middleware skips anonymous events and any account without
+ * an explicit analytics opt-in. Payloads are also bounded to limit abuse.
  */
 function validateTrackPayload(events: unknown[]): boolean {
   return (
@@ -157,7 +158,7 @@ router.get('/ai', ...requirePlatformAnalytics, analyticsController.getAIAnalytic
 router.get('/dashboard/snapshot', ...requirePlatformAnalytics, analyticsController.getDashboardSnapshot.bind(analyticsController));
 
 // ============================================================
-// Event Tracking (no auth required for basic client telemetry, bounded)
+// Event Tracking (optional auth, explicit consent required, bounded)
 // ============================================================
 router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const event = req.body;
@@ -166,7 +167,7 @@ router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, n
     return;
   }
   next();
-}, analyticsController.trackEvent.bind(analyticsController));
+}, requireAnalyticsConsent, analyticsController.trackEvent.bind(analyticsController));
 router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const events = req.body?.events;
   if (!validateTrackPayload(events)) {
@@ -174,7 +175,7 @@ router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Respo
     return;
   }
   next();
-}, analyticsController.trackBatchEvents.bind(analyticsController));
+}, requireAnalyticsConsent, analyticsController.trackBatchEvents.bind(analyticsController));
 
 // ============================================================
 // Alert Rules & History
