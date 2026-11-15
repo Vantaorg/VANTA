@@ -28,13 +28,25 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
   if (!userId) { next(); return; }
 
   try {
-    const [settings, consentRecords, featureFlags] = await Promise.all([
+    const [settings, aiFeatureConsent, personalizationConsent, legacyTrainingConsent, legacyProfilingConsent, featureFlags] = await Promise.all([
       prisma.userSettings.findUnique({
         where: { userId },
         select: { aiPersonalization: true },
       }),
-      prisma.consentRecord.findMany({
-        where: { userId, type: { in: ['aiFeatures', 'personalization', 'aiFeatures:NOT_SET', 'personalization:NOT_SET', 'ai_training', 'ai_profiling'] } },
+      prisma.consentRecord.findFirst({
+        where: { userId, type: { in: ['aiFeatures', 'aiFeatures:NOT_SET'] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+      prisma.consentRecord.findFirst({
+        where: { userId, type: { in: ['personalization', 'personalization:NOT_SET'] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+      prisma.consentRecord.findFirst({
+        where: { userId, type: 'ai_training' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+      prisma.consentRecord.findFirst({
+        where: { userId, type: 'ai_profiling' },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       }),
       prisma.aIFeatureFlag.findMany({
@@ -43,22 +55,15 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
       }),
     ]);
 
-    const canonicalConsent = new Map<string, any>();
-    const legacyConsent = new Map<string, any>();
-    for (const record of consentRecords) {
-      const rawType = record.type.endsWith(':NOT_SET') ? record.type.slice(0, -':NOT_SET'.length) : record.type;
-      const isLegacy = rawType === 'ai_training' || rawType === 'ai_profiling';
-      const key = rawType === 'ai_training' ? 'aiFeatures' : rawType === 'ai_profiling' ? 'personalization' : rawType;
-      const target = isLegacy ? legacyConsent : canonicalConsent;
-      if (!target.has(key)) target.set(key, record);
-    }
-    const latestConsent = new Map([...legacyConsent, ...canonicalConsent]);
-    const explicitlyDenied = ['aiFeatures', 'personalization'].some(key => {
-      const record = latestConsent.get(key);
-      return Boolean(record && !record.type.endsWith(':NOT_SET') && record.granted === false);
-    });
-    const userOptedOut = featureFlags.some(flag => flag.featureKey === `opt_out:${userId}` && flag.enabled === false);
-    const globallyDisabled = featureFlags.some(flag => flag.featureKey === 'global_ai_disabled' && flag.enabled === true);
+    // New Privacy Center consent records are authoritative; legacy AI records
+    // are consulted only when no canonical record exists for that category.
+    const effectiveConsents = [
+      aiFeatureConsent || legacyTrainingConsent,
+      personalizationConsent || legacyProfilingConsent,
+    ];
+    const explicitlyDenied = effectiveConsents.some(record =>
+      Boolean(record && !record.type.endsWith(':NOT_SET') && record.granted === false)
+    );
     const featureDisabled = userOptedOut || globallyDisabled;
 
     if (settings?.aiPersonalization === false || explicitlyDenied || featureDisabled) {
@@ -96,13 +101,17 @@ export function validateConsent(consentType: string) {
     };
     const key = consentKey[consentType] || consentType;
     try {
-      const records = await prisma.consentRecord.findMany({
-        where: { userId, type: { in: [key, `${key}:NOT_SET`, `ai_${consentType}`] } },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 1,
-      });
-      const canonical = records.find(record => record.type === key || record.type === `${key}:NOT_SET`);
-      const latest = canonical || records.find(record => record.type === `ai_${consentType}`);
+      const [canonical, legacy] = await Promise.all([
+        prisma.consentRecord.findFirst({
+          where: { userId, type: { in: [key, `${key}:NOT_SET`] } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        }),
+        prisma.consentRecord.findFirst({
+          where: { userId, type: `ai_${consentType}` },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        }),
+      ]);
+      const latest = canonical || legacy;
       if (!latest || latest.type.endsWith(':NOT_SET') || latest.granted !== true) {
         res.status(403).json({
           error: 'Consent required',
