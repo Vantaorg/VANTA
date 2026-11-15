@@ -95,7 +95,7 @@ async function sanitizeReadReceipts<T extends { reads?: { userId: string }[]; se
     const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
     return viewerId && item.senderId === viewerId && read.userId !== viewerId &&
       pref?.readReceipts !== false && (mode === "followers" || mode === "following")
-      ? [{ followerId: read.userId, followingId: viewerId }]
+      ? [{ followerId: viewerId, followingId: read.userId }]
       : [];
   }));
   const uniqueChecks = [...new Map(followerChecks.map(check => [
@@ -120,7 +120,7 @@ async function sanitizeReadReceipts<T extends { reads?: { userId: string }[]; se
       const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
       if (mode === "nobody" || mode === "noone" || mode === "none") return false;
       if (mode === "followers" || mode === "following") {
-        return allowedFollowKeys.has(read.userId + ":" + viewerId);
+        return allowedFollowKeys.has(viewerId + ":" + read.userId);
       }
       return true;
     }),
@@ -683,11 +683,11 @@ export class ChatService {
         .filter((participantId: string) => participantId !== userId);
       if (otherParticipantIds.length) {
         const followed = await prisma.follow.findMany({
-          where: { followerId: userId, followingId: { in: otherParticipantIds } },
+          where: { followerId: { in: otherParticipantIds }, followingId: userId },
           select: { followingId: true },
         });
-        const followedIds = new Set(followed.map(item => item.followingId));
-        receiptsHidden = otherParticipantIds.some(participantId => !followedIds.has(participantId));
+        const followerIds = new Set(followed.map(item => item.followerId));
+        receiptsHidden = otherParticipantIds.some(participantId => !followerIds.has(participantId));
       }
     }
 
