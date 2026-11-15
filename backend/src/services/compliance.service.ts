@@ -65,7 +65,7 @@ class ComplianceService {
       // Chat creation still enforces the legacy privacyMessages field. Map
       // the new Privacy Center values to that established contract.
       if (key === 'messagePermissions') {
-        updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+        updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'followers' : 'everyone';
       }
       if (key === 'callPermissions') {
         updates.privacyCalls = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
