@@ -62,7 +62,7 @@ type Tab =
   | 'notifications';
 
 export default function PrivacyCenterPage() {
-  const { token, user } = useAuth();
+  const { token, user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -728,6 +728,7 @@ export default function PrivacyCenterPage() {
                     await accountApi.cancelDeletion();
                     const status = await accountApi.getStatus();
                     setDeactivationStatus(status);
+                    await updateUser({ status: 'ACTIVE' });
                     showToast('Account reactivated');
                   } catch (err: any) {
                     showToast(err.message, 'error');
@@ -746,6 +747,7 @@ export default function PrivacyCenterPage() {
                   try {
                     const status = await accountApi.cancelDeletion();
                     setDeactivationStatus(status);
+                    await updateUser({ status: 'ACTIVE' });
                     showToast('Deletion cancelled');
                   } catch (err: any) {
                     showToast(err.message, 'error');
@@ -833,6 +835,7 @@ export default function PrivacyCenterPage() {
                 try {
                   const result = await accountApi.deactivate(deletionReason);
                   setDeactivationStatus(result);
+                  await updateUser({ status: result.status || 'DEACTIVATED' });
                   setShowDeactivationModal(false);
                   showToast('Account deactivated');
                 } catch (err: any) {
@@ -892,6 +895,7 @@ export default function PrivacyCenterPage() {
                 try {
                   const result = await accountApi.scheduleDeletion(deletionReason, deletionDate || undefined);
                   setDeactivationStatus(result);
+                  await updateUser({ status: result.status || 'SCHEDULED_FOR_DELETION' });
                   setShowDeletionModal(false);
                   showToast('Deletion scheduled');
                 } catch (err: any) {
