@@ -3,7 +3,9 @@ import { prisma } from '../prisma';
 
 jest.mock('../prisma', () => ({
   prisma: {
-    postComment: { findUnique: jest.fn() },
+    postComment: { findUnique: jest.fn(), findFirst: jest.fn() },
+    post: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
     securityLog: { create: jest.fn() },
   },
 }));
@@ -40,6 +42,19 @@ describe('feed comment moderation guards', () => {
     expect(prisma.postComment.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'comment-1', moderationRemovedAt: null },
     }));
+  });
+
+  test('comment creation rejects a post that is moderation-removed', async () => {
+    (prisma.post.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ username: 'author', status: 'ACTIVE' });
+    (prisma.postComment.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(feedService.commentOnPost('post-removed', 'user-1', 'A comment')).rejects.toThrow('Post not found');
+
+    expect(prisma.post.findUnique).toHaveBeenCalledWith({
+      where: { id: 'post-removed', moderationRemovedAt: null },
+      select: { authorId: true },
+    });
   });
 
   test('comment editing and engagement also require the parent post to remain visible', async () => {
