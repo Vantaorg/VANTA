@@ -10,9 +10,11 @@ jest.mock('../prisma', () => ({ prisma: {
   $transaction: jest.fn(),
 } }));
 jest.mock('../security/auditLog', () => ({ auditLog: { log: jest.fn().mockResolvedValue(undefined) } }));
+jest.mock('../services/chat.service', () => ({ chatService: { getMessages: jest.fn(), sendMessage: jest.fn() } }));
 
 import { prisma } from '../prisma';
 import { ChannelService } from '../services/channel.service';
+import { chatService } from '../services/chat.service';
 
 const db = prisma as jest.Mocked<typeof prisma>;
 const service = new ChannelService();
@@ -173,7 +175,13 @@ describe('ChannelService permission enforcement', () => {
 });
 
 describe('ChannelService message access', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (db.$transaction as jest.Mock).mockImplementation((callback: any) => callback(db));
+    (db.channel.findUnique as jest.Mock).mockResolvedValue(makeChannel());
+    (db.channelMessage.findMany as jest.Mock).mockResolvedValue([]);
+    (chatService.getMessages as jest.Mock).mockResolvedValue({ items: [] });
+  });
 
   it('rejects reading posts for non-members', async () => {
     (db.channelMember.findUnique as jest.Mock).mockResolvedValue(null);
@@ -188,6 +196,6 @@ describe('ChannelService message access', () => {
     (db.channelMessage.findMany as jest.Mock).mockResolvedValue([]);
     const result = await service.getMessages('channel-1', 'member-1', undefined, 20);
     expect(result.items).toEqual([]);
-    expect(db.channelMessage.findMany).toHaveBeenCalledTimes(1);
+    expect(chatService.getMessages).toHaveBeenCalledWith('conversation-1', 'member-1', 20, undefined);
   });
 });
