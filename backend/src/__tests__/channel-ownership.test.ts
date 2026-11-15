@@ -1,10 +1,12 @@
 jest.mock('../prisma', () => ({ prisma: {
   channel: { findUnique: jest.fn(), update: jest.fn() },
-  channelMember: { findUnique: jest.fn(), updateMany: jest.fn() },
+  channelMember: { findUnique: jest.fn(), updateMany: jest.fn(), createMany: jest.fn() },
   participant: { updateMany: jest.fn() },
   conversation: { findUnique: jest.fn(), update: jest.fn() },
   channelMessage: { findMany: jest.fn() },
   user: { count: jest.fn() },
+  userSettings: { findUnique: jest.fn() },
+  follow: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 } }));
 jest.mock('../security/auditLog', () => ({ auditLog: { log: jest.fn().mockResolvedValue(undefined) } }));
@@ -117,6 +119,29 @@ describe('ChannelService permission enforcement', () => {
     await expect(
       service.updateChannel('channel-1', 'admin-1', { name: 'Hacked' })
     ).rejects.toThrow('Only the channel owner can manage channel information');
+  });
+
+  it('blocks adding a subscriber who has disabled community invitations', async () => {
+    (db.channel.findUnique as jest.Mock).mockResolvedValue(makeChannel());
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({ visibility: 'PUBLIC', permissions: '{}' });
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ communityInvites: 'nobody', privacyInvites: 'everyone' });
+    await expect(service.updateChannel('channel-1', 'owner-1', { memberIds: ['owner-1', 'member-1', 'invitee-1'] }))
+      .rejects.toThrow('This user is not accepting community invitations');
+    expect(db.channelMember.createMany).not.toHaveBeenCalled();
+  });
+
+  it('allows followers-only channel invitations only from someone the invitee follows', async () => {
+    (db.channel.findUnique as jest.Mock).mockResolvedValue(makeChannel());
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({ visibility: 'PUBLIC', permissions: '{}' });
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ communityInvites: 'followers', privacyInvites: 'everyone' });
+    (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
+    await expect(service.updateChannel('channel-1', 'owner-1', { memberIds: ['owner-1', 'member-1', 'invitee-1'] }))
+      .rejects.toThrow('This user only accepts community invitations from accounts they follow');
+    expect(db.follow.findUnique).toHaveBeenCalledWith({
+      where: { followerId_followingId: { followerId: 'invitee-1', followingId: 'owner-1' } },
+      select: { id: true },
+    });
+    expect(db.channelMember.createMany).not.toHaveBeenCalled();
   });
 
   it('prevents admins from changing channel permission grants', async () => {
