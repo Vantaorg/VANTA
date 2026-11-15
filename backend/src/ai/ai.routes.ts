@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { AI_CONFIG } from './ai.config';
-import { privacyMiddleware, aiRateLimit, validateConsent, requireAIConsent } from './middleware/privacy.middleware';
+import { privacyMiddleware, aiRateLimit, requireAIConsent } from './middleware/privacy.middleware';
 import { prisma } from '../prisma';
 import { authenticate, optionalAuth, AuthenticatedRequest } from '../security/authMiddleware';
 
