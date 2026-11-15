@@ -759,10 +759,30 @@ export class FeedService {
       return { fileId: file.id, url: file.url, type: file.fileType as "IMAGE" | "VIDEO" };
     });
 
-    const mentionedUsers = mentionNames(cleanContent).length ? await prisma.user.findMany({
+    const mentionedUsersRaw = mentionNames(cleanContent).length ? await prisma.user.findMany({
       where: { username: { in: mentionNames(cleanContent) }, status: "ACTIVE" },
       select: { id: true, username: true },
     }) : [];
+    const mentionedIds = mentionedUsersRaw.map(user => user.id).filter(id => id !== userId);
+    const [mentionPrefs, mentionFollows] = await Promise.all([
+      mentionedIds.length ? prisma.userSettings.findMany({
+        where: { userId: { in: mentionedIds } },
+        select: { userId: true, mentionPermissions: true },
+      }) : [],
+      mentionedIds.length ? prisma.follow.findMany({
+        where: { followerId: { in: mentionedIds }, followingId: userId },
+        select: { followerId: true },
+      }) : [],
+    ]);
+    const mentionPrefsByUser = new Map(mentionPrefs.map(pref => [pref.userId, pref]));
+    const followersAllowedToMention = new Set(mentionFollows.map(follow => follow.followerId));
+    const mentionedUsers = mentionedUsersRaw.filter(mentioned => {
+      if (mentioned.id === userId) return false;
+      const mode = String(mentionPrefsByUser.get(mentioned.id)?.mentionPermissions || "everyone").toLowerCase();
+      if (mode === "nobody" || mode === "noone" || mode === "none") return false;
+      if (mode === "followers" || mode === "following") return followersAllowedToMention.has(mentioned.id);
+      return true;
+    });
 
     const comment = await prisma.$transaction(async tx => {
       const created = await tx.postComment.create({
