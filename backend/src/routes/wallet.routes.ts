@@ -38,9 +38,9 @@ router.get('/transfers/sent', getTransfersSent);
 router.get('/transfers/received', getTransfersReceived);
 
 // PIN management
-router.post('/pin/setup', setupPin);
-router.post('/pin/update', updatePin);
-router.post('/pin/verify', verifyPin);
+router.post('/pin/setup', rateLimiter.otp, setupPin);
+router.post('/pin/update', rateLimiter.otp, updatePin);
+router.post('/pin/verify', rateLimiter.otp, verifyPin);
 
 // Transfer limits
 router.put('/limits', updateTransferLimit);
@@ -51,7 +51,7 @@ router.get('/transactions/export', exportTransactions);
 router.get('/gift-history', getGiftHistory);
 
 // Withdrawals (disabled)
-router.post('/withdraw', requestWithdrawal);
+router.post('/withdraw', rateLimiter.otp, requestWithdrawal);
 router.post('/withdrawals/:withdrawalId/cancel', cancelWithdrawal);
 router.get('/withdrawals', getWithdrawals);
 router.get('/withdrawals/history', getWithdrawalHistory);

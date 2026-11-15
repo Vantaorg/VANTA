@@ -12,6 +12,7 @@ import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 jest.mock('../prisma', () => {
   const mock = {
     wallet: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+    user: { findUnique: jest.fn() },
     walletPIN: { findUnique: jest.fn(), updateMany: jest.fn() },
     transferLimit: { create: jest.fn() },
     withdrawal: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), findUniqueOrThrow: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
@@ -23,6 +24,8 @@ jest.mock('../prisma', () => {
 });
 
 jest.mock('../services/blockchain-verifier.service', () => ({ blockchainTxVerifier: { verifyTransaction: jest.fn() } }));
+jest.mock('../security/twoFactorAuth', () => ({ twoFactorAuth: { verifyLogin: jest.fn().mockResolvedValue({ valid: true, isBackupCode: false }) } }));
+import { twoFactorAuth } from '../security/twoFactorAuth';
 jest.mock('bcryptjs', () => ({ compare: jest.fn().mockResolvedValue(true) }));
 
 jest.mock('../services/notification.service', () => ({
@@ -68,6 +71,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   process.env.VANTA_USDT_WITHDRAWAL_SENDER_ADDRESS = payoutSender;
   (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(walletRow);
+  (prisma.user.findUnique as jest.Mock).mockResolvedValue({ twoFactorEnabled: false });
+  (twoFactorAuth.verifyLogin as jest.Mock).mockResolvedValue({ valid: true, isBackupCode: false });
   (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hash', failedAttempts: 0, lockedUntil: null });
   (blockchainTxVerifier.verifyTransaction as jest.Mock).mockResolvedValue({ verified: true, txHash: validTxHash, network: 'usdt-bep20', chainId: 56, chainName: 'BNB Smart Chain', asset: 'USDT', tokenContract: '0x' + 'b'.repeat(40), recipient: validAddress, sender: payoutSender, amount: 90, confirmations: 12, blockNumber: 100, blockHash: null, verifiedAt: new Date().toISOString() });
   (prisma.withdrawal.findUnique as jest.Mock).mockResolvedValue(pendingWithdrawal);
@@ -91,6 +96,22 @@ describe('WalletService.requestWithdrawal', () => {
       }),
     }));
     expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('requires authenticator 2FA for withdrawals when enabled', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ twoFactorEnabled: true });
+    await expect(walletService.requestWithdrawal('user1', 100, validAddress, '1234'))
+      .rejects.toThrow('Authenticator 2FA code is required');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(twoFactorAuth.verifyLogin).not.toHaveBeenCalled();
+  });
+
+  test('verifies authenticator 2FA before creating a withdrawal when enabled', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ twoFactorEnabled: true });
+    const tx = txMock();
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+    await walletService.requestWithdrawal('user1', 100, validAddress, '1234', '123456');
+    expect(twoFactorAuth.verifyLogin).toHaveBeenCalledWith('user1', '123456');
   });
 
   test('aborts when the earnings balance cannot cover the amount (CAS count 0)', async () => {

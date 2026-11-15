@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, Check, AlertCircle, ArrowUpFromLine, Shield, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
-import { apiPost } from '@/lib/apiClient';
+import { apiGet, apiPost } from '@/lib/apiClient';
 
 interface WithdrawModalProps {
   open: boolean;
@@ -23,9 +23,18 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [pinCode, setPinCode] = useState('');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const fee = amount > 0 ? Math.round(amount * 0.10 * 100) / 100 : 0;
   const netAmount = amount > 0 ? Math.round((amount - fee) * 100) / 100 : 0;
+
+  useEffect(() => {
+    if (!open || !token) return;
+    apiGet<{ enabled: boolean }>('/api/auth/2fa/status', token)
+      .then(status => setTwoFactorEnabled(status?.enabled === true))
+      .catch(() => setTwoFactorEnabled(true));
+  }, [open, token]);
 
   // Reset state when opened
   useEffect(() => {
@@ -35,6 +44,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
       setAddress(walletAddress || '');
       setError('');
       setPinCode('');
+      setTwoFactorCode('');
     }
   }, [open, walletAddress]);
 
@@ -59,6 +69,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
         amount,
         walletAddress: address.trim(),
         pinCode,
+        twoFactorCode: twoFactorEnabled ? twoFactorCode : undefined,
       }, token);
       setStep('success');
       setTimeout(() => {
@@ -253,6 +264,16 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
                       placeholder="Enter your 4-6 digit PIN" aria-label="Wallet PIN"
                       className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm tracking-[0.3em] text-[#F5F5F5] placeholder:tracking-normal placeholder:text-[#8A8A8A] outline-none focus:border-white/[0.15]" />
                   </div>
+
+                  {twoFactorEnabled && (
+                    <div className="space-y-1.5">
+                      <label htmlFor="withdraw-authenticator-code" className="block text-xs font-medium text-[#8A8A8A]">Authenticator 2FA code</label>
+                      <input id="withdraw-authenticator-code" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8}
+                        value={twoFactorCode} onChange={e => setTwoFactorCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8))}
+                        placeholder="6-digit app code or backup code"
+                        className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm tracking-widest text-[#F5F5F5] placeholder:tracking-normal placeholder:text-[#8A8A8A] outline-none focus:border-white/[0.15]" />
+                    </div>
+                  )}
 
                   <button
                     onClick={handleWithdraw}
