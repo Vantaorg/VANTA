@@ -20,6 +20,12 @@ jest.mock('../prisma', () => ({
     user: {
       findUnique: jest.fn(),
     },
+    userSettings: {
+      findUnique: jest.fn(),
+    },
+    consentRecord: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -82,6 +88,8 @@ describe('/api/analytics telemetry identity (VANTA-007)', () => {
       status: 'ACTIVE',
       role: 'USER',
     });
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ cookieAnalytics: true });
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValue(null);
   });
 
   test('anonymous single-event telemetry cannot claim a user or session', async () => {
@@ -147,6 +155,37 @@ describe('/api/analytics telemetry identity (VANTA-007)', () => {
       expect.objectContaining({ eventType: 'page_view', userId: 'real-user', sessionId: 'session-authenticated' }),
       expect.objectContaining({ eventType: 'like', userId: 'real-user', sessionId: 'session-authenticated' }),
     ]);
+  });
+
+  test('authenticated telemetry is skipped when analytics cookies are disabled', async () => {
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ cookieAnalytics: false });
+    const token = signToken('real-user', 'session-authenticated');
+    const response = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ success: true, tracked: false });
+    expect(analyticsEventsService.track).not.toHaveBeenCalled();
+  });
+
+  test('authenticated telemetry is skipped after explicit analytics consent denial', async () => {
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValue({
+      type: 'analytics',
+      granted: false,
+    });
+    const token = signToken('real-user', 'session-authenticated');
+    const response = await fetch(`${baseUrl}/api/analytics/track/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ events: [{ eventType: 'page_view' }] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ success: true, tracked: false });
+    expect(analyticsEventsService.trackBatch).not.toHaveBeenCalled();
   });
 
   test('an invalid bearer token is rejected rather than downgraded to anonymous tracking', async () => {
