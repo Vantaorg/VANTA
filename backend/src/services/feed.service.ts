@@ -776,12 +776,12 @@ export class FeedService {
         select: { userId: true, mentionPermissions: true },
       }) : [],
       mentionedIds.length ? prisma.follow.findMany({
-        where: { followerId: userId, followingId: { in: mentionedIds } },
-        select: { followingId: true },
+        where: { followerId: { in: mentionedIds }, followingId: userId },
+        select: { followerId: true },
       }) : [],
     ]);
     const mentionPrefsByUser = new Map(mentionPrefs.map(pref => [pref.userId, pref]));
-    const followersAllowedToMention = new Set(mentionFollows.map(follow => follow.followingId));
+    const followersAllowedToMention = new Set(mentionFollows.map(follow => follow.followerId));
     const mentionedUsers = mentionedUsersRaw.filter(mentioned => {
       if (mentioned.id === userId) return false;
       const mode = String(mentionPrefsByUser.get(mentioned.id)?.mentionPermissions || "everyone").toLowerCase();
