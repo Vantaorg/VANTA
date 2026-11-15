@@ -815,8 +815,8 @@ export class UserService {
 
     if (data.privacyMessages !== undefined) {
       const value = data.privacyMessages.trim().toLowerCase();
-      if (!['everyone', 'following', 'noone'].includes(value)) {
-        throw new Error('Message privacy must be everyone, following, or noone');
+      if (!['everyone', 'following', 'followers', 'noone'].includes(value)) {
+        throw new Error('Message privacy must be everyone, followers, following, or noone');
       }
       settings.privacyMessages = value;
     }
