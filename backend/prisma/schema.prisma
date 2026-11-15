@@ -444,6 +444,7 @@ model Story {
   @@index([expiresAt])
   @@index([userId, createdAt, expiresAt])
   @@index([resharedFromId])
+  @@index([moderationRemovedAt])
 }
 
 model StoryView {
@@ -670,6 +671,7 @@ model Video {
   @@index([publishStatus])
   @@index([creatorId, views, createdAt])
   @@index([duration, createdAt])
+  @@index([moderationRemovedAt])
 }
 
 model VideoLike {
@@ -698,6 +700,7 @@ model VideoComment {
 
   @@index([videoId, createdAt])
   @@index([userId, createdAt])
+  @@index([moderationRemovedAt])
 }
 
 model VideoCommentLike {
@@ -763,6 +766,7 @@ model Post {
   @@index([pinned, authorId])
   @@index([authorId, pinned, createdAt])
   @@index([content])
+  @@index([moderationRemovedAt])
 }
 
 model PostSave {
@@ -810,6 +814,7 @@ model PostComment {
   @@index([postId, createdAt])
   @@index([userId, createdAt])
   @@index([parentId, createdAt])
+  @@index([moderationRemovedAt])
 }
 
 model PostCommentLike {
@@ -908,6 +913,7 @@ model Message {
   @@index([replyToId])
   @@index([conversationId, pinnedAt])
   @@index([storyReplyStoryId])
+  @@index([moderationRemovedAt])
 }
 
 model MessageRead {
@@ -1028,6 +1034,7 @@ model LiveStream {
   @@index([status])
   @@index([language])
   @@index([country])
+  @@index([moderationRemovedAt])
 }
 
 model LiveReaction {
