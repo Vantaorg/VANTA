@@ -302,6 +302,7 @@ export class StoryService {
 
   async likeStory(storyId: string, userId: string) {
     const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
     if (story.userId === userId) throw new Error("You cannot like your own story");
     await prisma.storyLike.upsert({
       where: { storyId_userId: { storyId: story.id, userId } },
@@ -323,6 +324,7 @@ export class StoryService {
     if (!text) throw new Error("Comment cannot be empty");
     if (text.length > 1000) throw new Error("Comment is too long");
     const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
 
     // A user may NEVER comment on their own story. Enforced server-side (not
     // just hidden in the UI) so a direct API request cannot create a self
