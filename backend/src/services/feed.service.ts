@@ -881,8 +881,8 @@ export class FeedService {
   }
 
   async updateComment(commentId: string, userId: string, content: string) {
-    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null } });
-    if (!existing) throw new Error("Comment not found");
+    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, include: { post: { select: { moderationRemovedAt: true } } } });
+    if (!existing || existing.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (existing.userId !== userId) throw new Error("Unauthorized");
     const cleanContent = normalizeComment(content);
     if (!cleanContent || cleanContent.length > COMMENT_MAX_LENGTH) throw new Error(`Comments must be between 1 and ${COMMENT_MAX_LENGTH} characters`);
@@ -936,8 +936,8 @@ export class FeedService {
   }
 
   async reportComment(commentId: string, userId: string, reason: string, description?: string) {
-    const comment = await prisma.postComment.findUnique({ where: { id: commentId }, select: { userId: true, postId: true } });
-    if (!comment) throw new Error("Comment not found");
+    const comment = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, select: { userId: true, postId: true, post: { select: { moderationRemovedAt: true } } } });
+    if (!comment || comment.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (comment.userId === userId) throw new Error("You cannot report your own comment");
     const report = await prisma.$transaction(async tx => {
       const created = await tx.report.create({ data: { reporterId: userId, targetId: comment.userId, type: "COMMENT", reason, description: JSON.stringify({ commentId, postId: comment.postId, details: description || null }) } });
