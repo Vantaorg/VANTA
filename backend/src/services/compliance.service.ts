@@ -201,12 +201,14 @@ class ComplianceService {
           channelMembers: { include: { channel: true } },
           groupMembers: { include: { group: true } },
           liveStreams: { take: 100 },
-          sessions: { take: 100 },
-          consentRecords: true,
+          sessions: { take: 100, select: { id: true, deviceFingerprint: true, isTrusted: true, expiresAt: true, refreshExpiresAt: true, userAgent: true, ipAddress: true, lastActiveAt: true, createdAt: true } },
         },
       });
 
       if (!user) throw new Error('User not found');
+      // ConsentRecord has no Prisma relation on User; query it directly. Session
+      // credentials are intentionally excluded from exports above.
+      const consentRecords = await prisma.consentRecord.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
 
       // Build export data
       const exportData = {
@@ -1017,35 +1019,44 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async processChildSafetyFlag(flagId: string, adminId: string, action: string, note?: string) {
-    const flag = await prisma.childSafetyFlag.findUnique({ where: { id: flagId } });
-    if (!flag) throw new Error('Flag not found.');
-
-    const updated = await prisma.childSafetyFlag.update({
-      where: { id: flagId },
-      data: {
-        status: action === 'approve' ? 'APPROVED' : action === 'dismiss' ? 'DISMISSED' : 'ESCALATED',
-        actionTaken: action,
-        actionDetail: note,
-        reviewedById: adminId,
-        reviewedAt: new Date(),
-      },
-    });
-
-    // Take action on the user
-    if (action === 'restrict') {
-      await prisma.user.update({
-        where: { id: flag.userId },
-        data: { status: 'RESTRICTED' },
-      });
+    const statusByAction: Record<string, string> = {
+      approve: 'APPROVED',
+      dismiss: 'DISMISSED',
+      escalate: 'ESCALATED',
+      restrict: 'ESCALATED',
+    };
+    if (!Object.prototype.hasOwnProperty.call(statusByAction, action)) {
+      throw new Error('Unsupported child-safety action.');
     }
 
-    await this.logComplianceAction(adminId, 'CHILD_SAFETY_FLAG_PROCESSED', 'USER', flag.userId, {
+    const updated = await prisma.$transaction(async (tx) => {
+      const flag = await tx.childSafetyFlag.findUnique({ where: { id: flagId } });
+      if (!flag) throw new Error('Flag not found.');
+      if (flag.status !== 'PENDING_REVIEW') throw new Error('Child-safety flag has already been reviewed.');
+
+      const result = await tx.childSafetyFlag.update({
+        where: { id: flagId },
+        data: {
+          status: statusByAction[action],
+          actionTaken: action,
+          actionDetail: note,
+          reviewedById: adminId,
+          reviewedAt: new Date(),
+        },
+      });
+
+      if (action === 'restrict') {
+        await tx.user.update({ where: { id: flag.userId }, data: { status: 'RESTRICTED' } });
+      }
+      return { result, userId: flag.userId };
+    });
+
+    await this.logComplianceAction(adminId, 'CHILD_SAFETY_FLAG_PROCESSED', 'USER', updated.userId, {
       flagId,
       action,
       note,
     });
-
-    return updated;
+    return updated.result;
   }
 
   // ==========================================================================
