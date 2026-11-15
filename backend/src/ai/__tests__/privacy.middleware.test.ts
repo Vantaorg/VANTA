@@ -3,7 +3,7 @@ import { jest, describe, beforeEach, expect, test } from '@jest/globals';
 jest.mock('../../prisma', () => ({
   prisma: {
     userSettings: { findUnique: jest.fn() },
-    consentRecord: { findMany: jest.fn() },
+    consentRecord: { findMany: jest.fn(), findFirst: jest.fn() },
     aIFeatureFlag: { findMany: jest.fn() },
   },
 }));
@@ -24,6 +24,7 @@ describe('AI privacy preference enforcement', () => {
     jest.clearAllMocks();
     db.userSettings.findUnique.mockResolvedValue({ aiPersonalization: true });
     db.consentRecord.findMany.mockResolvedValue([]);
+    db.consentRecord.findFirst.mockResolvedValue(null);
     db.aIFeatureFlag.findMany.mockResolvedValue([]);
   });
 
@@ -38,10 +39,7 @@ describe('AI privacy preference enforcement', () => {
   });
 
   test('blocks personalized AI when AI features or personalization consent was explicitly denied', async () => {
-    db.consentRecord.findMany.mockResolvedValue([
-      { id: 'new', type: 'aiFeatures', granted: false, createdAt: new Date() },
-      { id: 'old', type: 'aiFeatures', granted: true, createdAt: new Date(Date.now() - 1000) },
-    ]);
+    db.consentRecord.findFirst.mockResolvedValue({ id: 'new', type: 'aiFeatures', granted: false, createdAt: new Date() });
     const res = makeResponse();
     const next = jest.fn();
     await requireAIConsent(makeRequest(), res, next);
@@ -91,22 +89,22 @@ describe('AI privacy preference enforcement', () => {
   });
 
   test('maps training consent to the Privacy Center AI Features consent record', async () => {
-    db.consentRecord.findMany.mockResolvedValue([
-      { id: 'consent-1', type: 'aiFeatures', granted: true, createdAt: new Date() },
-    ]);
+    db.consentRecord.findFirst
+      .mockResolvedValueOnce({ id: 'consent-1', type: 'aiFeatures', granted: true, createdAt: new Date() })
+      .mockResolvedValueOnce(null);
     const res = makeResponse();
     const next = jest.fn();
     await validateConsent('training')(makeRequest(), res, next);
-    expect(db.consentRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: 'user-1', type: { in: ['aiFeatures', 'aiFeatures:NOT_SET', 'ai_training'] } },
+    expect(db.consentRecord.findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: { userId: 'user-1', type: { in: ['aiFeatures', 'aiFeatures:NOT_SET'] } },
     }));
     expect(next).toHaveBeenCalledTimes(1);
   });
 
   test('does not treat a NOT_SET consent marker as an affirmative grant', async () => {
-    db.consentRecord.findMany.mockResolvedValue([
-      { id: 'consent-1', type: 'personalization:NOT_SET', granted: false, createdAt: new Date() },
-    ]);
+    db.consentRecord.findFirst
+      .mockResolvedValueOnce({ id: 'consent-1', type: 'personalization:NOT_SET', granted: false, createdAt: new Date() })
+      .mockResolvedValueOnce(null);
     const res = makeResponse();
     const next = jest.fn();
     await validateConsent('profiling')(makeRequest(), res, next);
