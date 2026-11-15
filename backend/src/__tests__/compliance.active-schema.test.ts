@@ -1,0 +1,216 @@
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+
+jest.mock('../prisma', () => ({
+  prisma: {
+    userSettings: { upsert: jest.fn() },
+    accountDeactivation: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    accountDeletionRequest: { updateMany: jest.fn() },
+    copyrightClaim: { findUnique: jest.fn(), update: jest.fn() },
+    moderationQueue: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), count: jest.fn() },
+    moderationAction: { create: jest.fn(), count: jest.fn() },
+    notification: { create: jest.fn() },
+    $transaction: jest.fn(),
+    user: { update: jest.fn(), findMany: jest.fn() },
+    userSettings: { upsert: jest.fn() },
+    accountDeactivation: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    $transaction: jest.fn(),
+    user: { update: jest.fn() },
+    consentRecord: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+  },
+}));
+
+jest.mock('../services/content-removal.service', () => ({ removeModeratedContent: jest.fn() }));
+jest.mock('../services/cache.service', () => ({ cacheService: { delPattern: jest.fn().mockResolvedValue(undefined) } }));
+jest.mock('../services/upload.service', () => ({ uploadService: { deleteFile: jest.fn().mockResolvedValue(true) } }));
+
+jest.mock('../security/auditLog', () => ({
+  auditLog: {
+    log: jest.fn(),
+    query: jest.fn(),
+  },
+}));
+
+import { prisma } from '../prisma';
+import { auditLog } from '../security/auditLog';
+import { complianceService } from '../services/compliance.service';
+import { removeModeratedContent } from '../services/content-removal.service';
+import { cacheService } from '../services/cache.service';
+import { uploadService } from '../services/upload.service';
+
+const consentRecord = (prisma as any).consentRecord;
+const audit = auditLog as any;
+
+describe('compliance consent storage on the active Prisma schema', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('reads the latest consent state and preserves unset separately from denied', async () => {
+    consentRecord.findMany.mockResolvedValue([
+      { id: '3', type: 'cookies:NOT_SET', granted: false, createdAt: new Date('2026-11-15T03:00:00Z') },
+      { id: '2', type: 'analytics', granted: false, createdAt: new Date('2026-11-15T02:00:00Z') },
+      { id: '1', type: 'analytics', granted: true, createdAt: new Date('2026-11-15T01:00:00Z') },
+    ]);
+
+    await expect(complianceService.getConsentPreferences('user-1')).resolves.toEqual({
+      analytics: 'denied',
+      personalization: 'not_set',
+      marketing: 'not_set',
+      aiFeatures: 'not_set',
+      notifications: 'not_set',
+      cookies: 'not_set',
+    });
+  });
+
+  test('appends consent changes to ConsentRecord and returns the current preferences', async () => {
+    consentRecord.create.mockResolvedValue({});
+    consentRecord.findMany.mockResolvedValue([
+      { id: '1', type: 'analytics', granted: true, createdAt: new Date() },
+      { id: '2', type: 'marketing', granted: false, createdAt: new Date() },
+      { id: '3', type: 'cookies:NOT_SET', granted: false, createdAt: new Date() },
+    ]);
+
+    await expect(complianceService.updateConsentPreferences(
+      'user-1',
+      { analytics: 'granted', marketing: 'denied', cookies: 'not_set' },
+      'privacy_center',
+      '127.0.0.1',
+      'VANTA test',
+    )).resolves.toEqual({
+      analytics: 'granted',
+      personalization: 'not_set',
+      marketing: 'denied',
+      aiFeatures: 'not_set',
+      notifications: 'not_set',
+      cookies: 'not_set',
+    });
+
+    expect(consentRecord.create).toHaveBeenCalledTimes(3);
+    expect(consentRecord.create).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      data: expect.objectContaining({ userId: 'user-1', type: 'analytics', granted: true, ipAddress: '127.0.0.1' }),
+    }));
+    expect(consentRecord.create).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      data: expect.objectContaining({ userId: 'user-1', type: 'cookies:NOT_SET', granted: false }),
+    }));
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      action: 'CONSENT_UPDATE',
+    }));
+  });
+
+  test('rejects unsupported consent values without writing a record', async () => {
+    await expect(complianceService.updateConsentPreferences('user-1', {
+      analytics: 'maybe',
+    })).rejects.toThrow('Invalid consent value for analytics.');
+
+    expect(consentRecord.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('compliance privacy settings on the active Prisma schema', () => {
+  const userSettings = (prisma as any).userSettings;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    userSettings.upsert.mockResolvedValue({ userId: 'user-1', accountType: 'PUBLIC', onlineStatus: 'everyone', privacyReadReceipts: 'followers', readReceipts: true, profileSearchVisibility: true });
+  });
+  test('reads privacy center settings without overwriting the legacy chat read-receipts flag', async () => {
+    await expect(complianceService.getPrivacySettings('user-1')).resolves.toMatchObject({ accountType: 'PUBLIC', readReceipts: 'followers', privacyReadReceipts: 'followers' });
+    expect(userSettings.upsert).toHaveBeenCalledWith({ where: { userId: 'user-1' }, create: { userId: 'user-1' }, update: {} });
+  });
+  test('persists validated privacy controls to UserSettings', async () => {
+    await complianceService.updatePrivacySettings('user-1', { accountType: 'PRIVATE', onlineStatus: 'followers', readReceipts: 'nobody', discoverability: false });
+    expect(userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, update: { accountType: 'PRIVATE', onlineStatus: 'followers', privacyReadReceipts: 'nobody', discoverability: false } }));
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', action: 'PRIVACY_SETTINGS_UPDATE' }));
+  });
+  test('rejects invalid privacy values without writing settings', async () => {
+    await expect(complianceService.updatePrivacySettings('user-1', { onlineStatus: 'anyone' })).rejects.toThrow('Invalid privacy value for onlineStatus.');
+    expect(userSettings.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('compliance account lifecycle transactions', () => {
+  const account = (prisma as any).accountDeactivation;
+  const transaction = (prisma as any).$transaction;
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('deactivation persists its recovery window and user status atomically', async () => {
+    account.findUnique.mockResolvedValue(null);
+    const tx = { accountDeactivation: { upsert: jest.fn().mockResolvedValue({ id: 'deactivation-1', userId: 'user-1', status: 'DEACTIVATED' }) }, user: { update: jest.fn().mockResolvedValue({}) } };
+    transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(complianceService.deactivateAccount('user-1', 'privacy', 'details')).resolves.toMatchObject({ id: 'deactivation-1', status: 'DEACTIVATED' });
+    expect(tx.accountDeactivation.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, create: expect.objectContaining({ userId: 'user-1', status: 'DEACTIVATED', deactivationType: 'TEMPORARY', recoveryToken: expect.any(String) }) }));
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { status: 'DEACTIVATED' } });
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', action: 'ACCOUNT_DEACTIVATED' }));
+  });
+  test('does not allow scheduling deletion in the past', async () => {
+    await expect(complianceService.scheduleAccountDeletion('user-1', 'reason', new Date(Date.now() - 1000))).rejects.toThrow('The scheduled deletion date must be in the future.');
+    expect(account.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('copyright claim enforcement', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('removes the actual reported content before resolving the copyright claim', async () => {
+    const claim = { id: 'claim-1', status: 'PENDING', infringingContentId: 'post-1', infringingContentType: 'POST' };
+    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn().mockResolvedValue({ ...claim, status: 'ACTIONED' }) } };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    (removeModeratedContent as jest.Mock).mockResolvedValue([{ id: 'file-1', filename: 'media.jpg' }]);
+    await expect(complianceService.processCopyrightClaim('claim-1', 'admin-1', 'remove', 'copyright confirmed')).resolves.toMatchObject({ status: 'ACTIONED' });
+    expect(removeModeratedContent).toHaveBeenCalledWith(tx, 'POST', 'post-1');
+    expect(tx.copyrightClaim.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'claim-1' }, data: expect.objectContaining({ status: 'ACTIONED', actionTaken: 'CONTENT_REMOVED' }) }));
+    expect(uploadService.deleteFile).toHaveBeenCalledWith('media.jpg', 'file-1');
+    expect(cacheService.delPattern).toHaveBeenCalledWith('feed:*');
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'COPYRIGHT_CLAIM_PROCESSED' }));
+  });
+  test('refuses to mark a claim removed when it has no supported content target', async () => {
+    const claim = { id: 'claim-2', status: 'PENDING', infringingContentId: null, infringingContentType: null };
+    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn() } };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(complianceService.processCopyrightClaim('claim-2', 'admin-1', 'remove')).rejects.toThrow('This claim has no supported content target');
+    expect(tx.copyrightClaim.update).not.toHaveBeenCalled();
+    expect(removeModeratedContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('content reports use the active moderation queue', () => {
+  const queue = (prisma as any).moderationQueue;
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('creates a content report with active ModerationQueue fields', async () => {
+    queue.findFirst.mockResolvedValue(null);
+    queue.create.mockResolvedValue({ id: 'queue-1', targetType: 'POST', targetId: 'post-1', status: 'PENDING' });
+    await expect(complianceService.createReport('user-1', 'POST', 'post-1', 'harassment', 'details', 'creator-1', ['evidence'])).resolves.toMatchObject({ id: 'queue-1', status: 'PENDING' });
+    expect(queue.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ reportedBy: 'user-1', targetType: 'POST', targetId: 'post-1', targetUserId: 'creator-1', category: 'harassment', description: 'details', evidenceUrls: '[\"evidence\"]' }) }));
+  });
+  test('rejects a duplicate report for the same content within 24 hours', async () => {
+    queue.findFirst.mockResolvedValue({ id: 'existing' });
+    await expect(complianceService.createReport('user-1', 'POST', 'post-1', 'harassment')).rejects.toThrow('already reported this content');
+    expect(queue.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('content report moderation', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('removes reported content and records the moderation action atomically', async () => {
+    const report = { id: 'queue-2', status: 'PENDING', targetType: 'POST', targetId: 'post-2', targetUserId: null };
+    const tx = { moderationQueue: { findUnique: jest.fn().mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, status: 'REMOVED' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) }, moderationAction: { create: jest.fn().mockResolvedValue({}) }, user: { update: jest.fn() } };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    (removeModeratedContent as jest.Mock).mockResolvedValue([]);
+    await expect(complianceService.processReport('queue-2', 'admin-1', 'remove', 'policy violation')).resolves.toMatchObject({ status: 'REMOVED' });
+    expect(removeModeratedContent).toHaveBeenCalledWith(tx, 'POST', 'post-2');
+    expect(tx.moderationQueue.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'queue-2', status: 'PENDING' }, data: expect.objectContaining({ status: 'REMOVED', humanReview: true }) }));
+    expect(tx.moderationAction.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ queueId: 'queue-2', moderatorId: 'admin-1', action: 'remove' }) }));
+  });
+});
+
+describe('report account actions notify the affected user', () => {
+  test('warn action sends a moderation notification without changing account status', async () => {
+    const report = { id: 'queue-3', status: 'PENDING', targetType: 'USER', targetId: 'target-user', targetUserId: null };
+    const tx = { moderationQueue: { findUnique: jest.fn().mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, status: 'APPROVED' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) }, moderationAction: { create: jest.fn().mockResolvedValue({}) }, user: { update: jest.fn() }, notification: { create: jest.fn().mockResolvedValue({}) } };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    await complianceService.processReport('queue-3', 'admin-1', 'warn', 'Please review the community rules.');
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.notification.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'target-user', type: 'MODERATION_WARNING', entityId: 'queue-3' }) }));
+  });
+});

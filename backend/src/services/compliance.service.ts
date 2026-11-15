@@ -1,5 +1,6 @@
 import { prisma } from '../prisma';
 import { auditLog } from '../security/auditLog';
+import { removeModeratedContent } from './content-removal.service';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,104 +10,142 @@ import { v4 as uuidv4 } from 'uuid';
 // ============================================================================
 
 class ComplianceService {
+  private async cleanupRemovedContent(removedFiles: Array<{ id: string; filename: string }>, source: string) {
+    // Load storage/cache adapters only when an actual removal needs cleanup.
+    const { uploadService } = require('./upload.service');
+    const { cacheService } = require('./cache.service');
+    const cleanup = await Promise.allSettled(removedFiles.map((file) => uploadService.deleteFile(file.filename, file.id)));
+    cleanup.forEach((result, index) => {
+      if (result.status === 'rejected' || result.value === false) console.error(`[Compliance] ${source} media cleanup failed:`, removedFiles[index]?.id);
+    });
+    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*'].map((pattern) => cacheService.delPattern(pattern)));
+    cacheResults.forEach((result) => { if (result.status === 'rejected') console.error(`[Compliance] ${source} cache purge failed:`, result.reason); });
+  }
+
   // ==========================================================================
   // PRIVACY CENTER
   // ==========================================================================
 
+  private readonly privacyVisibilityKeys = ['onlineStatus', 'lastSeen', 'readReceipts', 'storyVisibility', 'liveStreamVisibility', 'communityInvites', 'groupInvites', 'messagePermissions', 'callPermissions', 'tagPermissions', 'mentionPermissions'] as const;
+  private readonly privacyBooleanKeys = ['profileSearchVisibility', 'searchVisibility', 'discoverability', 'aiPersonalization', 'adPersonalization', 'cookieAnalytics', 'cookieMarketing', 'cookieFunctional'] as const;
+
   async getPrivacySettings(userId: string) {
-    let settings = await prisma.privacySettings.findUnique({ where: { userId } });
-    if (!settings) {
-      settings = await prisma.privacySettings.create({
-        data: { userId },
-      });
+    const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId }, update: {} });
+    // Preserve the existing boolean readReceipts flag used by chat consumers.
+    return { ...settings, readReceipts: settings.privacyReadReceipts };
+  }
+
+  async updatePrivacySettings(userId: string, data: Record<string, unknown>) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Privacy settings must be an object.');
+    const updates: Record<string, unknown> = {};
+    if (data.accountType !== undefined) {
+      if (typeof data.accountType !== 'string' || !['PUBLIC', 'PRIVATE', 'CREATOR'].includes(data.accountType)) throw new Error('Account type must be PUBLIC, PRIVATE, or CREATOR.');
+      updates.accountType = data.accountType;
     }
-    return settings;
+    for (const key of this.privacyVisibilityKeys) {
+      const value = data[key];
+      if (value === undefined) continue;
+      if (typeof value !== 'string' || !['everyone', 'followers', 'nobody'].includes(value)) throw new Error(`Invalid privacy value for ${key}.`);
+      updates[key === 'readReceipts' ? 'privacyReadReceipts' : key] = value;
+    }
+    for (const key of this.privacyBooleanKeys) {
+      const value = data[key];
+      if (value === undefined) continue;
+      if (typeof value !== 'boolean') throw new Error(`Invalid boolean privacy value for ${key}.`);
+      updates[key] = value;
+    }
+    if (Object.keys(updates).length === 0) return this.getPrivacySettings(userId);
+    const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId, ...updates }, update: updates });
+    await this.logComplianceAction(userId, 'PRIVACY_SETTINGS_UPDATE', 'SETTINGS', userId, updates);
+    return { ...settings, readReceipts: settings.privacyReadReceipts };
   }
 
-  async updatePrivacySettings(userId: string, data: any) {
-    const settings = await prisma.privacySettings.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data },
-    });
-
-    await this.logComplianceAction(userId, 'PRIVACY_SETTINGS_UPDATE', 'SETTINGS', userId, data);
-    return settings;
-  }
-
+    // CONSENT MANAGEMENT
   // ==========================================================================
-  // CONSENT MANAGEMENT
-  // ==========================================================================
+
+  private readonly consentPreferenceKeys = [
+    'analytics',
+    'personalization',
+    'marketing',
+    'aiFeatures',
+    'notifications',
+    'cookies',
+  ] as const;
 
   async getConsentPreferences(userId: string) {
-    let prefs = await prisma.consentPreference.findUnique({ where: { userId } });
-    if (!prefs) {
-      prefs = await prisma.consentPreference.create({
-        data: { userId },
-      });
-    }
-    return prefs;
-  }
-
-  async updateConsentPreferences(userId: string, data: any, source = 'privacy_center', ipAddress?: string, userAgent?: string) {
-    const existing = await prisma.consentPreference.findUnique({ where: { userId } }) || {};
-
-    const updated = await prisma.consentPreference.upsert({
-      where: { userId },
-      update: {
-        analytics: data.analytics ?? existing.analytics,
-        personalization: data.personalization ?? existing.personalization,
-        marketing: data.marketing ?? existing.marketing,
-        aiFeatures: data.aiFeatures ?? existing.aiFeatures,
-        notifications: data.notifications ?? existing.notifications,
-        cookies: data.cookies ?? existing.cookies,
-        lastUpdatedAt: new Date(),
-      },
-      create: {
-        userId,
-        analytics: data.analytics || 'not_set',
-        personalization: data.personalization || 'not_set',
-        marketing: data.marketing || 'not_set',
-        aiFeatures: data.aiFeatures || 'not_set',
-        notifications: data.notifications || 'not_set',
-        cookies: data.cookies || 'not_set',
-      },
+    const keys = [...this.consentPreferenceKeys];
+    const records = await prisma.consentRecord.findMany({
+      where: { userId, type: { in: [...keys, ...keys.map((key) => `${key}:NOT_SET`)] } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
-    // Record consent history for audit
-    const consentTypes = ['analytics', 'personalization', 'marketing', 'aiFeatures', 'notifications', 'cookies'];
-    for (const type of consentTypes) {
-      if (data[type] && data[type] !== (existing as any)[type]) {
-        await prisma.consentHistory.create({
-          data: {
-            userId,
-            type,
-            action: data[type] === 'granted' ? 'granted' : data[type] === 'denied' ? 'denied' : 'updated',
-            previousValue: (existing as any)[type] || null,
-            newValue: data[type],
-            ipAddress,
-            userAgent,
-            source,
-          },
-        });
+    const preferences: Record<string, string> = Object.fromEntries(keys.map((key) => [key, 'not_set']));
+    const resolved = new Set<string>();
+    for (const record of records) {
+      const isNotSet = record.type.endsWith(':NOT_SET');
+      const key = isNotSet ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      if (!keys.includes(key as typeof keys[number]) || resolved.has(key)) continue;
+      preferences[key] = isNotSet ? 'not_set' : record.granted ? 'granted' : 'denied';
+      resolved.add(key);
+    }
+    return preferences;
+  }
+
+  async updateConsentPreferences(
+    userId: string,
+    data: Record<string, unknown>,
+    source = 'privacy_center',
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const allowedValues = new Set(['granted', 'denied', 'not_set']);
+    const updates = this.consentPreferenceKeys.flatMap((key) => {
+      const value = data[key];
+      if (value === undefined) return [];
+      if (typeof value !== 'string' || !allowedValues.has(value)) {
+        throw new Error(`Invalid consent value for ${key}.`);
       }
+      return [{ key, value }];
+    });
+
+    if (updates.length === 0) return this.getConsentPreferences(userId);
+
+    // ConsentRecord is append-only. A NOT_SET marker preserves audit history
+    // without conflating an explicit denial with an unset preference.
+    for (const update of updates) {
+      await prisma.consentRecord.create({
+        data: {
+          userId,
+          type: update.value === 'not_set' ? `${update.key}:NOT_SET` : update.key,
+          granted: update.value === 'granted',
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+        },
+      });
     }
 
-    await this.logComplianceAction(userId, 'CONSENT_UPDATE', 'CONSENT', userId, data);
-    return updated;
+    await this.logComplianceAction(userId, 'CONSENT_UPDATE', 'CONSENT', userId, {
+      source,
+      changedPreferences: updates.map(({ key, value }) => ({ key, value })),
+    }, ipAddress, userAgent);
+    return this.getConsentPreferences(userId);
   }
 
   async getConsentHistory(userId: string, limit = 50) {
-    return prisma.consentHistory.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
+    const keys = [...this.consentPreferenceKeys];
+    const records = await prisma.consentRecord.findMany({
+      where: { userId, type: { in: [...keys, ...keys.map((key) => `${key}:NOT_SET`)] } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: Math.min(Math.max(limit, 1), 200),
+    });
+
+    return records.map((record) => {
+      const isNotSet = record.type.endsWith(':NOT_SET');
+      const type = isNotSet ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      const value = isNotSet ? 'not_set' : record.granted ? 'granted' : 'denied';
+      return { ...record, type, action: value, newValue: value, source: 'privacy_center' };
     });
   }
-
-  // ==========================================================================
-  // DATA EXPORT
-  // ==========================================================================
 
   async requestDataExport(userId: string) {
     const existingPending = await prisma.dataExportRequest.findFirst({
@@ -163,8 +202,7 @@ class ComplianceService {
           groupMembers: { include: { group: true } },
           liveStreams: { take: 100 },
           sessions: { take: 100 },
-          privacySettings: true,
-          consentPreferences: true,
+          consentRecords: true,
         },
       });
 
@@ -207,14 +245,13 @@ class ComplianceService {
         settings: {
           userSettings: user.userSettings,
           notificationPrefs: user.notificationPrefs,
-          privacySettings: user.privacySettings,
         },
         communities: user.communityMembers,
         channels: user.channelMembers,
         groups: user.groupMembers,
         liveStreams: user.liveStreams,
         sessions: user.sessions,
-        consentPreferences: user.consentPreferences,
+        consentRecords: user.consentRecords,
       };
 
       // Generate archive
@@ -293,7 +330,7 @@ class ComplianceService {
       archive.append(JSON.stringify(exportData.groups, null, 2), { name: 'groups.json' });
       archive.append(JSON.stringify(exportData.liveStreams, null, 2), { name: 'live_streams.json' });
       archive.append(JSON.stringify(exportData.sessions, null, 2), { name: 'sessions.json' });
-      archive.append(JSON.stringify(exportData.consentPreferences, null, 2), { name: 'consent_preferences.json' });
+      archive.append(JSON.stringify(exportData.consentRecords, null, 2), { name: 'consent_records.json' });
 
       // Add README
       const readme = `VANTA Data Export
@@ -341,339 +378,202 @@ For questions about your data, contact privacy@vanta.app
 
   async deactivateAccount(userId: string, reason?: string, reasonDetail?: string) {
     const existing = await prisma.accountDeactivation.findUnique({ where: { userId } });
-    if (existing && existing.status === 'DEACTIVATED') {
-      throw new Error('Account is already deactivated.');
-    }
-    if (existing && existing.status === 'SCHEDULED_FOR_DELETION') {
-      throw new Error('Account is already scheduled for deletion.');
-    }
-
-    const deactivation = await prisma.accountDeactivation.upsert({
-      where: { userId },
-      update: {
-        deactivationType: 'TEMPORARY',
-        reason,
-        reasonDetail,
-        status: 'DEACTIVATED',
-        deactivatedAt: new Date(),
-        recoveryPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days recovery
-        recoveryToken: uuidv4(),
-      },
-      create: {
-        userId,
-        deactivationType: 'TEMPORARY',
-        reason,
-        reasonDetail,
-        status: 'DEACTIVATED',
-        deactivatedAt: new Date(),
-        recoveryPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        recoveryToken: uuidv4(),
-      },
+    if (existing?.status === 'DEACTIVATED') throw new Error('Account is already deactivated.');
+    if (existing?.status === 'SCHEDULED_FOR_DELETION') throw new Error('Account is already scheduled for deletion.');
+    const now = new Date(); const recoveryPeriodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); const recoveryToken = uuidv4();
+    const deactivation = await prisma.$transaction(async (tx) => {
+      const record = await tx.accountDeactivation.upsert({ where: { userId }, update: { deactivationType: 'TEMPORARY', reason, reasonDetail, status: 'DEACTIVATED', deactivatedAt: now, scheduledFor: null, recoveryPeriodEnd, recoveryToken, recoveredAt: null }, create: { userId, deactivationType: 'TEMPORARY', reason, reasonDetail, status: 'DEACTIVATED', deactivatedAt: now, recoveryPeriodEnd, recoveryToken } });
+      await tx.user.update({ where: { id: userId }, data: { status: 'DEACTIVATED' } }); return record;
     });
-
-    // Update user status
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: 'DEACTIVATED' },
-    });
-
-    await this.logComplianceAction(userId, 'ACCOUNT_DEACTIVATED', 'USER', userId, { deactivationId: deactivation.id, reason });
-    return deactivation;
+    await this.logComplianceAction(userId, 'ACCOUNT_DEACTIVATED', 'USER', userId, { deactivationId: deactivation.id, reason }); return deactivation;
   }
 
   async scheduleAccountDeletion(userId: string, reason?: string, scheduledDate?: Date) {
-    const deleteDate = scheduledDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
-
-    // First deactivate if not already
+    const deleteDate = scheduledDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    if (deleteDate <= new Date()) throw new Error('The scheduled deletion date must be in the future.');
     const existing = await prisma.accountDeactivation.findUnique({ where: { userId } });
-    if (existing && existing.status === 'DELETED') {
-      throw new Error('Account has already been deleted.');
-    }
-
-    const deactivation = await prisma.accountDeactivation.upsert({
-      where: { userId },
-      update: {
-        deactivationType: 'SCHEDULED',
-        reason,
-        status: 'SCHEDULED_FOR_DELETION',
-        deactivatedAt: existing?.deactivatedAt || new Date(),
-        scheduledFor: deleteDate,
-        recoveryPeriodEnd: deleteDate,
-      },
-      create: {
-        userId,
-        deactivationType: 'SCHEDULED',
-        reason,
-        status: 'SCHEDULED_FOR_DELETION',
-        deactivatedAt: new Date(),
-        scheduledFor: deleteDate,
-        recoveryPeriodEnd: deleteDate,
-        recoveryToken: uuidv4(),
-      },
+    if (existing?.status === 'DELETED') throw new Error('Account has already been deleted.');
+    if (existing?.status === 'SCHEDULED_FOR_DELETION') throw new Error('Account is already scheduled for deletion.');
+    const now = new Date(); const recoveryToken = existing?.recoveryToken || uuidv4();
+    const deactivation = await prisma.$transaction(async (tx) => {
+      const record = await tx.accountDeactivation.upsert({ where: { userId }, update: { deactivationType: 'SCHEDULED', reason, status: 'SCHEDULED_FOR_DELETION', deactivatedAt: existing?.deactivatedAt || now, scheduledFor: deleteDate, recoveryPeriodEnd: deleteDate, recoveryToken, recoveredAt: null }, create: { userId, deactivationType: 'SCHEDULED', reason, status: 'SCHEDULED_FOR_DELETION', deactivatedAt: now, scheduledFor: deleteDate, recoveryPeriodEnd: deleteDate, recoveryToken } });
+      await tx.user.update({ where: { id: userId }, data: { status: 'SCHEDULED_FOR_DELETION' } }); return record;
     });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: 'SCHEDULED_FOR_DELETION' },
-    });
-
-    await this.logComplianceAction(userId, 'ACCOUNT_DELETION_SCHEDULED', 'USER', userId, {
-      deactivationId: deactivation.id,
-      scheduledFor: deleteDate,
-      reason,
-    });
-
-    return deactivation;
+    await this.logComplianceAction(userId, 'ACCOUNT_DELETION_SCHEDULED', 'USER', userId, { deactivationId: deactivation.id, scheduledFor: deleteDate, reason }); return deactivation;
   }
 
   async cancelDeletion(userId: string) {
     const deactivation = await prisma.accountDeactivation.findUnique({ where: { userId } });
     if (!deactivation) throw new Error('No deletion request found.');
     if (deactivation.status === 'DELETED') throw new Error('Account has already been deleted.');
-
-    const updated = await prisma.accountDeactivation.update({
-      where: { userId },
-      data: {
-        status: 'RECOVERED',
-        recoveredAt: new Date(),
-      },
+    if (deactivation.status !== 'SCHEDULED_FOR_DELETION') throw new Error('There is no scheduled deletion to cancel.');
+    const updated = await prisma.$transaction(async (tx) => {
+      const record = await tx.accountDeactivation.update({ where: { userId }, data: { status: 'RECOVERED', recoveredAt: new Date(), scheduledFor: null, recoveryPeriodEnd: null, recoveryToken: null } });
+      await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
+      await tx.accountDeletionRequest.updateMany({ where: { userId, status: 'PENDING' }, data: { status: 'CANCELLED', processedAt: new Date() } });
+      return record;
     });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: 'ACTIVE' },
-    });
-
-    await this.logComplianceAction(userId, 'ACCOUNT_DELETION_CANCELLED', 'USER', userId, { deactivationId: deactivation.id });
-    return updated;
+    await this.logComplianceAction(userId, 'ACCOUNT_DELETION_CANCELLED', 'USER', userId, { deactivationId: deactivation.id }); return updated;
   }
 
   async recoverAccount(userId: string, recoveryToken: string) {
+    if (!recoveryToken?.trim()) throw new Error('Recovery token is required.');
     const deactivation = await prisma.accountDeactivation.findUnique({ where: { userId } });
     if (!deactivation) throw new Error('No deactivation record found.');
+    if (deactivation.status === 'DELETED') throw new Error('Account has already been deleted.');
+    if (!['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(deactivation.status)) throw new Error('There is no recoverable account action.');
     if (deactivation.recoveryToken !== recoveryToken) throw new Error('Invalid recovery token.');
-    if (deactivation.recoveryPeriodEnd && deactivation.recoveryPeriodEnd < new Date()) {
-      throw new Error('Recovery period has expired. Account has been permanently deleted.');
-    }
-
-    const updated = await prisma.accountDeactivation.update({
-      where: { userId },
-      data: {
-        status: 'RECOVERED',
-        recoveredAt: new Date(),
-      },
+    if (deactivation.recoveryPeriodEnd && deactivation.recoveryPeriodEnd < new Date()) throw new Error('Recovery period has expired. Account has been permanently deleted.');
+    const updated = await prisma.$transaction(async (tx) => {
+      const record = await tx.accountDeactivation.update({ where: { userId }, data: { status: 'RECOVERED', recoveredAt: new Date(), scheduledFor: null, recoveryPeriodEnd: null, recoveryToken: null } });
+      await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
+      await tx.accountDeletionRequest.updateMany({ where: { userId, status: 'PENDING' }, data: { status: 'CANCELLED', processedAt: new Date() } });
+      return record;
     });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: 'ACTIVE' },
-    });
-
-    await this.logComplianceAction(userId, 'ACCOUNT_RECOVERED', 'USER', userId, { deactivationId: deactivation.id });
-    return updated;
+    await this.logComplianceAction(userId, 'ACCOUNT_RECOVERED', 'USER', userId, { deactivationId: deactivation.id }); return updated;
   }
 
-  async getDeactivationStatus(userId: string) {
-    return prisma.accountDeactivation.findUnique({ where: { userId } });
-  }
+  async getDeactivationStatus(userId: string) { return prisma.accountDeactivation.findUnique({ where: { userId } }); }
 
   async permanentlyDeleteExpiredAccounts() {
-    const expired = await prisma.accountDeactivation.findMany({
-      where: {
-        status: 'SCHEDULED_FOR_DELETION',
-        scheduledFor: { lte: new Date() },
-      },
-    });
-
-    for (const deactivation of expired) {
-      await this.permanentlyDeleteUser(deactivation.userId);
-    }
-
-    // Also check deactivated accounts past recovery period
-    const unrecovered = await prisma.accountDeactivation.findMany({
-      where: {
-        status: 'DEACTIVATED',
-        recoveryPeriodEnd: { lte: new Date() },
-      },
-    });
-
-    for (const deactivation of unrecovered) {
-      await this.permanentlyDeleteUser(deactivation.userId);
-    }
-
-    return { deleted: expired.length, unrecovered: unrecovered.length };
+    const now = new Date();
+    const [scheduled, unrecovered] = await Promise.all([
+      prisma.accountDeactivation.findMany({ where: { status: 'SCHEDULED_FOR_DELETION', scheduledFor: { lte: now } } }),
+      prisma.accountDeactivation.findMany({ where: { status: 'DEACTIVATED', recoveryPeriodEnd: { lte: now } } }),
+    ]);
+    const [scheduledResults, unrecoveredResults] = await Promise.all([
+      Promise.all(scheduled.map((record) => this.permanentlyDeleteUser(record.userId))),
+      Promise.all(unrecovered.map((record) => this.permanentlyDeleteUser(record.userId))),
+    ]);
+    return {
+      deleted: scheduledResults.filter(Boolean).length,
+      unrecovered: unrecoveredResults.filter(Boolean).length,
+      failed: [...scheduledResults, ...unrecoveredResults].filter((result) => !result).length,
+    };
   }
 
-  private async permanentlyDeleteUser(userId: string) {
+  private async permanentlyDeleteUser(userId: string): Promise<boolean> {
     try {
-      // Anonymize data for legal retention (financial records, fraud prevention)
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-
-      if (user) {
-        // Anonymize PII
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            email: `deleted-${userId}@vanta.app`,
-            phone: null,
-            phoneNumber: null,
-            passwordHash: null,
-            fullName: 'Deleted Account',
-            username: `deleted_${userId.substring(0, 8)}`,
-            bio: null,
-            avatar: null,
-            status: 'DELETED',
-            googleId: null,
-            appleId: null,
-            twoFactorSecret: null,
-            backupCodes: null,
-            rememberMeToken: null,
-          },
-        });
-
-        // Update deactivation record
-        await prisma.accountDeactivation.update({
-          where: { userId },
-          data: {
-            status: 'DELETED',
-            permanentlyDeletedAt: new Date(),
-          },
-        });
-
-        // Delete sessions
-        await prisma.session.deleteMany({ where: { userId } });
-
-        // Delete non-essential data (keep financial records per policy)
-        await prisma.post.deleteMany({ where: { authorId: userId } });
-        await prisma.video.deleteMany({ where: { creatorId: userId } });
-        await prisma.story.deleteMany({ where: { userId } });
-        await prisma.message.deleteMany({ where: { senderId: userId } });
-
-        await this.logComplianceAction(userId, 'ACCOUNT_PERMANENTLY_DELETED', 'USER', userId, {});
-      }
+      const deleted = await prisma.$transaction(async (tx) => {
+        const record = await tx.accountDeactivation.findUnique({ where: { userId } });
+        if (!record || record.status === 'DELETED') return false;
+        const now = new Date();
+        const scheduledExpired = record.status === 'SCHEDULED_FOR_DELETION' && !!record.scheduledFor && record.scheduledFor <= now;
+        const deactivationExpired = record.status === 'DEACTIVATED' && !!record.recoveryPeriodEnd && record.recoveryPeriodEnd <= now;
+        if (!scheduledExpired && !deactivationExpired) return false;
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (user) {
+          // Retain financial/audit records, but remove account credentials and non-essential social content atomically.
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              email: `deleted-${userId}@vanta.app`,
+              phone: null, phoneNumber: null, passwordHash: null,
+              fullName: 'Deleted Account', username: `deleted_${userId}`,
+              bio: null, avatar: null, status: 'DELETED',
+              googleId: null, appleId: null, twoFactorEnabled: false,
+              twoFactorSecret: null, twoFactorLastUsedStep: null,
+              backupCodes: null, rememberMeToken: null,
+            },
+          });
+          await tx.session.deleteMany({ where: { userId } });
+          await tx.post.deleteMany({ where: { authorId: userId } });
+          await tx.video.deleteMany({ where: { creatorId: userId } });
+          await tx.story.deleteMany({ where: { userId } });
+          await tx.message.deleteMany({ where: { senderId: userId } });
+        }
+        await tx.accountDeactivation.update({ where: { userId }, data: { status: 'DELETED', permanentlyDeletedAt: now, recoveryToken: null } });
+        await tx.accountDeletionRequest.updateMany({ where: { userId, status: 'PENDING' }, data: { status: 'PROCESSED', processedAt: now } });
+        return true;
+      });
+      if (deleted) await this.logComplianceAction(userId, 'ACCOUNT_PERMANENTLY_DELETED', 'USER', userId, {});
+      return deleted;
     } catch (error) {
       console.error(`[Compliance] Error permanently deleting user ${userId}:`, error);
+      return false;
     }
   }
 
+  
   // ==========================================================================
   // REPORTING SYSTEM
   // ==========================================================================
 
-  async createReport(
-    reporterId: string,
-    targetType: string,
-    targetId: string,
-    category: string,
-    description?: string,
-    targetUserId?: string,
-    evidenceUrls?: string[],
-  ) {
-    // Check for duplicate reports
-    const recentReport = await prisma.report.findFirst({
-      where: {
-        reporterId,
-        targetType,
-        targetId,
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Last 24h
-      },
+  async createReport(reporterId: string, targetType: string, targetId: string, category: string, description?: string, targetUserId?: string, evidenceUrls?: string[]) {
+    if (!targetType?.trim() || !targetId?.trim() || !category?.trim()) throw new Error('Report target and category are required.');
+    const recentReport = await prisma.moderationQueue.findFirst({
+      where: { reportedBy: reporterId, targetType, targetId, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
     });
-
-    if (recentReport) {
-      throw new Error('You have already reported this content. Please allow time for review.');
-    }
-
-    const report = await prisma.report.create({
-      data: {
-        reporterId,
-        targetType,
-        targetId,
-        category,
-        description,
-        targetUserId,
-        evidenceUrls: evidenceUrls ? JSON.stringify(evidenceUrls) : null,
-        status: 'PENDING',
-        priority: this.calculateReportPriority(category),
-      },
+    if (recentReport) throw new Error('You have already reported this content. Please allow time for review.');
+    const report = await prisma.moderationQueue.create({
+      data: { reportedBy: reporterId, targetType, targetId, targetUserId: targetUserId || null, category, description: description || null, evidenceUrls: evidenceUrls?.length ? JSON.stringify(evidenceUrls) : null, reason: category, priority: this.calculateReportPriority(category), status: 'PENDING' },
     });
-
-    await this.logComplianceAction(reporterId, 'REPORT_CREATED', 'REPORT', report.id, {
-      targetType,
-      targetId,
-      category,
-    });
-
+    await this.logComplianceAction(reporterId, 'REPORT_CREATED', 'REPORT', report.id, { targetType, targetId, category });
     return report;
   }
 
-  private calculateReportPriority(category: string): string {
-    const urgentCategories = ['illegal_content', 'child_safety', 'violence', 'self_harm'];
-    const highCategories = ['harassment', 'hate_speech', 'impersonation'];
-    
-    if (urgentCategories.includes(category)) return 'URGENT';
-    if (highCategories.includes(category)) return 'HIGH';
-    return 'NORMAL';
+  private calculateReportPriority(category: string): number {
+    const normalized = category.toLowerCase();
+    if (['illegal_content', 'child_safety', 'violence', 'self_harm'].includes(normalized)) return 100;
+    if (['harassment', 'hate_speech', 'impersonation'].includes(normalized)) return 50;
+    return 10;
   }
 
   async getReports(userId: string, role: string, limit = 50, offset = 0) {
     const where: any = {};
-    
-    if (role === 'USER') {
-      where.reporterId = userId;
-    } else if (role === 'MODERATOR') {
-      where.OR = [
-        { reporterId: userId },
-        { assignedTo: userId },
-      ];
-    }
-    // ADMIN and SUPER_ADMIN see all
-
-    return prisma.report.findMany({
-      where,
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      take: limit,
-      skip: offset,
-      include: {
-        reporter: { select: { id: true, username: true, avatar: true } },
-      },
+    if (role === 'USER' || role === 'MODERATOR') where.reportedBy = userId;
+    const items = await prisma.moderationQueue.findMany({
+      where, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: Math.min(Math.max(limit, 1), 200), skip: Math.max(offset, 0),
+      include: { actions: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
+    const reporterIds = [...new Set(items.map((item: any) => item.reportedBy).filter(Boolean))];
+    const reporters = reporterIds.length ? await prisma.user.findMany({ where: { id: { in: reporterIds } }, select: { id: true, username: true, avatar: true } }) : [];
+    const reporterById = new Map(reporters.map((reporter: any) => [reporter.id, reporter]));
+    return items.map((item: any) => {
+      const lastAction = item.actions?.[0]?.action;
+      const status = item.status === 'REMOVED' ? 'REMOVED' : item.status === 'APPROVED' ? (lastAction === 'dismiss' ? 'DISMISSED' : 'ACTIONED') : item.status;
+      return { ...item, status, category: item.category || item.reason || 'other', description: item.description || item.reason || null, priority: item.priority >= 100 ? 'URGENT' : item.priority >= 50 ? 'HIGH' : 'NORMAL', reporter: item.reportedBy ? reporterById.get(item.reportedBy) || null : null };
     });
   }
 
   async processReport(reportId: string, adminId: string, action: string, note?: string) {
-    const report = await prisma.report.findUnique({ where: { id: reportId } });
-    if (!report) throw new Error('Report not found.');
-
-    const updated = await prisma.report.update({
-      where: { id: reportId },
-      data: {
-        status: action === 'dismiss' ? 'DISMISSED' : 'ACTIONED',
-        actionTaken: action,
-        processedById: adminId,
-        processedAt: new Date(),
-        resolutionNote: note,
-      },
-    });
-
-    // If action involves user, update their status
-    if (report.targetUserId && ['suspend', 'ban', 'warn'].includes(action)) {
-      const userStatus = action === 'ban' ? 'BANNED' : action === 'suspend' ? 'SUSPENDED' : undefined;
-      if (userStatus) {
-        await prisma.user.update({
-          where: { id: report.targetUserId },
-          data: { status: userStatus },
+    if (!['dismiss', 'warn', 'suspend', 'ban', 'remove'].includes(action)) throw new Error('Unsupported report action.');
+    let removedFiles: Array<{ id: string; filename: string }> = [];
+    const updated = await prisma.$transaction(async (tx) => {
+      const report = await tx.moderationQueue.findUnique({ where: { id: reportId } });
+      if (!report) throw new Error('Report not found.');
+      if (report.status !== 'PENDING') throw new Error('Report has already been resolved.');
+      if (action === 'remove') {
+        if (!report.targetType || !report.targetId) throw new Error('Report has no supported content target.');
+        removedFiles = await removeModeratedContent(tx, report.targetType, report.targetId);
+      }
+      const targetUserId = report.targetUserId || (report.targetType?.toUpperCase() === 'USER' ? report.targetId : null);
+      if (['warn', 'suspend', 'ban'].includes(action) && !targetUserId) {
+        throw new Error('This report has no target user for the requested account action.');
+      }
+      if (targetUserId && ['warn', 'suspend', 'ban'].includes(action)) {
+        if (action === 'suspend' || action === 'ban') {
+          await tx.user.update({ where: { id: targetUserId }, data: { status: action === 'ban' ? 'BANNED' : 'SUSPENDED' } });
+        }
+        await tx.notification.create({
+          data: {
+            userId: targetUserId, actorId: adminId,
+            type: action === 'warn' ? 'MODERATION_WARNING' : action === 'ban' ? 'ACCOUNT_BANNED' : 'ACCOUNT_SUSPENDED',
+            title: action === 'warn' ? 'VANTA policy warning' : action === 'ban' ? 'Account banned' : 'Account suspended',
+            message: note || (action === 'warn' ? 'Your account received a policy warning.' : action === 'ban' ? 'Your account has been banned following a moderation review.' : 'Your account has been suspended following a moderation review.'),
+            entityType: 'COMPLIANCE', entityId: reportId,
+            data: JSON.stringify({ action, targetType: report.targetType, targetId: report.targetId }),
+          },
         });
       }
-    }
-
-    await this.logComplianceAction(adminId, 'REPORT_PROCESSED', 'REPORT', reportId, {
-      action,
-      note,
-      previousStatus: report.status,
+      const status = action === 'remove' ? 'REMOVED' : 'APPROVED';
+      const resolution = await tx.moderationQueue.updateMany({ where: { id: reportId, status: 'PENDING' }, data: { status, reviewedBy: adminId, reviewedAt: new Date(), humanReview: true } });
+      if (resolution.count !== 1) throw new Error('Report has already been resolved.');
+      await tx.moderationAction.create({ data: { queueId: reportId, moderatorId: adminId, action, reason: note || null, automated: false } });
+      return tx.moderationQueue.findUnique({ where: { id: reportId } });
     });
-
+    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Report');
+    await this.logComplianceAction(adminId, 'REPORT_PROCESSED', 'REPORT', reportId, { action, note, status: updated?.status });
     return updated;
   }
 
@@ -690,29 +590,36 @@ For questions about your data, contact privacy@vanta.app
     reportId?: string,
     evidenceUrls?: string[],
   ) {
-    // Check for existing open appeal
-    const existingAppeal = await prisma.appeal.findFirst({
-      where: {
-        userId,
-        appealType,
-        status: { in: ['PENDING', 'UNDER_REVIEW', 'ESCALATED'] },
-      },
-    });
-
-    if (existingAppeal) {
-      throw new Error('You already have a pending appeal for this type. Please wait for a decision.');
+    // The active schema supports account-restriction appeals. Content and
+    // monetization appeals need their own persisted target model and are
+    // rejected explicitly rather than written to a nonexistent delegate.
+    if (!['SUSPENSION', 'BAN', 'ACCOUNT_RESTRICTION'].includes(appealType)) {
+      throw new Error('Only account-restriction appeals are currently supported.');
     }
 
-    const appeal = await prisma.appeal.create({
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+    if (!user || !['SUSPENDED', 'BANNED'].includes(user.status)) {
+      throw new Error('There is no active account restriction to appeal.');
+    }
+
+    const existingAppeal = await prisma.accountAppeal.findFirst({
+      where: { userId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
+    });
+    if (existingAppeal) {
+      throw new Error('You already have a pending account appeal. Please wait for a decision.');
+    }
+
+    const category = appealType === 'BAN' ? 'ACCOUNT_RESTRICTION' : 'ACCOUNT_RESTRICTION';
+    const appeal = await prisma.accountAppeal.create({
       data: {
         userId,
-        appealType,
-        targetType: this.getAppealTargetType(appealType),
-        targetId,
-        reportId,
-        reason,
-        explanation,
-        evidenceUrls: evidenceUrls ? JSON.stringify(evidenceUrls) : null,
+        accountStatus: user.status,
+        category,
+        explanation: explanation || reason,
+        supportingInfo: evidenceUrls?.length ? JSON.stringify(evidenceUrls) : null,
         status: 'PENDING',
       },
     });
@@ -743,11 +650,11 @@ For questions about your data, contact privacy@vanta.app
       where.userId = userId;
     }
 
-    return prisma.appeal.findMany({
+    return prisma.accountAppeal.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
+      take: Math.min(Math.max(limit, 1), 100),
+      skip: Math.max(offset, 0),
       include: {
         user: { select: { id: true, username: true, avatar: true } },
       },
@@ -755,33 +662,45 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async processAppeal(appealId: string, adminId: string, decision: string, reason?: string) {
-    const appeal = await prisma.appeal.findUnique({ where: { id: appealId } });
+    const appeal = await prisma.accountAppeal.findUnique({ where: { id: appealId } });
     if (!appeal) throw new Error('Appeal not found.');
-
-    const updated = await prisma.appeal.update({
-      where: { id: appealId },
-      data: {
-        status: decision === 'APPROVED' ? 'APPROVED' : decision === 'REJECTED' ? 'REJECTED' : 'ESCALATED',
-        decision,
-        decisionReason: reason,
-        reviewedById: adminId,
-        reviewedAt: new Date(),
-      },
-    });
-
-    // If appeal approved, restore user status
-    if (decision === 'APPROVED' && appeal.appealType === 'SUSPENSION') {
-      await prisma.user.update({
-        where: { id: appeal.userId },
-        data: { status: 'ACTIVE' },
-      });
+    if (!['APPROVED', 'REJECTED', 'UNDER_REVIEW'].includes(decision)) {
+      throw new Error('Invalid appeal decision.');
     }
 
-    // Notify the user
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.accountAppeal.update({
+        where: { id: appealId },
+        data: {
+          status: decision,
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+          decisionNote: reason || null,
+          accountRestored: decision === 'APPROVED',
+        },
+      });
+
+      if (decision === 'APPROVED' && ['SUSPENDED', 'BANNED'].includes(appeal.accountStatus)) {
+        await tx.user.update({
+          where: { id: appeal.userId },
+          data: {
+            status: 'ACTIVE',
+            suspendedAt: null,
+            suspendedReason: null,
+            suspendedUntil: null,
+            bannedAt: null,
+            bannedReason: null,
+          },
+        });
+      }
+      return result;
+    });
+
     await this.createComplianceNotification(appeal.userId, 'APPEAL_DECISION', {
-      title: `Appeal ${decision.toLowerCase()}`,
-      message: `Your appeal regarding ${appeal.appealType.toLowerCase().replace('_', ' ')} has been ${decision.toLowerCase()}.${reason ? ` Reason: ${reason}` : ''}`,
+      title: `Appeal ${decision.toLowerCase().replace('_', ' ')}`,
+      message: `Your account restriction appeal has been ${decision.toLowerCase().replace('_', ' ')}.${reason ? ` Reason: ${reason}` : ''}`,
       actionUrl: '/privacy-center?tab=appeals',
+      metadata: { resourceId: appealId },
     });
 
     await this.logComplianceAction(adminId, 'APPEAL_PROCESSED', 'APPEAL', appealId, {
@@ -876,25 +795,23 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async processCopyrightClaim(claimId: string, adminId: string, action: string, note?: string) {
-    const claim = await prisma.copyrightClaim.findUnique({ where: { id: claimId } });
-    if (!claim) throw new Error('Copyright claim not found.');
-
-    const updated = await prisma.copyrightClaim.update({
-      where: { id: claimId },
-      data: {
-        status: action === 'remove' ? 'ACTIONED' : action === 'reject' ? 'REJECTED' : 'COUNTER_NOTICE',
-        actionTaken: action === 'remove' ? 'CONTENT_REMOVED' : action === 'restore' ? 'RESTORED' : undefined,
-        processedById: adminId,
-        processedAt: new Date(),
-        decisionNote: note,
-      },
+    if (!['remove', 'reject'].includes(action)) throw new Error('Supported copyright decisions are remove or reject. Restoration is unavailable after permanent content removal.');
+    let removedFiles: Array<{ id: string; filename: string }> = [];
+    const updated = await prisma.$transaction(async (tx) => {
+      const claim = await tx.copyrightClaim.findUnique({ where: { id: claimId } });
+      if (!claim) throw new Error('Copyright claim not found.');
+      if (!['PENDING', 'UNDER_REVIEW', 'COUNTER_NOTICE'].includes(claim.status)) throw new Error('Copyright claim has already been resolved.');
+      if (action === 'remove') {
+        if (!claim.infringingContentId || !claim.infringingContentType) throw new Error('This claim has no supported content target; it cannot be marked removed.');
+        removedFiles = await removeModeratedContent(tx, claim.infringingContentType, claim.infringingContentId);
+      }
+      return tx.copyrightClaim.update({
+        where: { id: claimId },
+        data: { status: action === 'remove' ? 'ACTIONED' : 'REJECTED', actionTaken: action === 'remove' ? 'CONTENT_REMOVED' : 'NO_ACTION', processedById: adminId, processedAt: new Date(), decisionNote: note },
+      });
     });
-
-    await this.logComplianceAction(adminId, 'COPYRIGHT_CLAIM_PROCESSED', 'COPYRIGHT_CLAIM', claimId, {
-      action,
-      note,
-    });
-
+    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Copyright');
+    await this.logComplianceAction(adminId, 'COPYRIGHT_CLAIM_PROCESSED', 'COPYRIGHT_CLAIM', claimId, { action, note });
     return updated;
   }
 
@@ -1148,22 +1065,27 @@ For questions about your data, contact privacy@vanta.app
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
+    const [moderationRemovals, copyrightRemovals] = await Promise.all([
+      prisma.moderationAction.count({ where: { action: 'remove', createdAt: { gte: monthStart, lte: monthEnd } } }),
+      prisma.copyrightClaim.count({ where: { actionTaken: 'CONTENT_REMOVED', createdAt: { gte: monthStart, lte: monthEnd } } }),
+    ]);
+
     const metrics = [
       {
         metricType: 'ENFORCEMENT_ACTIONS',
-        totalCount: await prisma.report.count({ where: { status: 'ACTIONED', createdAt: { gte: monthStart, lte: monthEnd } } }),
+        totalCount: await prisma.moderationAction.count({ where: { createdAt: { gte: monthStart, lte: monthEnd } } }),
       },
       {
         metricType: 'REPORT_VOLUME',
-        totalCount: await prisma.report.count({ where: { createdAt: { gte: monthStart, lte: monthEnd } } }),
+        totalCount: await prisma.moderationQueue.count({ where: { createdAt: { gte: monthStart, lte: monthEnd } } }),
       },
       {
         metricType: 'APPEAL_OUTCOMES',
-        totalCount: await prisma.appeal.count({ where: { createdAt: { gte: monthStart, lte: monthEnd } } }),
+        totalCount: await prisma.accountAppeal.count({ where: { createdAt: { gte: monthStart, lte: monthEnd } } }),
       },
       {
         metricType: 'CONTENT_REMOVALS',
-        totalCount: await prisma.copyrightClaim.count({ where: { actionTaken: 'CONTENT_REMOVED', createdAt: { gte: monthStart, lte: monthEnd } } }),
+        totalCount: moderationRemovals + copyrightRemovals,
       },
       {
         metricType: 'DATA_REQUESTS',
@@ -1230,10 +1152,11 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async getLoginHistory(userId: string, limit = 50) {
-    return prisma.loginHistory.findMany({
-      where: { userId },
+    // Login events are recorded in the active, tamper-evident SecurityLog table.
+    return prisma.securityLog.findMany({
+      where: { userId, action: { contains: 'LOGIN' } },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: Math.min(Math.max(limit, 1), 100),
     });
   }
 
@@ -1247,40 +1170,49 @@ For questions about your data, contact privacy@vanta.app
     actionUrl?: string;
     metadata?: any;
   }) {
-    return prisma.complianceNotification.create({
+    // Compliance alerts share the platform Notification table so they appear
+    // in the same inbox and do not depend on a parallel, uninstalled model.
+    return prisma.notification.create({
       data: {
         userId,
         type,
         title: data.title,
         message: data.message,
-        actionUrl: data.actionUrl,
-        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        entityType: 'COMPLIANCE',
+        entityId: data.metadata?.resourceId || null,
+        data: JSON.stringify({
+          ...(data.metadata || {}),
+          ...(data.actionUrl ? { actionUrl: data.actionUrl } : {}),
+        }),
       },
     });
   }
 
   async getComplianceNotifications(userId: string, unreadOnly = false) {
-    const where: any = { userId };
-    if (unreadOnly) where.read = false;
-
-    return prisma.complianceNotification.findMany({
-      where,
+    const notifications = await prisma.notification.findMany({
+      where: { userId, entityType: 'COMPLIANCE', ...(unreadOnly ? { read: false } : {}) },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+
+    return notifications.map((notification) => {
+        let metadata: any = {};
+        try { metadata = notification.data ? JSON.parse(notification.data) : {}; } catch { metadata = {}; }
+        return { ...notification, actionUrl: metadata.actionUrl, metadata };
+      });
   }
 
   async markNotificationRead(notificationId: string, userId: string) {
-    return prisma.complianceNotification.updateMany({
-      where: { id: notificationId, userId },
-      data: { read: true },
+    return prisma.notification.updateMany({
+      where: { id: notificationId, userId, entityType: 'COMPLIANCE' },
+      data: { read: true, readAt: new Date() },
     });
   }
 
   async markAllNotificationsRead(userId: string) {
-    return prisma.complianceNotification.updateMany({
-      where: { userId, read: false },
-      data: { read: true },
+    return prisma.notification.updateMany({
+      where: { userId, entityType: 'COMPLIANCE', read: false },
+      data: { read: true, readAt: new Date() },
     });
   }
 
@@ -1297,17 +1229,13 @@ For questions about your data, contact privacy@vanta.app
     ipAddress?: string,
     userAgent?: string,
   ) {
-    return prisma.complianceAuditLog.create({
-      data: {
-        userId,
-        action,
-        resourceType,
-        resourceId,
-        details: details ? JSON.stringify(details) : null,
-        ipAddress,
-        userAgent,
-        severity: 'INFO',
-      },
+    return auditLog.log({
+      userId,
+      action,
+      ipAddress,
+      userAgent,
+      severity: 'INFO',
+      metadata: { resourceType, resourceId, ...(details === undefined ? {} : { details }) },
     });
   }
 
@@ -1320,21 +1248,29 @@ For questions about your data, contact privacy@vanta.app
     startDate?: Date;
     endDate?: Date;
   }) {
-    const where: any = {};
-    if (filters?.userId) where.userId = filters.userId;
-    if (filters?.action) where.action = filters.action;
-    if (filters?.resourceType) where.resourceType = filters.resourceType;
-    if (filters?.startDate || filters?.endDate) {
-      where.createdAt = {};
-      if (filters?.startDate) where.createdAt.gte = filters.startDate;
-      if (filters?.endDate) where.createdAt.lte = filters.endDate;
-    }
+    const rows = await auditLog.query({
+      userId: filters?.userId,
+      action: filters?.action,
+      startDate: filters?.startDate,
+      endDate: filters?.endDate,
+      // Apply resource filtering after parsing metadata because SecurityLog
+      // intentionally stores structured audit context in its JSON metadata.
+      limit: Math.min(Math.max(filters?.limit || 50, 1), 200),
+      offset: Math.max(filters?.offset || 0, 0),
+    });
 
-    return prisma.complianceAuditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: filters?.limit || 50,
-      skip: filters?.offset || 0,
+    return rows.filter((row) => {
+      if (!filters?.resourceType) return true;
+      try {
+        const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+        return metadata.resourceType === filters.resourceType;
+      } catch {
+        return false;
+      }
+    }).map((row) => {
+      let metadata: any = {};
+      try { metadata = row.metadata ? JSON.parse(row.metadata) : {}; } catch { metadata = {}; }
+      return { ...row, resourceType: metadata.resourceType, resourceId: metadata.resourceId, details: metadata.details };
     });
   }
 
@@ -1345,26 +1281,25 @@ For questions about your data, contact privacy@vanta.app
   async getComplianceDashboardStats() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [
       pendingReports,
       pendingAppeals,
       pendingExports,
-      pendingCopyrightClaims,
       activeDeactivations,
-      pendingChildSafetyFlags,
       totalConsentRecords,
       reportsToday,
+      pendingCopyrightClaims,
+      pendingChildSafetyFlags,
     ] = await Promise.all([
-      prisma.report.count({ where: { status: 'PENDING' } }),
-      prisma.appeal.count({ where: { status: 'PENDING' } }),
-      prisma.dataExportRequest.count({ where: { status: 'PENDING' } }),
-      prisma.copyrightClaim.count({ where: { status: 'PENDING' } }),
+      prisma.moderationQueue.count({ where: { status: 'PENDING' } }),
+      prisma.accountAppeal.count({ where: { status: { in: ['PENDING', 'UNDER_REVIEW'] } } }),
+      prisma.dataExportRequest.count({ where: { status: { in: ['PENDING', 'PROCESSING'] } } }),
       prisma.accountDeactivation.count({ where: { status: { in: ['DEACTIVATED', 'SCHEDULED_FOR_DELETION'] } } }),
+      prisma.consentRecord.count(),
+      prisma.moderationQueue.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.copyrightClaim.count({ where: { status: { in: ['PENDING', 'UNDER_REVIEW', 'COUNTER_NOTICE'] } } }),
       prisma.childSafetyFlag.count({ where: { status: 'PENDING_REVIEW' } }),
-      prisma.consentHistory.count(),
-      prisma.report.count({ where: { createdAt: { gte: todayStart } } }),
     ]);
 
     return {
@@ -1376,6 +1311,7 @@ For questions about your data, contact privacy@vanta.app
       pendingChildSafetyFlags,
       totalConsentRecords,
       reportsToday,
+      unavailableMetrics: [],
       timestamp: now.toISOString(),
     };
   }

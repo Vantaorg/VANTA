@@ -1,14 +1,11 @@
 import { prisma } from '../prisma';
 import { config } from './config';
 import { auditLog } from './auditLog';
-import { CryptoUtils } from './crypto';
+import { complianceService } from '../services/compliance.service';
 
 export class GDPRCompliance {
   async requestDataExport(userId: string): Promise<void> {
-    await prisma.dataExportRequest.create({
-      data: { userId, status: 'PENDING' },
-    });
-    auditLog.log({ userId, action: 'DATA_EXPORT_REQUESTED', severity: 'INFO' });
+    await complianceService.requestDataExport(userId);
   }
 
   async exportUserData(userId: string): Promise<object> {
@@ -27,51 +24,21 @@ export class GDPRCompliance {
   }
 
   async requestAccountDeletion(userId: string, reason?: string): Promise<void> {
-    const existing = await prisma.accountDeletionRequest.findUnique({ where: { userId } });
-    if (existing) throw new Error('Deletion already requested');
     const scheduledFor = new Date();
     scheduledFor.setDate(scheduledFor.getDate() + config.compliance.deletionGracePeriodDays);
-    await prisma.accountDeletionRequest.create({
-      data: { userId, reason, scheduledFor },
-    });
-    await prisma.user.update({ where: { id: userId }, data: { status: 'DEACTIVATED' } });
+    await complianceService.scheduleAccountDeletion(userId, reason, scheduledFor);
     auditLog.log({ userId, action: 'ACCOUNT_DELETION_REQUESTED', severity: 'CRITICAL' });
   }
 
   async cancelDeletion(userId: string): Promise<void> {
-    await prisma.accountDeletionRequest.delete({ where: { userId } });
-    await prisma.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
+    await complianceService.cancelDeletion(userId);
   }
 
   async processPendingDeletions(): Promise<number> {
-    const pending = await prisma.accountDeletionRequest.findMany({
-      where: { status: 'PENDING', scheduledFor: { lte: new Date() } },
-    });
-    for (const req of pending) {
-      await this.anonymizeUser(req.userId);
-      await prisma.accountDeletionRequest.update({
-        where: { id: req.id }, data: { status: 'PROCESSED', processedAt: new Date() },
-      });
-    }
-    return pending.length;
+    const result = await complianceService.permanentlyDeleteExpiredAccounts();
+    return result.deleted + result.unrecovered;
   }
 
-  async anonymizeUser(userId: string): Promise<void> {
-    const anonId = `deleted_${CryptoUtils.sha256(userId).substring(0, 16)}`;
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: `${anonId}@deleted.vanta`,
-        username: anonId,
-        fullName: 'Deleted User',
-        passwordHash: null,
-        phone: null, phoneNumber: null,
-        bio: null, avatar: null,
-        status: 'DELETED',
-      },
-    });
-    await prisma.session.deleteMany({ where: { userId } });
-  }
 
   async recordConsent(userId: string, type: string, granted: boolean, ipAddress?: string): Promise<void> {
     await prisma.consentRecord.create({
