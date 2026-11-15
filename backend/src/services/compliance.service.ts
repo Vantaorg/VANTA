@@ -929,11 +929,18 @@ For questions about your data, contact privacy@vanta.app
       throw error;
     }
 
-    await this.cleanupRemovedContent([], 'Report restoration');
+    const cachesInvalidated = await this.cleanupRemovedContent([], 'Report restoration');
+    if (!cachesInvalidated) {
+      await prisma.moderationRemoval.update({
+        where: { id: removal.id },
+        data: { mediaQuarantineStatus: 'FAILED' },
+      });
+    }
     await this.logComplianceAction(adminId, 'REPORT_CONTENT_RESTORED', 'REPORT', reportId, {
       targetType: removal.targetType,
       targetId: removal.targetId,
       reason: restorationReason,
+      cachesInvalidated,
     });
     return updated;
   }
