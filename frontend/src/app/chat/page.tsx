@@ -184,6 +184,18 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
   };
 };
 
+const conversationPreviewText = (value: unknown, type?: string): string => {
+  const raw = typeof value === 'string' ? value : '';
+  if (String(type || '').toUpperCase() === 'CONTACT' || (raw.trim().startsWith('{') && raw.includes('"username"'))) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && typeof parsed.username === 'string' && parsed.username.trim()) return 'Contact card · @' + parsed.username.trim();
+      return 'Shared a contact';
+    } catch { return 'Shared a contact'; }
+  }
+  return raw;
+};
+
 const visibleMessageText = (message: Message): string => {
   if (!message.attachments?.some(attachment => attachment.fileType === 'IMAGE')) return message.text;
   const text = message.text.trim();
@@ -635,7 +647,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         avatar: conv.partner?.avatar || conv.avatar,
         updatedAt: conv.updatedAt,
         lastMessage: conv.lastMessage ? {
-          text: conv.lastMessage.content ?? conv.lastMessage.text ?? '',
+          text: conversationPreviewText(conv.lastMessage.content ?? conv.lastMessage.text ?? '', conv.lastMessage.type),
           sender: conv.lastMessage.sender?.username ?? 'Unknown',
           timestamp: conv.lastMessage.createdAt ?? conv.lastMessage.timestamp,
           read: conv.lastMessage.read ?? false,
@@ -683,7 +695,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       const data = await apiGet<any>(`/api/messages?limit=25&cursor=${encodeURIComponent(conversationCursor)}`, token);
       const next = (data?.conversations ?? []).map((conv: any) => ({
         id: conv.id, type: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toLowerCase(), name: conv.name || conv.partner?.fullName || conv.partner?.username || 'Conversation', avatar: conv.partner?.avatar || conv.avatar,
-        lastMessage: conv.lastMessage ? { text: conv.lastMessage.content ?? conv.lastMessage.text ?? '', sender: conv.lastMessage.sender?.username ?? 'Unknown', timestamp: conv.lastMessage.createdAt, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT', hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0 } : undefined,
+        lastMessage: conv.lastMessage ? { text: conversationPreviewText(conv.lastMessage.content ?? conv.lastMessage.text ?? '', conv.lastMessage.type), sender: conv.lastMessage.sender?.username ?? 'Unknown', timestamp: conv.lastMessage.createdAt, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT', hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0 } : undefined,
         unread: conv.unreadCount ?? 0, description: conv.description, handle: conv.handle, participants: conv.participants ?? [], online: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toUpperCase() === 'DIRECT' ? Boolean(conv.partner?.userPresence?.isOnline ?? conv.partner?.isOnline ?? conv.online) : false, onlineMemberCount: typeof conv.onlineMemberCount === 'number' ? conv.onlineMemberCount : undefined, username: conv.partner?.username, verified: Boolean(conv.partner?.verified), verificationType: conv.partner?.verificationType || undefined, lastSeen: conv.partner?.userPresence?.lastActive, partnerId: conv.partner?.id, memberCount: conv.memberCount, currentRole: conv.currentRole, entityId: conv.entityId,
       }));
       setConversations(previous => [...previous, ...next.filter((item: Conversation) => !previous.some(existing => existing.id === item.id))]);
@@ -2373,64 +2385,27 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           const hasProfileHandle = typeof contact?.username === 'string' && contact.username.trim().length > 0;
                           const handle = hasProfileHandle ? contact.username.trim() : '';
                           const cardName = String(contact?.fullName || contact?.name || (handle ? `@${handle}` : 'Unavailable profile'));
-                          const counts = contact?.counts || {};
-                          const stats = [
-                            { label: 'Followers', value: counts.followers },
-                            { label: 'Following', value: counts.following },
-                            { label: 'Posts', value: counts.posts },
-                            { label: 'Likes', value: contact?.totalLikes },
-                          ];
-                          const joined = contact?.joinedAt ? new Date(contact.joinedAt) : null;
-                          const joinedLabel = joined && Number.isFinite(joined.getTime())
-                            ? new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(joined)
-                            : null;
-                          const presenceKnown = typeof contact?.online === 'boolean';
                           return (
                             <button
                               type="button"
-                              onClick={() => { if (hasProfileHandle) router.push(`/profile/${encodeURIComponent(handle)}`); }}
+                              onClick={() => { if (hasProfileHandle) router.push('/profile/' + encodeURIComponent(handle)); }}
                               disabled={!hasProfileHandle}
-                              aria-label={hasProfileHandle ? `View @${handle}'s profile` : 'This shared contact is unavailable'}
-                              className="group relative block w-[min(78vw,280px)] overflow-hidden rounded-[20px] border border-[#d6a83f]/45 bg-[#08090b] text-left shadow-[0_10px_34px_rgba(0,0,0,.38)] transition hover:border-[#f2c75c]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f2c75c]/70 disabled:cursor-default disabled:hover:border-[#d6a83f]/45"
+                              aria-label={hasProfileHandle ? "View @" + handle + "'s profile" : 'This shared contact is unavailable'}
+                              className="group block w-[min(78vw,300px)] rounded-2xl border border-white/[.08] bg-[#1F2630] px-3 py-3 text-left transition hover:border-white/[.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a227]/70 disabled:cursor-default"
                             >
-                              <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(ellipse at 92% 8%, rgba(214,168,63,.18), transparent 42%), radial-gradient(ellipse at 0% 100%, rgba(214,168,63,.09), transparent 38%)' }} />
-                              <div className="relative flex items-center justify-between border-b border-[#d6a83f]/20 px-3 py-2">
-                                <span className="text-[9px] font-bold uppercase tracking-[.24em] text-[#e8bd59]">VANTA · CONTACT</span>
-                                <span className="rounded-full border border-[#d6a83f]/30 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[.12em] text-[#e8bd59]">Profile</span>
-                              </div>
-                              <div className="relative flex items-center gap-3 px-3 pb-2.5 pt-2.5">
-                                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f6d77d] via-[#b98225] to-[#6b4715] p-[3px] shadow-[0_0_12px_rgba(214,168,63,.16)]">
-                                  <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="md" className="!h-10 !w-10 rounded-full border border-[#090a0c]" wrapperClassName="!h-10 !w-10 !min-h-10 !min-w-10 !rounded-full" />
-                                </span>
+                              <span className="flex min-w-0 items-center gap-3">
+                                <Avatar src={resolveMediaUrl(contact?.avatarUrl || contact?.avatar || null)} alt={cardName} size="md" className="!h-11 !w-11" wrapperClassName="!h-11 !w-11 !min-h-11 !min-w-11" />
                                 <span className="min-w-0 flex-1">
                                   <span className="flex min-w-0 items-center gap-1.5">
-                                    <span className="truncate text-[15px] font-semibold tracking-tight text-white">{cardName}</span>
-                                    {contact?.verified && <VerificationBadge type={contact?.verificationType || undefined} size="xs" />}
+                                    <span className="truncate text-sm font-semibold text-white">{cardName}</span>
+                                    {contact?.verified && <VerificationBadge verified type={contact?.verificationType || 'GOLD'} size="xs" />}
                                   </span>
-                                  <span className="mt-0.5 block truncate text-xs text-white/50">@{handle}</span>
-                                  {contact?.bio && <span className="mt-1.5 line-clamp-2 block break-words text-[11px] leading-relaxed text-white/65">{contact.bio}</span>}
+                                  <span className="mt-0.5 block truncate text-xs text-white/45">@{handle || 'VANTA member'}</span>
+                                  {typeof contact?.bio === 'string' && contact.bio.trim() && <span className="mt-1 block line-clamp-1 text-[11px] text-white/55">{contact.bio.trim()}</span>}
                                 </span>
-                              </div>
-                              <div className="relative grid grid-cols-4 divide-x divide-[#d6a83f]/20 border-y border-[#d6a83f]/20 bg-white/[.025] px-1 py-2">
-                                {stats.map(stat => (
-                                  <span key={stat.label} className="min-w-0 px-1 text-center">
-                                    <span className="block truncate text-[13px] font-semibold tabular-nums text-white">{typeof stat.value === 'number' && Number.isFinite(stat.value) ? stat.value.toLocaleString() : '—'}</span>
-                                    <span className="mt-0.5 block truncate text-[8px] font-medium uppercase tracking-[.09em] text-white/45">{stat.label}</span>
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="relative flex items-center justify-between gap-2 px-3.5 py-2.5">
-                                <span className="min-w-0 truncate text-[10px] text-white/45">{joinedLabel ? `Member since ${joinedLabel}` : 'VANTA member'}</span>
-                                {presenceKnown && (
-                                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[.12em]', contact.online ? 'text-emerald-400' : 'text-white/40')}>
-                                    <span className={cn('h-1.5 w-1.5 rounded-full', contact.online ? 'bg-emerald-400' : 'bg-white/35')} />
-                                    {contact.online ? 'Online' : 'Offline'}
-                                  </span>
-                                )}
-                                <span className="shrink-0 text-[10px] font-semibold text-[#e8bd59] transition group-hover:text-[#ffe39a]">View profile ↗</span>
-                              </div>
+                                <span className="shrink-0 text-[11px] font-medium text-[#e2bb4c] transition group-hover:text-[#f2c75c]">View</span>
+                              </span>
                             </button>
-                          );
                         })() : msg.type === 'WALLET' ? (
                           <button type="button" onClick={() => router.push('/balance')} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left" aria-label="Open wallet balance">
                             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={19}/></span>

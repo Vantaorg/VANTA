@@ -27,7 +27,7 @@ type Post = {
   likesCount?: number; commentsCount?: number; shareCount?: number; views?: number;
   isLiked?: boolean; liked?: boolean; saved?: boolean; shares?: number; likes?: number; comments?: number;
   hashtags?: string[];
-  author: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null; following?: boolean; isFollowing?: boolean };
+  author: { id: string; username: string; fullName?: string; avatar?: string; verified?: boolean; verificationType?: VerificationType | null; verificationBadge?: { badgeType?: string | null } | null; following?: boolean; isFollowing?: boolean };
 };
 
 const mediaSrc = (value?: string | null) => resolveMediaUrl(value);
@@ -217,17 +217,17 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                 />
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <div className="flex min-w-0 flex-nowrap items-center gap-x-1.5">
                   <Link
                     href={`/profile/${post.author.username}`}
-                    className="max-w-full truncate text-[13px] font-bold text-white hover:underline"
+                    className="min-w-0 max-w-[42%] shrink truncate text-[13px] font-bold text-white hover:underline"
                   >
                     {post.author.fullName || post.author.username}
                   </Link>
-                  {post.author.verified && post.author.verificationType && (
-                    <VerificationBadge verified type={post.author.verificationType} size="sm" />
+                  {post.author.verified && (
+                    <VerificationBadge verified type={post.author.verificationType || (post.author.verificationBadge?.badgeType === 'BLUE' ? 'BLUE' : 'GOLD')} size="sm" />
                   )}
-                  <span className="truncate text-[11px] text-white/40">@{post.author.username}</span>
+                  <span className="min-w-0 truncate text-[11px] text-white/40">@{post.author.username}</span>
                 </div>
               </div>
             </header>
