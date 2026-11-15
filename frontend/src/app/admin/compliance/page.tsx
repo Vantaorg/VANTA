@@ -329,6 +329,8 @@ export default function AdminCompliancePage() {
               <option value="INVESTIGATING">Investigating</option>
               <option value="ACTIONED">Actioned</option>
               <option value="DISMISSED">Dismissed</option>
+              <option value="REMOVED">Removed</option>
+              <option value="RESTORED">Restored</option>
             </select>
             <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
               Refresh
