@@ -1159,13 +1159,30 @@ For questions about your data, contact privacy@vanta.app
       if (action === 'remove') {
         if (!claim.infringingContentId || !claim.infringingContentType) throw new Error('This claim has no supported content target; it cannot be marked removed.');
         removedFiles = await removeModeratedContent(tx, claim.infringingContentType, claim.infringingContentId);
+        await tx.moderationRemoval.create({
+          data: {
+            sourceType: 'COPYRIGHT_CLAIM',
+            sourceId: claimId,
+            targetType: claim.infringingContentType,
+            targetId: claim.infringingContentId,
+            moderatorId: adminId,
+            reason: note || 'Copyright takedown',
+            mediaQuarantineStatus: 'PENDING',
+          },
+        });
       }
       return tx.copyrightClaim.update({
         where: { id: claimId },
         data: { status: action === 'remove' ? 'ACTIONED' : 'REJECTED', actionTaken: action === 'remove' ? 'CONTENT_REMOVED' : 'NO_ACTION', processedById: adminId, processedAt: new Date(), decisionNote: note },
       });
     });
-    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Copyright');
+    if (action === 'remove') {
+      const mediaQuarantined = await this.cleanupRemovedContent(removedFiles, 'Copyright');
+      await prisma.moderationRemoval.updateMany({
+        where: { sourceType: 'COPYRIGHT_CLAIM', sourceId: claimId },
+        data: { mediaQuarantineStatus: mediaQuarantined ? 'COMPLETED' : 'FAILED' },
+      });
+    }
     await this.logComplianceAction(adminId, 'COPYRIGHT_CLAIM_PROCESSED', 'COPYRIGHT_CLAIM', claimId, { action, note });
     return updated;
   }
