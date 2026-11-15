@@ -520,6 +520,9 @@ For questions about your data, contact privacy@vanta.app
           await tx.storyLike.deleteMany({ where: { userId } });
           await tx.storyComment.deleteMany({ where: { userId } });
           await tx.participant.deleteMany({ where: { userId } });
+          await tx.communityMember.deleteMany({ where: { userId } });
+          await tx.channelMember.deleteMany({ where: { userId } });
+          await tx.groupMember.deleteMany({ where: { userId } });
           await tx.messageRead.deleteMany({ where: { userId } });
           await tx.messageReaction.deleteMany({ where: { userId } });
           await tx.streamViewer.deleteMany({ where: { userId } });
