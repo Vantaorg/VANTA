@@ -423,7 +423,7 @@ export default function AdminCompliancePage() {
                     </button>
                   )}
                   {report.removal?.mediaQuarantineStatus === 'FAILED' && (
-                    <p className="mt-2 text-xs text-red-300">Media quarantine failed. Review the storage asset before resolving this report.</p>
+                    <p className="mt-2 text-xs text-red-300">Removal follow-up failed. Review media quarantine and cache invalidation before resolving this report.</p>
                   )}
                 </div>
               </div>
