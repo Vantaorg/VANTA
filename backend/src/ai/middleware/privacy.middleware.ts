@@ -34,7 +34,7 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
         select: { aiPersonalization: true },
       }),
       prisma.consentRecord.findMany({
-        where: { userId, type: { in: ['aiFeatures', 'personalization', 'aiFeatures:NOT_SET', 'personalization:NOT_SET'] } },
+        where: { userId, type: { in: ['aiFeatures', 'personalization', 'aiFeatures:NOT_SET', 'personalization:NOT_SET', 'ai_training', 'ai_profiling'] } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       }),
       prisma.aIFeatureFlag.findMany({
@@ -45,7 +45,8 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
 
     const latestConsent = new Map<string, any>();
     for (const record of consentRecords) {
-      const key = record.type.endsWith(':NOT_SET') ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      const rawType = record.type.endsWith(':NOT_SET') ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      const key = rawType === 'ai_training' ? 'aiFeatures' : rawType === 'ai_profiling' ? 'personalization' : rawType;
       if (!latestConsent.has(key)) latestConsent.set(key, record);
     }
     const explicitlyDenied = ['aiFeatures', 'personalization'].some(key => {
