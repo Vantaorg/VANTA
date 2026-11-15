@@ -684,7 +684,7 @@ export class ChatService {
       if (otherParticipantIds.length) {
         const followed = await prisma.follow.findMany({
           where: { followerId: { in: otherParticipantIds }, followingId: userId },
-          select: { followingId: true },
+          select: { followerId: true },
         });
         const followerIds = new Set(followed.map(item => item.followerId));
         receiptsHidden = otherParticipantIds.some(participantId => !followerIds.has(participantId));
