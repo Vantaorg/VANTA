@@ -80,6 +80,19 @@ class ComplianceService {
     }
     if (Object.keys(updates).length === 0) return this.getPrivacySettings(userId);
     const settings = await prisma.userSettings.upsert({ where: { userId }, create: { userId, ...updates }, update: updates });
+
+    // Cookie switches and the consent ledger are two views of the same choice.
+    // Keep them synchronized so every tracking consumer has one auditable decision.
+    const cookieConsentUpdates = [
+      ...(typeof data.cookieAnalytics === 'boolean' ? [{ type: 'analytics', granted: data.cookieAnalytics }] : []),
+      ...(typeof data.cookieMarketing === 'boolean' ? [{ type: 'marketing', granted: data.cookieMarketing }] : []),
+    ];
+    for (const consent of cookieConsentUpdates) {
+      await prisma.consentRecord.create({
+        data: { userId, type: consent.type, granted: consent.granted },
+      });
+    }
+
     await this.logComplianceAction(userId, 'PRIVACY_SETTINGS_UPDATE', 'SETTINGS', userId, updates);
     return { ...settings, readReceipts: settings.privacyReadReceipts, cookieFunctional: true };
   }
@@ -145,6 +158,19 @@ class ComplianceService {
           ipAddress: ipAddress || null,
           userAgent: userAgent || null,
         },
+      });
+    }
+
+    const cookieSettings: Record<string, boolean> = {};
+    for (const update of updates) {
+      if (update.key === 'analytics') cookieSettings.cookieAnalytics = update.value === 'granted';
+      if (update.key === 'marketing') cookieSettings.cookieMarketing = update.value === 'granted';
+    }
+    if (Object.keys(cookieSettings).length) {
+      await prisma.userSettings.upsert({
+        where: { userId },
+        create: { userId, ...cookieSettings },
+        update: cookieSettings,
       });
     }
 
