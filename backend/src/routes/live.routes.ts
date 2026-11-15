@@ -37,14 +37,14 @@ import {
   updateScheduledStream,
   deleteScheduledStream,
 } from '../controllers/live.controller';
-import { authenticateJWT } from '../middleware/auth.middleware';
+import { authenticateJWT, optionallyAuthenticateJWT } from '../middleware/auth.middleware';
 
 const router = Router();
 
 // Static routes must be registered before /:streamId.
 router.get('/categories', getCategories);
 router.get('/discover', getDiscoveryStreams);
-router.get('/trending', getTrendingStreams);
+router.get('/trending', optionallyAuthenticateJWT, getTrendingStreams);
 router.get('/recently-ended', getRecentlyEnded);
 router.get('/popular-creators', getPopularCreators);
 router.get('/history', authenticateJWT, getStreamHistory);
