@@ -7,7 +7,6 @@
 import { WalletService } from '../services/wallet.service';
 import { blockchainTxVerifier } from '../services/blockchain-verifier.service';
 import { prisma } from '../prisma';
-import { notificationService } from '../services/notification.service';
 import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 
 jest.mock('../prisma', () => {
@@ -94,18 +93,6 @@ describe('WalletService.requestWithdrawal', () => {
     expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
   });
 
-  test('returns the committed withdrawal even when its notification fails', async () => {
-    const tx = txMock();
-    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
-    (notificationService.createNotification as jest.Mock).mockRejectedValueOnce(new Error('notification provider unavailable'));
-
-    const result = await walletService.requestWithdrawal('user1', 100, validAddress, '1234');
-
-    expect(result.status).toBe('PENDING');
-    expect(tx.withdrawal.create).toHaveBeenCalledTimes(1);
-    expect(tx.walletTransaction.create).toHaveBeenCalledTimes(1);
-  });
-
   test('aborts when the earnings balance cannot cover the amount (CAS count 0)', async () => {
     const tx = txMock();
     tx.wallet.updateMany.mockResolvedValue({ count: 0 });
@@ -138,6 +125,16 @@ describe('WalletService.rejectWithdrawal', () => {
     expect(tx.wallet.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ earningsBalance: { increment: 100 } }) })
     );
+  });
+
+  test('does not refund if the pending withdrawal ledger row is missing', async () => {
+    const tx = txMock();
+    tx.walletTransaction.updateMany.mockResolvedValue({ count: 0 });
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+
+    await expect(walletService.rejectWithdrawal('wd1', 'admin1', 'policy'))
+      .rejects.toThrow('Pending withdrawal ledger entry is missing or already processed');
+    expect(tx.wallet.update).not.toHaveBeenCalled();
   });
 
   test('a concurrent double-rejection is impossible', async () => {

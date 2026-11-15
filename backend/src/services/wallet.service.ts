@@ -1751,16 +1751,9 @@ export class WalletService {
       }
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
 
-      // Refund earnings to user
-      await tx.wallet.update({
-        where: { userId: withdrawal.userId },
-        data: {
-          earningsBalance: { increment: withdrawal.amount },
-          totalWithdrawn: { decrement: withdrawal.netAmount },
-        },
-      });
-
-      // Require exactly one matching reservation ledger row before refunding.
+      // Require and transition exactly one reservation ledger row before
+      // refunding earnings. This keeps even the transaction's operation order
+      // fail-closed when the ledger row is missing.
       const ledgerUpdate = await tx.walletTransaction.updateMany({
         where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "FAILED" },
@@ -1768,6 +1761,14 @@ export class WalletService {
       if (ledgerUpdate.count !== 1) {
         throw new Error("Pending withdrawal ledger entry is missing or already processed");
       }
+
+      await tx.wallet.update({
+        where: { userId: withdrawal.userId },
+        data: {
+          earningsBalance: { increment: withdrawal.amount },
+          totalWithdrawn: { decrement: withdrawal.netAmount },
+        },
+      });
 
       // Log audit
       await tx.walletAuditLog.create({
@@ -1834,15 +1835,7 @@ export class WalletService {
       }
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
 
-      // Refund reserved earnings exactly once.
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          earningsBalance: { increment: withdrawal.amount },
-          totalWithdrawn: { decrement: withdrawal.netAmount },
-        },
-      });
-
+      // Transition the reservation ledger before refunding the balance.
       const ledgerUpdate = await tx.walletTransaction.updateMany({
         where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "CANCELLED" },
@@ -1850,6 +1843,14 @@ export class WalletService {
       if (ledgerUpdate.count !== 1) {
         throw new Error("Pending withdrawal ledger entry is missing or already processed");
       }
+
+      await tx.wallet.update({
+        where: { userId },
+        data: {
+          earningsBalance: { increment: withdrawal.amount },
+          totalWithdrawn: { decrement: withdrawal.netAmount },
+        },
+      });
 
       await tx.walletAuditLog.create({
         data: {
@@ -2135,9 +2136,20 @@ export class WalletService {
         throw new Error("Only completed transactions can be reversed");
       }
 
-      // Compare-and-swap the source transaction before changing any balance.
-      // This makes concurrent admin requests idempotent: exactly one request
-      // can claim a COMPLETED transaction for reversal.
+      if (transaction.currency !== "VANTA") {
+        throw new Error("Only VANTA Coin transactions can be reversed");
+      }
+
+      // Validate direction before claiming the source row. Follower reward rows
+      // require metadata.side to distinguish creator debit from claimant credit.
+      const originalDelta = resolveWalletTransactionDelta(transaction);
+      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
+        throw new Error("Transaction type, amount or direction cannot be safely reversed");
+      }
+      const reversalDelta = -originalDelta;
+
+      // Compare-and-swap the source transaction only after it is known to be
+      // reversible. Exactly one concurrent admin request can claim it.
       const claim = await tx.walletTransaction.updateMany({
         where: { id: transactionId, status: "COMPLETED" },
         data: { status: "REVERSED" },
@@ -2145,19 +2157,6 @@ export class WalletService {
       if (claim.count !== 1) {
         throw new Error("Transaction already reversed or no longer eligible");
       }
-
-      if (transaction.currency !== "VANTA") {
-        throw new Error("Only VANTA Coin transactions can be reversed");
-      }
-
-      // Use the same signed movement resolver as wallet reconciliation.
-      // Follower reward rows require metadata.side to distinguish the creator
-      // debit from the claimant credit.
-      const originalDelta = resolveWalletTransactionDelta(transaction);
-      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
-        throw new Error("Transaction type, amount or direction cannot be safely reversed");
-      }
-      const reversalDelta = -originalDelta;
 
       const wallet = await tx.wallet.findUnique({
         where: { userId: transaction.userId },
