@@ -45,3 +45,4 @@ ALTER TABLE "ModerationRemoval"
   ADD CONSTRAINT "ModerationRemoval_queueId_fkey"
   FOREIGN KEY ("queueId") REFERENCES "ModerationQueue"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE INDEX "ModerationRemoval_sourceType_sourceId_idx" ON "ModerationRemoval"("sourceType", "sourceId");
