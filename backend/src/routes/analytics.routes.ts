@@ -61,6 +61,61 @@ function selfOrPrivileged(getResourceUserId: (req: Request) => string | undefine
  * payloads are bounded so an anonymous caller cannot flood the analytics store
  * with unbounded/oversized events or inject arbitrary userId attributes.
  */
+/**
+ * Optional product telemetry is collected only after an explicit analytics
+ * choice. Anonymous visitors send the choice from the consent banner; signed-in
+ * users are checked against the latest server-side consent audit record.
+ */
+async function requireAnalyticsConsent(req: Request, res: Response, next: NextFunction) {
+  try {
+    const actor = (req as AuthenticatedRequest).user;
+    if (actor?.userId) {
+      const { prisma } = await import('../prisma');
+      const consent = await prisma.consentRecord.findFirst({
+        where: { userId: actor.userId, type: 'analytics' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { granted: true },
+      });
+      if (consent?.granted === true) return next();
+      res.status(204).end();
+      return;
+    }
+
+    if (req.get('x-vanta-analytics-consent') === 'granted') return next();
+    res.status(204).end();
+  } catch (error) {
+    // Fail closed: a consent lookup failure must never enable optional tracking.
+    res.status(204).end();
+  }
+}
+
+async function requireMarketingConsent(req: Request, res: Response, next: NextFunction) {
+  const events = Array.isArray(req.body?.events) ? req.body.events : [req.body];
+  const containsMarketingEvent = events.some((event: any) =>
+    ['ad_view', 'ad_click', 'referral_click'].includes(event?.eventType)
+  );
+  if (!containsMarketingEvent) return next();
+
+  try {
+    const actor = (req as AuthenticatedRequest).user;
+    if (actor?.userId) {
+      const { prisma } = await import('../prisma');
+      const consent = await prisma.consentRecord.findFirst({
+        where: { userId: actor.userId, type: 'marketing' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { granted: true },
+      });
+      if (consent?.granted === true) return next();
+      res.status(204).end();
+      return;
+    }
+    if (req.get('x-vanta-marketing-consent') === 'granted') return next();
+    res.status(204).end();
+  } catch {
+    res.status(204).end();
+  }
+}
+
 function validateTrackPayload(events: unknown[]): boolean {
   return (
     Array.isArray(events) &&
@@ -166,7 +221,7 @@ router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, n
     return;
   }
   next();
-}, analyticsController.trackEvent.bind(analyticsController));
+}, requireAnalyticsConsent, requireMarketingConsent, analyticsController.trackEvent.bind(analyticsController));
 router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const events = req.body?.events;
   if (!validateTrackPayload(events)) {
@@ -174,7 +229,7 @@ router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Respo
     return;
   }
   next();
-}, analyticsController.trackBatchEvents.bind(analyticsController));
+}, requireAnalyticsConsent, requireMarketingConsent, analyticsController.trackBatchEvents.bind(analyticsController));
 
 // ============================================================
 // Alert Rules & History
