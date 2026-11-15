@@ -249,6 +249,25 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     expect(allowed.status).toBe(200);
   });
 
+  test('a denied marketing choice preserves non-marketing events in a mixed batch', async () => {
+    const response = await fetch(`${baseUrl}/api/analytics/track/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'denied',
+      },
+      body: JSON.stringify({
+        events: [
+          { eventType: 'page_view' },
+          { eventType: 'ad_view' },
+        ],
+      }),
+    });
+    // The batch is still processed after marketing-only events are removed.
+    expect(response.status).toBe(200);
+  });
+
   test('telemetry /track rejects malformed payloads and accepts bounded ones', async () => {
     const bad = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
