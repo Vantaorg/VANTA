@@ -10,7 +10,11 @@ import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import { getTransactions } from '@/lib/adminApi';
 
-const fmtUsd = (n: number) => ' Record<string, { label: string; color: string }> = {
+const fmtUsd = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtVanta = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' VANTA';
+const fmtPair = (usd: number, vanta: number) => fmtUsd(usd) + ' USD · ' + fmtVanta(vanta);
+
+const typeConfig: Record<string, { label: string; color: string }> = {
   DEPOSIT: { label: 'Deposit', color: 'bg-emerald-500/15 text-emerald-300' },
   TRANSFER_SENT: { label: 'Transfer Sent', color: 'bg-yellow-500/15 text-yellow-300' },
   TRANSFER_RECEIVED: { label: 'Transfer Received', color: 'bg-sky-500/15 text-sky-300' },
