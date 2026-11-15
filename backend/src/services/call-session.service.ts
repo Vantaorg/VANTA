@@ -43,8 +43,8 @@ export class CallSessionService {
       select: { callPermissions: true, privacyCalls: true },
     });
     const permission = settings?.callPermissions || settings?.privacyCalls || "everyone";
-    if (permission === "nobody") throw new Error("This user is not accepting calls");
-    if (permission === "followers") {
+    if (permission === "nobody" || permission === "noone") throw new Error("This user is not accepting calls");
+    if (permission === "followers" || permission === "following") {
       const followsCallee = await prisma.follow.findUnique({
         where: { followerId_followingId: { followerId: input.callerId, followingId: input.calleeId } },
         select: { id: true },
