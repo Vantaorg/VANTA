@@ -109,7 +109,7 @@ describe('GroupService member permissions', () => {
     expect(db.groupMember.create).not.toHaveBeenCalled();
   });
 
-  it('rejects group invitations when the invitee only accepts invitations from accounts they follow', async () => {
+  it('rejects group invitations when the invitee only accepts invitations from their followers', async () => {
     (db.group.findUnique as jest.Mock).mockResolvedValue({ id: 'group-1', ownerId: 'owner-1', conversationId: 'conversation-1' });
     (db.groupMember.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'req', role: 'ADMIN', userId: 'owner-1' })
@@ -121,7 +121,7 @@ describe('GroupService member permissions', () => {
       'This user only accepts group invitations from accounts they follow'
     );
     expect(db.follow.findUnique).toHaveBeenCalledWith({
-      where: { followerId_followingId: { followerId: 'invitee-1', followingId: 'owner-1' } },
+      where: { followerId_followingId: { followerId: 'owner-1', followingId: 'invitee-1' } },
       select: { id: true },
     });
     expect(db.groupMember.create).not.toHaveBeenCalled();
