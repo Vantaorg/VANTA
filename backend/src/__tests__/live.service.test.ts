@@ -167,7 +167,7 @@ describe('LiveService', () => {
       (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
         { userId: 'host1', liveStreamVisibility: 'nobody', privacyLiveStream: 'public' },
       ]);
-      await expect(liveService.getStream('stream1', 'viewer1')).resolves.toBeNull();
+      await expect(liveService.getStream('stream-private', 'viewer1')).resolves.toBeNull();
     });
 
     test('allows a followed viewer to open a followers-only stream', async () => {
@@ -176,7 +176,7 @@ describe('LiveService', () => {
         { userId: 'host1', liveStreamVisibility: 'followers', privacyLiveStream: 'public' },
       ]);
       (prisma.follow.findMany as jest.Mock).mockResolvedValue([{ followingId: 'host1' }]);
-      await expect(liveService.getStream('stream1', 'viewer1')).resolves.toMatchObject({ id: 'stream1' });
+      await expect(liveService.getStream('stream-followers', 'viewer1')).resolves.toMatchObject({ id: 'stream1' });
     });
 
     test('should return active streams', async () => {
