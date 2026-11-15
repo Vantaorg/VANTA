@@ -646,6 +646,7 @@ export const sanitizeUserShape = (user: any) => ({
   fullName: user.fullName,
   avatar: user.avatar || user.profile?.avatarUrl,
   role: user.role,
+  status: user.status,
   verified: user.verified,
   emailVerified: user.emailVerified,
   premium: user.premium,
