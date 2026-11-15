@@ -1021,7 +1021,10 @@ export class WalletService {
             },
           });
           this.logTally("otp_failed");
-          throw new Error("Invalid OTP");
+          // Return from the interactive transaction instead of throwing here.
+          // Throwing would roll back the failed-attempt increment and audit row,
+          // allowing unlimited guesses against the same OTP challenge.
+          return { otpInvalid: true as const };
         }
 
         const consumed = await tx.transferOtpChallenge.updateMany({
@@ -1178,6 +1181,13 @@ export class WalletService {
 
       return { transfer, updatedSender, updatedReceiver };
     });
+
+    // The invalid-attempt counter and audit entry have committed. Raise the
+    // API error only after the transaction completes so those security records
+    // are not rolled back with the rejected transfer.
+    if ('otpInvalid' in result) {
+      throw new Error("Invalid OTP");
+    }
 
     // The transfer is already committed. Notification delivery must not
     // make the API report a failed transfer and encourage an unsafe retry.
@@ -1447,20 +1457,24 @@ export class WalletService {
       throw new Error("No PIN set. Use setup PIN first.");
     }
 
-    const valid = await bcrypt.compare(oldPin, pinRecord.pinHash);
-    if (!valid) {
-      throw new Error("Current PIN is incorrect");
-    }
-
     if (!/^\d{4,6}$/.test(newPin)) {
       throw new Error("PIN must be 4-6 digits");
     }
 
+    // Reuse the canonical verifier so PIN changes obey the same lockout,
+    // failed-attempt accounting and audit policy as transfers/withdrawals.
+    await this.verifyPin(userId, oldPin);
+
     const newPinHash = await bcrypt.hash(newPin, 10);
-    await prisma.walletPIN.update({
-      where: { walletId: wallet.id },
+    const updated = await prisma.walletPIN.updateMany({
+      // Compare-and-swap prevents two concurrent PIN changes from both
+      // succeeding against the same previously verified PIN.
+      where: { id: pinRecord.id, pinHash: pinRecord.pinHash },
       data: { pinHash: newPinHash, failedAttempts: 0, lockedUntil: null },
     });
+    if (updated.count !== 1) {
+      throw new Error("PIN changed during this update. Please try again.");
+    }
 
     await this.logAudit(userId, "PIN_UPDATE", { walletId: wallet.id });
 
