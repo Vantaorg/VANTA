@@ -1,3 +1,38 @@
+describe('streamed data export pagination', () => {
+  const post = (prisma as any).post;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (complianceService as any).exportPageSize = 2;
+  });
+
+  test('streams a complete JSON array across bounded cursor pages', async () => {
+    post.findMany
+      .mockResolvedValueOnce([{ id: 'post-1', content: 'one' }, { id: 'post-2', content: 'two' }])
+      .mockResolvedValueOnce([{ id: 'post-3', content: 'three' }]);
+
+    const stream = (complianceService as any).createExportJsonStream({
+      delegate: 'post',
+      where: { authorId: 'user-1' },
+    });
+    let json = '';
+    for await (const chunk of stream) json += chunk.toString();
+
+    expect(JSON.parse(json)).toEqual([
+      { id: 'post-1', content: 'one' },
+      { id: 'post-2', content: 'two' },
+      { id: 'post-3', content: 'three' },
+    ]);
+    expect(post.findMany).toHaveBeenNthCalledWith(1, {
+      where: { authorId: 'user-1' }, orderBy: { id: 'asc' }, take: 2,
+    });
+    expect(post.findMany).toHaveBeenNthCalledWith(2, {
+      where: { authorId: 'user-1' }, orderBy: { id: 'asc' }, take: 2,
+      cursor: { id: 'post-2' }, skip: 1,
+    });
+  });
+});
+
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 jest.mock('../prisma', () => ({
@@ -15,7 +50,8 @@ jest.mock('../prisma', () => ({
     user: { update: jest.fn(), findMany: jest.fn() },
     consentRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
     uploadedFile: { findMany: jest.fn() },
-    dataExportRequest: { findMany: jest.fn() },
+    dataExportRequest: { findMany: jest.fn(), update: jest.fn() },
+    post: { findMany: jest.fn() },
   },
 }));
 
