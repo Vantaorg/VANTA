@@ -55,6 +55,26 @@ describe('compliance data export API privacy', () => {
   });
 });
 
+describe('privacy settings enforcement compatibility', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('maps private account type to the existing profile visibility enforcement field', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', accountType: 'PRIVATE', privacyProfile: 'private', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', { accountType: 'PRIVATE' });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ accountType: 'PRIVATE', privacyProfile: 'private' }),
+      update: expect.objectContaining({ accountType: 'PRIVATE', privacyProfile: 'private' }),
+    }));
+  });
+  test('maps new message permission values to the existing chat enforcement field', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', messagePermissions: 'nobody', privacyMessages: 'noone', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', { messagePermissions: 'nobody' });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ messagePermissions: 'nobody', privacyMessages: 'noone' }),
+      update: expect.objectContaining({ messagePermissions: 'nobody', privacyMessages: 'noone' }),
+    }));
+  });
+});
+
 describe('deactivated account recovery allowlist', () => {
   test('allows only the owner recovery and sign-out endpoints', () => {
     expect(isDeactivatedAllowedRequest('GET', '/api/compliance/account/deactivation-status')).toBe(true);
