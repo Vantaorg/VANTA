@@ -207,7 +207,8 @@ export const followStreamer = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, followerId);
+    if (!stream) { res.status(404).json({ error: 'Stream not found' }); return; }
     const follow = await liveService.followStreamer(stream.hostId, followerId);
     res.status(200).json({ follow });
   } catch (error) {
@@ -516,7 +517,7 @@ export const getGuestToken = async (req: AuthRequest, res: Response): Promise<vo
       res.status(403).json({ error: 'You are not an approved guest on this stage' });
       return;
     }
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, userId);
     if (!stream?.liveKitRoom) {
       res.status(400).json({ error: 'Stream has no live room' });
       return;
