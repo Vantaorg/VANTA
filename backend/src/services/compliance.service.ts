@@ -499,9 +499,9 @@ For questions about your data, contact privacy@vanta.app
           await tx.userEmbedding.deleteMany({ where: { userId } });
           await tx.userInterest.deleteMany({ where: { userId } });
           await tx.interactionEvent.deleteMany({ where: { userId } });
-          await tx.aiContent.deleteMany({ where: { userId } });
-          await tx.aiAnalytics.deleteMany({ where: { userId } });
-          await tx.aiSession.deleteMany({ where: { userId } });
+          await tx.aIContent.deleteMany({ where: { userId } });
+          await tx.aIAnalytics.deleteMany({ where: { userId } });
+          await tx.aISession.deleteMany({ where: { userId } });
           await tx.profile.deleteMany({ where: { userId } });
           await tx.photo.deleteMany({ where: { userId } });
           await tx.verificationRequest.deleteMany({ where: { userId } });
