@@ -43,12 +43,16 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
       }),
     ]);
 
-    const latestConsent = new Map<string, any>();
+    const canonicalConsent = new Map<string, any>();
+    const legacyConsent = new Map<string, any>();
     for (const record of consentRecords) {
       const rawType = record.type.endsWith(':NOT_SET') ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      const isLegacy = rawType === 'ai_training' || rawType === 'ai_profiling';
       const key = rawType === 'ai_training' ? 'aiFeatures' : rawType === 'ai_profiling' ? 'personalization' : rawType;
-      if (!latestConsent.has(key)) latestConsent.set(key, record);
+      const target = isLegacy ? legacyConsent : canonicalConsent;
+      if (!target.has(key)) target.set(key, record);
     }
+    const latestConsent = new Map([...legacyConsent, ...canonicalConsent]);
     const explicitlyDenied = ['aiFeatures', 'personalization'].some(key => {
       const record = latestConsent.get(key);
       return Boolean(record && !record.type.endsWith(':NOT_SET') && record.granted === false);
