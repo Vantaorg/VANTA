@@ -386,6 +386,8 @@ class ComplianceService {
       const fail = (error: Error) => {
         if (settled) return;
         settled = true;
+        archive.destroy();
+        output.destroy();
         reject(error);
       };
       output.on('error', fail);
