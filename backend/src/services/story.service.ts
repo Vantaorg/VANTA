@@ -488,6 +488,26 @@ export class StoryService {
     return contentViewService.storyViewers(storyId, ownerId);
   }
 
+  private async canViewStories(ownerId: string, viewerId?: string): Promise<boolean> {
+    if (viewerId && viewerId === ownerId) return true;
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: ownerId },
+      select: { storyVisibility: true, privacyStories: true },
+    });
+    const modes = [settings?.storyVisibility, settings?.privacyStories]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    if (modes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) return false;
+    if (modes.some(mode => mode === "followers" || mode === "following")) {
+      if (!viewerId) return false;
+      const followsOwner = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: viewerId, followingId: ownerId } },
+        select: { id: true },
+      });
+      return Boolean(followsOwner);
+    }
+    return true;
+  }
+
   private async requireActiveStory(storyId: string) {
     const story = await prisma.story.findUnique({ where: { id: storyId } });
     if (!story || story.expiresAt.getTime() <= Date.now() || story.publishStatus !== "PUBLISHED") {
