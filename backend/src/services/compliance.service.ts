@@ -473,6 +473,8 @@ For questions about your data, contact privacy@vanta.app
               phone: null, phoneNumber: null, passwordHash: null,
               fullName: 'Deleted Account', username: `deleted_${userId}`,
               bio: null, avatar: null, status: 'DELETED',
+              gender: null, interestedIn: null, age: null, dateOfBirth: null,
+              country: null, city: null, verified: false, emailVerified: false,
               googleId: null, appleId: null, twoFactorEnabled: false,
               twoFactorSecret: null, twoFactorLastUsedStep: null,
               backupCodes: null, rememberMeToken: null,
