@@ -5,6 +5,8 @@ import { BADGE_USER_SELECT, enrichItemAuthors } from "./public-verification";
 
 export class PostService {
   async savePost(userId: string, postId: string) {
+    const post = await prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null }, select: { id: true } });
+    if (!post) throw new Error("Post not found");
     const existing = await prisma.postSave.findUnique({
       where: { userId_postId: { userId, postId } },
     });
@@ -34,7 +36,7 @@ export class PostService {
 
   async getSavedPosts(userId: string, cursor?: string, limit: number = 20) {
     const saves = await prisma.postSave.findMany({
-      where: { userId },
+      where: { userId, post: { moderationRemovedAt: null } },
       orderBy: { createdAt: "desc" },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -73,7 +75,7 @@ export class PostService {
 
   async sharePost(postId: string, userId: string, destination = "COPY_LINK") {
     const post = await prisma.$transaction(async (tx) => {
-      const updated = await tx.post.update({ where: { id: postId }, data: { shareCount: { increment: 1 } }, select: { shareCount: true } });
+      const updated = await tx.post.update({ where: { id: postId, moderationRemovedAt: null }, data: { shareCount: { increment: 1 } }, select: { shareCount: true } });
       await tx.interactionEvent.create({
         data: { userId, eventType: "POST_SHARE", targetType: "POST", targetId: postId, metadata: JSON.stringify({ destination }) },
       });
