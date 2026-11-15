@@ -2406,6 +2406,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                 <span className="shrink-0 text-[11px] font-medium text-[#e2bb4c] transition group-hover:text-[#f2c75c]">View</span>
                               </span>
                             </button>
+                          );
                         })() : msg.type === 'WALLET' ? (
                           <button type="button" onClick={() => router.push('/balance')} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left" aria-label="Open wallet balance">
                             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={19}/></span>
