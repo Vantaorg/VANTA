@@ -5,6 +5,24 @@ import { prisma } from '../prisma';
 import { AuthenticatedRequest } from '../security/authMiddleware';
 
 export class AnalyticsController {
+  /** Authenticated telemetry must respect both the cookie toggle and the
+   * latest explicit analytics-consent decision. Database errors fail closed. */
+  private async canCollectAnalytics(userId?: string): Promise<boolean> {
+    if (!userId) return true;
+    const [settings, consent] = await Promise.all([
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { cookieAnalytics: true },
+      }),
+      prisma.consentRecord.findFirst({
+        where: { userId, type: { in: ['analytics', 'analytics:NOT_SET'] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    ]);
+    const explicitDenial = Boolean(consent && !consent.type.endsWith(':NOT_SET') && consent.granted === false);
+    return settings?.cookieAnalytics !== false && !explicitDenial;
+  }
+
   // ============================================================
   // Platform Overview
   // ============================================================
@@ -335,6 +353,10 @@ export class AnalyticsController {
       // Identity is server-authoritative. Anonymous telemetry stays anonymous;
       // authenticated telemetry is attributed only to the verified session.
       const actor = (req as AuthenticatedRequest).user;
+      if (!(await this.canCollectAnalytics(actor?.userId))) {
+        res.json({ success: true, tracked: false });
+        return;
+      }
       await analyticsEventsService.track({
         ...event,
         userId: actor?.userId,
@@ -356,6 +378,10 @@ export class AnalyticsController {
       }
       // Never trust identity fields supplied by a client in a batch payload.
       const actor = (req as AuthenticatedRequest).user;
+      if (!(await this.canCollectAnalytics(actor?.userId))) {
+        res.json({ success: true, tracked: false });
+        return;
+      }
       await analyticsEventsService.trackBatch(
         events.map((e: any) => ({
           ...e,
