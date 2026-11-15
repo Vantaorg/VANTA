@@ -1150,7 +1150,7 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async processCopyrightClaim(claimId: string, adminId: string, action: string, note?: string) {
-    if (!['remove', 'reject'].includes(action)) throw new Error('Supported copyright decisions are remove or reject. Restoration is unavailable after permanent content removal.');
+    if (!['remove', 'reject'].includes(action)) throw new Error('Supported copyright decisions are remove or reject. Copyright counter-notice restoration is not yet available.');
     let removedFiles: Array<{ id: string; filename: string }> = [];
     const updated = await prisma.$transaction(async (tx) => {
       const claim = await tx.copyrightClaim.findUnique({ where: { id: claimId } });
