@@ -24,35 +24,51 @@ export function injectAIHeaders(req: Request, res: Response, next: NextFunction)
  * Check if user has opted out of AI features
  */
 export async function requireAIConsent(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const userId = (req as any).user?.userId;
+  if (!userId) { next(); return; }
+
   try {
-    const userId = (req as any).userId;
-    if (!userId) {
-      next();
-      return;
+    const [settings, consentRecords, featureFlags] = await Promise.all([
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { aiPersonalization: true },
+      }),
+      prisma.consentRecord.findMany({
+        where: { userId, type: { in: ['aiFeatures', 'personalization', 'aiFeatures:NOT_SET', 'personalization:NOT_SET'] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+      prisma.aIFeatureFlag.findMany({
+        where: { OR: [{ featureKey: `opt_out:${userId}` }, { featureKey: 'global_ai_disabled' }] },
+        select: { featureKey: true, enabled: true },
+      }),
+    ]);
+
+    const latestConsent = new Map<string, any>();
+    for (const record of consentRecords) {
+      const key = record.type.endsWith(':NOT_SET') ? record.type.slice(0, -':NOT_SET'.length) : record.type;
+      if (!latestConsent.has(key)) latestConsent.set(key, record);
     }
-
-    // Check AIFeatureFlag for user override
-    const featureFlag = await prisma.aIFeatureFlag.findFirst({
-      where: {
-        OR: [
-          { featureKey: `opt_out:${userId}` },
-          { featureKey: 'global_ai_disabled' },
-        ],
-      },
+    const explicitlyDenied = ['aiFeatures', 'personalization'].some(key => {
+      const record = latestConsent.get(key);
+      return Boolean(record && !record.type.endsWith(':NOT_SET') && record.granted === false);
     });
+    const featureDisabled = featureFlags.some(flag => flag.enabled === false);
 
-    if (featureFlag && !featureFlag.enabled) {
+    if (settings?.aiPersonalization === false || explicitlyDenied || featureDisabled) {
       res.status(403).json({
-        error: 'AI features disabled',
-        message: 'You have opted out of AI features. Enable them in privacy settings.',
+        error: 'AI personalization disabled',
+        message: 'AI personalization is disabled by your privacy preferences. You can change this in Privacy Center.',
         code: 'AI_OPTED_OUT',
       });
       return;
     }
-
     next();
-  } catch {
-    next();
+  } catch (error) {
+    console.error('[AI Privacy] Unable to verify user preferences:', error instanceof Error ? error.message : error);
+    res.status(503).json({
+      error: 'AI privacy preferences could not be verified',
+      code: 'AI_PRIVACY_CHECK_FAILED',
+    });
   }
 }
 
@@ -61,22 +77,25 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
  */
 export function validateConsent(consentType: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required', code: 'AUTH_REQUIRED' });
+      return;
+    }
+    const consentKey: Record<string, string> = {
+      training: 'aiFeatures',
+      profiling: 'personalization',
+      analytics: 'analytics',
+    };
+    const key = consentKey[consentType] || consentType;
     try {
-      const userId = (req as any).userId;
-      if (!userId || !AI_CONFIG.privacy.consentRequired.includes(consentType)) {
-        next();
-        return;
-      }
-
-      const consent = await prisma.consentRecord.findFirst({
-        where: {
-          userId,
-          type: `ai_${consentType}`,
-          granted: true,
-        },
+      const records = await prisma.consentRecord.findMany({
+        where: { userId, type: { in: [key, `${key}:NOT_SET`, `ai_${consentType}`] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 1,
       });
-
-      if (!consent) {
+      const latest = records[0];
+      if (!latest || latest.type.endsWith(':NOT_SET') || latest.granted !== true) {
         res.status(403).json({
           error: 'Consent required',
           message: `This action requires consent for ${consentType}. Update your privacy settings.`,
@@ -85,10 +104,10 @@ export function validateConsent(consentType: string) {
         });
         return;
       }
-
       next();
-    } catch {
-      next();
+    } catch (error) {
+      console.error('[AI Privacy] Consent lookup failed:', error instanceof Error ? error.message : error);
+      res.status(503).json({ error: 'Consent could not be verified', code: 'CONSENT_CHECK_FAILED' });
     }
   };
 }
@@ -120,7 +139,7 @@ const aiRequestCounts: Map<string, { count: number; resetAt: number }> = new Map
 
 export function aiRateLimit(feature: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const userId = (req as any).userId || req.ip || 'anonymous';
+    const userId = (req as any).user?.userId || req.ip || 'anonymous';
     const key = `${feature}:${userId}`;
     const maxRequests = (AI_CONFIG.rateLimit.maxRequests as any)[feature] || 30;
     const now = Date.now();
@@ -154,7 +173,7 @@ export function aiRateLimit(feature: string) {
  */
 export async function logAIInteraction(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (AI_CONFIG.privacy.logAIInteractions) {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const feature = req.path.split('/').pop() || 'unknown';
 
     console.log(`[AI Audit] User: ${userId || 'anonymous'} | Feature: ${feature} | Path: ${req.path} | Time: ${new Date().toISOString()}`);
@@ -167,6 +186,5 @@ export async function logAIInteraction(req: Request, res: Response, next: NextFu
  */
 export const privacyMiddleware = [
   injectAIHeaders,
-  requireAIConsent,
   logAIInteraction,
 ];
