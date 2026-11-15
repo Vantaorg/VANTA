@@ -127,6 +127,16 @@ describe('WalletService.rejectWithdrawal', () => {
     );
   });
 
+  test('does not refund if the pending withdrawal ledger row is missing', async () => {
+    const tx = txMock();
+    tx.walletTransaction.updateMany.mockResolvedValue({ count: 0 });
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+
+    await expect(walletService.rejectWithdrawal('wd1', 'admin1', 'policy'))
+      .rejects.toThrow('Pending withdrawal ledger entry is missing or already processed');
+    expect(tx.wallet.update).not.toHaveBeenCalled();
+  });
+
   test('a concurrent double-rejection is impossible', async () => {
     const tx = txMock();
     tx.withdrawal.updateMany.mockResolvedValue({ count: 0 });

@@ -10,7 +10,9 @@ import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import { getTransactions } from '@/lib/adminApi';
 
-const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtUsd = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtVanta = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' VANTA';
+const fmtPair = (usd: number, vanta: number) => fmtUsd(usd) + ' USD · ' + fmtVanta(vanta);
 
 const typeConfig: Record<string, { label: string; color: string }> = {
   DEPOSIT: { label: 'Deposit', color: 'bg-emerald-500/15 text-emerald-300' },
@@ -69,10 +71,11 @@ export default function FinancePage() {
   }, [page, statusFilter, typeFilter, search]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
-const moneyIcon = (type: string) => {
-  if (type === 'WITHDRAWAL' || type === 'ADMIN_DEBIT') return <ArrowUpRight size={12} className="text-red-400" />;
+const moneyIcon = (amount: number, type: string) => {
   if (type === 'REFUND') return <RotateCcw size={12} className="text-orange-400" />;
-  return <ArrowDownRight size={12} className="text-emerald-400" />;
+  return amount < 0
+    ? <ArrowUpRight size={12} className="text-red-400" />
+    : <ArrowDownRight size={12} className="text-emerald-400" />;
 };
 
 return (
@@ -96,10 +99,10 @@ return (
 
     {/* Summary */}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <SummaryCard label="Total Processed" value={fmt(summary?.totalProcessed ?? 0)} icon={<DollarSign size={16} />} cls="bg-emerald-500/15 text-emerald-400" />
-      <SummaryCard label="Pending Review" value={fmt(summary?.pendingReview ?? 0)} icon={<Clock size={16} />} cls="bg-yellow-500/15 text-yellow-400" />
-      <SummaryCard label="Refunds / Reversals" value={fmt(summary?.refunds ?? 0)} icon={<RotateCcw size={16} />} cls="bg-orange-500/15 text-orange-400" />
-      <SummaryCard label="Purchase Revenue" value={fmt(summary?.totalPurchaseRevenue ?? 0)} icon={<ArrowDownRight size={16} />} cls="bg-sky-500/15 text-sky-400" />
+      <SummaryCard label="Total Processed" value={fmtPair(summary?.totalProcessedUsd ?? 0, summary?.totalProcessedVanta ?? 0)} icon={<DollarSign size={16} />} cls="bg-emerald-500/15 text-emerald-400" />
+      <SummaryCard label="Pending Review" value={fmtPair(summary?.pendingReviewUsd ?? 0, summary?.pendingReviewVanta ?? 0)} icon={<Clock size={16} />} cls="bg-yellow-500/15 text-yellow-400" />
+      <SummaryCard label="Refunds / Reversals" value={fmtPair(summary?.refundsUsd ?? 0, summary?.refundsVanta ?? 0)} icon={<RotateCcw size={16} />} cls="bg-orange-500/15 text-orange-400" />
+      <SummaryCard label="Purchase Revenue" value={fmtUsd(summary?.totalPurchaseRevenue ?? 0)} icon={<ArrowDownRight size={16} />} cls="bg-sky-500/15 text-sky-400" />
     </div>
 
     {/* Filters */}
@@ -159,7 +162,7 @@ return (
                     <td className="py-3 px-2 text-white text-xs">@{tx.userName}</td>
                     <td className="py-3 px-2">
                       <span className={cn('inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full', typeConfig[tx.type]?.color || 'bg-gray-500/15 text-gray-300')}>
-                        {moneyIcon(tx.type)}{typeConfig[tx.type]?.label || tx.type}
+                        {moneyIcon(tx.displayAmount ?? tx.amount, tx.type)}{typeConfig[tx.type]?.label || tx.type}
                       </span>
                     </td>
                     <td className="py-3 px-2 text-gray-400 text-xs max-w-[220px] truncate">{tx.description || '—'}</td>
@@ -168,10 +171,10 @@ return (
                         {statusConfig[tx.status]?.label || tx.status}
                       </span>
                     </td>
-                    <td className={cn('py-3 px-2 text-right text-xs font-medium tabular-nums', tx.amount < 0 ? 'text-red-400' : 'text-emerald-400')}>
-                      {tx.amount < 0 ? '-' : '+'}{fmt(Math.abs(tx.amount))}
+                    <td className={cn('py-3 px-2 text-right text-xs font-medium tabular-nums', (tx.displayAmount ?? tx.amount) < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                      {(tx.displayAmount ?? tx.amount) < 0 ? '-' : '+'}{tx.currency === 'USD' ? fmtUsd(Math.abs(tx.displayAmount ?? tx.amount)) : fmtVanta(Math.abs(tx.displayAmount ?? tx.amount))}
                     </td>
-                    <td className="py-3 px-2 text-right text-gray-400 text-xs tabular-nums">{fmt(tx.balance ?? 0)}</td>
+                    <td className="py-3 px-2 text-right text-gray-400 text-xs tabular-nums">{tx.currency === 'USD' ? fmtUsd(tx.balance ?? 0) : fmtVanta(tx.balance ?? 0)}</td>
                   </tr>
                 ))
               )}
@@ -197,7 +200,7 @@ function SummaryCard({ label, value, icon, cls }: { label: string; value: string
   return (
     <div className="glass rounded-2xl border border-white/[0.06] p-4">
       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-2', cls)}>{icon}</div>
-      <p className="text-xl font-bold text-white tabular-nums">{value}</p>
+      <p className="text-xs sm:text-sm leading-snug break-words font-bold text-white tabular-nums">{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{label}</p>
     </div>
   );

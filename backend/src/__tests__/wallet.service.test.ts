@@ -308,7 +308,7 @@ describe('WalletService', () => {
       const tx = { walletTransaction: { findUnique: jest.fn().mockResolvedValue(transaction), updateMany: jest.fn() } };
       (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(tx));
       await expect(walletService.reverseTransaction('tx1', 'admin1', 'review')).rejects.toThrow('direction cannot be safely reversed');
-      expect(tx.walletTransaction.updateMany).toHaveBeenCalled();
+      expect(tx.walletTransaction.updateMany).not.toHaveBeenCalled();
     });
 
     test('refuses to consume locked coins when reversing an incoming transaction', async () => {

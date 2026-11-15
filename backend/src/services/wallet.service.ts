@@ -79,11 +79,42 @@ const FOLLOWER_REWARD_CLAIM_TYPE = TX_TYPES.FOLLOWER_REWARD_CLAIM;
  * metadata.side field is required to distinguish creator debit from claimant
  * credit. Unknown/missing side data fails closed instead of guessing.
  */
+function readWalletTransactionMetadata(metadata?: string | null): Record<string, any> | null {
+  if (!metadata) return null;
+  try {
+    const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The retired monetization gift path stored USD creator earnings in a
+ * GIFT_RECEIVED row using the default VANTA currency. The canonical gift path
+ * now stores spendable recipient coins in GIFT_RECEIVED and cash earnings in a
+ * separate CREATOR_EARNING/USD row. Identify only the legacy shape so old
+ * creator balances can still be reconciled without counting the cash amount
+ * as coins or double-counting current gifts.
+ */
+function isLegacyCashGiftCredit(transaction: {
+  type: string;
+  currency?: string | null;
+  metadata?: string | null;
+}): boolean {
+  if (transaction.type !== TX_TYPES.GIFT_RECEIVED || transaction.currency === 'USD') return false;
+  const metadata = readWalletTransactionMetadata(transaction.metadata);
+  return metadata?.autoConverted !== true &&
+    Number.isFinite(Number(metadata?.creatorEarningsUsd));
+}
+
 function resolveWalletTransactionDelta(transaction: {
   type: string;
   amount: number;
   metadata?: string | null;
+  currency?: string | null;
 }): number | null {
+  if (isLegacyCashGiftCredit(transaction)) return null;
   if (transaction.type === FOLLOWER_REWARD_CLAIM_TYPE) {
     let metadata: any = null;
     try {
@@ -97,8 +128,8 @@ function resolveWalletTransactionDelta(transaction: {
     if (metadata?.side === 'claimant') return Math.abs(transaction.amount);
     return null;
   }
-  if (INCOMING_TYPES.has(transaction.type as any)) return transaction.amount;
-  if (OUTGOING_TYPES.has(transaction.type as any)) return -transaction.amount;
+  if (INCOMING_TYPES.has(transaction.type as any)) return Math.abs(transaction.amount);
+  if (OUTGOING_TYPES.has(transaction.type as any)) return -Math.abs(transaction.amount);
   return null;
 }
 
@@ -1610,14 +1641,20 @@ export class WalletService {
       return { withdrawal, updatedWallet };
     });
 
-    // Send notification (outside transaction)
-    await notificationService.createNotification(
-      userId,
-      "WALLET_WITHDRAWAL",
-      "Withdrawal Requested",
-      `Your withdrawal of $${amount.toFixed(2)} (net $${netAmount.toFixed(2)}) is being processed.`,
-      { withdrawalId: result.withdrawal.id, amount, fee, netAmount }
-    );
+    // The withdrawal and ledger are already committed. Notification delivery is
+    // best-effort and must not make a successful reservation look like a failed
+    // request (which could prompt the client to retry).
+    try {
+      await notificationService.createNotification(
+        userId,
+        "WALLET_WITHDRAWAL",
+        "Withdrawal Requested",
+        `Your withdrawal of $${amount.toFixed(2)} (net $${netAmount.toFixed(2)}) is being processed.`,
+        { withdrawalId: result.withdrawal.id, amount, fee, netAmount }
+      );
+    } catch (notificationError) {
+      console.error("[WALLET] withdrawal request committed; notification failed:", notificationError);
+    }
 
     return result.withdrawal;
   }
@@ -1745,16 +1782,9 @@ export class WalletService {
       }
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
 
-      // Refund earnings to user
-      await tx.wallet.update({
-        where: { userId: withdrawal.userId },
-        data: {
-          earningsBalance: { increment: withdrawal.amount },
-          totalWithdrawn: { decrement: withdrawal.netAmount },
-        },
-      });
-
-      // Require exactly one matching reservation ledger row before refunding.
+      // Require and transition exactly one reservation ledger row before
+      // refunding earnings. This keeps even the transaction's operation order
+      // fail-closed when the ledger row is missing.
       const ledgerUpdate = await tx.walletTransaction.updateMany({
         where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "FAILED" },
@@ -1762,6 +1792,14 @@ export class WalletService {
       if (ledgerUpdate.count !== 1) {
         throw new Error("Pending withdrawal ledger entry is missing or already processed");
       }
+
+      await tx.wallet.update({
+        where: { userId: withdrawal.userId },
+        data: {
+          earningsBalance: { increment: withdrawal.amount },
+          totalWithdrawn: { decrement: withdrawal.netAmount },
+        },
+      });
 
       // Log audit
       await tx.walletAuditLog.create({
@@ -1828,15 +1866,7 @@ export class WalletService {
       }
       const updated = await tx.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
 
-      // Refund reserved earnings exactly once.
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          earningsBalance: { increment: withdrawal.amount },
-          totalWithdrawn: { decrement: withdrawal.netAmount },
-        },
-      });
-
+      // Transition the reservation ledger before refunding the balance.
       const ledgerUpdate = await tx.walletTransaction.updateMany({
         where: { reference: withdrawalId, type: "WITHDRAWAL", status: "PENDING" },
         data: { status: "CANCELLED" },
@@ -1844,6 +1874,14 @@ export class WalletService {
       if (ledgerUpdate.count !== 1) {
         throw new Error("Pending withdrawal ledger entry is missing or already processed");
       }
+
+      await tx.wallet.update({
+        where: { userId },
+        data: {
+          earningsBalance: { increment: withdrawal.amount },
+          totalWithdrawn: { decrement: withdrawal.netAmount },
+        },
+      });
 
       await tx.walletAuditLog.create({
         data: {
@@ -1903,7 +1941,7 @@ export class WalletService {
         deposits: ["DEPOSIT", "PURCHASE"],
         transfers: ["TRANSFER_SENT", "TRANSFER_RECEIVED"],
         gifts: ["GIFT_SENT", "GIFT_RECEIVED"],
-        earnings: ["GIFT_RECEIVED", "CREATOR_EARNING"],
+        earnings: ["CREATOR_EARNING"],
         purchases: ["PURCHASE", "DEPOSIT"],
         withdrawals: ["WITHDRAWAL"],
         refunds: ["REFUND"],
@@ -2129,9 +2167,20 @@ export class WalletService {
         throw new Error("Only completed transactions can be reversed");
       }
 
-      // Compare-and-swap the source transaction before changing any balance.
-      // This makes concurrent admin requests idempotent: exactly one request
-      // can claim a COMPLETED transaction for reversal.
+      if (transaction.currency !== "VANTA") {
+        throw new Error("Only VANTA Coin transactions can be reversed");
+      }
+
+      // Validate direction before claiming the source row. Follower reward rows
+      // require metadata.side to distinguish creator debit from claimant credit.
+      const originalDelta = resolveWalletTransactionDelta(transaction);
+      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
+        throw new Error("Transaction type, amount or direction cannot be safely reversed");
+      }
+      const reversalDelta = -originalDelta;
+
+      // Compare-and-swap the source transaction only after it is known to be
+      // reversible. Exactly one concurrent admin request can claim it.
       const claim = await tx.walletTransaction.updateMany({
         where: { id: transactionId, status: "COMPLETED" },
         data: { status: "REVERSED" },
@@ -2139,19 +2188,6 @@ export class WalletService {
       if (claim.count !== 1) {
         throw new Error("Transaction already reversed or no longer eligible");
       }
-
-      if (transaction.currency !== "VANTA") {
-        throw new Error("Only VANTA Coin transactions can be reversed");
-      }
-
-      // Use the same signed movement resolver as wallet reconciliation.
-      // Follower reward rows require metadata.side to distinguish the creator
-      // debit from the claimant credit.
-      const originalDelta = resolveWalletTransactionDelta(transaction);
-      if (originalDelta === null || !Number.isFinite(originalDelta) || originalDelta === 0) {
-        throw new Error("Transaction type, amount or direction cannot be safely reversed");
-      }
-      const reversalDelta = -originalDelta;
 
       const wallet = await tx.wallet.findUnique({
         where: { userId: transaction.userId },
@@ -2261,16 +2297,25 @@ export class WalletService {
     ledgerBalance: number;
     difference: number;
     logId: string;
+    earningsStatus: 'MATCH' | 'DISCREPANCY';
+    storedEarningsBalance: number;
+    ledgerEarningsBalance: number;
+    earningsDifference: number;
+    earningsLogId: string;
   }> {
     const wallet = await this.ensureWallet(userId);
     const txns = await prisma.walletTransaction.findMany({
-      where: { userId, currency: "VANTA" },
-      select: { type: true, amount: true, currency: true, metadata: true },
+      where: { userId, currency: { in: ["VANTA", "USD"] } },
+      select: { type: true, amount: true, currency: true, metadata: true, status: true },
     });
+
     const ledgerBalance = txns.reduce((sum, t) => {
-      // Defensive filter: USD/USDT earnings movements must never be applied to
-      // the VANTA Coin balance, even if a legacy/misconfigured query returns one.
-      if (t.currency && t.currency !== "VANTA") return sum;
+      // Reversed/failed rows are historical evidence, not current balance
+      // movements. Legacy rows without a status are retained for compatibility.
+      if (t.status && t.status !== "COMPLETED") return sum;
+      // USD-denominated earnings and legacy cash gift rows must never be
+      // applied to the VANTA Coin balance.
+      if (t.currency === "USD" || isLegacyCashGiftCredit(t)) return sum;
       const delta = resolveWalletTransactionDelta(t);
       return delta === null ? sum : sum + Math.trunc(delta);
     }, 0);
@@ -2278,29 +2323,82 @@ export class WalletService {
     const difference = storedBalance - ledgerBalance;
     const status: 'MATCH' | 'DISCREPANCY' = difference === 0 ? 'MATCH' : 'DISCREPANCY';
 
+    // Earnings are stored as decimal USD, while the reconciliation log uses
+    // integer fields. Convert to cents to avoid floating-point drift.
+    const ledgerEarningsCents = txns.reduce((sum, t) => {
+      const legacyGiftCredit = isLegacyCashGiftCredit(t);
+      if (t.currency !== "USD" && !legacyGiftCredit) return sum;
+      // Pending withdrawals have already been reserved from earningsBalance;
+      // completed withdrawals remain spent. Failed/cancelled/reversed rows do
+      // not affect the current balance because their reservation was refunded.
+      if (t.status && !["PENDING", "COMPLETED"].includes(t.status)) return sum;
+      const cents = Math.round(Math.abs(t.amount) * 100);
+      if (legacyGiftCredit || t.type === TX_TYPES.CREATOR_EARNING || t.type === TX_TYPES.ADMIN_CREDIT) return sum + cents;
+      if (t.type === TX_TYPES.WITHDRAWAL || t.type === TX_TYPES.ADMIN_DEBIT) return sum - cents;
+      return sum;
+    }, 0);
+    const storedEarningsCents = Math.round((wallet.earningsBalance || 0) * 100);
+    const earningsDifferenceCents = storedEarningsCents - ledgerEarningsCents;
+    const earningsStatus: 'MATCH' | 'DISCREPANCY' = earningsDifferenceCents === 0 ? 'MATCH' : 'DISCREPANCY';
+
     const log = await prisma.walletReconciliationLog.create({
       data: {
         userId,
         walletId: wallet.id,
+        currency: "VANTA_COIN",
         storedBalance,
         ledgerBalance,
         difference,
         status,
-        details: JSON.stringify({ transactionCount: txns.length, computedAt: new Date().toISOString() }),
+        details: JSON.stringify({ currency: "VANTA", transactionCount: txns.filter(t => t.currency !== "USD").length, computedAt: new Date().toISOString() }),
+      },
+    });
+    const earningsLog = await prisma.walletReconciliationLog.create({
+      data: {
+        userId,
+        walletId: wallet.id,
+        currency: "USD_CENTS",
+        storedBalance: storedEarningsCents,
+        ledgerBalance: ledgerEarningsCents,
+        difference: earningsDifferenceCents,
+        status: earningsStatus,
+        details: JSON.stringify({ currency: "USD", unit: "cents", transactionCount: txns.filter(t => t.currency === "USD").length, computedAt: new Date().toISOString() }),
       },
     });
 
     if (status === 'DISCREPANCY') {
       await this.logAudit(userId, 'RECONCILIATION_DISCREPANCY', {
+        currency: "VANTA",
         storedBalance,
         ledgerBalance,
         difference,
         reconciliationLogId: log.id,
       });
-      this.logTally('reconciliation_discrepancy', { userId, difference });
+      this.logTally('reconciliation_discrepancy', { userId, currency: "VANTA", difference });
+    }
+    if (earningsStatus === 'DISCREPANCY') {
+      await this.logAudit(userId, 'RECONCILIATION_DISCREPANCY', {
+        currency: "USD",
+        storedBalance: storedEarningsCents / 100,
+        ledgerBalance: ledgerEarningsCents / 100,
+        difference: earningsDifferenceCents / 100,
+        reconciliationLogId: earningsLog.id,
+      });
+      this.logTally('reconciliation_discrepancy', { userId, currency: "USD", difference: earningsDifferenceCents / 100 });
     }
 
-    return { status, storedBalance, ledgerBalance, difference, logId: log.id };
+    return {
+      status,
+      storedBalance,
+      ledgerBalance,
+      difference,
+      logId: log.id,
+      earningsStatus,
+      storedEarningsBalance: storedEarningsCents / 100,
+      ledgerEarningsBalance: ledgerEarningsCents / 100,
+      earningsDifference: earningsDifferenceCents / 100,
+      earningsLogId: earningsLog.id,
+    };
   }
 
   /**
@@ -2320,7 +2418,8 @@ export class WalletService {
     let frozen = 0;
     for (const wallet of wallets) {
       const result = await this.reconcileWallet(wallet.userId);
-      if (result.status === 'DISCREPANCY') {
+      const hasDiscrepancy = result.status === 'DISCREPANCY' || result.earningsStatus === 'DISCREPANCY';
+      if (hasDiscrepancy) {
         discrepancies++;
         if (options?.freezeOnDiscrepancy) {
           const update = await prisma.wallet.updateMany({
@@ -2328,7 +2427,7 @@ export class WalletService {
             data: {
               isFrozen: true,
               frozenBy: 'system:reconciliation',
-              freezeReason: `Reconciliation discrepancy: stored=${result.storedBalance}, ledger=${result.ledgerBalance}`,
+              freezeReason: `Reconciliation discrepancy: VANTA stored=${result.storedBalance}, ledger=${result.ledgerBalance}; USD stored=${result.storedEarningsBalance}, ledger=${result.ledgerEarningsBalance}`,
             },
           });
           if (update.count === 1) frozen++;
