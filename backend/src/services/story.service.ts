@@ -359,7 +359,11 @@ export class StoryService {
       },
     });
 
-    const storyIds = stories.map((story) => story.id);
+    const visibleStories = await Promise.all(stories.map(async (story) =>
+      (await this.canViewStories(story.userId, currentUserId)) ? story : null
+    ));
+    const allowedStories = visibleStories.filter((story): story is NonNullable<typeof story> => Boolean(story));
+    const storyIds = allowedStories.map((story) => story.id);
     const [viewerCounts, ownViews] = await Promise.all([
       prisma.contentView.groupBy({
         by: ["contentId"],
@@ -375,12 +379,12 @@ export class StoryService {
     const viewedStoryIds = new Set(ownViews.map((item) => item.contentId));
 
     // Engagement stats so the story owner sees real like/reshare/comment counts.
-    const engagement = await this.computeEngagement(stories, currentUserId);
-    const engagementByStory = new Map(stories.map((story) => [story.id, engagement.get(story.id)]));
+    const engagement = await this.computeEngagement(allowedStories, currentUserId);
+    const engagementByStory = new Map(allowedStories.map((story) => [story.id, engagement.get(story.id)]));
 
     // Group by user for Instagram-style display
     const grouped = new Map<string, any>();
-    for (const story of stories) {
+    for (const story of allowedStories) {
       if (!grouped.has(story.userId)) {
         grouped.set(story.userId, {
           user: enrichPublicUser(story.user),
@@ -407,7 +411,8 @@ export class StoryService {
     return Array.from(grouped.values());
   }
 
-  async getStoryById(storyId: string) {
+
+  async getStoryById(storyId: string, viewerId?: string) {
     const story = await prisma.story.findUnique({
       where: { id: storyId, publishStatus: "PUBLISHED" },
       include: {
@@ -415,12 +420,15 @@ export class StoryService {
       },
     });
     if (!story) return story;
+    if (!(await this.canViewStories(story.userId, viewerId))) return null;
     const engagement = await this.computeEngagement([story]);
     const stats = engagement.get(story.id) || { likeCount: 0, reshareCount: 0, commentCount: 0 };
     return { ...story, likeCount: stats.likeCount, reshareCount: stats.reshareCount, commentCount: stats.commentCount };
   }
 
   async viewStory(storyId: string, userId: string) {
+    const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
     return contentViewService.record("STORY", storyId, userId);
   }
 
