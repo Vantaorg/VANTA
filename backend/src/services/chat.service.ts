@@ -95,8 +95,8 @@ async function sanitizeReadReceipts<T extends { reads?: { userId: string }[]; se
     const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
     return viewerId && item.senderId === viewerId && read.userId !== viewerId &&
       pref?.readReceipts !== false && (mode === "followers" || mode === "following")
-      // The reader (preference owner) must follow the sender/viewer.
-      ? [{ followerId: read.userId, followingId: viewerId }]
+      // The sender/viewer must follow the reader who owns this preference.
+      ? [{ followerId: viewerId, followingId: read.userId }]
       : [];
   }));
   const uniqueChecks = [...new Map(followerChecks.map(check => [
@@ -121,7 +121,7 @@ async function sanitizeReadReceipts<T extends { reads?: { userId: string }[]; se
       const mode = String(pref?.privacyReadReceipts || "everyone").toLowerCase();
       if (mode === "nobody" || mode === "noone" || mode === "none") return false;
       if (mode === "followers" || mode === "following") {
-        return allowedFollowKeys.has(read.userId + ":" + viewerId);
+        return allowedFollowKeys.has(viewerId + ":" + read.userId);
       }
       return true;
     }),
