@@ -734,7 +734,7 @@ export class FeedService {
     if (mediaFileIds.length > 4) throw new Error("You can attach up to 4 images or videos to a comment.");
 
     const [post, actor, recent, parent] = await Promise.all([
-      prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } }),
+      prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null }, select: { authorId: true } }),
       prisma.user.findUnique({ where: { id: userId }, select: { username: true, status: true } }),
       prisma.postComment.findFirst({ where: { userId, postId, moderationRemovedAt: null }, orderBy: { createdAt: "desc" }, select: { content: true, createdAt: true } }),
       parentId ? prisma.postComment.findFirst({ where: { id: parentId, postId, moderationRemovedAt: null }, select: { id: true, userId: true } }) : Promise.resolve(null),
@@ -899,8 +899,8 @@ export class FeedService {
   }
 
   async deleteComment(commentId: string, userId: string, role = "USER") {
-    const existing = await prisma.postComment.findUnique({ where: { id: commentId } });
-    if (!existing) throw new Error("Comment not found");
+    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, include: { post: { select: { moderationRemovedAt: true } } } });
+    if (!existing || existing.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (existing.userId !== userId && !["ADMIN", "MODERATOR"].includes(role)) throw new Error("Unauthorized");
     await prisma.$transaction([
       prisma.postComment.delete({ where: { id: commentId } }),
@@ -913,14 +913,14 @@ export class FeedService {
     } catch (auditErr) {
       console.error('[AUDIT] Failed to record COMMENT_DELETED:', auditErr);
     }
-    const commentCount = await prisma.postComment.count({ where: { postId: existing.postId } });
+    const commentCount = await prisma.postComment.count({ where: { postId: existing.postId, moderationRemovedAt: null } });
     emitSocialEvent("social:comment-deleted", { postId: existing.postId, commentId, commentCount });
     return { deleted: true, commentCount };
   }
 
   async likeComment(commentId: string, userId: string) {
-    const comment = await prisma.postComment.findUnique({ where: { id: commentId }, select: { postId: true, userId: true } });
-    if (!comment) throw new Error("Comment not found");
+    const comment = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, select: { postId: true, userId: true, post: { select: { moderationRemovedAt: true } } } });
+    if (!comment || comment.post?.moderationRemovedAt) throw new Error("Comment not found");
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.postCommentLike.findUnique({ where: { userId_commentId: { userId, commentId } } });
       if (existing) await tx.postCommentLike.delete({ where: { id: existing.id } });
