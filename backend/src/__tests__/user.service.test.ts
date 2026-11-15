@@ -216,6 +216,18 @@ describe('UserService', () => {
       expect(prisma.liveStream.findFirst).not.toHaveBeenCalled();
     });
 
+    test('does not expose followers-only live streams to anonymous profile viewers', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.userSettings.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ privacyProfile: 'public' })
+        .mockResolvedValueOnce({ liveStreamVisibility: 'followers', privacyLiveStream: 'everyone' });
+
+      const result = await userService.getPublicProfileByUsername('testuser');
+
+      expect(result.currentStream).toBeNull();
+      expect(prisma.liveStream.findFirst).not.toHaveBeenCalled();
+    });
+
     test('shows followers-only current stream only to a viewer who follows the host', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.userSettings.findUnique as jest.Mock)
