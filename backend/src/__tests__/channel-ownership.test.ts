@@ -1,6 +1,6 @@
 jest.mock('../prisma', () => ({ prisma: {
   channel: { findUnique: jest.fn(), update: jest.fn() },
-  channelMember: { findUnique: jest.fn(), updateMany: jest.fn() },
+  channelMember: { findUnique: jest.fn(), updateMany: jest.fn(), createMany: jest.fn() },
   participant: { updateMany: jest.fn() },
   conversation: { findUnique: jest.fn(), update: jest.fn() },
   channelMessage: { findMany: jest.fn() },
