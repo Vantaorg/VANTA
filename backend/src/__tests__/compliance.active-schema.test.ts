@@ -221,7 +221,7 @@ describe('child-safety moderation is validated and atomic', () => {
     (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
     await expect(complianceService.processChildSafetyFlag('flag-1', 'admin-1', 'restrict', 'age verification required')).resolves.toMatchObject({ status: 'ESCALATED' });
     expect(tx.childSafetyFlag.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'flag-1' }, data: expect.objectContaining({ status: 'ESCALATED', actionTaken: 'restrict' }) }));
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { status: 'RESTRICTED' } });
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: expect.objectContaining({ status: 'SUSPENDED', suspendedAt: expect.any(Date), suspendedReason: 'age verification required', suspendedUntil: null }) });
   });
   test('rejects unknown actions before opening a transaction', async () => {
     await expect(complianceService.processChildSafetyFlag('flag-1', 'admin-1', 'delete')).rejects.toThrow('Unsupported child-safety action.');
