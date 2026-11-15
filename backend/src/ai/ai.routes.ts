@@ -870,7 +870,8 @@ adminRouter.get('/fraud-alerts', async (req: Request, res: Response) => {
 adminRouter.post('/fraud-alerts/:alertId/resolve', async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const result = await moderationService.resolveFraudAlert(req.params.alertId, req.body.resolvedBy);
+    const resolvedBy = (req as AuthenticatedRequest).user!.userId;
+    const result = await moderationService.resolveFraudAlert(req.params.alertId, resolvedBy);
     res.json({ success: true, data: { resolved: result } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
