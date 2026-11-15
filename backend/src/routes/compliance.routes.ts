@@ -401,6 +401,16 @@ router.put('/admin/reports/:id/process', authenticate, requireRole(Role.ADMIN, R
   }
 });
 
+// Admin: Restore content removed by a moderation report. Requires an explicit reason.
+router.put('/admin/reports/:id/restore', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await complianceService.restoreReport(req.params.id, req.user!.userId, req.body?.reason);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Admin: Process appeals
 router.put('/admin/appeals/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {

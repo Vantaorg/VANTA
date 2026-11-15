@@ -220,6 +220,11 @@ export const adminComplianceApi = {
       method: 'PUT',
       body: JSON.stringify({ action, note }),
     }),
+  restoreReport: (id: string, reason: string) =>
+    request(`/admin/reports/${id}/restore`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    }),
 
   // Appeals
   getAppeals: (limit = 50, offset = 0) =>

@@ -25,6 +25,7 @@ import {
   ChevronUp,
   ExternalLink,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { adminComplianceApi } from '@/lib/complianceApi';
@@ -275,6 +276,8 @@ export default function AdminCompliancePage() {
       ACTIONED: 'text-emerald-400',
       DISMISSED: 'text-gray-400',
       APPEALED: 'text-orange-400',
+      REMOVED: 'text-red-400',
+      RESTORED: 'text-emerald-400',
     };
 
     const filteredReports = reports.filter((r: any) => {
@@ -286,7 +289,22 @@ export default function AdminCompliancePage() {
       setProcessingId(reportId);
       try {
         await adminComplianceApi.processReport(reportId, action, 'Processed by admin');
-        showToast(`Report ${action}ed successfully`);
+        showToast(action === 'remove' ? 'Reported content removed' : `Report ${action} processed`);
+        setReports(await adminComplianceApi.getReports(100, 0));
+      } catch (err: any) {
+        showToast(err.message, 'error');
+      } finally {
+        setProcessingId(null);
+      }
+    };
+
+    const handleRestore = async (report: any) => {
+      const reason = window.prompt('Enter the reason for restoring this content:')?.trim();
+      if (!reason) return;
+      setProcessingId(report.id);
+      try {
+        await adminComplianceApi.restoreReport(report.id, reason);
+        showToast('Content restored and action recorded');
         setReports(await adminComplianceApi.getReports(100, 0));
       } catch (err: any) {
         showToast(err.message, 'error');
@@ -311,6 +329,8 @@ export default function AdminCompliancePage() {
               <option value="INVESTIGATING">Investigating</option>
               <option value="ACTIONED">Actioned</option>
               <option value="DISMISSED">Dismissed</option>
+              <option value="REMOVED">Removed</option>
+              <option value="RESTORED">Restored</option>
             </select>
             <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
               Refresh
@@ -380,7 +400,30 @@ export default function AdminCompliancePage() {
                       >
                         <Lock size={16} />
                       </button>
+                      {['POST', 'VIDEO', 'REEL', 'STORY', 'COMMENT', 'POST_COMMENT', 'VIDEO_COMMENT', 'MESSAGE', 'STREAM', 'LIVE_STREAM'].includes(String(report.targetType).toUpperCase()) && (
+                        <button
+                          onClick={() => handleProcess(report.id, 'remove')}
+                          disabled={processingId === report.id}
+                          className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400"
+                          title="Remove reported content"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </>
+                  )}
+                  {report.status === 'REMOVED' && report.removal && !report.removal.restoredAt && (
+                    <button
+                      onClick={() => handleRestore(report)}
+                      disabled={processingId === report.id}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-50"
+                    >
+                      <RotateCcw size={14} />
+                      Restore content
+                    </button>
+                  )}
+                  {report.removal?.mediaQuarantineStatus === 'FAILED' && (
+                    <p className="mt-2 text-xs text-red-300">Removal follow-up failed. Review media quarantine and cache invalidation before resolving this report.</p>
                   )}
                 </div>
               </div>

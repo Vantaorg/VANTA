@@ -97,6 +97,7 @@ export async function buildReelFeed(input: {
   // Only active, non-banned creators contribute Reels.
   const where: Prisma.VideoWhereInput = {
     publishStatus: "PUBLISHED",
+    moderationRemovedAt: null,
     creator: {
       status: "ACTIVE",
       ...(followingFilter ? { followers: followingFilter.followers } : {}),

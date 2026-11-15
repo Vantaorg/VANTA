@@ -58,7 +58,7 @@ export class LiveService {
       const queryStart = Date.now();
       
       const streams = await prisma.liveStream.findMany({
-        where: { active: true, status: "LIVE" },
+        where: { active: true, status: "LIVE", moderationRemovedAt: null },
         orderBy: { viewerCount: "desc" },
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -83,7 +83,7 @@ export class LiveService {
       const queryStart = Date.now();
       
       const stream = await prisma.liveStream.findUnique({
-        where: { id: streamId },
+        where: { id: streamId, moderationRemovedAt: null },
         include: {
           host: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT, bio: true } },
           category: { select: { name: true } },
@@ -152,7 +152,7 @@ export class LiveService {
         // it and create two active sessions for one host (only one heartbeat
         // would ever be sent, leaving an orphaned "active" session).
         const existing = await tx.liveStream.findFirst({
-          where: { hostId, active: true, status: 'LIVE' },
+          where: { hostId, active: true, status: 'LIVE', moderationRemovedAt: null },
           select: { id: true, lastHostHeartbeat: true, startedAt: true, liveKitRoom: true },
         });
         if (existing) {
@@ -267,7 +267,7 @@ export class LiveService {
 
   async endStream(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
     });
 
     if (!stream) throw new Error("Stream not found");
@@ -324,7 +324,7 @@ export class LiveService {
    */
   async endStaleStream(streamId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
     });
     if (!stream || !stream.active || stream.status !== 'LIVE') return null;
     const ended = await this.finishStream(stream);
@@ -338,7 +338,7 @@ export class LiveService {
    */
   async adminEndStream(streamId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
     });
     if (!stream) throw new Error('Stream not found');
     if (!stream.active || stream.status !== 'LIVE') {
@@ -354,7 +354,7 @@ export class LiveService {
    */
   async adminSuspendStream(streamId: string, reason: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
     });
     if (!stream) throw new Error('Stream not found');
 
@@ -363,7 +363,7 @@ export class LiveService {
     }
 
     const updated = await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: {
         active: false,
         status: 'SUSPENDED',
@@ -384,7 +384,7 @@ export class LiveService {
    */
   async recordHeartbeat(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, hostId: true, active: true, status: true },
     });
     if (!stream) throw new Error("Stream not found");
@@ -392,7 +392,7 @@ export class LiveService {
     if (!stream.active || stream.status !== 'LIVE') return false;
 
     await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { lastHostHeartbeat: new Date() },
     });
     await cacheService.del(CACHE_KEYS.LIVE_STREAM(streamId));
@@ -441,7 +441,7 @@ export class LiveService {
 
   async joinStream(streamId: string, userId: string) {
     const target = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { active: true, status: true, bannedUsers: true, peakViewers: true },
     });
     if (!target || !target.active || target.status !== 'LIVE') {
@@ -463,7 +463,7 @@ export class LiveService {
       // Update viewer counts
       const count = await prisma.streamViewer.count({ where: { streamId } });
       await prisma.liveStream.update({
-        where: { id: streamId },
+        where: { id: streamId, moderationRemovedAt: null },
         data: { 
           viewerCount: count,
           totalViewers: { increment: 1 },
@@ -499,7 +499,7 @@ export class LiveService {
 
   async updateViewerCount(streamId: string, delta: number) {
     const stream = await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { viewerCount: { increment: delta } },
     });
 
@@ -532,7 +532,7 @@ export class LiveService {
     }
     // Check if stream has chat paused
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { chatPaused: true, slowMode: true, slowModeInterval: true, bannedUsers: true, mutedUsers: true, active: true, status: true },
     });
 
@@ -578,7 +578,7 @@ export class LiveService {
     const allowedReactions = new Set(['❤️', '🔥', '👏', '😂', '😍', '🎉']);
     if (!allowedReactions.has(emoji)) throw new Error('Unsupported reaction');
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { active: true, status: true, bannedUsers: true, mutedUsers: true },
     });
     if (!stream?.active || stream.status !== 'LIVE') throw new Error('Stream is not live');
@@ -608,7 +608,7 @@ export class LiveService {
     }
 
     const updated = await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { likes: { increment: 1 } },
       select: { likes: true },
     });
@@ -629,7 +629,7 @@ export class LiveService {
   }
 
   async getDiscoveryStreams(limit: number = 20, category?: string, search?: string, sort: string = 'trending', cursor?: string, viewerId?: string) {
-    const where: any = { active: true, status: 'LIVE' };
+    const where: any = { active: true, status: 'LIVE', moderationRemovedAt: null };
     if (category && category !== 'all') {
       where.categoryName = category;
     }
@@ -665,7 +665,7 @@ export class LiveService {
   }
 
   async updateStream(streamId: string, hostId: string, input: Record<string, unknown>) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId }, select: { hostId: true } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null }, select: { hostId: true } });
     if (!stream) throw new Error('Stream not found');
     if (stream.hostId !== hostId) throw new Error('Unauthorized');
     const data: Record<string, unknown> = {};
@@ -678,17 +678,17 @@ export class LiveService {
     for (const key of ['allowGifts', 'allowPK', 'allowGuests', 'recordingEnabled'] as const) {
       if (typeof input[key] === 'boolean') data[key] = input[key];
     }
-    const updated = await prisma.liveStream.update({ where: { id: streamId }, data });
+    const updated = await prisma.liveStream.update({ where: { id: streamId, moderationRemovedAt: null }, data });
     await Promise.all([cacheService.del(CACHE_KEYS.LIVE_STREAMS), cacheService.del(CACHE_KEYS.LIVE_STREAM(streamId))]);
     return updated;
   }
 
   async deleteStream(streamId: string, hostId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream) throw new Error('Stream not found');
     if (stream.hostId !== hostId) throw new Error('Unauthorized');
     if (stream.active || stream.status === 'LIVE') throw new Error('End the livestream before deleting it');
-    await prisma.liveStream.delete({ where: { id: streamId } });
+    await prisma.liveStream.delete({ where: { id: streamId, moderationRemovedAt: null } });
     await Promise.all([cacheService.del(CACHE_KEYS.LIVE_STREAMS), cacheService.del(CACHE_KEYS.LIVE_STREAM(streamId))]);
   }
 
@@ -719,7 +719,7 @@ export class LiveService {
 
   async getStreamHistory(hostId: string, limit: number = 10) {
     return prisma.liveStream.findMany({
-      where: { hostId, status: 'ENDED' },
+      where: { hostId, status: 'ENDED', moderationRemovedAt: null }, 
       orderBy: { endedAt: 'desc' },
       take: limit,
       include: {
@@ -775,40 +775,40 @@ export class LiveService {
 
   // Host moderation methods
   async muteViewer(streamId: string, hostId: string, targetUserId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     const mutedUsers: string[] = stream.mutedUsers ? JSON.parse(stream.mutedUsers) : [];
     if (!mutedUsers.includes(targetUserId)) {
       mutedUsers.push(targetUserId);
       await prisma.liveStream.update({
-        where: { id: streamId },
+        where: { id: streamId, moderationRemovedAt: null },
         data: { mutedUsers: JSON.stringify(mutedUsers) },
       });
     }
   }
 
   async unmuteViewer(streamId: string, hostId: string, targetUserId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     const mutedUsers: string[] = stream.mutedUsers ? JSON.parse(stream.mutedUsers) : [];
     const filtered = mutedUsers.filter(id => id !== targetUserId);
     await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { mutedUsers: JSON.stringify(filtered) },
     });
   }
 
   async banViewer(streamId: string, hostId: string, targetUserId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     const bannedUsers: string[] = stream.bannedUsers ? JSON.parse(stream.bannedUsers) : [];
     if (!bannedUsers.includes(targetUserId)) {
       bannedUsers.push(targetUserId);
       await prisma.liveStream.update({
-        where: { id: streamId },
+        where: { id: streamId, moderationRemovedAt: null },
         data: { bannedUsers: JSON.stringify(bannedUsers) },
       });
     }
@@ -820,33 +820,33 @@ export class LiveService {
   }
 
   async unbanViewer(streamId: string, hostId: string, targetUserId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     const bannedUsers: string[] = stream.bannedUsers ? JSON.parse(stream.bannedUsers) : [];
     const filtered = bannedUsers.filter(id => id !== targetUserId);
     await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { bannedUsers: JSON.stringify(filtered) },
     });
   }
 
   async toggleChatPause(streamId: string, hostId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     return prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { chatPaused: !stream.chatPaused },
     });
   }
 
   async toggleSlowMode(streamId: string, hostId: string, interval?: number) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     return prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { 
         slowMode: !stream.slowMode,
         ...(interval ? { slowModeInterval: interval } : {}),
@@ -855,18 +855,18 @@ export class LiveService {
   }
 
   async updateStreamSettings(streamId: string, hostId: string, settings: any) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream || stream.hostId !== hostId) throw new Error("Unauthorized");
 
     return prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: settings,
     });
   }
 
   async getViewerToken(streamId: string, userId: string) {
     const stream = await prisma.liveStream.findUnique({ 
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { liveKitRoom: true, active: true, status: true, bannedUsers: true },
     });
     if (!stream || !stream.liveKitRoom || !stream.active || stream.status !== 'LIVE') {
@@ -885,7 +885,7 @@ export class LiveService {
 
   async getHostToken(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({ 
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { liveKitRoom: true, hostId: true },
     });
     if (!stream || !stream.liveKitRoom) throw new Error("Stream not found");
@@ -904,14 +904,14 @@ export class LiveService {
     // an ended session. The socket `reaction` path is the primary realtime way
     // to like a live stream and is already guarded by `addReaction`.
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, active: true, status: true },
     });
     if (!stream) throw new Error('Stream not found');
     if (!stream.active || stream.status !== 'LIVE') throw new Error('Stream is not live');
 
     const updated = await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { likes: { increment: 1 } },
       select: { likes: true },
     });
@@ -921,7 +921,7 @@ export class LiveService {
 
   async getTrendingStreams(limit: number = 10, viewerId?: string) {
     const streams = await prisma.liveStream.findMany({
-      where: { active: true, status: 'LIVE' },
+      where: { active: true, status: 'LIVE', moderationRemovedAt: null }, 
       orderBy: [
         { viewerCount: 'desc' },
         { gifts: 'desc' },
@@ -961,7 +961,7 @@ export class LiveService {
 
   async getRecentlyEnded(limit: number = 10) {
     const streams = await prisma.liveStream.findMany({
-      where: { status: 'ENDED' },
+      where: { status: 'ENDED', moderationRemovedAt: null }, 
       orderBy: { endedAt: 'desc' },
       take: limit,
       include: {
@@ -995,7 +995,7 @@ export class LiveService {
 
   async getStreamAnalytics(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       include: {
         host: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT } },
         category: { select: { name: true } },
@@ -1034,7 +1034,7 @@ export class LiveService {
 
   async reportStream(streamId: string, reporterId: string, reason: string, description?: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, hostId: true, title: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1065,7 +1065,7 @@ export class LiveService {
 
   async getStreamReplay(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, hostId: true, recordingUrl: true, recordingEnabled: true, status: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1078,7 +1078,7 @@ export class LiveService {
 
   async getStreamShare(streamId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, title: true, active: true, status: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1091,7 +1091,7 @@ export class LiveService {
 
   async getStreamModeration(streamId: string, hostId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, hostId: true, moderators: true, mutedUsers: true, bannedUsers: true, chatPaused: true, slowMode: true, slowModeInterval: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1109,7 +1109,7 @@ export class LiveService {
 
   async getStreamBlocked(streamId: string, userId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { hostId: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1122,7 +1122,7 @@ export class LiveService {
 
   async getStreamFollowing(streamId: string, userId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { hostId: true },
     });
     if (!stream) throw new Error('Stream not found');
@@ -1141,7 +1141,7 @@ export class LiveService {
 
   /** Verify the caller is the stream host before a destructive chat action. */
   private async assertHost(streamId: string, hostId: string) {
-    const stream = await prisma.liveStream.findUnique({ where: { id: streamId } });
+    const stream = await prisma.liveStream.findUnique({ where: { id: streamId, moderationRemovedAt: null } });
     if (!stream) throw new Error('Stream not found');
     if (stream.hostId !== hostId) throw new Error('Unauthorized');
     return stream;
@@ -1214,7 +1214,7 @@ export class LiveService {
 
   private async getLiveIdOwner(streamId: string) {
     const stream = await prisma.liveStream.findUnique({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       select: { id: true, hostId: true, liveKitRoom: true, active: true, status: true, allowGuests: true, guests: true, approvedGuests: true },
     });
     return stream;
@@ -1238,7 +1238,7 @@ export class LiveService {
     if (pending.includes(userId)) throw new Error('You already requested to join');
 
     const updated = [...pending, userId];
-    await prisma.liveStream.update({ where: { id: streamId }, data: { guests: JSON.stringify(updated) } });
+    await prisma.liveStream.update({ where: { id: streamId, moderationRemovedAt: null }, data: { guests: JSON.stringify(updated) } });
     return { pending: updated };
   }
 
@@ -1247,7 +1247,7 @@ export class LiveService {
     const stream = await this.getLiveIdOwner(streamId);
     if (!stream) throw new Error('Stream not found');
     const pending = this.parseJsonList(stream.guests).filter((id) => id !== userId);
-    await prisma.liveStream.update({ where: { id: streamId }, data: { guests: JSON.stringify(pending) } });
+    await prisma.liveStream.update({ where: { id: streamId, moderationRemovedAt: null }, data: { guests: JSON.stringify(pending) } });
     return { pending };
   }
 
@@ -1271,7 +1271,7 @@ export class LiveService {
     const nextApproved = [...approved, viewerId];
     const nextPending = pending.filter((id) => id !== viewerId);
     await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { approvedGuests: JSON.stringify(nextApproved), guests: JSON.stringify(nextPending) },
     });
 
@@ -1285,7 +1285,7 @@ export class LiveService {
     const stream = await this.getLiveIdOwner(streamId);
     if (!stream || stream.hostId !== hostId) throw new Error('Unauthorized');
     const pending = this.parseJsonList(stream.guests).filter((id) => id !== viewerId);
-    await prisma.liveStream.update({ where: { id: streamId }, data: { guests: JSON.stringify(pending) } });
+    await prisma.liveStream.update({ where: { id: streamId, moderationRemovedAt: null }, data: { guests: JSON.stringify(pending) } });
     return { pending };
   }
 
@@ -1297,7 +1297,7 @@ export class LiveService {
     const approved = this.parseJsonList(stream.approvedGuests).filter((id) => id !== guestId);
     const pending = this.parseJsonList(stream.guests).filter((id) => id !== guestId);
     await prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data: { approvedGuests: JSON.stringify(approved), guests: JSON.stringify(pending) },
     });
 
@@ -1350,7 +1350,7 @@ export class LiveService {
   /** List only the authenticated host's scheduled livestreams. */
   async getScheduledStreams(hostId: string) {
     return prisma.liveStream.findMany({
-      where: { hostId, status: 'SCHEDULED', active: false, scheduledAt: { not: null } },
+      where: { hostId, status: 'SCHEDULED', active: false, scheduledAt: { not: null }, moderationRemovedAt: null },
       orderBy: { scheduledAt: 'asc' },
       select: {
         id: true, title: true, description: true, categoryName: true,
@@ -1418,7 +1418,7 @@ export class LiveService {
     if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
     if (typeof input.duration === 'number') data.duration = input.duration;
     return prisma.liveStream.update({
-      where: { id: streamId },
+      where: { id: streamId, moderationRemovedAt: null },
       data,
       select: {
         id: true, title: true, description: true, categoryName: true,
@@ -1434,7 +1434,7 @@ export class LiveService {
       select: { id: true },
     });
     if (!existing) throw new Error('Scheduled stream not found');
-    await prisma.liveStream.delete({ where: { id: streamId } });
+    await prisma.liveStream.delete({ where: { id: streamId, moderationRemovedAt: null } });
   }
 
 }

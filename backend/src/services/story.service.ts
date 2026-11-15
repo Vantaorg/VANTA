@@ -314,6 +314,7 @@ export class StoryService {
   }
 
   async unlikeStory(storyId: string, userId: string) {
+    await this.requireActiveStory(storyId);
     await prisma.storyLike.deleteMany({ where: { storyId, userId } });
     const likeCount = await prisma.storyLike.count({ where: { storyId } });
     return { liked: false, likeCount };
@@ -342,6 +343,7 @@ export class StoryService {
   }
 
   async getComments(storyId: string) {
+    await this.requireActiveStory(storyId);
     return prisma.storyComment.findMany({
       where: { storyId },
       orderBy: { createdAt: "asc" },
@@ -354,7 +356,7 @@ export class StoryService {
   async getActiveStories(currentUserId?: string) {
     const now = new Date();
     const stories = await prisma.story.findMany({
-      where: { expiresAt: { gt: now }, publishStatus: "PUBLISHED" },
+      where: { expiresAt: { gt: now }, publishStatus: "PUBLISHED", moderationRemovedAt: null },
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, username: true, avatar: true, verified: true, ...BADGE_USER_SELECT } },
@@ -440,7 +442,7 @@ export class StoryService {
 
   async getStoryById(storyId: string, viewerId?: string) {
     const story = await prisma.story.findUnique({
-      where: { id: storyId, publishStatus: "PUBLISHED" },
+      where: { id: storyId, publishStatus: "PUBLISHED", moderationRemovedAt: null },
       include: {
         user: { select: { id: true, username: true, avatar: true } },
       },
@@ -509,7 +511,7 @@ export class StoryService {
   }
 
   private async requireActiveStory(storyId: string) {
-    const story = await prisma.story.findUnique({ where: { id: storyId } });
+    const story = await prisma.story.findUnique({ where: { id: storyId, moderationRemovedAt: null } });
     if (!story || story.expiresAt.getTime() <= Date.now() || story.publishStatus !== "PUBLISHED") {
       throw new Error("Story not found or expired");
     }

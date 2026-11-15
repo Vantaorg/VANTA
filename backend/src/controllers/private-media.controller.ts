@@ -21,8 +21,8 @@ export async function getPrivateMedia(req: Request, res: Response): Promise<void
       const conversation = await prisma.conversation.findUnique({ where: { id: file.recordId }, include: { participants: { select: { userId: true } } } });
       allowed = Boolean(conversation?.participants.some((participant: any) => participant.userId === userId));
     } else if (file.recordType === 'Message' && file.recordId) {
-      const message = await prisma.message.findUnique({ where: { id: file.recordId }, include: { conversation: { include: { participants: { select: { userId: true } } } } } });
-      allowed = Boolean(message && !message.deletedAt && message.conversation.participants.some((participant: any) => participant.userId === userId));
+      const message = await prisma.message.findUnique({ where: { id: file.recordId, moderationRemovedAt: null }, include: { conversation: { include: { participants: { select: { userId: true } } } } } });
+      allowed = Boolean(message && !message.deletedAt && !message.moderationRemovedAt && message.conversation.participants.some((participant: any) => participant.userId === userId));
     }
     if (!allowed) { notFound(res); return; }
     const storagePath = String(file.path || '');

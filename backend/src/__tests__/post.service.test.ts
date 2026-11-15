@@ -19,7 +19,10 @@ jest.mock('../services/social-events.service', () => ({
 describe('PostService social interactions', () => {
   const service = new PostService();
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.post.findUnique as jest.Mock).mockResolvedValue({ id: 'post-1' });
+  });
 
   test('savePost creates one bookmark and emits a user-scoped update', async () => {
     (prisma.postSave.findUnique as jest.Mock).mockResolvedValue(null);

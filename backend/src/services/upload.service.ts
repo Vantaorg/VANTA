@@ -621,6 +621,126 @@ export class UploadService {
   }
 
   /**
+   * Quarantine a moderation-removed asset. Local files are blocked by the
+   * /uploads metadata guard; Cloudinary assets are renamed to authenticated
+   * delivery so an old public URL stops resolving. Original references remain
+   * on the metadata row for a possible audited restoration.
+   */
+  async quarantineModeratedFile(fileId: string): Promise<boolean> {
+    const file = await prisma.uploadedFile.findUnique({ where: { id: fileId } });
+    if (!file || !file.deletedAt) return false;
+    if (file.category === 'message' || !file.path?.startsWith('cloudinary:')) return true;
+    if (file.moderationOriginalPath) return true;
+
+    const [, resourceType, ...publicIdParts] = file.path.split(':');
+    const publicId = publicIdParts.join(':');
+    if (!publicId || !['image', 'video', 'raw'].includes(resourceType)) return false;
+    const quarantineId = `${publicId}_moderated_${file.id}`;
+
+    // Retry safely if the Cloudinary rename succeeded but persisting the new
+    // metadata path failed on the previous attempt.
+    let alreadyQuarantined = false;
+    try {
+      await cloudinary.api.resource(quarantineId, { resource_type: resourceType, type: 'authenticated' });
+      alreadyQuarantined = true;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    if (!alreadyQuarantined) {
+      await cloudinary.uploader.rename(publicId, quarantineId, {
+        resource_type: resourceType as any,
+        type: 'upload',
+        to_type: 'authenticated',
+        invalidate: true,
+      });
+    }
+    await prisma.uploadedFile.update({
+      where: { id: file.id },
+      data: {
+        path: `cloudinary:${resourceType}:${quarantineId}`,
+        moderationOriginalPath: file.path,
+        moderationOriginalUrl: file.url,
+      },
+    });
+    return true;
+  }
+
+  /** Restore a quarantined asset after the moderator's restoration is approved. */
+  async restoreModeratedFile(fileId: string): Promise<boolean> {
+    const file = await prisma.uploadedFile.findUnique({ where: { id: fileId } });
+    if (!file || !file.deletedAt) return false;
+
+    if (!file.moderationOriginalPath && file.category !== 'message' && file.path?.startsWith('cloudinary:')) {
+      // Recover a partial quarantine where Cloudinary renamed the object but
+      // the metadata update did not commit.
+      const [, resourceType, ...publicIdParts] = file.path.split(':');
+      const publicId = publicIdParts.join(':');
+      const quarantineId = `${publicId}_moderated_${file.id}`;
+      if (publicId && ['image', 'video', 'raw'].includes(resourceType)) {
+        let quarantineExists = false;
+        try {
+          await cloudinary.api.resource(quarantineId, { resource_type: resourceType, type: 'authenticated' });
+          quarantineExists = true;
+        } catch (error: any) {
+          if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+        }
+        if (quarantineExists) {
+          await cloudinary.uploader.rename(quarantineId, publicId, {
+            resource_type: resourceType as any,
+            type: 'authenticated',
+            to_type: 'upload',
+            invalidate: true,
+          });
+        }
+      }
+    }
+
+    if (file.moderationOriginalPath?.startsWith('cloudinary:')) {
+      if (!file.path?.startsWith('cloudinary:')) return false;
+      const [, originalResourceType, ...originalIdParts] = file.moderationOriginalPath.split(':');
+      const [, currentResourceType, ...currentIdParts] = file.path.split(':');
+      const originalId = originalIdParts.join(':');
+      const currentId = currentIdParts.join(':');
+      if (!originalId || !currentId || originalResourceType !== currentResourceType) return false;
+
+      // Retry safely if the asset was already renamed back but the metadata
+      // update failed on the previous restoration attempt.
+      let alreadyRestored = false;
+      try {
+        await cloudinary.api.resource(originalId, { resource_type: currentResourceType, type: 'upload' });
+        alreadyRestored = true;
+      } catch (error: any) {
+        if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+      }
+      if (!alreadyRestored) {
+        await cloudinary.uploader.rename(currentId, originalId, {
+          resource_type: currentResourceType as any,
+          type: 'authenticated',
+          to_type: 'upload',
+          invalidate: true,
+        });
+      }
+      await prisma.uploadedFile.update({
+        where: { id: file.id },
+        data: {
+          path: file.moderationOriginalPath,
+          url: file.moderationOriginalUrl || file.url,
+          deletedAt: null,
+          moderationOriginalPath: null,
+          moderationOriginalUrl: null,
+        },
+      });
+      return true;
+    }
+
+    await prisma.uploadedFile.update({
+      where: { id: file.id },
+      data: { deletedAt: null },
+    });
+    return true;
+  }
+
+  /**
    * Delete a file from disk and soft-delete its metadata record.
    */
   async deleteFile(filename: string, fileId?: string): Promise<boolean> {

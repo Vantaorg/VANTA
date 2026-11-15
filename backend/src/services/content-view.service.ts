@@ -10,7 +10,7 @@ const isUniqueViolation = (error: unknown) =>
 export class ContentViewService {
   private async assertExists(contentType: ContentType, contentId: string) {
     if (!contentId || contentId.length > 191) throw new Error("Invalid content ID");
-    if (contentType === "REEL") return prisma.video.findUnique({ where: { id: contentId }, select: { id: true } });
+    if (contentType === "REEL") return prisma.video.findUnique({ where: { id: contentId, moderationRemovedAt: null }, select: { id: true } });
     if (contentType === "POST") return prisma.post.findUnique({ where: { id: contentId }, select: { id: true } });
     return prisma.story.findFirst({
       where: { id: contentId, expiresAt: { gt: new Date() } },
@@ -51,7 +51,7 @@ export class ContentViewService {
   }
 
   async storyViewers(storyId: string, ownerId: string) {
-    const story = await prisma.story.findUnique({ where: { id: storyId }, select: { userId: true } });
+    const story = await prisma.story.findUnique({ where: { id: storyId, moderationRemovedAt: null }, select: { userId: true } });
     if (!story) throw new Error("Story not found");
     if (story.userId !== ownerId) throw new Error("Forbidden");
 

@@ -304,7 +304,7 @@ describe('LiveService', () => {
       const result = await liveService.recordHeartbeat('stream1', 'host1');
       expect(result).toBe(true);
       expect(prisma.liveStream.update).toHaveBeenCalledWith({
-        where: { id: 'stream1' },
+        where: { id: 'stream1', moderationRemovedAt: null },
         data: { lastHostHeartbeat: expect.any(Date) },
       });
     });

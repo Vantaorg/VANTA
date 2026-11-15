@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { auditLog } from '../security/auditLog';
-import { removeModeratedContent } from './content-removal.service';
+import { removeModeratedContent, restoreModeratedContent } from './content-removal.service';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,16 +10,28 @@ import { v4 as uuidv4 } from 'uuid';
 // ============================================================================
 
 class ComplianceService {
-  private async cleanupRemovedContent(removedFiles: Array<{ id: string; filename: string }>, source: string) {
-    // Load storage/cache adapters only when an actual removal needs cleanup.
+  private async cleanupRemovedContent(removedFiles: Array<{ id: string; filename: string }>, source: string): Promise<boolean> {
+    // Quarantine media instead of destroying it: local public URLs are blocked
+    // by the UploadedFile tombstone, while Cloudinary assets are renamed to
+    // authenticated delivery. Both paths can be restored after an audited reversal.
     const { uploadService } = require('./upload.service');
     const { cacheService } = require('./cache.service');
-    const cleanup = await Promise.allSettled(removedFiles.map((file) => uploadService.deleteFile(file.filename, file.id)));
+    const cleanup = await Promise.allSettled(removedFiles.map((file) => uploadService.quarantineModeratedFile(file.id)));
+    let succeeded = true;
     cleanup.forEach((result, index) => {
-      if (result.status === 'rejected' || result.value === false) console.error(`[Compliance] ${source} media cleanup failed:`, removedFiles[index]?.id);
+      if (result.status === 'rejected' || result.value === false) {
+        succeeded = false;
+        console.error(`[Compliance] ${source} media quarantine failed:`, removedFiles[index]?.id);
+      }
     });
-    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*'].map((pattern) => cacheService.delPattern(pattern)));
-    cacheResults.forEach((result) => { if (result.status === 'rejected') console.error(`[Compliance] ${source} cache purge failed:`, result.reason); });
+    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*', 'search:*', 'reels:*', 'profile:*', 'user:*', 'post:*', 'video:*', 'story:*'].map((pattern) => cacheService.delPattern(pattern)));
+    cacheResults.forEach((result) => {
+      if (result.status === 'rejected' || result.value === false) {
+        succeeded = false;
+        console.error(`[Compliance] ${source} cache purge failed:`, result.status === 'rejected' ? result.reason : 'cache adapter returned false');
+      }
+    });
+    return succeeded;
   }
 
   // ==========================================================================
@@ -53,7 +65,7 @@ class ComplianceService {
       // Chat creation still enforces the legacy privacyMessages field. Map
       // the new Privacy Center values to that established contract.
       if (key === 'messagePermissions') {
-        updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+        updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'followers' : 'everyone';
       }
       if (key === 'callPermissions') {
         updates.privacyCalls = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
@@ -751,7 +763,7 @@ For questions about your data, contact privacy@vanta.app
     if (role === 'USER' || role === 'MODERATOR') where.reportedBy = userId;
     const items = await prisma.moderationQueue.findMany({
       where, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: Math.min(Math.max(limit, 1), 200), skip: Math.max(offset, 0),
-      include: { actions: { orderBy: { createdAt: 'desc' }, take: 1 } },
+      include: { actions: { orderBy: { createdAt: 'desc' }, take: 1 }, removal: true },
     });
     const reporterIds = [...new Set(items.map((item: any) => item.reportedBy).filter(Boolean))];
     const reporters = reporterIds.length ? await prisma.user.findMany({ where: { id: { in: reporterIds } }, select: { id: true, username: true, avatar: true } }) : [];
@@ -773,6 +785,18 @@ For questions about your data, contact privacy@vanta.app
       if (action === 'remove') {
         if (!report.targetType || !report.targetId) throw new Error('Report has no supported content target.');
         removedFiles = await removeModeratedContent(tx, report.targetType, report.targetId);
+        await tx.moderationRemoval.create({
+          data: {
+            queueId: reportId,
+            sourceType: 'REPORT',
+            sourceId: reportId,
+            targetType: report.targetType,
+            targetId: report.targetId,
+            moderatorId: adminId,
+            reason: note || null,
+            mediaQuarantineStatus: 'PENDING',
+          },
+        });
       }
       const targetUserId = report.targetUserId || (report.targetType?.toUpperCase() === 'USER' ? report.targetId : null);
       if (['warn', 'suspend', 'ban'].includes(action) && !targetUserId) {
@@ -804,8 +828,120 @@ For questions about your data, contact privacy@vanta.app
       await tx.moderationAction.create({ data: { queueId: reportId, moderatorId: adminId, action, reason: note || null, automated: false } });
       return tx.moderationQueue.findUnique({ where: { id: reportId } });
     });
-    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Report');
+    if (action === 'remove') {
+      const mediaQuarantined = await this.cleanupRemovedContent(removedFiles, 'Report');
+      await prisma.moderationRemoval.update({
+        where: { queueId: reportId },
+        data: { mediaQuarantineStatus: mediaQuarantined ? 'COMPLETED' : 'FAILED' },
+      });
+    }
     await this.logComplianceAction(adminId, 'REPORT_PROCESSED', 'REPORT', reportId, { action, note, status: updated?.status });
+    return updated;
+  }
+
+  async restoreReport(reportId: string, adminId: string, reason: string) {
+    const restorationReason = typeof reason === 'string' ? reason.trim().slice(0, 2000) : '';
+    if (!restorationReason) throw new Error('A restoration reason is required.');
+
+    const removal = await prisma.moderationRemoval.findUnique({ where: { queueId: reportId } });
+    if (!removal || removal.sourceType !== 'REPORT') throw new Error('No reversible moderation removal exists for this report.');
+    if (removal.restoredAt) throw new Error('This moderation removal has already been restored.');
+
+    const report = await prisma.moderationQueue.findUnique({ where: { id: reportId } });
+    if (!report || report.status !== 'REMOVED') throw new Error('Only removed reports can be restored.');
+
+    const claim = await prisma.moderationRemoval.updateMany({
+      where: { id: removal.id, restoredAt: null, mediaQuarantineStatus: { not: 'RESTORING' } },
+      data: { mediaQuarantineStatus: 'RESTORING' },
+    });
+    if (claim.count !== 1) throw new Error('This moderation removal is already being restored.');
+
+    const recordTypesByTarget: Record<string, string[]> = {
+      POST: ['Post'],
+      VIDEO: ['Video', 'Reel'],
+      REEL: ['Video', 'Reel'],
+      STORY: ['Story'],
+      POST_COMMENT: ['PostComment'],
+      VIDEO_COMMENT: ['VideoComment'],
+      COMMENT: ['PostComment', 'VideoComment'],
+      MESSAGE: ['Message'],
+      STREAM: ['LiveStream'],
+      LIVE_STREAM: ['LiveStream'],
+    };
+    const recordTypes = recordTypesByTarget[removal.targetType.trim().toUpperCase()];
+    if (!recordTypes) {
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw new Error('Unsupported moderation target type.');
+    }
+
+    const files = await prisma.uploadedFile.findMany({
+      where: { recordType: { in: recordTypes }, recordId: removal.targetId, deletedAt: { not: null } },
+      select: { id: true },
+    });
+    const { uploadService } = require('./upload.service');
+    const restoredFileIds: string[] = [];
+    try {
+      for (const file of files) {
+        const restored = await uploadService.restoreModeratedFile(file.id);
+        if (!restored) throw new Error('A moderated media asset could not be restored.');
+        restoredFileIds.push(file.id);
+      }
+    } catch (error) {
+      if (restoredFileIds.length) {
+        await prisma.uploadedFile.updateMany({ where: { id: { in: restoredFileIds } }, data: { deletedAt: new Date() } });
+        await Promise.allSettled(restoredFileIds.map((id) => uploadService.quarantineModeratedFile(id)));
+      }
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw new Error(error instanceof Error ? error.message : 'Media restoration failed; content remains hidden.');
+    }
+
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        const currentRemoval = await tx.moderationRemoval.findUnique({ where: { id: removal.id } });
+        if (!currentRemoval || currentRemoval.restoredAt) throw new Error('This moderation removal has already been restored.');
+        await restoreModeratedContent(tx, removal.targetType, removal.targetId);
+        const resolution = await tx.moderationQueue.updateMany({
+          where: { id: reportId, status: 'REMOVED' },
+          data: { status: 'RESTORED', reviewedBy: adminId, reviewedAt: new Date(), humanReview: true },
+        });
+        if (resolution.count !== 1) throw new Error('Report is no longer in a restorable state.');
+        await tx.moderationRemoval.update({
+          where: { id: removal.id },
+          data: {
+            restoredAt: new Date(),
+            restoredBy: adminId,
+            restorationReason,
+            mediaQuarantineStatus: 'RESTORED',
+          },
+        });
+        await tx.moderationAction.create({
+          data: { queueId: reportId, moderatorId: adminId, action: 'restore', reason: restorationReason, automated: false },
+        });
+        return tx.moderationQueue.findUnique({ where: { id: reportId } });
+      });
+    } catch (error) {
+      if (restoredFileIds.length) {
+        await prisma.uploadedFile.updateMany({ where: { id: { in: restoredFileIds } }, data: { deletedAt: new Date() } });
+        await Promise.allSettled(restoredFileIds.map((id) => uploadService.quarantineModeratedFile(id)));
+      }
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw error;
+    }
+
+    const cachesInvalidated = await this.cleanupRemovedContent([], 'Report restoration');
+    if (!cachesInvalidated) {
+      await prisma.moderationRemoval.update({
+        where: { id: removal.id },
+        data: { mediaQuarantineStatus: 'FAILED' },
+      });
+    }
+    await this.logComplianceAction(adminId, 'REPORT_CONTENT_RESTORED', 'REPORT', reportId, {
+      targetType: removal.targetType,
+      targetId: removal.targetId,
+      reason: restorationReason,
+      cachesInvalidated,
+    });
     return updated;
   }
 
@@ -1027,7 +1163,7 @@ For questions about your data, contact privacy@vanta.app
   }
 
   async processCopyrightClaim(claimId: string, adminId: string, action: string, note?: string) {
-    if (!['remove', 'reject'].includes(action)) throw new Error('Supported copyright decisions are remove or reject. Restoration is unavailable after permanent content removal.');
+    if (!['remove', 'reject'].includes(action)) throw new Error('Supported copyright decisions are remove or reject. Copyright counter-notice restoration is not yet available.');
     let removedFiles: Array<{ id: string; filename: string }> = [];
     const updated = await prisma.$transaction(async (tx) => {
       const claim = await tx.copyrightClaim.findUnique({ where: { id: claimId } });
@@ -1036,13 +1172,30 @@ For questions about your data, contact privacy@vanta.app
       if (action === 'remove') {
         if (!claim.infringingContentId || !claim.infringingContentType) throw new Error('This claim has no supported content target; it cannot be marked removed.');
         removedFiles = await removeModeratedContent(tx, claim.infringingContentType, claim.infringingContentId);
+        await tx.moderationRemoval.create({
+          data: {
+            sourceType: 'COPYRIGHT_CLAIM',
+            sourceId: claimId,
+            targetType: claim.infringingContentType,
+            targetId: claim.infringingContentId,
+            moderatorId: adminId,
+            reason: note || 'Copyright takedown',
+            mediaQuarantineStatus: 'PENDING',
+          },
+        });
       }
       return tx.copyrightClaim.update({
         where: { id: claimId },
         data: { status: action === 'remove' ? 'ACTIONED' : 'REJECTED', actionTaken: action === 'remove' ? 'CONTENT_REMOVED' : 'NO_ACTION', processedById: adminId, processedAt: new Date(), decisionNote: note },
       });
     });
-    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Copyright');
+    if (action === 'remove') {
+      const mediaQuarantined = await this.cleanupRemovedContent(removedFiles, 'Copyright');
+      await prisma.moderationRemoval.updateMany({
+        where: { sourceType: 'COPYRIGHT_CLAIM', sourceId: claimId },
+        data: { mediaQuarantineStatus: mediaQuarantined ? 'COMPLETED' : 'FAILED' },
+      });
+    }
     await this.logComplianceAction(adminId, 'COPYRIGHT_CLAIM_PROCESSED', 'COPYRIGHT_CLAIM', claimId, { action, note });
     return updated;
   }

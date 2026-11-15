@@ -264,6 +264,22 @@ describe('ChatService security and persistence', () => {
     await expect(service.sendMessage('conversation', 'sender', 'hi')).rejects.toThrow('only accepts messages from accounts it follows');
   });
 
+  it('requires the sender to follow the recipient for Privacy Center followers-only messages', async () => {
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({
+      id: 'conversation', isGroup: false, type: 'DIRECT',
+      participants: [{ userId: 'sender', role: 'MEMBER' }, { userId: 'target', role: 'MEMBER' }],
+    });
+    (db.blockedUser.findFirst as jest.Mock).mockResolvedValue(null);
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ privacyMessages: 'followers' });
+    (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.sendMessage('conversation', 'sender', 'hi')).rejects.toThrow('only accepts messages from its followers');
+    expect(db.follow.findUnique).toHaveBeenCalledWith({
+      where: { followerId_followingId: { followerId: 'sender', followingId: 'target' } },
+      select: { id: true },
+    });
+  });
+
   it('allows a direct message when the recipient accepts from everyone', async () => {
     (db.conversation.findUnique as jest.Mock).mockResolvedValue({
       id: 'conversation', isGroup: false, type: 'DIRECT',

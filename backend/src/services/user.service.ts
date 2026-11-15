@@ -70,6 +70,7 @@ export class UserService {
           },
         },
         posts: {
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 6,
           include: {
@@ -118,17 +119,18 @@ export class UserService {
 
     // Get current live stream if any
     const currentStream = await prisma.liveStream.findFirst({
-      where: { hostId: userId, active: true, status: 'LIVE' },
+      where: { hostId: userId, active: true, status: 'LIVE', moderationRemovedAt: null },
       select: { id: true, title: true, viewerCount: true, thumbnailUrl: true, categoryName: true },
     });
 
     // Get total likes and comments
-    const [totalLikes, totalComments, totalGifts, totalViews, totalStreams] = await Promise.all([
-      prisma.postLike.count({ where: { post: { authorId: userId } } }),
-      prisma.postComment.count({ where: { post: { authorId: userId } } }),
+    const [totalLikes, totalComments, totalGifts, totalViews, totalStreams, visiblePostCount] = await Promise.all([
+      prisma.postLike.count({ where: { post: { authorId: userId, moderationRemovedAt: null } } }),
+      prisma.postComment.count({ where: { post: { authorId: userId, moderationRemovedAt: null } } }),
       prisma.giftTransaction.aggregate({ where: { receiverId: userId }, _sum: { amount: true } }),
-      prisma.liveStream.aggregate({ where: { hostId: userId }, _sum: { totalViewers: true } }),
-      prisma.liveStream.count({ where: { hostId: userId } }),
+      prisma.liveStream.aggregate({ where: { hostId: userId, moderationRemovedAt: null }, _sum: { totalViewers: true } }),
+      prisma.liveStream.count({ where: { hostId: userId, moderationRemovedAt: null } }),
+      prisma.post.count({ where: { authorId: userId, moderationRemovedAt: null } }),
     ]);
 
     const profile = user.profile;
@@ -189,7 +191,7 @@ export class UserService {
       counts: {
         followers: user._count.followers,
         following: user._count.following,
-        posts: user._count.posts,
+        posts: visiblePostCount,
         media: profile?.media.length || 0,
       },
       // Aggregated stats
@@ -199,7 +201,7 @@ export class UserService {
         totalGifts: totalGifts._sum.amount || 0,
         totalViews: totalViews._sum.totalViewers || 0,
         totalStreams: totalStreams,
-        totalPosts: user._count.posts,
+        totalPosts: visiblePostCount,
         totalFollowers: user._count.followers,
         totalFollowing: user._count.following,
       },
@@ -257,6 +259,7 @@ export class UserService {
         profile: { include: { socialLinks: true, media: { orderBy: { createdAt: 'desc' }, take: 12 } } },
         _count: { select: { followers: true, following: true, posts: true } },
         posts: {
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 6,
           include: { likes: { select: { id: true } }, comments: { select: { id: true } } },
@@ -280,31 +283,40 @@ export class UserService {
       throw new Error('This profile is private');
     }
 
-    const currentStream = await prisma.liveStream.findFirst({
-      where: { hostId: user.id, active: true, status: 'LIVE' },
-      select: { id: true, title: true, viewerCount: true, thumbnailUrl: true, categoryName: true },
-    });
-
-    const [totalLikes, totalComments, totalGifts, totalViews, totalStreams] = await Promise.all([
-      prisma.postLike.count({ where: { post: { authorId: user.id } } }),
-      prisma.postComment.count({ where: { post: { authorId: user.id } } }),
-      prisma.giftTransaction.aggregate({ where: { receiverId: user.id }, _sum: { amount: true } }),
-      prisma.liveStream.aggregate({ where: { hostId: user.id }, _sum: { totalViewers: true } }),
-      prisma.liveStream.count({ where: { hostId: user.id } }),
+    const [privacySettings, followRecord] = await Promise.all([
+      currentUserId !== user.id
+        ? prisma.userSettings.findUnique({
+            where: { userId: user.id },
+            select: { liveStreamVisibility: true, privacyLiveStream: true },
+          })
+        : Promise.resolve(null),
+      currentUserId
+        ? prisma.follow.findUnique({
+            where: { followerId_followingId: { followerId: currentUserId, followingId: user.id } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
     ]);
+    const isFollowing = Boolean(followRecord);
+    const visibilityValues = [privacySettings?.liveStreamVisibility, privacySettings?.privacyLiveStream]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    const canViewCurrentStream = currentUserId === user.id || (
+      !visibilityValues.some(value => value === 'nobody' || value === 'noone') &&
+      (!visibilityValues.some(value => value === 'followers' || value === 'following') || isFollowing)
+    );
+    const currentStream = canViewCurrentStream ? await prisma.liveStream.findFirst({
+      where: { hostId: user.id, active: true, status: 'LIVE', moderationRemovedAt: null },
+      select: { id: true, title: true, viewerCount: true, thumbnailUrl: true, categoryName: true },
+    }) : null;
 
-    const isFollowing = currentUserId
-      ? Boolean(
-          await prisma.follow.findUnique({
-            where: {
-              followerId_followingId: {
-                followerId: currentUserId,
-                followingId: user.id,
-              },
-            },
-          }),
-        )
-      : false;
+    const [totalLikes, totalComments, totalGifts, totalViews, totalStreams, visiblePostCount] = await Promise.all([
+      prisma.postLike.count({ where: { post: { authorId: user.id, moderationRemovedAt: null } } }),
+      prisma.postComment.count({ where: { post: { authorId: user.id, moderationRemovedAt: null } } }),
+      prisma.giftTransaction.aggregate({ where: { receiverId: user.id }, _sum: { amount: true } }),
+      prisma.liveStream.aggregate({ where: { hostId: user.id, moderationRemovedAt: null }, _sum: { totalViewers: true } }),
+      prisma.liveStream.count({ where: { hostId: user.id, moderationRemovedAt: null } }),
+      prisma.post.count({ where: { authorId: user.id, moderationRemovedAt: null } }),
+    ]);
 
     return {
       id: user.id,
@@ -334,7 +346,7 @@ export class UserService {
       counts: {
         followers: user._count.followers,
         following: user._count.following,
-        posts: user._count.posts,
+        posts: visiblePostCount,
         media: user.profile?.media.length || 0,
       },
       stats: {
@@ -343,7 +355,7 @@ export class UserService {
         totalGifts: totalGifts._sum.amount || 0,
         totalViews: totalViews._sum.totalViewers || 0,
         totalStreams,
-        totalPosts: user._count.posts,
+        totalPosts: visiblePostCount,
         totalFollowers: user._count.followers,
         totalFollowing: user._count.following,
       },
@@ -375,7 +387,7 @@ export class UserService {
    */
   async getUserPosts(userId: string, viewerId?: string, cursor?: string, limit: number = 10) {
     const posts = await prisma.post.findMany({
-      where: { authorId: userId },
+      where: { authorId: userId, moderationRemovedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -475,7 +487,7 @@ export class UserService {
           })
         : Promise.resolve([]),
       prisma.post.findMany({
-        where: { authorId: userId, mediaUrl: { not: null }, ...afterCursor },
+        where: { authorId: userId, mediaUrl: { not: null }, moderationRemovedAt: null, ...afterCursor }, 
         select: { id: true, content: true, mediaUrl: true, createdAt: true },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
@@ -511,7 +523,7 @@ export class UserService {
 
   async getUserReplies(userId: string, cursor?: string, limit: number = 10) {
     const replies = await prisma.postComment.findMany({
-      where: { userId },
+      where: { userId, moderationRemovedAt: null, post: { moderationRemovedAt: null } },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -803,8 +815,8 @@ export class UserService {
 
     if (data.privacyMessages !== undefined) {
       const value = data.privacyMessages.trim().toLowerCase();
-      if (!['everyone', 'following', 'noone'].includes(value)) {
-        throw new Error('Message privacy must be everyone, following, or noone');
+      if (!['everyone', 'following', 'followers', 'noone'].includes(value)) {
+        throw new Error('Message privacy must be everyone, followers, following, or noone');
       }
       settings.privacyMessages = value;
     }
@@ -1467,7 +1479,7 @@ export class UserService {
 
   async getPinnedContent(userId: string) {
     const posts = await prisma.post.findMany({
-      where: { authorId: userId, pinned: true },
+      where: { authorId: userId, pinned: true, moderationRemovedAt: null }, 
       orderBy: { createdAt: 'desc' },
       include: {
         author: { select: { id: true, username: true, fullName: true, avatar: true } },
@@ -1512,7 +1524,7 @@ export class UserService {
   // ===== REELS (VIDEOS) =====
   async getUserReels(userId: string, cursor?: string, limit: number = 12) {
     const reels = await prisma.video.findMany({
-      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
+      where: { creatorId: userId, publishStatus: 'PUBLISHED', videoUrl: { not: null }, moderationRemovedAt: null }, 
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -1552,7 +1564,7 @@ export class UserService {
   // ===== LIVESTREAMS =====
   async getUserLivestreams(userId: string, cursor?: string, limit: number = 10) {
     const streams = await prisma.liveStream.findMany({
-      where: { hostId: userId },
+      where: { hostId: userId, moderationRemovedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

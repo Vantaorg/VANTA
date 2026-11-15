@@ -9,20 +9,21 @@ jest.mock('../prisma', () => ({
     counterNotice: { create: jest.fn() },
     moderationQueue: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), count: jest.fn() },
     moderationAction: { create: jest.fn(), count: jest.fn() },
+    moderationRemoval: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     childSafetyFlag: { findUnique: jest.fn(), update: jest.fn() },
     notification: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
     user: { update: jest.fn(), findMany: jest.fn() },
     consentRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
-    uploadedFile: { findMany: jest.fn() },
+    uploadedFile: { findMany: jest.fn(), updateMany: jest.fn() },
     dataExportRequest: { findMany: jest.fn(), update: jest.fn() },
     post: { findMany: jest.fn() },
   },
 }));
 
-jest.mock('../services/content-removal.service', () => ({ removeModeratedContent: jest.fn() }));
+jest.mock('../services/content-removal.service', () => ({ removeModeratedContent: jest.fn(), restoreModeratedContent: jest.fn() }));
 jest.mock('../services/cache.service', () => ({ cacheService: { delPattern: jest.fn().mockResolvedValue(undefined) } }));
-jest.mock('../services/upload.service', () => ({ uploadService: { deleteFile: jest.fn().mockResolvedValue(true) } }));
+jest.mock('../services/upload.service', () => ({ uploadService: { deleteFile: jest.fn().mockResolvedValue(true), quarantineModeratedFile: jest.fn().mockResolvedValue(true), restoreModeratedFile: jest.fn().mockResolvedValue(true) } }));
 
 jest.mock('../security/auditLog', () => ({
   auditLog: {
@@ -35,11 +36,12 @@ import { prisma } from '../prisma';
 import { auditLog } from '../security/auditLog';
 import { isDeactivatedAllowedRequest } from '../security/accountStatus';
 import { complianceService } from '../services/compliance.service';
-import { removeModeratedContent } from '../services/content-removal.service';
+import { removeModeratedContent, restoreModeratedContent } from '../services/content-removal.service';
 import { cacheService } from '../services/cache.service';
 import { uploadService } from '../services/upload.service';
 
 const consentRecord = (prisma as any).consentRecord;
+const moderationRemoval = (prisma as any).moderationRemoval;
 const audit = auditLog as any;
 
 describe('compliance data export API privacy', () => {
@@ -66,6 +68,15 @@ describe('privacy settings enforcement compatibility', () => {
       update: expect.objectContaining({ accountType: 'PRIVATE', privacyProfile: 'private' }),
     }));
   });
+  test('maps followers-only message permissions to the recipient follower contract', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', { messagePermissions: 'followers' });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ messagePermissions: 'followers', privacyMessages: 'followers' }),
+      update: expect.objectContaining({ messagePermissions: 'followers', privacyMessages: 'followers' }),
+    }));
+  });
+
   test('maps story, call, live-stream, and invite permissions to established fields', async () => {
     (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', privacyReadReceipts: 'everyone' });
     await complianceService.updatePrivacySettings('user-1', {
@@ -381,7 +392,7 @@ describe('copyright claim enforcement', () => {
   beforeEach(() => { jest.clearAllMocks(); });
   test('removes the actual reported content before resolving the copyright claim', async () => {
     const claim = { id: 'claim-1', status: 'PENDING', infringingContentId: 'post-1', infringingContentType: 'POST' };
-    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn().mockResolvedValue({ ...claim, status: 'ACTIONED' }) } };
+    const tx = { copyrightClaim: { findUnique: jest.fn().mockResolvedValue(claim), update: jest.fn().mockResolvedValue({ ...claim, status: 'ACTIONED' }) }, moderationRemoval: { create: jest.fn().mockResolvedValue({}) } };
     (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
     (removeModeratedContent as jest.Mock).mockResolvedValue([{ id: 'file-1', filename: 'media.jpg' }]);
     await expect(complianceService.processCopyrightClaim('claim-1', 'admin-1', 'remove', 'copyright confirmed')).resolves.toMatchObject({ status: 'ACTIONED' });
@@ -419,15 +430,88 @@ describe('content reports use the active moderation queue', () => {
 
 describe('content report moderation', () => {
   beforeEach(() => { jest.clearAllMocks(); });
+  test('records a reversible removal audit linked to the moderation queue item', async () => {
+    const report = { id: 'queue-restore', status: 'PENDING', targetType: 'POST', targetId: 'post-restore', targetUserId: null };
+    const tx = {
+      moderationQueue: { findUnique: jest.fn().mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, status: 'REMOVED' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      moderationAction: { create: jest.fn().mockResolvedValue({}) },
+      moderationRemoval: { create: jest.fn().mockResolvedValue({}) },
+      user: { update: jest.fn() },
+    };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    (removeModeratedContent as jest.Mock).mockResolvedValue([]);
+    moderationRemoval.update.mockResolvedValue({});
+    await complianceService.processReport('queue-restore', 'admin-1', 'remove', 'policy violation');
+    expect(tx.moderationRemoval.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        queueId: 'queue-restore',
+        sourceType: 'REPORT',
+        sourceId: 'queue-restore',
+        targetType: 'POST',
+        targetId: 'post-restore',
+        moderatorId: 'admin-1',
+        reason: 'policy violation',
+      }),
+    });
+    expect(moderationRemoval.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { queueId: 'queue-restore' },
+      data: { mediaQuarantineStatus: 'COMPLETED' },
+    }));
+  });
+
   test('removes reported content and records the moderation action atomically', async () => {
     const report = { id: 'queue-2', status: 'PENDING', targetType: 'POST', targetId: 'post-2', targetUserId: null };
-    const tx = { moderationQueue: { findUnique: jest.fn().mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, status: 'REMOVED' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) }, moderationAction: { create: jest.fn().mockResolvedValue({}) }, user: { update: jest.fn() } };
+    const tx = { moderationQueue: { findUnique: jest.fn().mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, status: 'REMOVED' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) }, moderationAction: { create: jest.fn().mockResolvedValue({}) }, moderationRemoval: { create: jest.fn().mockResolvedValue({}) }, user: { update: jest.fn() } };
     (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
     (removeModeratedContent as jest.Mock).mockResolvedValue([]);
     await expect(complianceService.processReport('queue-2', 'admin-1', 'remove', 'policy violation')).resolves.toMatchObject({ status: 'REMOVED' });
     expect(removeModeratedContent).toHaveBeenCalledWith(tx, 'POST', 'post-2');
     expect(tx.moderationQueue.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'queue-2', status: 'PENDING' }, data: expect.objectContaining({ status: 'REMOVED', humanReview: true }) }));
     expect(tx.moderationAction.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ queueId: 'queue-2', moderatorId: 'admin-1', action: 'remove' }) }));
+  });
+});
+
+describe('moderation content restoration', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('restores content only with a reason and records a separate restore action', async () => {
+    moderationRemoval.findUnique.mockResolvedValue({
+      id: 'removal-1', queueId: 'queue-restore', sourceType: 'REPORT',
+      targetType: 'POST', targetId: 'post-restore', restoredAt: null,
+    });
+    (prisma as any).moderationQueue.findUnique.mockResolvedValue({
+      id: 'queue-restore', status: 'REMOVED',
+    });
+    moderationRemoval.updateMany.mockResolvedValue({ count: 1 });
+    (prisma as any).uploadedFile.findMany.mockResolvedValue([]);
+    const tx = {
+      moderationRemoval: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'removal-1', restoredAt: null }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      moderationQueue: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUnique: jest.fn().mockResolvedValue({ id: 'queue-restore', status: 'RESTORED' }),
+      },
+      moderationAction: { create: jest.fn().mockResolvedValue({}) },
+      post: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    (restoreModeratedContent as jest.Mock).mockResolvedValue(undefined);
+
+    await expect(complianceService.restoreReport('queue-restore', 'admin-2', 'Appeal approved')).resolves.toMatchObject({ status: 'RESTORED' });
+    expect(restoreModeratedContent).toHaveBeenCalledWith(tx, 'POST', 'post-restore');
+    expect(tx.moderationAction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ queueId: 'queue-restore', moderatorId: 'admin-2', action: 'restore', reason: 'Appeal approved' }),
+    }));
+    expect(tx.moderationRemoval.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'removal-1' },
+      data: expect.objectContaining({ restoredBy: 'admin-2', restorationReason: 'Appeal approved', mediaQuarantineStatus: 'RESTORED' }),
+    }));
+  });
+
+  test('rejects a restoration request without a reason', async () => {
+    await expect(complianceService.restoreReport('queue-restore', 'admin-2', ' ')).rejects.toThrow('A restoration reason is required');
+    expect(moderationRemoval.findUnique).not.toHaveBeenCalled();
   });
 });
 

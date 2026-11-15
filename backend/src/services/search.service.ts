@@ -60,7 +60,7 @@ export class SearchService {
 
       if (!type || type === "posts" || type === "all") {
         results.posts = await prisma.post.findMany({
-          where: { content: { contains: query } },
+          where: { content: { contains: query }, moderationRemovedAt: null },
           orderBy: { createdAt: "desc" },
           take: type === "posts" ? limit : SEARCH_LIMIT_ALL,
           include: {
@@ -114,6 +114,7 @@ export class SearchService {
         results.streams = await prisma.liveStream.findMany({
           where: {
             active: true,
+            moderationRemovedAt: null,
             OR: [
               { title: { contains: query } },
               { description: { contains: query } },
@@ -130,6 +131,9 @@ export class SearchService {
       if (!type || type === "videos" || type === "all") {
         results.videos = await prisma.video.findMany({
           where: {
+            moderationRemovedAt: null,
+            publishStatus: 'PUBLISHED',
+            videoUrl: { not: null },
             OR: [
               { title: { contains: query } },
               { description: { contains: query } },
@@ -170,7 +174,7 @@ export class SearchService {
           },
         }),
         prisma.liveStream.findMany({
-          where: { active: true },
+          where: { active: true, moderationRemovedAt: null },
           orderBy: { viewerCount: "desc" },
           take: limit,
           include: {
@@ -195,6 +199,7 @@ export class SearchService {
     return cacheService.getOrSet(CACHE_KEYS.TRENDING_SEARCHES, async () => {
       const [trendingPosts, trendingVideos, liveStreams] = await Promise.all([
         prisma.post.findMany({
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: "desc" },
           take: limit,
           include: {
@@ -203,6 +208,7 @@ export class SearchService {
           },
         }),
         prisma.video.findMany({
+          where: { moderationRemovedAt: null, publishStatus: "PUBLISHED", videoUrl: { not: null } },
           orderBy: { views: "desc" },
           take: limit,
           include: {

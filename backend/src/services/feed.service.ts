@@ -4,6 +4,7 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from "./cache.service";
 import { dbPerformanceTracker } from "./monitoring.service";
 import { emitSocialEvent } from "./social-events.service";
 import { notificationService } from "./notification.service";
+import { canReceiveMention } from "../security/privacyPermissions";
 import { BADGE_USER_SELECT, enrichPublicUser, enrichItemAuthors } from "./public-verification";
 
 const AUTHOR_SELECT = {
@@ -117,7 +118,7 @@ export class FeedService {
       const followingIds = [...followedUserIds, userId];
 
       const posts = await prisma.post.findMany({
-        where: { authorId: { in: followingIds } },
+        where: { authorId: { in: followingIds }, moderationRemovedAt: null },
         orderBy: { createdAt: "desc" },
         take: limit + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -180,6 +181,7 @@ export class FeedService {
               hostId: { in: followingIds.filter(id => id !== userId) },
               active: true,
               status: 'LIVE',
+              moderationRemovedAt: null,
             },
             orderBy: { viewerCount: 'desc' },
             take: 3,
@@ -205,6 +207,7 @@ export class FeedService {
       // rotated so refreshes surface different eligible reels — no full-table
       // random sort.
       const trendingVideos = seededShuffle(await prisma.video.findMany({
+        where: { moderationRemovedAt: null, publishStatus: 'PUBLISHED', videoUrl: { not: null } },
         orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
         take: 12,
         include: {
@@ -237,7 +240,7 @@ export class FeedService {
 
       // 4. Trending posts (global). Seed-rotated discovery bucket (capped).
       const trendingPosts = seededShuffle(await prisma.post.findMany({
-        where: { authorId: { notIn: followingIds } },
+        where: { authorId: { notIn: followingIds }, moderationRemovedAt: null },
         orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }],
         take: 10,
         include: {
@@ -272,6 +275,7 @@ export class FeedService {
         where: {
           active: true,
           status: 'LIVE',
+          moderationRemovedAt: null,
           hostId: { notIn: followingIds.filter(id => id !== userId) },
         },
         orderBy: { viewerCount: 'desc' },
@@ -604,6 +608,7 @@ export class FeedService {
       const queryStart = Date.now();
       
       const posts = await prisma.post.findMany({
+        where: { moderationRemovedAt: null },
         orderBy: [
           { likes: { _count: "desc" } },
           { createdAt: "desc" },
@@ -629,6 +634,7 @@ export class FeedService {
       
       const [posts, streams, videos] = await Promise.all([
         prisma.post.findMany({
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: "desc" },
           take: limit,
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -638,7 +644,7 @@ export class FeedService {
           },
         }),
         prisma.liveStream.findMany({
-          where: { active: true },
+          where: { active: true, moderationRemovedAt: null },
           orderBy: { viewerCount: "desc" },
           take: 10,
           include: {
@@ -647,6 +653,7 @@ export class FeedService {
           },
         }),
         prisma.video.findMany({
+          where: { moderationRemovedAt: null, publishStatus: "PUBLISHED", videoUrl: { not: null } },
           orderBy: { views: "desc" },
           take: limit,
           include: {
@@ -678,7 +685,7 @@ export class FeedService {
   }
 
   async deletePost(postId: string, userId: string) {
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null } });
     if (!post) throw new Error("Post not found");
     if (post.authorId !== userId) throw new Error("Unauthorized");
 
@@ -694,7 +701,7 @@ export class FeedService {
   }
 
   async likePost(postId: string, userId: string) {
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    const post = await prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null }, select: { authorId: true } });
     if (!post) throw new Error("Post not found");
 
     const result = await prisma.$transaction(async (tx) => {
@@ -702,7 +709,7 @@ export class FeedService {
       if (existing) await tx.postLike.delete({ where: { id: existing.id } });
       else await tx.postLike.create({ data: { userId, postId } });
       const likeCount = await tx.postLike.count({ where: { postId } });
-      const authorLikes = await tx.postLike.count({ where: { post: { authorId: post.authorId } } });
+      const authorLikes = await tx.postLike.count({ where: { post: { authorId: post.authorId, moderationRemovedAt: null } } });
       await tx.interactionEvent.create({ data: { userId, eventType: existing ? "POST_UNLIKE" : "POST_LIKE", targetType: "POST", targetId: postId } });
       return { liked: !existing, likeCount, authorLikes, authorId: post.authorId };
     });
@@ -728,10 +735,10 @@ export class FeedService {
     if (mediaFileIds.length > 4) throw new Error("You can attach up to 4 images or videos to a comment.");
 
     const [post, actor, recent, parent] = await Promise.all([
-      prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } }),
+      prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null }, select: { authorId: true } }),
       prisma.user.findUnique({ where: { id: userId }, select: { username: true, status: true } }),
-      prisma.postComment.findFirst({ where: { userId, postId }, orderBy: { createdAt: "desc" }, select: { content: true, createdAt: true } }),
-      parentId ? prisma.postComment.findFirst({ where: { id: parentId, postId }, select: { id: true, userId: true } }) : Promise.resolve(null),
+      prisma.postComment.findFirst({ where: { userId, postId, moderationRemovedAt: null }, orderBy: { createdAt: "desc" }, select: { content: true, createdAt: true } }),
+      parentId ? prisma.postComment.findFirst({ where: { id: parentId, postId, moderationRemovedAt: null }, select: { id: true, userId: true } }) : Promise.resolve(null),
     ]);
     if (!post) throw new Error("Post not found");
     if (!actor || actor.status !== "ACTIVE") throw new Error("Commenting is unavailable for this account");
@@ -778,10 +785,10 @@ export class FeedService {
     const followersAllowedToMention = new Set(mentionFollows.map(follow => follow.followingId));
     const mentionedUsers = mentionedUsersRaw.filter(mentioned => {
       if (mentioned.id === userId) return false;
-      const mode = String(mentionPrefsByUser.get(mentioned.id)?.mentionPermissions || "everyone").toLowerCase();
-      if (mode === "nobody" || mode === "noone" || mode === "none") return false;
-      if (mode === "followers" || mode === "following") return followersAllowedToMention.has(mentioned.id);
-      return true;
+      return canReceiveMention(
+        mentionPrefsByUser.get(mentioned.id)?.mentionPermissions,
+        followersAllowedToMention.has(mentioned.id),
+      );
     });
 
     const comment = await prisma.$transaction(async tx => {
@@ -813,7 +820,7 @@ export class FeedService {
     
     await cacheService.delPattern(`feed:*`);
     await cacheService.delPattern(`homefeed:*`);
-    const commentCount = await prisma.postComment.count({ where: { postId } });
+    const commentCount = await prisma.postComment.count({ where: { postId, moderationRemovedAt: null } });
     const enriched = formatComment({ ...comment, liked: false });
     emitSocialEvent("social:comment-created", { postId, comment: enriched, commentCount });
 
@@ -831,7 +838,7 @@ export class FeedService {
     const blocked = await prisma.blockedUser.findMany({ where: { OR: [{ userId }, { targetId: userId }] }, select: { userId: true, targetId: true } });
     const excludedUsers = blocked.map(entry => entry.userId === userId ? entry.targetId : entry.userId);
     const comments = await prisma.postComment.findMany({
-      where: { postId, parentId: null, userId: { notIn: excludedUsers }, ...(search ? { content: { contains: search } } : {}) },
+      where: { postId, parentId: null, moderationRemovedAt: null, post: { moderationRemovedAt: null }, userId: { notIn: excludedUsers }, ...(search ? { content: { contains: search } } : {}) },
       orderBy: sort === "top" ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }] : { createdAt: "desc" },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -839,6 +846,7 @@ export class FeedService {
         user: { select: COMMENT_USER },
         likes: { where: { userId }, select: { id: true } },
         replies: {
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: "asc" },
           take: 3,
           include: {
@@ -858,12 +866,12 @@ export class FeedService {
   }
 
   async getCommentReplies(postId: string, commentId: string, userId: string, cursor?: string, limit = 20) {
-    const parent = await prisma.postComment.findFirst({ where: { id: commentId, postId }, select: { id: true } });
+    const parent = await prisma.postComment.findFirst({ where: { id: commentId, postId, moderationRemovedAt: null, post: { moderationRemovedAt: null } }, select: { id: true } });
     if (!parent) throw new Error("Comment not found");
     const blocked = await prisma.blockedUser.findMany({ where: { OR: [{ userId }, { targetId: userId }] }, select: { userId: true, targetId: true } });
     const excludedUsers = blocked.map(entry => entry.userId === userId ? entry.targetId : entry.userId);
     const replies = await prisma.postComment.findMany({
-      where: { postId, parentId: commentId, userId: { notIn: excludedUsers } }, orderBy: { createdAt: "asc" }, take: limit + 1,
+      where: { postId, parentId: commentId, moderationRemovedAt: null, post: { moderationRemovedAt: null }, userId: { notIn: excludedUsers } }, orderBy: { createdAt: "asc" }, take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { user: { select: COMMENT_USER }, likes: { where: { userId }, select: { id: true } }, _count: { select: { likes: true, replies: true } } },
     });
@@ -874,8 +882,8 @@ export class FeedService {
   }
 
   async updateComment(commentId: string, userId: string, content: string) {
-    const existing = await prisma.postComment.findUnique({ where: { id: commentId } });
-    if (!existing) throw new Error("Comment not found");
+    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, include: { post: { select: { moderationRemovedAt: true } } } });
+    if (!existing || existing.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (existing.userId !== userId) throw new Error("Unauthorized");
     const cleanContent = normalizeComment(content);
     if (!cleanContent || cleanContent.length > COMMENT_MAX_LENGTH) throw new Error(`Comments must be between 1 and ${COMMENT_MAX_LENGTH} characters`);
@@ -892,8 +900,8 @@ export class FeedService {
   }
 
   async deleteComment(commentId: string, userId: string, role = "USER") {
-    const existing = await prisma.postComment.findUnique({ where: { id: commentId } });
-    if (!existing) throw new Error("Comment not found");
+    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, include: { post: { select: { moderationRemovedAt: true } } } });
+    if (!existing || existing.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (existing.userId !== userId && !["ADMIN", "MODERATOR"].includes(role)) throw new Error("Unauthorized");
     await prisma.$transaction([
       prisma.postComment.delete({ where: { id: commentId } }),
@@ -906,14 +914,14 @@ export class FeedService {
     } catch (auditErr) {
       console.error('[AUDIT] Failed to record COMMENT_DELETED:', auditErr);
     }
-    const commentCount = await prisma.postComment.count({ where: { postId: existing.postId } });
+    const commentCount = await prisma.postComment.count({ where: { postId: existing.postId, moderationRemovedAt: null } });
     emitSocialEvent("social:comment-deleted", { postId: existing.postId, commentId, commentCount });
     return { deleted: true, commentCount };
   }
 
   async likeComment(commentId: string, userId: string) {
-    const comment = await prisma.postComment.findUnique({ where: { id: commentId }, select: { postId: true, userId: true } });
-    if (!comment) throw new Error("Comment not found");
+    const comment = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, select: { postId: true, userId: true, post: { select: { moderationRemovedAt: true } } } });
+    if (!comment || comment.post?.moderationRemovedAt) throw new Error("Comment not found");
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.postCommentLike.findUnique({ where: { userId_commentId: { userId, commentId } } });
       if (existing) await tx.postCommentLike.delete({ where: { id: existing.id } });
@@ -929,8 +937,8 @@ export class FeedService {
   }
 
   async reportComment(commentId: string, userId: string, reason: string, description?: string) {
-    const comment = await prisma.postComment.findUnique({ where: { id: commentId }, select: { userId: true, postId: true } });
-    if (!comment) throw new Error("Comment not found");
+    const comment = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null }, select: { userId: true, postId: true, post: { select: { moderationRemovedAt: true } } } });
+    if (!comment || comment.post?.moderationRemovedAt) throw new Error("Comment not found");
     if (comment.userId === userId) throw new Error("You cannot report your own comment");
     const report = await prisma.$transaction(async tx => {
       const created = await tx.report.create({ data: { reporterId: userId, targetId: comment.userId, type: "COMMENT", reason, description: JSON.stringify({ commentId, postId: comment.postId, details: description || null }) } });
