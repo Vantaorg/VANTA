@@ -555,7 +555,12 @@ For questions about your data, contact privacy@vanta.app
       }
       if (targetUserId && ['warn', 'suspend', 'ban'].includes(action)) {
         if (action === 'suspend' || action === 'ban') {
-          await tx.user.update({ where: { id: targetUserId }, data: { status: action === 'ban' ? 'BANNED' : 'SUSPENDED' } });
+          await tx.user.update({
+            where: { id: targetUserId },
+            data: action === 'ban'
+              ? { status: 'BANNED', bannedAt: new Date(), bannedReason: note || 'Moderation action', suspendedAt: null, suspendedReason: null, suspendedUntil: null }
+              : { status: 'SUSPENDED', suspendedAt: new Date(), suspendedReason: note || 'Moderation action', suspendedUntil: null },
+          });
         }
         await tx.notification.create({
           data: {
@@ -781,7 +786,7 @@ For questions about your data, contact privacy@vanta.app
       if (status === 'ACCOUNT_LOCKED') {
         await prisma.user.update({
           where: { id: userId },
-          data: { status: 'BANNED' },
+          data: { status: 'BANNED', bannedAt: new Date(), bannedReason: 'Repeat copyright infringement', suspendedAt: null, suspendedReason: null, suspendedUntil: null },
         });
       }
     } else {
@@ -1046,7 +1051,10 @@ For questions about your data, contact privacy@vanta.app
       });
 
       if (action === 'restrict') {
-        await tx.user.update({ where: { id: flag.userId }, data: { status: 'RESTRICTED' } });
+        await tx.user.update({
+          where: { id: flag.userId },
+          data: { status: 'SUSPENDED', suspendedAt: new Date(), suspendedReason: note || 'Child safety review', suspendedUntil: null },
+        });
       }
       return { result, userId: flag.userId };
     });
