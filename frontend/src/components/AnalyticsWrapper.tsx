@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { useAuth } from "@/context/AuthContext";
 import { consentApi, privacyApi } from "@/lib/complianceApi";
+import { resolveTrackingConsent } from "@/lib/trackingConsent";
 
 const CONSENT_CHANGED_EVENT = "vanta:tracking-consent-changed";
 
@@ -28,8 +29,9 @@ export default function AnalyticsWrapper() {
         privacyApi.getSettings(),
         consentApi.getPreferences(),
       ]);
-      setAnalyticsAllowed(privacy.cookieAnalytics === true && consent.analytics === "granted");
-      setMarketingAllowed(privacy.cookieMarketing === true && consent.marketing === "granted");
+      const tracking = resolveTrackingConsent(privacy, consent);
+      setAnalyticsAllowed(tracking.analytics);
+      setMarketingAllowed(tracking.marketing);
     } catch {
       setAnalyticsAllowed(false);
       setMarketingAllowed(false);
