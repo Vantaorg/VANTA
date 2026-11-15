@@ -55,6 +55,21 @@ class ComplianceService {
       if (key === 'messagePermissions') {
         updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
       }
+      if (key === 'callPermissions') {
+        updates.privacyCalls = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
+      if (key === 'storyVisibility') {
+        updates.privacyStories = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
+      if (key === 'liveStreamVisibility') {
+        updates.privacyLiveStream = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
+      if (key === 'tagPermissions') {
+        updates.privacyTagging = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
+      if (key === 'communityInvites' || key === 'groupInvites') {
+        updates.privacyInvites = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
     }
     for (const key of this.privacyBooleanKeys) {
       const value = data[key];
