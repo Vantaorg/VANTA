@@ -6,19 +6,14 @@ jest.mock('../prisma', () => ({
     accountDeactivation: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     accountDeletionRequest: { updateMany: jest.fn() },
     copyrightClaim: { findUnique: jest.fn(), update: jest.fn() },
+    counterNotice: { create: jest.fn() },
     moderationQueue: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), count: jest.fn() },
     moderationAction: { create: jest.fn(), count: jest.fn() },
-    notification: { create: jest.fn() },
+    childSafetyFlag: { findUnique: jest.fn(), update: jest.fn() },
+    notification: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
     user: { update: jest.fn(), findMany: jest.fn() },
-    userSettings: { upsert: jest.fn() },
-    accountDeactivation: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
-    $transaction: jest.fn(),
-    user: { update: jest.fn() },
-    consentRecord: {
-      findMany: jest.fn(),
-      create: jest.fn(),
-    },
+    consentRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
   },
 }));
 
@@ -212,5 +207,24 @@ describe('report account actions notify the affected user', () => {
     await complianceService.processReport('queue-3', 'admin-1', 'warn', 'Please review the community rules.');
     expect(tx.user.update).not.toHaveBeenCalled();
     expect(tx.notification.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'target-user', type: 'MODERATION_WARNING', entityId: 'queue-3' }) }));
+  });
+});
+
+describe('child-safety moderation is validated and atomic', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('restricts the account and resolves the flag in one transaction', async () => {
+    const flag = { id: 'flag-1', userId: 'user-1', status: 'PENDING_REVIEW' };
+    const tx = {
+      childSafetyFlag: { findUnique: jest.fn().mockResolvedValue(flag), update: jest.fn().mockResolvedValue({ ...flag, status: 'ESCALATED' }) },
+      user: { update: jest.fn().mockResolvedValue({}) },
+    };
+    (prisma as any).$transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(complianceService.processChildSafetyFlag('flag-1', 'admin-1', 'restrict', 'age verification required')).resolves.toMatchObject({ status: 'ESCALATED' });
+    expect(tx.childSafetyFlag.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'flag-1' }, data: expect.objectContaining({ status: 'ESCALATED', actionTaken: 'restrict' }) }));
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { status: 'RESTRICTED' } });
+  });
+  test('rejects unknown actions before opening a transaction', async () => {
+    await expect(complianceService.processChildSafetyFlag('flag-1', 'admin-1', 'delete')).rejects.toThrow('Unsupported child-safety action.');
+    expect((prisma as any).$transaction).not.toHaveBeenCalled();
   });
 });
