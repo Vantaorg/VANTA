@@ -284,7 +284,7 @@ export class UserService {
     }
 
     const [privacySettings, followRecord] = await Promise.all([
-      currentUserId && currentUserId !== user.id
+      currentUserId !== user.id
         ? prisma.userSettings.findUnique({
             where: { userId: user.id },
             select: { liveStreamVisibility: true, privacyLiveStream: true },
