@@ -671,7 +671,25 @@ export class ChatService {
       select: { readReceipts: true, privacyReadReceipts: true },
     });
     const receiptMode = String(settings?.privacyReadReceipts || "everyone").toLowerCase();
-    const receiptsHidden = records.length > 0 && (settings?.readReceipts === false || receiptMode === "nobody" || receiptMode === "noone" || receiptMode === "none");
+    let receiptsHidden = records.length > 0 && (
+      settings?.readReceipts === false ||
+      receiptMode === "nobody" || receiptMode === "noone" || receiptMode === "none"
+    );
+    if (records.length > 0 && !receiptsHidden && (receiptMode === "followers" || receiptMode === "following")) {
+      // The socket event is broadcast to the whole conversation. Only emit it
+      // when every other participant is within the reader's allowed audience.
+      const otherParticipantIds = conversation.participants
+        .map((participant: any) => participant.userId)
+        .filter((participantId: string) => participantId !== userId);
+      if (otherParticipantIds.length) {
+        const followed = await prisma.follow.findMany({
+          where: { followerId: userId, followingId: { in: otherParticipantIds } },
+          select: { followingId: true },
+        });
+        const followedIds = new Set(followed.map(item => item.followingId));
+        receiptsHidden = otherParticipantIds.some(participantId => !followedIds.has(participantId));
+      }
+    }
 
     return { count: records.length, receiptsHidden };
   }
