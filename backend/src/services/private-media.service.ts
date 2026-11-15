@@ -21,7 +21,7 @@ export function verifyPrivateMediaToken(token: string, fileId: string): string {
 export async function privateMediaStaticGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const filename = path.basename(decodeURIComponent(req.path));
-    const baseName = path.parse(filename).name;
+    const baseName = path.parse(filename).name.replace(/_(AVATAR|THUMBNAIL|SMALL|MEDIUM|LARGE|BANNER)$/i, '');
     const file = await prisma.uploadedFile.findFirst({
       where: {
         OR: [
