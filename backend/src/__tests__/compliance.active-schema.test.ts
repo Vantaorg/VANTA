@@ -73,6 +73,7 @@ describe('privacy settings enforcement compatibility', () => {
       callPermissions: 'nobody',
       liveStreamVisibility: 'followers',
       communityInvites: 'nobody',
+      groupInvites: 'followers',
       tagPermissions: 'followers',
     });
     expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
@@ -80,14 +81,14 @@ describe('privacy settings enforcement compatibility', () => {
         storyVisibility: 'followers', privacyStories: 'following',
         callPermissions: 'nobody', privacyCalls: 'noone',
         liveStreamVisibility: 'followers', privacyLiveStream: 'following',
-        communityInvites: 'nobody', privacyInvites: 'noone',
+        communityInvites: 'nobody', groupInvites: 'followers', privacyInvites: 'following',
         tagPermissions: 'followers', privacyTagging: 'following',
       }),
       update: expect.objectContaining({
         storyVisibility: 'followers', privacyStories: 'following',
         callPermissions: 'nobody', privacyCalls: 'noone',
         liveStreamVisibility: 'followers', privacyLiveStream: 'following',
-        communityInvites: 'nobody', privacyInvites: 'noone',
+        communityInvites: 'nobody', groupInvites: 'followers', privacyInvites: 'following',
         tagPermissions: 'followers', privacyTagging: 'following',
       }),
     }));
@@ -197,6 +198,14 @@ describe('compliance privacy settings on the active Prisma schema', () => {
     expect(userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, update: { accountType: 'PRIVATE', onlineStatus: 'followers', privacyReadReceipts: 'nobody', discoverability: false } }));
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', action: 'PRIVACY_SETTINGS_UPDATE' }));
   });
+  test('keeps essential functional cookies enabled and rejects disabling them', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', cookieFunctional: true, privacyReadReceipts: 'everyone' });
+    await expect(complianceService.updatePrivacySettings('user-1', { cookieFunctional: false }))
+      .rejects.toThrow('Functional cookies are required for essential platform operation.');
+    expect((prisma as any).userSettings.upsert).not.toHaveBeenCalled();
+    await expect(complianceService.getPrivacySettings('user-1')).resolves.toMatchObject({ cookieFunctional: true });
+  });
+
   test('rejects invalid privacy values without writing settings', async () => {
     await expect(complianceService.updatePrivacySettings('user-1', { onlineStatus: 'anyone' })).rejects.toThrow('Invalid privacy value for onlineStatus.');
     expect(userSettings.upsert).not.toHaveBeenCalled();
