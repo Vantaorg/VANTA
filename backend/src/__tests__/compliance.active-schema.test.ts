@@ -153,6 +153,21 @@ describe('compliance account lifecycle transactions', () => {
     expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { status: 'DEACTIVATED' } });
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', action: 'ACCOUNT_DEACTIVATED' }));
   });
+  test('reactivates a temporarily deactivated account through the cancel endpoint', async () => {
+    account.findUnique.mockResolvedValue({ userId: 'user-1', status: 'DEACTIVATED', recoveryToken: 'recovery-token' });
+    const tx = {
+      accountDeactivation: { update: jest.fn().mockResolvedValue({ status: 'RECOVERED' }) },
+      user: { update: jest.fn().mockResolvedValue({}) },
+      accountDeletionRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    };
+    transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(complianceService.cancelDeletion('user-1')).resolves.toMatchObject({ status: 'RECOVERED' });
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { status: 'ACTIVE' } });
+    expect(tx.accountDeletionRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', status: 'PENDING' },
+      data: expect.objectContaining({ status: 'CANCELLED' }),
+    }));
+  });
   test('does not allow scheduling deletion in the past', async () => {
     await expect(complianceService.scheduleAccountDeletion('user-1', 'reason', new Date(Date.now() - 1000))).rejects.toThrow('The scheduled deletion date must be in the future.');
     expect(account.findUnique).not.toHaveBeenCalled();
