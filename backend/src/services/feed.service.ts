@@ -707,7 +707,7 @@ export class FeedService {
       const existing = await tx.postLike.findUnique({ where: { userId_postId: { userId, postId } } });
       if (existing) await tx.postLike.delete({ where: { id: existing.id } });
       else await tx.postLike.create({ data: { userId, postId } });
-      const likeCount = await tx.postLike.count({ where: { postId } });
+      const likeCount = await tx.postLike.count({ where: { postId, moderationRemovedAt: null } });
       const authorLikes = await tx.postLike.count({ where: { post: { authorId: post.authorId } } });
       await tx.interactionEvent.create({ data: { userId, eventType: existing ? "POST_UNLIKE" : "POST_LIKE", targetType: "POST", targetId: postId } });
       return { liked: !existing, likeCount, authorLikes, authorId: post.authorId };
@@ -819,7 +819,7 @@ export class FeedService {
     
     await cacheService.delPattern(`feed:*`);
     await cacheService.delPattern(`homefeed:*`);
-    const commentCount = await prisma.postComment.count({ where: { postId } });
+    const commentCount = await prisma.postComment.count({ where: { postId, moderationRemovedAt: null } });
     const enriched = formatComment({ ...comment, liked: false });
     emitSocialEvent("social:comment-created", { postId, comment: enriched, commentCount });
 
