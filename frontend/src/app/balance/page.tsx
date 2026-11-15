@@ -280,7 +280,7 @@ export default function BalancePage() {
         purchases: ['PURCHASE', 'DEPOSIT'],
         transfers: ['TRANSFER_SENT', 'TRANSFER_RECEIVED'],
         gifts: ['GIFT_SENT', 'GIFT_RECEIVED'],
-        earnings: ['CREATOR_EARNING'],
+        earnings: ['GIFT_RECEIVED', 'CREATOR_EARNING'],
         withdrawals: ['WITHDRAWAL'],
         refunds: ['REFUND'],
       };

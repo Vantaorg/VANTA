@@ -1618,7 +1618,7 @@ export class WalletService {
         userId,
         "WALLET_WITHDRAWAL",
         "Withdrawal Requested",
-        `Your withdrawal of ${amount.toFixed(2)} (net ${netAmount.toFixed(2)}) is being processed.`,
+        `Your withdrawal of $${amount.toFixed(2)} (net $${netAmount.toFixed(2)}) is being processed.`,
         { withdrawalId: result.withdrawal.id, amount, fee, netAmount }
       );
     } catch (notificationError) {
