@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { AuthenticatedRequest, CryptoUtils, SecurityValidator, sessionManager, twoFactorAuth, auditLog, botProtection, GDPRCompliance, config } from '../security';
-import { accountStatusError, signAppealToken } from '../security/accountStatus';
+import { accountStatusError, signAppealToken, isDeactivatedAccountStatus } from '../security/accountStatus';
 import { prisma } from '../prisma';
 import { authService } from '../services/auth.service';
 
@@ -205,7 +205,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (!['ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(user.status)) {
+    if (!['ACTIVE', 'SUSPENDED'].includes(user.status) && !isDeactivatedAccountStatus(user.status)) {
       // BANNED accounts use a separate appeal token above. LOCKED and
       // unknown states never receive a session; deactivated accounts receive
       // a restricted recovery-only session after normal credential checks.
