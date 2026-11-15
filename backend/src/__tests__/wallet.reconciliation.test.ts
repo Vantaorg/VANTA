@@ -47,7 +47,7 @@ describe('WalletService.reconcileWallet', () => {
   test('reports MATCH when the ledger equals the stored balance', async () => {
     (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
       { type: 'PURCHASE', amount: 500, currency: 'VANTA', status: 'COMPLETED' },
-      { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA', status: 'COMPLETED', metadata: JSON.stringify({ autoConverted: true, creatorEarningsUsd: 4.66 }) },
       { type: 'GIFT_SENT', amount: 200, currency: 'VANTA', status: 'COMPLETED' },
       { type: 'WITHDRAWAL', amount: 0.7, currency: 'USD', status: 'PENDING' },
       { type: 'CREATOR_EARNING', amount: 50, currency: 'USD', status: 'COMPLETED' },
@@ -71,14 +71,34 @@ describe('WalletService.reconcileWallet', () => {
     expect(prisma.walletAuditLog.create).not.toHaveBeenCalled();
   });
 
-  test('excludes failed and cancelled withdrawals from the USD earnings ledger', async () => {
+  test('keeps legacy cash gift credits out of VANTA coins and in USD earnings', async () => {
+    (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
+      { type: 'GIFT_RECEIVED', amount: 0.04, currency: 'VANTA', status: 'COMPLETED', metadata: JSON.stringify({ creatorEarningsUsd: 0.04, giftCoinValue: 6 }) },
+    ]);
+    const result = await walletService.reconcileWallet('user1');
+    expect(result.ledgerBalance).toBe(0);
+    expect(result.ledgerEarningsBalance).toBe(0.04);
+  });
+
+  test('excludes failed, cancelled and reversed rows from the current USD earnings ledger', async () => {
     (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
       { type: 'CREATOR_EARNING', amount: 49.3, currency: 'USD', status: 'COMPLETED' },
       { type: 'WITHDRAWAL', amount: 10, currency: 'USD', status: 'CANCELLED' },
+      { type: 'CREATOR_EARNING', amount: 5, currency: 'USD', status: 'REVERSED' },
     ]);
     const result = await walletService.reconcileWallet('user1');
     expect(result.earningsStatus).toBe('MATCH');
     expect(result.ledgerEarningsBalance).toBe(49.3);
+  });
+
+  test('normalizes legacy signed transaction amounts and ignores reversed coin rows', async () => {
+    (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
+      { type: 'GIFT_SENT', amount: -100, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'GIFT_RECEIVED', amount: 80, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'GIFT_RECEIVED', amount: 20, currency: 'VANTA', status: 'REVERSED' },
+    ]);
+    const result = await walletService.reconcileWallet('user1');
+    expect(result.ledgerBalance).toBe(-20);
   });
 
   test('reports DISCREPANCY, audits it, and never mutates the stored balance', async () => {

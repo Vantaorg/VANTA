@@ -431,21 +431,37 @@ export class MonetizationService {
         break;
     }
 
-    const result = await prisma.walletTransaction.aggregate({
+    const transactions = await prisma.walletTransaction.findMany({
       where: {
         userId,
-        type: 'CREATOR_EARNING',
-        currency: 'USD',
         status: 'COMPLETED',
         createdAt: { gte: startDate },
+        OR: [
+          { type: 'CREATOR_EARNING', currency: 'USD' },
+          // Compatibility with the retired gift path, which wrote USD
+          // earnings into a default-VANTA GIFT_RECEIVED row.
+          { type: 'GIFT_RECEIVED', currency: 'VANTA' },
+        ],
       },
-      _sum: { amount: true },
-      _count: true,
+      select: { type: true, currency: true, amount: true, metadata: true },
     });
 
+    const eligibleEarnings = transactions.filter((transaction) => {
+      if (transaction.type === 'CREATOR_EARNING' && transaction.currency === 'USD') return true;
+      if (transaction.type !== 'GIFT_RECEIVED' || transaction.currency === 'USD') return false;
+      const metadata = transaction.metadata
+        ? (() => { try { return JSON.parse(transaction.metadata); } catch { return null; } })()
+        : null;
+      // The active gift path also stores creatorEarningsUsd in metadata, but
+      // marks autoConverted=true and has a separate USD ledger row.
+      return metadata?.autoConverted !== true &&
+        Number.isFinite(Number(metadata?.creatorEarningsUsd));
+    });
+    const earnings = eligibleEarnings.reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
+
     return {
-      earnings: result._sum.amount || 0,
-      count: result._count,
+      earnings: Math.round(earnings * 100) / 100,
+      count: eligibleEarnings.length,
       period,
     };
   }

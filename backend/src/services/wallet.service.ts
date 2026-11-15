@@ -79,11 +79,42 @@ const FOLLOWER_REWARD_CLAIM_TYPE = TX_TYPES.FOLLOWER_REWARD_CLAIM;
  * metadata.side field is required to distinguish creator debit from claimant
  * credit. Unknown/missing side data fails closed instead of guessing.
  */
+function readWalletTransactionMetadata(metadata?: string | null): Record<string, any> | null {
+  if (!metadata) return null;
+  try {
+    const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The retired monetization gift path stored USD creator earnings in a
+ * GIFT_RECEIVED row using the default VANTA currency. The canonical gift path
+ * now stores spendable recipient coins in GIFT_RECEIVED and cash earnings in a
+ * separate CREATOR_EARNING/USD row. Identify only the legacy shape so old
+ * creator balances can still be reconciled without counting the cash amount
+ * as coins or double-counting current gifts.
+ */
+function isLegacyCashGiftCredit(transaction: {
+  type: string;
+  currency?: string | null;
+  metadata?: string | null;
+}): boolean {
+  if (transaction.type !== TX_TYPES.GIFT_RECEIVED || transaction.currency === 'USD') return false;
+  const metadata = readWalletTransactionMetadata(transaction.metadata);
+  return metadata?.autoConverted !== true &&
+    Number.isFinite(Number(metadata?.creatorEarningsUsd));
+}
+
 function resolveWalletTransactionDelta(transaction: {
   type: string;
   amount: number;
   metadata?: string | null;
+  currency?: string | null;
 }): number | null {
+  if (isLegacyCashGiftCredit(transaction)) return null;
   if (transaction.type === FOLLOWER_REWARD_CLAIM_TYPE) {
     let metadata: any = null;
     try {
@@ -97,8 +128,8 @@ function resolveWalletTransactionDelta(transaction: {
     if (metadata?.side === 'claimant') return Math.abs(transaction.amount);
     return null;
   }
-  if (INCOMING_TYPES.has(transaction.type as any)) return transaction.amount;
-  if (OUTGOING_TYPES.has(transaction.type as any)) return -transaction.amount;
+  if (INCOMING_TYPES.has(transaction.type as any)) return Math.abs(transaction.amount);
+  if (OUTGOING_TYPES.has(transaction.type as any)) return -Math.abs(transaction.amount);
   return null;
 }
 
@@ -2279,9 +2310,12 @@ export class WalletService {
     });
 
     const ledgerBalance = txns.reduce((sum, t) => {
-      // VANTA coin reconciliation must never include USD-denominated earnings
-      // or withdrawals, even if both currencies share one wallet record.
-      if (t.currency === "USD") return sum;
+      // Reversed/failed rows are historical evidence, not current balance
+      // movements. Legacy rows without a status are retained for compatibility.
+      if (t.status && t.status !== "COMPLETED") return sum;
+      // USD-denominated earnings and legacy cash gift rows must never be
+      // applied to the VANTA Coin balance.
+      if (t.currency === "USD" || isLegacyCashGiftCredit(t)) return sum;
       const delta = resolveWalletTransactionDelta(t);
       return delta === null ? sum : sum + Math.trunc(delta);
     }, 0);
@@ -2292,10 +2326,14 @@ export class WalletService {
     // Earnings are stored as decimal USD, while the reconciliation log uses
     // integer fields. Convert to cents to avoid floating-point drift.
     const ledgerEarningsCents = txns.reduce((sum, t) => {
-      if (t.currency !== "USD") return sum;
+      const legacyGiftCredit = isLegacyCashGiftCredit(t);
+      if (t.currency !== "USD" && !legacyGiftCredit) return sum;
+      // Pending withdrawals have already been reserved from earningsBalance;
+      // completed withdrawals remain spent. Failed/cancelled/reversed rows do
+      // not affect the current balance because their reservation was refunded.
       if (t.status && !["PENDING", "COMPLETED"].includes(t.status)) return sum;
       const cents = Math.round(Math.abs(t.amount) * 100);
-      if (t.type === TX_TYPES.CREATOR_EARNING || t.type === TX_TYPES.ADMIN_CREDIT) return sum + cents;
+      if (legacyGiftCredit || t.type === TX_TYPES.CREATOR_EARNING || t.type === TX_TYPES.ADMIN_CREDIT) return sum + cents;
       if (t.type === TX_TYPES.WITHDRAWAL || t.type === TX_TYPES.ADMIN_DEBIT) return sum - cents;
       return sum;
     }, 0);
