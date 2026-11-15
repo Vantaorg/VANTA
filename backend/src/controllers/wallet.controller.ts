@@ -70,7 +70,7 @@ export const transferCoins = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const userId = req.user?.userId;
     const sessionId = req.user?.sessionId;
-    const { receiverId, receiverUsername, amount, note, otpCode, requestId, challengeId, pinCode } = req.body;
+    const { receiverId, receiverUsername, amount, note, otpCode, requestId, challengeId, pinCode, twoFactorCode } = req.body;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     if (!amount) {
       res.status(400).json({ error: 'Amount is required' });
@@ -101,7 +101,7 @@ export const transferCoins = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const result = await walletService.transferCoins(
-      userId, resolvedReceiverId, amount, note, otpCode, req.ip, undefined, requestId, challengeId, sessionId, pinCode
+      userId, resolvedReceiverId, amount, note, otpCode, req.ip, undefined, requestId, challengeId, sessionId, pinCode, twoFactorCode
     );
     res.status(200).json(result);
   } catch (error) {
@@ -260,13 +260,13 @@ export const getDeposits = async (req: AuthRequest, res: Response): Promise<void
 export const requestWithdrawal = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { amount, walletAddress, pinCode } = req.body;
+    const { amount, walletAddress, pinCode, twoFactorCode } = req.body;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     if (!amount || !walletAddress) {
       res.status(400).json({ error: 'Amount and wallet address are required' });
       return;
     }
-    const withdrawal = await walletService.requestWithdrawal(userId, amount, walletAddress, pinCode);
+    const withdrawal = await walletService.requestWithdrawal(userId, amount, walletAddress, pinCode, twoFactorCode);
     res.status(201).json({ message: 'Withdrawal request created', withdrawal });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
