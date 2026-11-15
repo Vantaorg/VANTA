@@ -3,6 +3,7 @@ import { analyticsController } from '../controllers/analytics.controller';
 import { authenticateJWT, optionallyAuthenticateJWT } from '../middleware/auth.middleware';
 import { requireRole, AuthenticatedRequest } from '../security/authMiddleware';
 import { Role } from '../security/rbac';
+import { requireAnalyticsConsent } from '../middleware/analyticsConsent';
 
 const router = Router();
 
@@ -166,7 +167,7 @@ router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, n
     return;
   }
   next();
-}, analyticsController.trackEvent.bind(analyticsController));
+}, requireAnalyticsConsent, analyticsController.trackEvent.bind(analyticsController));
 router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const events = req.body?.events;
   if (!validateTrackPayload(events)) {
@@ -174,7 +175,7 @@ router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Respo
     return;
   }
   next();
-}, analyticsController.trackBatchEvents.bind(analyticsController));
+}, requireAnalyticsConsent, analyticsController.trackBatchEvents.bind(analyticsController));
 
 // ============================================================
 // Alert Rules & History
