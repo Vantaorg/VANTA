@@ -2262,6 +2262,7 @@ model ModerationRemoval {
   @@index([targetType, targetId, removedAt])
   @@index([restoredAt])
   @@index([moderatorId, removedAt])
+  @@index([sourceType, sourceId])
 }
 
 model AIContent {
