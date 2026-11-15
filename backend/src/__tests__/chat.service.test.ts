@@ -24,6 +24,8 @@ describe('ChatService security and persistence', () => {
   beforeEach(() => {
     process.env.JWT_SECRET = 'test-jwt-secret-long-enough-for-private-media-signing';
     jest.clearAllMocks();
+    (db.userSettings.findMany as jest.Mock).mockResolvedValue([]);
+    (db.follow.findMany as jest.Mock).mockResolvedValue([]);
     (db.$transaction as jest.Mock).mockImplementation((callback: any) => callback(db));
   });
 
@@ -208,6 +210,28 @@ describe('ChatService security and persistence', () => {
     (db.messageRead.createMany as jest.Mock).mockResolvedValue({ count: 1 });
     (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ readReceipts: true, privacyReadReceipts: 'nobody' });
     await expect(service.markMessagesAsRead('conversation', 'reader')).resolves.toEqual({ count: 1, receiptsHidden: true });
+  });
+
+  it('keeps read receipts private to the message sender and enforces followers-only visibility', async () => {
+    (db.conversation.findUnique as jest.Mock).mockResolvedValue({
+      id: 'conversation', participants: [{ userId: 'sender' }, { userId: 'reader' }, { userId: 'member' }],
+    });
+    (db.message.findMany as jest.Mock).mockResolvedValue([{
+      id: 'message-1', senderId: 'sender', reads: [{ userId: 'reader' }, { userId: 'member' }],
+    }]);
+    (db.userSettings.findMany as jest.Mock).mockResolvedValue([
+      { userId: 'reader', readReceipts: true, privacyReadReceipts: 'followers' },
+      { userId: 'member', readReceipts: true, privacyReadReceipts: 'nobody' },
+    ]);
+    (db.follow.findMany as jest.Mock).mockResolvedValue([
+      { followerId: 'reader', followingId: 'sender' },
+    ]);
+
+    const senderView = await service.searchMessages('conversation', 'sender', 'hello');
+    expect(senderView[0].reads).toEqual([{ userId: 'reader' }]);
+
+    const otherMemberView = await service.searchMessages('conversation', 'member', 'hello');
+    expect(otherMemberView[0].reads).toEqual([{ userId: 'member' }]);
   });
 
   it('rejects a direct message when the recipient does not accept messages', async () => {
