@@ -105,7 +105,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
           adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
         };
         req.token = token;
-        req.accountRestricted = 'SUSPENDED';
+        if (user.status === 'SUSPENDED') req.accountRestricted = 'SUSPENDED';
         next();
         return;
       }
