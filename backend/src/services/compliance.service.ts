@@ -41,12 +41,20 @@ class ComplianceService {
     if (data.accountType !== undefined) {
       if (typeof data.accountType !== 'string' || !['PUBLIC', 'PRIVATE', 'CREATOR'].includes(data.accountType)) throw new Error('Account type must be PUBLIC, PRIVATE, or CREATOR.');
       updates.accountType = data.accountType;
+      // Keep the established profile-visibility enforcement in sync with the
+      // newer Privacy Center account-type control.
+      updates.privacyProfile = data.accountType === 'PRIVATE' ? 'private' : 'public';
     }
     for (const key of this.privacyVisibilityKeys) {
       const value = data[key];
       if (value === undefined) continue;
       if (typeof value !== 'string' || !['everyone', 'followers', 'nobody'].includes(value)) throw new Error(`Invalid privacy value for ${key}.`);
       updates[key === 'readReceipts' ? 'privacyReadReceipts' : key] = value;
+      // Chat creation still enforces the legacy privacyMessages field. Map
+      // the new Privacy Center values to that established contract.
+      if (key === 'messagePermissions') {
+        updates.privacyMessages = value === 'nobody' ? 'noone' : value === 'followers' ? 'following' : 'everyone';
+      }
     }
     for (const key of this.privacyBooleanKeys) {
       const value = data[key];
