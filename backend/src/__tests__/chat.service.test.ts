@@ -224,7 +224,7 @@ describe('ChatService security and persistence', () => {
       { userId: 'member', readReceipts: true, privacyReadReceipts: 'nobody' },
     ]);
     (db.follow.findMany as jest.Mock).mockResolvedValue([
-      { followerId: 'reader', followingId: 'sender' },
+      { followerId: 'sender', followingId: 'reader' },
     ]);
 
     const senderView = await service.searchMessages('conversation', 'sender', 'hello');
