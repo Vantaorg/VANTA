@@ -2,7 +2,7 @@ name: VANTA pull request checks
 
 on:
   push:
-    branches: [fix/moderation-removal-propagation-2026-11-15-compliance-base]
+    branches: [fix/moderation-removal-propagation-2026-11-15-compliance-base, fix/privacy-analytics-consent-enforcement]
   pull_request:
     branches: [main]
   workflow_dispatch:
