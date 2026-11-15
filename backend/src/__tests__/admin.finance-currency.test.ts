@@ -29,7 +29,7 @@ beforeEach(() => {
   (prisma.walletTransaction.aggregate as jest.Mock).mockImplementation((args: any) => {
     const where = args.where;
     const amount =
-      where.status === 'COMPLETED' && where.currency === 'VANTA' ? 100 :
+      where.status === 'COMPLETED' && where.currency === 'VANTA' ? 100.04 :
       where.status === 'COMPLETED' && where.currency === 'USD' ? 1.25 :
       where.status === 'PENDING' && where.currency === 'VANTA' ? 30 :
       where.status === 'PENDING' && where.currency === 'USD' ? 5 :
@@ -46,7 +46,7 @@ describe('admin finance currency presentation', () => {
 
     expect(result.summary).toEqual({
       totalProcessedUsd: 1.29,
-      totalProcessedVanta: 99.96,
+      totalProcessedVanta: 100,
       pendingReviewUsd: 5,
       pendingReviewVanta: 30,
       refundsUsd: 2,
