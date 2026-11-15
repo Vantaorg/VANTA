@@ -33,6 +33,7 @@ export async function removeModeratedContent(
       recordTypes = ['Post'];
       break;
     case 'VIDEO':
+    case 'REEL':
       await hideRecord(tx.video, 'Video');
       recordTypes = ['Video', 'Reel'];
       break;
@@ -114,6 +115,7 @@ export async function restoreModeratedContent(
       await restoreRecord(tx.post, 'Post');
       break;
     case 'VIDEO':
+    case 'REEL':
       await restoreRecord(tx.video, 'Video');
       break;
     case 'STORY':
