@@ -159,10 +159,11 @@ moderationRouter.get('/queue', authenticate, requireRole(Role.MODERATOR, Role.AD
   }
 });
 
-moderationRouter.post('/review', async (req: Request, res: Response) => {
+moderationRouter.post('/review', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const { queueId, moderatorId, action, reason } = req.body;
+    const { queueId, action, reason } = req.body;
+    const moderatorId = (req as AuthenticatedRequest).user!.userId;
     const result = await moderationService.reviewContent(queueId, moderatorId, action, reason);
     res.json({ success: true, data: { reviewed: result } });
   } catch (error: any) {
@@ -170,7 +171,7 @@ moderationRouter.post('/review', async (req: Request, res: Response) => {
   }
 });
 
-moderationRouter.get('/stats', async (req: Request, res: Response) => {
+moderationRouter.get('/stats', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
     const stats = await moderationService.getStats();
@@ -788,6 +789,7 @@ aiRouter.use('/search', searchRouter);
 // ADMIN AI CONTROLS
 // ============================================================================
 const adminRouter = Router();
+adminRouter.use(authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO));
 
 // Enable/disable AI modules
 adminRouter.post('/modules/:module/toggle', async (req: Request, res: Response) => {
