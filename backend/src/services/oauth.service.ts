@@ -4,6 +4,7 @@ import { prisma } from '../prisma';
 import { sessionManager, SecurityValidator, auditLog, config } from '../security';
 import { welcomeRewardService } from './welcome-reward.service';
 import { Request } from 'express';
+import { isDeactivatedAccountStatus } from '../security/accountStatus';
 
 // ============================================================================
 // VANTA OAuth / OIDC provider authentication (Google + Telegram).
@@ -626,7 +627,7 @@ export const redeemExchangeCode = async (code: unknown, req: Request) => {
   if (!user) {
     throw new OAuthError('user-missing', 'This account is no longer available. Please try again.');
   }
-  if (user.status !== 'ACTIVE') {
+  if (user.status !== 'ACTIVE' && !isDeactivatedAccountStatus(user.status)) {
     throw new OAuthError('account-restricted', user.status === 'SUSPENDED' ? 'Account suspended' : 'Account restricted');
   }
 
@@ -645,6 +646,7 @@ export const sanitizeUserShape = (user: any) => ({
   fullName: user.fullName,
   avatar: user.avatar || user.profile?.avatarUrl,
   role: user.role,
+  status: user.status,
   verified: user.verified,
   emailVerified: user.emailVerified,
   premium: user.premium,
@@ -791,7 +793,7 @@ export const handleProviderCallback = async (
     if (!user) {
       throw new OAuthError('linked-user-missing', 'The linked VANTA account no longer exists. Please sign in again.');
     }
-    if (user.status !== 'ACTIVE') {
+    if (user.status !== 'ACTIVE' && !isDeactivatedAccountStatus(user.status)) {
       throw new OAuthError('account-restricted', user.status === 'SUSPENDED' ? 'Account suspended' : 'Account restricted');
     }
     const { exchangeCode } = await createVantaSessionAndExchangeCode({ id: user.id, role: user.role }, provider, req);

@@ -5,12 +5,15 @@
 
 import { Router, Request, Response } from 'express';
 import { AI_CONFIG } from './ai.config';
-import { privacyMiddleware, aiRateLimit, validateConsent, requireAIConsent } from './middleware/privacy.middleware';
+import { privacyMiddleware, aiRateLimit, requireAIConsent, validateConsent } from './middleware/privacy.middleware';
 import { prisma } from '../prisma';
+import { authenticate, optionalAuth, requireRole, AuthenticatedRequest } from '../security/authMiddleware';
+import { Role } from '../security/rbac';
 
 const aiRouter = Router();
 
-// Apply privacy middleware to all AI routes
+// Resolve valid sessions before privacy middleware reads per-user preferences.
+aiRouter.use(optionalAuth);
 aiRouter.use(privacyMiddleware);
 
 // ============================================================================
@@ -18,21 +21,23 @@ aiRouter.use(privacyMiddleware);
 // ============================================================================
 const recommendationRouter = Router();
 
-recommendationRouter.post('/feed', aiRateLimit('recommendations'), async (req: Request, res: Response) => {
+recommendationRouter.post('/feed', authenticate, requireAIConsent, aiRateLimit('recommendations'), async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
-    const { userId, options } = req.body;
-    const feed = await recommendationService.getPersonalizedFeed(userId || req.userId, options);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { options } = req.body;
+    const feed = await recommendationService.getPersonalizedFeed(userId, options);
     res.json({ success: true, data: feed });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-recommendationRouter.post('/discover', aiRateLimit('recommendations'), async (req: Request, res: Response) => {
+recommendationRouter.post('/discover', authenticate, requireAIConsent, aiRateLimit('recommendations'), async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
-    const items = await recommendationService.getDiscoveryItems(req.body.userId || req.userId, req.body.options);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const items = await recommendationService.getDiscoveryItems(userId, req.body.options);
     res.json({ success: true, data: items });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -74,11 +79,12 @@ recommendationRouter.get('/topics', async (req: Request, res: Response) => {
   }
 });
 
-recommendationRouter.post('/interaction', async (req: Request, res: Response) => {
+recommendationRouter.post('/interaction', authenticate, requireAIConsent, async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
     const { eventType, targetType, targetId, metadata } = req.body;
-    await recommendationService.recordUserInteraction(req.body.userId || req.userId, eventType, targetType, targetId, metadata);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    await recommendationService.recordUserInteraction(userId, eventType, targetType, targetId, metadata);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -124,10 +130,11 @@ moderationRouter.post('/batch', aiRateLimit('moderation'), async (req: Request, 
   }
 });
 
-moderationRouter.post('/report', async (req: Request, res: Response) => {
+moderationRouter.post('/report', authenticate, async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const { reporterId, targetId, type, reason, description } = req.body;
+    const reporterId = (req as AuthenticatedRequest).user!.userId;
+    const { targetId, type, reason, description } = req.body;
     const report = await moderationService.submitReport(reporterId, targetId, type, reason, description);
     res.json({ success: true, data: report });
   } catch (error: any) {
@@ -135,7 +142,7 @@ moderationRouter.post('/report', async (req: Request, res: Response) => {
   }
 });
 
-moderationRouter.get('/queue', async (req: Request, res: Response) => {
+moderationRouter.get('/queue', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
     const filters = {
@@ -152,10 +159,11 @@ moderationRouter.get('/queue', async (req: Request, res: Response) => {
   }
 });
 
-moderationRouter.post('/review', async (req: Request, res: Response) => {
+moderationRouter.post('/review', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const { queueId, moderatorId, action, reason } = req.body;
+    const { queueId, action, reason } = req.body;
+    const moderatorId = (req as AuthenticatedRequest).user!.userId;
     const result = await moderationService.reviewContent(queueId, moderatorId, action, reason);
     res.json({ success: true, data: { reviewed: result } });
   } catch (error: any) {
@@ -163,7 +171,7 @@ moderationRouter.post('/review', async (req: Request, res: Response) => {
   }
 });
 
-moderationRouter.get('/stats', async (req: Request, res: Response) => {
+moderationRouter.get('/stats', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
     const stats = await moderationService.getStats();
@@ -317,10 +325,11 @@ aiRouter.use('/nlp', nlpRouter);
 // ============================================================================
 const analyticsRouter = Router();
 
-analyticsRouter.post('/insights', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/insights', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const { userId, periodStart, periodEnd } = req.body;
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { periodStart, periodEnd } = req.body;
     const insights = await analyticsService.getCreatorInsights(userId, periodStart ? { start: new Date(periodStart), end: new Date(periodEnd || periodStart) } : undefined);
     res.json({ success: true, data: insights });
   } catch (error: any) {
@@ -328,9 +337,12 @@ analyticsRouter.post('/insights', aiRateLimit('analytics'), async (req: Request,
   }
 });
 
-analyticsRouter.post('/engagement', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/engagement', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const channel = await prisma.channel.findUnique({ where: { id: req.body.channelId }, select: { ownerId: true } });
+    if (!channel || channel.ownerId !== userId) { res.status(403).json({ success: false, error: 'Channel analytics are only available to the owner' }); return; }
     const trends = await analyticsService.getEngagementTrends(req.body.channelId, req.body.period);
     res.json({ success: true, data: trends });
   } catch (error: any) {
@@ -338,50 +350,55 @@ analyticsRouter.post('/engagement', aiRateLimit('analytics'), async (req: Reques
   }
 });
 
-analyticsRouter.post('/audience', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/audience', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const insights = await analyticsService.getAudienceInsights(req.body.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const insights = await analyticsService.getAudienceInsights(userId);
     res.json({ success: true, data: insights });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/optimal-times', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/optimal-times', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const times = await analyticsService.getOptimalPostingTimes(req.body.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const times = await analyticsService.getOptimalPostingTimes(userId);
     res.json({ success: true, data: times });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/revenue-forecast', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/revenue-forecast', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const forecast = await analyticsService.getRevenueForecasts(req.body.userId, req.body.period);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const forecast = await analyticsService.getRevenueForecasts(userId, req.body.period);
     res.json({ success: true, data: forecast });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/content-performance', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/content-performance', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const summary = await analyticsService.getContentPerformanceSummary(req.body.userId, req.body.period);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const summary = await analyticsService.getContentPerformanceSummary(userId, req.body.period);
     res.json({ success: true, data: summary });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.get('/notifications', async (req: Request, res: Response) => {
+analyticsRouter.get('/notifications', authenticate, validateConsent('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const notifications = await analyticsService.generateSmartNotifications(req.query.userId as string || req.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const notifications = await analyticsService.generateSmartNotifications(userId);
     res.json({ success: true, data: notifications });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -691,7 +708,7 @@ aiRouter.use('/accessibility', accessibilityRouter);
 // ============================================================================
 const fraudRouter = Router();
 
-fraudRouter.post('/detect-fake-account', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-fake-account', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectFakeAccount(req.body.userId, req.body.signupData);
@@ -701,7 +718,7 @@ fraudRouter.post('/detect-fake-account', aiRateLimit('fraud'), async (req: Reque
   }
 });
 
-fraudRouter.post('/detect-fake-followers', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-fake-followers', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectFakeFollowers(req.body.creatorId);
@@ -711,7 +728,7 @@ fraudRouter.post('/detect-fake-followers', aiRateLimit('fraud'), async (req: Req
   }
 });
 
-fraudRouter.post('/detect-takeover', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-takeover', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectAccountTakeover(req.body.userId, req.body.loginContext);
@@ -721,7 +738,7 @@ fraudRouter.post('/detect-takeover', aiRateLimit('fraud'), async (req: Request, 
   }
 });
 
-fraudRouter.post('/detect-gift-abuse', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-gift-abuse', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectGiftAbuse(req.body.userId);
@@ -772,6 +789,7 @@ aiRouter.use('/search', searchRouter);
 // ADMIN AI CONTROLS
 // ============================================================================
 const adminRouter = Router();
+adminRouter.use(authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO));
 
 // Enable/disable AI modules
 adminRouter.post('/modules/:module/toggle', async (req: Request, res: Response) => {
@@ -852,7 +870,8 @@ adminRouter.get('/fraud-alerts', async (req: Request, res: Response) => {
 adminRouter.post('/fraud-alerts/:alertId/resolve', async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const result = await moderationService.resolveFraudAlert(req.params.alertId, req.body.resolvedBy);
+    const resolvedBy = (req as AuthenticatedRequest).user!.userId;
+    const result = await moderationService.resolveFraudAlert(req.params.alertId, resolvedBy);
     res.json({ success: true, data: { resolved: result } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -883,14 +902,16 @@ aiRouter.use('/admin', adminRouter);
 // ============================================================================
 const privacyRouter = Router();
 
-privacyRouter.post('/opt-out', async (req: Request, res: Response) => {
+privacyRouter.post('/opt-out', authenticate, async (req: Request, res: Response) => {
   try {
-    const { userId, optOut } = req.body;
-    const featureKey = `opt_out:${userId || req.userId}`;
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { optOut } = req.body;
+    if (typeof optOut !== 'boolean') { res.status(400).json({ success: false, error: 'optOut must be a boolean' }); return; }
+    const featureKey = `opt_out:${userId}`;
     await prisma.aIFeatureFlag.upsert({
       where: { featureKey },
       update: { enabled: !optOut, userOverride: true },
-      create: { featureKey, featureName: `AI Opt-Out: ${userId || req.userId}`, enabled: !optOut, userOverride: true },
+      create: { featureKey, featureName: `AI Opt-Out: ${userId}`, enabled: !optOut, userOverride: true },
     });
     res.json({ success: true, data: { optedOut: optOut } });
   } catch (error: any) {
@@ -898,25 +919,25 @@ privacyRouter.post('/opt-out', async (req: Request, res: Response) => {
   }
 });
 
-privacyRouter.post('/consent', async (req: Request, res: Response) => {
+privacyRouter.post('/consent', authenticate, async (req: Request, res: Response) => {
   try {
-    const { userId, consentType, granted } = req.body;
-    await prisma.consentRecord.create({
-      data: {
-        userId: userId || req.userId,
-        type: `ai_${consentType}`,
-        granted,
-      },
-    });
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { consentType, granted } = req.body;
+    if (typeof consentType !== 'string' || !['training', 'profiling', 'analytics'].includes(consentType) || typeof granted !== 'boolean') {
+      res.status(400).json({ success: false, error: 'Invalid consent request' });
+      return;
+    }
+    const consentKey = consentType === 'training' ? 'aiFeatures' : consentType === 'profiling' ? 'personalization' : 'analytics';
+    await prisma.consentRecord.create({ data: { userId, type: consentKey, granted, ipAddress: req.ip || null, userAgent: req.headers['user-agent'] || null } });
     res.json({ success: true, data: { consentType, granted } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-privacyRouter.get('/status', async (req: Request, res: Response) => {
+privacyRouter.get('/status', authenticate, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string || req.userId;
+    const userId = (req as AuthenticatedRequest).user!.userId;
     const [optOutFlag, consentRecords] = await Promise.all([
       prisma.aIFeatureFlag.findUnique({ where: { featureKey: `opt_out:${userId}` } }),
       prisma.consentRecord.findMany({ where: { userId } }),

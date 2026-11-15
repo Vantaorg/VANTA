@@ -302,6 +302,7 @@ export class StoryService {
 
   async likeStory(storyId: string, userId: string) {
     const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
     if (story.userId === userId) throw new Error("You cannot like your own story");
     await prisma.storyLike.upsert({
       where: { storyId_userId: { storyId: story.id, userId } },
@@ -323,6 +324,7 @@ export class StoryService {
     if (!text) throw new Error("Comment cannot be empty");
     if (text.length > 1000) throw new Error("Comment is too long");
     const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
 
     // A user may NEVER comment on their own story. Enforced server-side (not
     // just hidden in the UI) so a direct API request cannot create a self
@@ -359,7 +361,35 @@ export class StoryService {
       },
     });
 
-    const storyIds = stories.map((story) => story.id);
+    const ownerIds = [...new Set(stories.map((story) => story.userId))];
+    const ownerSettings = ownerIds.length ? await prisma.userSettings.findMany({
+      where: { userId: { in: ownerIds } },
+      select: { userId: true, storyVisibility: true, privacyStories: true },
+    }) : [];
+    const settingsByOwner = new Map(ownerSettings.map((settings) => [settings.userId, settings]));
+    const restrictedOwnerIds = ownerIds.filter((ownerId) => {
+      const settings = settingsByOwner.get(ownerId);
+      const values = [settings?.storyVisibility, settings?.privacyStories].filter(Boolean);
+      return values.some((value) => value === "followers" || value === "following");
+    });
+    const followedOwners = currentUserId && restrictedOwnerIds.length
+      ? await prisma.follow.findMany({
+          where: { followerId: currentUserId, followingId: { in: restrictedOwnerIds } },
+          select: { followingId: true },
+        })
+      : [];
+    const followedOwnerIds = new Set(followedOwners.map((follow) => follow.followingId));
+    const allowedStories = stories.filter((story) => {
+      if (story.userId === currentUserId) return true;
+      const settings = settingsByOwner.get(story.userId);
+      const values = [settings?.storyVisibility, settings?.privacyStories].filter(Boolean);
+      if (values.some((value) => value === "nobody" || value === "noone")) return false;
+      if (values.some((value) => value === "followers" || value === "following")) {
+        return followedOwnerIds.has(story.userId);
+      }
+      return true;
+    });
+    const storyIds = allowedStories.map((story) => story.id);
     const [viewerCounts, ownViews] = await Promise.all([
       prisma.contentView.groupBy({
         by: ["contentId"],
@@ -375,12 +405,12 @@ export class StoryService {
     const viewedStoryIds = new Set(ownViews.map((item) => item.contentId));
 
     // Engagement stats so the story owner sees real like/reshare/comment counts.
-    const engagement = await this.computeEngagement(stories, currentUserId);
-    const engagementByStory = new Map(stories.map((story) => [story.id, engagement.get(story.id)]));
+    const engagement = await this.computeEngagement(allowedStories, currentUserId);
+    const engagementByStory = new Map(allowedStories.map((story) => [story.id, engagement.get(story.id)]));
 
     // Group by user for Instagram-style display
     const grouped = new Map<string, any>();
-    for (const story of stories) {
+    for (const story of allowedStories) {
       if (!grouped.has(story.userId)) {
         grouped.set(story.userId, {
           user: enrichPublicUser(story.user),
@@ -407,7 +437,8 @@ export class StoryService {
     return Array.from(grouped.values());
   }
 
-  async getStoryById(storyId: string) {
+
+  async getStoryById(storyId: string, viewerId?: string) {
     const story = await prisma.story.findUnique({
       where: { id: storyId, publishStatus: "PUBLISHED" },
       include: {
@@ -415,12 +446,15 @@ export class StoryService {
       },
     });
     if (!story) return story;
+    if (!(await this.canViewStories(story.userId, viewerId))) return null;
     const engagement = await this.computeEngagement([story]);
     const stats = engagement.get(story.id) || { likeCount: 0, reshareCount: 0, commentCount: 0 };
     return { ...story, likeCount: stats.likeCount, reshareCount: stats.reshareCount, commentCount: stats.commentCount };
   }
 
   async viewStory(storyId: string, userId: string) {
+    const story = await this.requireActiveStory(storyId);
+    if (!(await this.canViewStories(story.userId, userId))) throw new Error("Story not found or unavailable");
     return contentViewService.record("STORY", storyId, userId);
   }
 
@@ -452,6 +486,26 @@ export class StoryService {
 
   async getStoryViewers(storyId: string, ownerId: string) {
     return contentViewService.storyViewers(storyId, ownerId);
+  }
+
+  private async canViewStories(ownerId: string, viewerId?: string): Promise<boolean> {
+    if (viewerId && viewerId === ownerId) return true;
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: ownerId },
+      select: { storyVisibility: true, privacyStories: true },
+    });
+    const modes = [settings?.storyVisibility, settings?.privacyStories]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    if (modes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) return false;
+    if (modes.some(mode => mode === "followers" || mode === "following")) {
+      if (!viewerId) return false;
+      const followsOwner = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: viewerId, followingId: ownerId } },
+        select: { id: true },
+      });
+      return Boolean(followsOwner);
+    }
+    return true;
   }
 
   private async requireActiveStory(storyId: string) {

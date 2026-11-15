@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { AuthenticatedRequest, CryptoUtils, SecurityValidator, sessionManager, twoFactorAuth, auditLog, botProtection, GDPRCompliance, config } from '../security';
-import { accountStatusError, signAppealToken } from '../security/accountStatus';
+import { accountStatusError, signAppealToken, isDeactivatedAccountStatus } from '../security/accountStatus';
 import { prisma } from '../prisma';
 import { authService } from '../services/auth.service';
 
@@ -205,9 +205,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (user.status !== 'ACTIVE' && user.status !== 'SUSPENDED') {
-      // DEACTIVATED / LOCKED / unknown states keep the historic behaviour:
-      // valid credentials, but no session is established.
+    if (!['ACTIVE', 'SUSPENDED'].includes(user.status) && !isDeactivatedAccountStatus(user.status)) {
+      // BANNED accounts use a separate appeal token above. LOCKED and
+      // unknown states never receive a session; deactivated accounts receive
+      // a restricted recovery-only session after normal credential checks.
       const accountError = accountStatusError(user.status);
       await auditLog.log({ userId: user.id, action: 'LOGIN_BLOCKED_STATUS', ipAddress: req.ip, userAgent: req.headers['user-agent'], metadata: { status: user.status, code: accountError.code }, severity: 'WARNING' });
       res.status(accountError.status).json({ error: accountError.error, code: accountError.code, accountStatus: user.status });
@@ -345,7 +346,7 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
       });
       return;
     }
-    if (user.status !== 'ACTIVE' && user.status !== 'SUSPENDED') {
+    if (!['ACTIVE', 'SUSPENDED'].includes(user.status) && !isDeactivatedAccountStatus(user.status)) {
       const accountError = accountStatusError(user.status);
       res.status(accountError.status).json({ error: accountError.error, code: accountError.code, accountStatus: user.status });
       return;

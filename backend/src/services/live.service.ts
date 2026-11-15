@@ -27,8 +27,34 @@ export class LiveService {
     return enrichItemAuthors(stream) as T;
   }
 
-  async getActiveStreams(cursor?: string, limit: number = 20) {
-    return cacheService.getOrSet(CACHE_KEYS.LIVE_STREAMS, async () => {
+  private async filterVisibleStreams<T extends { hostId: string }>(streams: Array<T | null>, viewerId?: string): Promise<T[]> {
+    const validStreams = streams.filter((stream): stream is T => Boolean(stream));
+    if (!validStreams.length) return validStreams;
+    const hostIds = [...new Set(validStreams.map(stream => stream.hostId))];
+    const [settings, follows] = await Promise.all([
+      prisma.userSettings.findMany({
+        where: { userId: { in: hostIds } },
+        select: { userId: true, liveStreamVisibility: true, privacyLiveStream: true },
+      }),
+      viewerId ? prisma.follow.findMany({
+        where: { followerId: viewerId, followingId: { in: hostIds } },
+        select: { followingId: true },
+      }) : [],
+    ]);
+    const byHost = new Map(settings.map(item => [item.userId, item]));
+    const followed = new Set(follows.map(item => item.followingId));
+    return validStreams.filter(stream => {
+      if (viewerId && stream.hostId === viewerId) return true;
+      const modes = [byHost.get(stream.hostId)?.liveStreamVisibility, byHost.get(stream.hostId)?.privacyLiveStream]
+        .filter(Boolean).map(value => String(value).toLowerCase());
+      if (modes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) return false;
+      if (modes.some(mode => mode === "followers" || mode === "following")) return Boolean(viewerId && followed.has(stream.hostId));
+      return true;
+    });
+  }
+
+  async getActiveStreams(cursor?: string, limit: number = 20, viewerId?: string) {
+    const result = await cacheService.getOrSet(CACHE_KEYS.LIVE_STREAMS, async () => {
       const queryStart = Date.now();
       
       const streams = await prisma.liveStream.findMany({
@@ -48,10 +74,12 @@ export class LiveService {
       const nextCursor = streams.length > limit ? streams.pop()?.id : undefined;
       return { items: streams.map((s) => this.serializeStream(s)), nextCursor };
     }, CACHE_TTL.SHORT);
+    const visibleItems = await this.filterVisibleStreams(result.items, viewerId);
+    return { ...result, items: visibleItems };
   }
 
-  async getStream(streamId: string) {
-    return cacheService.getOrSet(CACHE_KEYS.LIVE_STREAM(streamId), async () => {
+  async getStream(streamId: string, viewerId?: string) {
+    const stream = await cacheService.getOrSet(CACHE_KEYS.LIVE_STREAM(streamId), async () => {
       const queryStart = Date.now();
       
       const stream = await prisma.liveStream.findUnique({
@@ -68,6 +96,9 @@ export class LiveService {
       
       return this.serializeStream(stream);
     }, CACHE_TTL.SHORT);
+    if (!stream) return null;
+    const [visible] = await this.filterVisibleStreams([stream], viewerId);
+    return visible || null;
   }
 
   async startStream(
@@ -597,7 +628,7 @@ export class LiveService {
     }, CACHE_TTL.MEDIUM);
   }
 
-  async getDiscoveryStreams(limit: number = 20, category?: string, search?: string, sort: string = 'trending', cursor?: string) {
+  async getDiscoveryStreams(limit: number = 20, category?: string, search?: string, sort: string = 'trending', cursor?: string, viewerId?: string) {
     const where: any = { active: true, status: 'LIVE' };
     if (category && category !== 'all') {
       where.categoryName = category;
@@ -629,7 +660,8 @@ export class LiveService {
     });
 
     const nextCursor = streams.length > limit ? streams.pop()?.id : undefined;
-    return { items: streams.map((s) => this.serializeStream(s)), nextCursor };
+    const visibleStreams = await this.filterVisibleStreams(streams, viewerId);
+    return { items: visibleStreams.map((s) => this.serializeStream(s)), nextCursor };
   }
 
   async updateStream(streamId: string, hostId: string, input: Record<string, unknown>) {
@@ -887,7 +919,7 @@ export class LiveService {
     return updated;
   }
 
-  async getTrendingStreams(limit: number = 10) {
+  async getTrendingStreams(limit: number = 10, viewerId?: string) {
     const streams = await prisma.liveStream.findMany({
       where: { active: true, status: 'LIVE' },
       orderBy: [
@@ -902,7 +934,29 @@ export class LiveService {
         _count: { select: { viewers: true, giftEvents: true } },
       },
     });
-    return streams.map((s) => this.serializeStream(s));
+    const hostIds = [...new Set(streams.map(stream => stream.hostId))];
+    const [settings, follows] = await Promise.all([
+      hostIds.length ? prisma.userSettings.findMany({
+        where: { userId: { in: hostIds } },
+        select: { userId: true, liveStreamVisibility: true, privacyLiveStream: true },
+      }) : [],
+      viewerId && hostIds.length ? prisma.follow.findMany({
+        where: { followerId: viewerId, followingId: { in: hostIds } },
+        select: { followingId: true },
+      }) : [],
+    ]);
+    const settingsByHost = new Map(settings.map(item => [item.userId, item]));
+    const followedHostIds = new Set(follows.map(item => item.followingId));
+    const visibleStreams = streams.filter(stream => {
+      if (viewerId && stream.hostId === viewerId) return true;
+      const prefs = settingsByHost.get(stream.hostId);
+      const modes = [prefs?.liveStreamVisibility, prefs?.privacyLiveStream]
+        .filter(Boolean).map(value => String(value).toLowerCase());
+      if (modes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) return false;
+      if (modes.some(mode => mode === "followers" || mode === "following")) return Boolean(viewerId && followedHostIds.has(stream.hostId));
+      return true;
+    });
+    return visibleStreams.map((stream) => this.serializeStream(stream));
   }
 
   async getRecentlyEnded(limit: number = 10) {

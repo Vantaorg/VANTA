@@ -37,6 +37,20 @@ interface StartCallInput {
 
 export class CallSessionService {
   async startCall(input: StartCallInput) {
+    if (input.callerId === input.calleeId) throw new Error("You cannot call yourself");
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: input.calleeId },
+      select: { callPermissions: true, privacyCalls: true },
+    });
+    const permissionValues = [settings?.callPermissions, settings?.privacyCalls].filter(Boolean);
+    if (permissionValues.some((value) => value === "nobody" || value === "noone")) throw new Error("This user is not accepting calls");
+    if (permissionValues.some((value) => value === "followers" || value === "following")) {
+      const followsCallee = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: input.callerId, followingId: input.calleeId } },
+        select: { id: true },
+      });
+      if (!followsCallee) throw new Error("This user only accepts calls from followers");
+    }
     const expiresAt = new Date(Date.now() + CALL_RING_TIMEOUT_MS);
     const session = await prisma.callSession.upsert({
       where: { callId: input.callId },

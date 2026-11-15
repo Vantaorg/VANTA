@@ -35,8 +35,8 @@ export interface AuthResponse extends ApiResponse {
   refreshToken?: string;
   user?: AuthUser;
   expiresIn?: number;
-  // Account status after login (ACTIVE / SUSPENDED); suspended users receive a
-  // restricted session and the client routes them to /account/suspended.
+  // Account status after login. Deactivated users receive recovery-only sessions;
+  // the client routes them to /account/deactivated.
   accountStatus?: string;
   // Short-lived, narrowly-scoped appeal token for banned accounts. No session
   // is established; the banned screen uses this token only for appeal

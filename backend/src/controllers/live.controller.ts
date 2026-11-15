@@ -15,11 +15,11 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-export const getActiveStreams = async (req: Request, res: Response): Promise<void> => {
+export const getActiveStreams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const cursor = req.query.cursor as string | undefined;
     const limit = parseInt(req.query.limit as string) || 20;
-    const streams = await liveService.getActiveStreams(cursor, limit);
+    const streams = await liveService.getActiveStreams(cursor, limit, req.user?.userId);
     res.status(200).json(streams);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -27,14 +27,14 @@ export const getActiveStreams = async (req: Request, res: Response): Promise<voi
   }
 };
 
-export const getDiscoveryStreams = async (req: Request, res: Response): Promise<void> => {
+export const getDiscoveryStreams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
     const sort = req.query.sort as string | undefined;
     const cursor = req.query.cursor as string | undefined;
-    const result = await liveService.getDiscoveryStreams(Math.min(Math.max(limit, 1), 50), category, search, sort, cursor);
+    const result = await liveService.getDiscoveryStreams(Math.min(Math.max(limit, 1), 50), category, search, sort, cursor, req.user?.userId);
     res.status(200).json({ streams: result.items, nextCursor: result.nextCursor });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -80,10 +80,10 @@ export const getFollowingStreams = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-export const getStream = async (req: Request, res: Response): Promise<void> => {
+export const getStream = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const streamId = getParamString(req.params.streamId);
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, req.user?.userId);
     res.status(200).json(stream);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -207,7 +207,8 @@ export const followStreamer = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, followerId);
+    if (!stream) { res.status(404).json({ error: 'Stream not found' }); return; }
     const follow = await liveService.followStreamer(stream.hostId, followerId);
     res.status(200).json({ follow });
   } catch (error) {
@@ -347,10 +348,10 @@ export const likeStream = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const getTrendingStreams = async (req: Request, res: Response): Promise<void> => {
+export const getTrendingStreams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
-    const streams = await liveService.getTrendingStreams(Math.min(Math.max(limit, 1), 50));
+    const streams = await liveService.getTrendingStreams(Math.min(Math.max(limit, 1), 50), req.user?.userId);
     res.status(200).json({ streams });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -516,7 +517,7 @@ export const getGuestToken = async (req: AuthRequest, res: Response): Promise<vo
       res.status(403).json({ error: 'You are not an approved guest on this stage' });
       return;
     }
-    const stream = await liveService.getStream(streamId);
+    const stream = await liveService.getStream(streamId, userId);
     if (!stream?.liveKitRoom) {
       res.status(400).json({ error: 'Stream has no live room' });
       return;

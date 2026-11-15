@@ -37,6 +37,10 @@ export class SearchService {
                   { fullName: { contains: userQuery } },
                 ],
             status: "ACTIVE",
+            OR: [
+              { userSettings: null },
+              { userSettings: { is: { profileSearchVisibility: true, searchVisibility: true, discoverability: true } } },
+            ],
           },
           orderBy: { username: "asc" },
           select: {

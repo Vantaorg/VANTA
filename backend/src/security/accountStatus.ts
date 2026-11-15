@@ -35,10 +35,16 @@ const STATUS_ERROR_BODIES: Record<string, AccountStatusErrorBody> = {
   SUSPENDED: { status: 403, error: 'Account suspended', code: 'ACCOUNT_SUSPENDED' },
   BANNED: { status: 403, error: 'Account banned', code: 'ACCOUNT_BANNED' },
   DEACTIVATED: { status: 403, error: 'Account deactivated', code: 'ACCOUNT_DEACTIVATED' },
+  SCHEDULED_FOR_DELETION: { status: 403, error: 'Account scheduled for deletion', code: 'ACCOUNT_DEACTIVATED' },
   LOCKED: { status: 423, error: 'Account locked', code: 'ACCOUNT_LOCKED' },
 };
 
 /** HTTP status + error + machine-readable code for a restricted account. */
+/** True for account states that may only enter the recovery allowlist. */
+export function isDeactivatedAccountStatus(status: string): boolean {
+  return status === 'DEACTIVATED' || status === 'SCHEDULED_FOR_DELETION';
+}
+
 export function accountStatusError(status: string): AccountStatusErrorBody {
   return STATUS_ERROR_BODIES[status] || {
     status: 403,
@@ -85,6 +91,30 @@ function normalizeRequestPath(path: string): string {
  * default: anything not explicitly allowlisted is a restricted mutation or
  * protected resource and must be rejected.
  */
+// ----------------------------------------------------------------------------
+// Deactivated-account recovery allowlist
+// ----------------------------------------------------------------------------
+// Deactivation intentionally blocks normal application use, but must not
+// strand an authenticated owner outside the recovery endpoints. Keep this
+// allowlist separate from the suspended-account routes and deny by default.
+// ----------------------------------------------------------------------------
+const DEACTIVATED_ALLOWED_ROUTES: readonly string[] = [
+  'GET /api/auth/me',
+  'POST /api/auth/logout',
+  'GET /api/compliance/account/deactivation-status',
+  'POST /api/compliance/account/cancel-deletion',
+  'POST /api/compliance/account/recover',
+];
+
+export function isDeactivatedAllowedRequest(method: string, path: string): boolean {
+  const normalizedMethod = (method || 'GET').toUpperCase();
+  const normalizedPath = normalizeRequestPath(path);
+  return DEACTIVATED_ALLOWED_ROUTES.some((route) => {
+    const [routeMethod, routePath] = route.split(' ');
+    return routeMethod === normalizedMethod && normalizedPath === routePath;
+  });
+}
+
 export function isSuspendedAllowedRequest(method: string, path: string): boolean {
   const normalizedMethod = (method || 'GET').toUpperCase();
   const normalizedPath = normalizeRequestPath(path);

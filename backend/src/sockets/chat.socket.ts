@@ -17,6 +17,50 @@ function removeConnection(userId: string, socketId: string) {
   return presenceRegistry.removeConnection(userId, socketId);
 }
 
+/** Broadcast presence only to the audience allowed by the account owner's privacy settings. */
+async function emitPresenceToAudience(
+  io: Server,
+  userId: string,
+  mode: unknown,
+  event: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const visibility = String(mode || 'everyone').toLowerCase();
+  if (visibility === 'nobody' || visibility === 'noone' || visibility === 'none') return;
+  if (visibility === 'followers' || visibility === 'following') {
+    const followers = await prisma.follow.findMany({
+      where: { followingId: userId },
+      select: { followerId: true },
+    });
+    const rooms = [...new Set(followers.map(item => item.followerId))].map(id => `user_${id}`);
+    if (rooms.length) io.to(rooms).emit(event, payload);
+    return;
+  }
+  io.emit(event, payload);
+}
+
+async function broadcastPresenceChange(io: Server, userId: string, isOnline: boolean, lastActive: Date): Promise<void> {
+  try {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { onlineStatus: true, lastSeen: true },
+    });
+    await emitPresenceToAudience(io, userId, settings?.onlineStatus, 'user_status', {
+      userId, status: isOnline ? 'online' : 'offline',
+    });
+    await emitPresenceToAudience(io, userId, settings?.onlineStatus, 'presence:changed', {
+      userId, isOnline,
+    });
+    await emitPresenceToAudience(io, userId, settings?.lastSeen, 'presence:changed', {
+      userId, lastActive,
+    });
+  } catch (error) {
+    // Fail closed: a database/settings lookup failure must not turn a private
+    // presence event into a global broadcast.
+    console.error('[chat] presence privacy broadcast failed:', error);
+  }
+}
+
 /**
  * Resolve the OTHER participant id of a private 1-to-1 conversation, or null
  * when the conversation is missing, the caller is not a participant, or the
@@ -91,8 +135,7 @@ export const handleChatSocket = (io: Server) => {
     if (connectionCount === 1) {
       const lastActive = new Date();
       await prisma.userPresence.upsert({ where: { userId }, update: { isOnline: true, lastActive }, create: { userId, isOnline: true, lastActive } }).catch(() => undefined);
-      io.emit('user_status', { userId, status: 'online' });
-      io.emit('presence:changed', { userId, isOnline: true, lastActive });
+      await broadcastPresenceChange(io, userId, true, lastActive);
     }
 
     socket.on('join_conversation', async (conversationId: string) => {
@@ -343,8 +386,7 @@ export const handleChatSocket = (io: Server) => {
       if (removeConnection(userId, socket.id) > 0) return;
       const lastActive = new Date();
       await prisma.userPresence.upsert({ where: { userId }, update: { isOnline: false, lastActive }, create: { userId, isOnline: false, lastActive } }).catch(() => undefined);
-      io.emit('user_status', { userId, status: 'offline' });
-      io.emit('presence:changed', { userId, isOnline: false, lastActive });
+      await broadcastPresenceChange(io, userId, false, lastActive);
     });
   });
 };

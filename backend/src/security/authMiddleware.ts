@@ -9,7 +9,7 @@ import { config } from './config';
 import { auditLog } from './auditLog';
 import { Role, Permission, hasPermission, parseRole } from './rbac';
 import { botProtection } from './botProtection';
-import { accountStatusError, isSuspendedAllowedRequest } from './accountStatus';
+import { accountStatusError, isSuspendedAllowedRequest, isDeactivatedAllowedRequest, isDeactivatedAccountStatus } from './accountStatus';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -85,10 +85,14 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       // dedicated suspended screen, appeal flow and sign-out keep working.
       // Everything else is denied here, server-side — a suspended user can
       // never bypass restrictions by calling APIs directly.
-      if (
-        user.status === 'SUSPENDED' &&
-        isSuspendedAllowedRequest(req.method || 'GET', req.originalUrl || req.url || req.path)
-      ) {
+      const requestMethod = req.method || 'GET';
+      const requestPath = req.originalUrl || req.url || req.path;
+      const allowedRestrictedRequest =
+        (user.status === 'SUSPENDED' && isSuspendedAllowedRequest(requestMethod, requestPath)) ||
+        (isDeactivatedAccountStatus(user.status) &&
+          isDeactivatedAllowedRequest(requestMethod, requestPath));
+
+      if (allowedRestrictedRequest) {
         await prisma.session.update({
           where: { id: session.id },
           data: { lastActiveAt: new Date() },
@@ -101,7 +105,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
           adminTwoFactorVerifiedAt: session.adminTwoFactorVerifiedAt,
         };
         req.token = token;
-        req.accountRestricted = 'SUSPENDED';
+        if (user.status === 'SUSPENDED') req.accountRestricted = 'SUSPENDED';
         next();
         return;
       }

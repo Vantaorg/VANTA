@@ -25,6 +25,28 @@ export class GroupService {
     return { ...group, permissions };
   }
 
+  /** Enforce the invitee's privacy settings for every group-add path, including bulk creation. */
+  private async assertCanInviteToGroup(targetUserId: string, requesterId: string): Promise<void> {
+    const inviteSettings = await prisma.userSettings.findUnique({
+      where: { userId: targetUserId },
+      select: { groupInvites: true, privacyInvites: true },
+    });
+    const inviteModes = [inviteSettings?.groupInvites, inviteSettings?.privacyInvites]
+      .filter(Boolean).map(value => String(value).toLowerCase());
+    if (inviteModes.some(mode => mode === "nobody" || mode === "noone" || mode === "none")) {
+      throw new Error("This user is not accepting group invitations");
+    }
+    if (inviteModes.some(mode => mode === "followers" || mode === "following")) {
+      const targetFollowsRequester = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: requesterId, followingId: targetUserId } },
+        select: { id: true },
+      });
+      if (!targetFollowsRequester) {
+        throw new Error("This user only accepts group invitations from accounts they follow");
+      }
+    }
+  }
+
   async createGroup(ownerId: string, name: string, description?: string, memberIds?: string[], avatar?: string, autoDeleteSeconds?: number) {
     const requestedMemberIds = [...new Set((memberIds || []).filter(id => typeof id === "string" && id !== ownerId))];
     if (requestedMemberIds.length) {
@@ -32,6 +54,7 @@ export class GroupService {
       const allowedFollowers = new Set(followerRows.map(row => row.followerId));
       if (requestedMemberIds.some(id => !allowedFollowers.has(id))) throw new Error("Groups can only be created with people who follow you on VANTA");
     }
+    await Promise.all(requestedMemberIds.map(userId => this.assertCanInviteToGroup(userId, ownerId)));
     const retention = Number(autoDeleteSeconds || 0);
     if (!Number.isInteger(retention) || retention < 0 || retention > 31536000) throw new Error("Invalid group auto-delete duration");
     const allMemberIds = [ownerId, ...requestedMemberIds];
@@ -292,6 +315,10 @@ export class GroupService {
       where: { groupId_userId: { groupId, userId } },
     });
     if (existing) throw new Error("Already a member");
+
+    // Group additions are invitations, so the target's privacy preference is
+    // checked even when the requester is an owner or administrator.
+    await this.assertCanInviteToGroup(userId, requesterId);
 
     const added = await prisma.groupMember.create({
       data: { groupId, userId },

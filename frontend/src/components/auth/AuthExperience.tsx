@@ -246,6 +246,10 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       await login(response.user, response.token, response.refreshToken);
       // A suspended account signs in successfully into a restricted session —
       // take it to the dedicated suspended screen, not the normal app shell.
+      if (!register && ['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(response.user.status || (response as any).accountStatus || '')) {
+        router.replace('/account/deactivated');
+        return;
+      }
       if (!register && (response.user.status === 'SUSPENDED' || (response as any).accountStatus === 'SUSPENDED')) {
         router.replace('/account/suspended');
         return;
@@ -277,6 +281,10 @@ useEffect(() => { if (!isLoading && token) router.replace(destination); }, [isLo
       const response = await authComplete2FALogin(twoFactorUserId, twoFactorChallenge, twoFactorCode.trim());
       if (!response.user || !response.token) throw new Error('Invalid authentication response');
       await login(response.user, response.token, response.refreshToken);
+      if (['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(response.user.status || (response as any).accountStatus || '')) {
+        router.replace('/account/deactivated');
+        return;
+      }
       if (response.user.status === 'SUSPENDED' || (response as any).accountStatus === 'SUSPENDED') {
         router.replace('/account/suspended');
         return;

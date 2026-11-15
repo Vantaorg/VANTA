@@ -28,6 +28,8 @@ jest.mock('../prisma', () => {
         aggregate: jest.fn(),
       },
       user: { findUnique: jest.fn() },
+      userSettings: { findMany: jest.fn() },
+      follow: { findMany: jest.fn() },
       streamCategory: {
         upsert: jest.fn(),
         findMany: jest.fn(),
@@ -108,6 +110,8 @@ describe('LiveService', () => {
       },
     }));
     (prisma.liveStream.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.follow.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.streamFollower.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.streamCategory.upsert as jest.Mock).mockResolvedValue({
       id: 'cat1',
@@ -149,6 +153,32 @@ describe('LiveService', () => {
   });
 
   describe('getActiveStreams', () => {
+    test('hides active streams when the host disables live-stream visibility', async () => {
+      (prisma.liveStream.findMany as jest.Mock).mockResolvedValue([mockStream]);
+      (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
+        { userId: 'host1', liveStreamVisibility: 'nobody', privacyLiveStream: 'public' },
+      ]);
+      const result = await liveService.getActiveStreams(undefined, 10, 'viewer1');
+      expect(result.items).toHaveLength(0);
+    });
+
+    test('hides a direct stream lookup from viewers excluded by host privacy', async () => {
+      (prisma.liveStream.findUnique as jest.Mock).mockResolvedValue(mockStream);
+      (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
+        { userId: 'host1', liveStreamVisibility: 'nobody', privacyLiveStream: 'public' },
+      ]);
+      await expect(liveService.getStream('stream-private', 'viewer1')).resolves.toBeNull();
+    });
+
+    test('allows a followed viewer to open a followers-only stream', async () => {
+      (prisma.liveStream.findUnique as jest.Mock).mockResolvedValue(mockStream);
+      (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
+        { userId: 'host1', liveStreamVisibility: 'followers', privacyLiveStream: 'public' },
+      ]);
+      (prisma.follow.findMany as jest.Mock).mockResolvedValue([{ followingId: 'host1' }]);
+      await expect(liveService.getStream('stream-followers', 'viewer1')).resolves.toMatchObject({ id: 'stream1' });
+    });
+
     test('should return active streams', async () => {
       (prisma.liveStream.findMany as jest.Mock).mockResolvedValue([mockStream]);
 

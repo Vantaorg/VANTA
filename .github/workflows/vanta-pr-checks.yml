@@ -42,6 +42,16 @@ jobs:
           node-version: 22
       - name: Install backend dependencies
         run: npm --prefix backend install
+      - name: Validate active Prisma schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+        run: npx prisma validate
+      - name: Generate Prisma Client from active schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+        run: npx prisma generate
       - name: Run targeted backend security regression tests
         env:
           DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
@@ -76,5 +86,11 @@ jobs:
           src/__tests__/security.audit-log-hash.test.ts
           src/__tests__/wallet.service.test.ts
           src/__tests__/admin.finance-currency.test.ts
+          src/__tests__/account-status.test.ts
+          src/__tests__/call-session.service.test.ts
+          src/__tests__/story.service.test.ts
+          src/__tests__/live.service.test.ts
+          src/__tests__/compliance.active-schema.test.ts
+          src/ai/__tests__/privacy.middleware.test.ts
       - name: Build backend
         run: npm --prefix backend run build

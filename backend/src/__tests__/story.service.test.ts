@@ -1,6 +1,28 @@
+describe('StoryService privacy enforcement', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (db.story.findUnique as jest.Mock).mockResolvedValue({
+      id: 'story-1', userId: 'owner-1', expiresAt: new Date(Date.now() + 60_000), publishStatus: 'PUBLISHED',
+    });
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ storyVisibility: 'followers', privacyStories: 'public' });
+  });
+
+  it('requires the viewer to follow the story owner before liking', async () => {
+    (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
+    await expect(service.likeStory('story-1', 'viewer-1')).rejects.toThrow('Story not found or unavailable');
+  });
+
+  it('requires the viewer to follow the story owner before commenting', async () => {
+    (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
+    await expect(service.addComment('story-1', 'viewer-1', 'hello')).rejects.toThrow('Story not found or unavailable');
+  });
+});
+
 jest.mock('../prisma', () => ({ prisma: {
   story: { create: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   user: { findUnique: jest.fn() },
+  userSettings: { findUnique: jest.fn() },
+  follow: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 } }));
 
