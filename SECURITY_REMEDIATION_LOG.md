@@ -69,6 +69,18 @@ Legend — Status: **FIXED** / **PARTIAL** / **OPEN** — Verification: **PASS**
 | Regression tests | — |
 | Verification | **MANUAL** (source) — logic reordering verified by code review; existing `auth.service.test.ts`/`security.session-manager.test.ts` still green |
 
+## VANTA-007 — Public analytics telemetry accepted spoofed identity
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Status | FIXED |
+| Affected files | `backend/src/routes/analytics.routes.ts`, `backend/src/controllers/analytics.controller.ts` |
+| Root cause | Public `/track` and `/track/batch` accepted client-controlled `userId` and `sessionId` values despite payload size validation. |
+| Fix | Apply canonical optional session authentication; override payload identity with the verified session identity; preserve anonymous telemetry without an attributed user; reject invalid bearer tokens. |
+| Regression tests | `backend/src/__tests__/security.analytics-identity.test.ts` |
+| Verification | Pending CI. |
+
 ## VANTA-006 — Password change did not revoke other sessions
 
 | Field | Value |
