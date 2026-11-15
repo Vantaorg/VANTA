@@ -372,6 +372,7 @@ class ComplianceService {
       archive.pipe(output);
 
       // Add JSON data files
+      archive.append(JSON.stringify({ platform: exportData.platform, exportedAt: exportData.exportedAt }, null, 2), { name: 'export_metadata.json' });
       archive.append(JSON.stringify(exportData.account, null, 2), { name: 'account.json' });
       archive.append(JSON.stringify(exportData.profile, null, 2), { name: 'profile.json' });
       archive.append(JSON.stringify(exportData.photos, null, 2), { name: 'photos.json' });
