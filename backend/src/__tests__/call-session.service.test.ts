@@ -8,6 +8,8 @@ import { prisma } from "../prisma";
 
 jest.mock("../prisma", () => ({
   prisma: {
+    userSettings: { findUnique: jest.fn() },
+    follow: { findUnique: jest.fn() },
     callSession: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
@@ -40,7 +42,10 @@ const ring = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("CallSessionService", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ callPermissions: "everyone", privacyCalls: "everyone" });
+  });
 
   test("startCall persists a RINGING session with an expiry", async () => {
     (prisma.callSession.upsert as jest.Mock).mockResolvedValue(ring());
@@ -56,6 +61,28 @@ describe("CallSessionService", () => {
     const options = (prisma.callSession.upsert as jest.Mock).mock.calls[0][0];
     expect(options.create.calleeId).toBe("bob");
     expect(options.create.offerSdp).toBe("v=0...offer");
+  });
+
+  test("startCall blocks recipients who disabled calls", async () => {
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ callPermissions: "nobody", privacyCalls: "nobody" });
+    await expect(service.startCall({
+      callId: "call-private", conversationId: "conv-1", callerId: "alice", calleeId: "bob", type: "voice",
+    })).rejects.toThrow("This user is not accepting calls");
+    expect(prisma.callSession.upsert).not.toHaveBeenCalled();
+  });
+
+  test("startCall allows follower-only calls only from an existing follower", async () => {
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ callPermissions: "followers", privacyCalls: "followers" });
+    (prisma.follow.findUnique as jest.Mock).mockResolvedValue(null);
+    await expect(service.startCall({
+      callId: "call-private", conversationId: "conv-1", callerId: "alice", calleeId: "bob", type: "voice",
+    })).rejects.toThrow("This user only accepts calls from followers");
+    expect(prisma.callSession.upsert).not.toHaveBeenCalled();
+    (prisma.follow.findUnique as jest.Mock).mockResolvedValue({ id: "follow-1" });
+    (prisma.callSession.upsert as jest.Mock).mockResolvedValue(ring());
+    await expect(service.startCall({
+      callId: "call-allowed", conversationId: "conv-1", callerId: "alice", calleeId: "bob", type: "voice",
+    })).resolves.toBeDefined();
   });
 
   test("getCallForAnswer authorizes only the callee", async () => {
