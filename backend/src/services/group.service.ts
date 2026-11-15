@@ -37,12 +37,12 @@ export class GroupService {
       throw new Error("This user is not accepting group invitations");
     }
     if (inviteModes.some(mode => mode === "followers" || mode === "following")) {
-      const targetFollowsRequester = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: targetUserId, followingId: requesterId } },
+      const requesterFollowsTarget = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: requesterId, followingId: targetUserId } },
         select: { id: true },
       });
-      if (!targetFollowsRequester) {
-        throw new Error("This user only accepts group invitations from accounts they follow");
+      if (!requesterFollowsTarget) {
+        throw new Error("This user only accepts group invitations from their followers");
       }
     }
   }
