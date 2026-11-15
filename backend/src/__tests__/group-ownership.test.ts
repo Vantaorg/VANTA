@@ -9,9 +9,11 @@ jest.mock('../prisma', () => ({ prisma: {
   $transaction: jest.fn(),
 } }));
 jest.mock('../security/auditLog', () => ({ auditLog: { log: jest.fn().mockResolvedValue(undefined) } }));
+jest.mock('../services/chat.service', () => ({ chatService: { getMessages: jest.fn(), sendMessage: jest.fn() } }));
 
 import { prisma } from '../prisma';
 import { GroupService } from '../services/group.service';
+import { chatService } from '../services/chat.service';
 
 const db = prisma as jest.Mocked<typeof prisma>;
 const service = new GroupService();
@@ -118,7 +120,7 @@ describe('GroupService member permissions', () => {
     (db.follow.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(service.addMember('group-1', 'invitee-1', 'owner-1')).rejects.toThrow(
-      'This user only accepts group invitations from accounts they follow'
+      'This user only accepts group invitations from their followers'
     );
     expect(db.follow.findUnique).toHaveBeenCalledWith({
       where: { followerId_followingId: { followerId: 'owner-1', followingId: 'invitee-1' } },
@@ -127,7 +129,7 @@ describe('GroupService member permissions', () => {
     expect(db.groupMember.create).not.toHaveBeenCalled();
   });
 
-  it('allows a group invitation from one of the invitee's followers', async () => {
+  it("allows a group invitation from one of the invitee's followers", async () => {
     (db.group.findUnique as jest.Mock).mockResolvedValue({ id: 'group-1', ownerId: 'owner-1', conversationId: 'conversation-1' });
     (db.groupMember.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'req', role: 'ADMIN', userId: 'owner-1' })
@@ -161,7 +163,13 @@ describe('GroupService member permissions', () => {
 });
 
 describe('GroupService message access', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (db.$transaction as jest.Mock).mockImplementation((callback: any) => callback(db));
+    (db.group.findUnique as jest.Mock).mockResolvedValue(makeGroup());
+    (db.groupMessage.findMany as jest.Mock).mockResolvedValue([]);
+    (chatService.getMessages as jest.Mock).mockResolvedValue({ items: [] });
+  });
 
   it('rejects reading messages for non-members', async () => {
     (db.groupMember.findUnique as jest.Mock).mockResolvedValue(null);
@@ -176,6 +184,6 @@ describe('GroupService message access', () => {
     (db.groupMessage.findMany as jest.Mock).mockResolvedValue([]);
     const result = await service.getMessages('group-1', 'member-1', undefined, 20);
     expect(result.items).toEqual([]);
-    expect(db.groupMessage.findMany).toHaveBeenCalledTimes(1);
+    expect(chatService.getMessages).toHaveBeenCalledWith('conversation-1', 'member-1', 20, undefined);
   });
 });

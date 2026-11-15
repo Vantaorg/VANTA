@@ -32,7 +32,7 @@ describe('private message media access tokens', () => {
   });
 
   test('blocks private message files from the public /uploads path', async () => {
-    (prisma.uploadedFile.findFirst as jest.Mock).mockResolvedValue({ id: 'private-file' });
+    (prisma.uploadedFile.findFirst as jest.Mock).mockResolvedValue({ id: 'private-file', category: 'message', deletedAt: null });
     const next = jest.fn();
     const res = response();
     await privateMediaStaticGuard({ path: '/secret.jpg' } as any, res, next);

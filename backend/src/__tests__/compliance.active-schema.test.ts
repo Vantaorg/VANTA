@@ -398,7 +398,8 @@ describe('copyright claim enforcement', () => {
     await expect(complianceService.processCopyrightClaim('claim-1', 'admin-1', 'remove', 'copyright confirmed')).resolves.toMatchObject({ status: 'ACTIONED' });
     expect(removeModeratedContent).toHaveBeenCalledWith(tx, 'POST', 'post-1');
     expect(tx.copyrightClaim.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'claim-1' }, data: expect.objectContaining({ status: 'ACTIONED', actionTaken: 'CONTENT_REMOVED' }) }));
-    expect(uploadService.deleteFile).toHaveBeenCalledWith('media.jpg', 'file-1');
+    expect(uploadService.quarantineModeratedFile).toHaveBeenCalledWith('file-1');
+    expect(uploadService.deleteFile).not.toHaveBeenCalled();
     expect(cacheService.delPattern).toHaveBeenCalledWith('feed:*');
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'COPYRIGHT_CLAIM_PROCESSED' }));
   });
