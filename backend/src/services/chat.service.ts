@@ -58,7 +58,7 @@ async function assertDirectMessageAllowed(senderId: string, recipientId: string)
     throw new Error("This account is not accepting messages");
   }
   if (privacyMessages === "following") {
-    // Only accounts the recipient follows may message them.
+    // Legacy setting: only accounts the recipient follows may message them.
     const recipientFollowsSender = await prisma.follow.findUnique({
       where: {
         followerId_followingId: {
@@ -70,6 +70,21 @@ async function assertDirectMessageAllowed(senderId: string, recipientId: string)
     });
     if (!recipientFollowsSender) {
       throw new Error("This account only accepts messages from accounts it follows");
+    }
+  }
+  if (privacyMessages === "followers") {
+    // Privacy Center setting: only the recipient's followers may message them.
+    const senderFollowsRecipient = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: senderId,
+          followingId: recipientId,
+        },
+      },
+      select: { id: true },
+    });
+    if (!senderFollowsRecipient) {
+      throw new Error("This account only accepts messages from its followers");
     }
   }
 }
