@@ -25,7 +25,12 @@ class ComplianceService {
       }
     });
     const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*', 'search:*', 'reels:*', 'profile:*', 'user:*', 'post:*', 'video:*', 'story:*'].map((pattern) => cacheService.delPattern(pattern)));
-    cacheResults.forEach((result) => { if (result.status === 'rejected') console.error(`[Compliance] ${source} cache purge failed:`, result.reason); });
+    cacheResults.forEach((result) => {
+      if (result.status === 'rejected' || result.value === false) {
+        succeeded = false;
+        console.error(`[Compliance] ${source} cache purge failed:`, result.status === 'rejected' ? result.reason : 'cache adapter returned false');
+      }
+    });
     return succeeded;
   }
 
