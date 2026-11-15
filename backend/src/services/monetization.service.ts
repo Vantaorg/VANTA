@@ -9,6 +9,10 @@ import {
   getCoinPaymentMode,
 } from '../config/coin-payments.config';
 
+// Subscription revenue split. Gift cash earnings use the separate explicit
+// 2-cent-per-3-eligible-coins rule in wallet.config.ts.
+const REVENUE_SPLIT = Object.freeze({ CREATOR: 0.7, PLATFORM: 0.3 });
+
 // Gift combo configuration
 const COMBO_TIMEOUT_MS = 10000; // 10 seconds to combo
 const COMBO_MULTIPLIERS: Record<number, number> = {
