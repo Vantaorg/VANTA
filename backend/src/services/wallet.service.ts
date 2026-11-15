@@ -1610,14 +1610,20 @@ export class WalletService {
       return { withdrawal, updatedWallet };
     });
 
-    // Send notification (outside transaction)
-    await notificationService.createNotification(
-      userId,
-      "WALLET_WITHDRAWAL",
-      "Withdrawal Requested",
-      `Your withdrawal of $${amount.toFixed(2)} (net $${netAmount.toFixed(2)}) is being processed.`,
-      { withdrawalId: result.withdrawal.id, amount, fee, netAmount }
-    );
+    // The withdrawal and ledger are already committed. Notification delivery is
+    // best-effort and must not make a successful reservation look like a failed
+    // request (which could prompt the client to retry).
+    try {
+      await notificationService.createNotification(
+        userId,
+        "WALLET_WITHDRAWAL",
+        "Withdrawal Requested",
+        `Your withdrawal of ${amount.toFixed(2)} (net ${netAmount.toFixed(2)}) is being processed.`,
+        { withdrawalId: result.withdrawal.id, amount, fee, netAmount }
+      );
+    } catch (notificationError) {
+      console.error("[WALLET] withdrawal request committed; notification failed:", notificationError);
+    }
 
     return result.withdrawal;
   }
@@ -1903,7 +1909,7 @@ export class WalletService {
         deposits: ["DEPOSIT", "PURCHASE"],
         transfers: ["TRANSFER_SENT", "TRANSFER_RECEIVED"],
         gifts: ["GIFT_SENT", "GIFT_RECEIVED"],
-        earnings: ["GIFT_RECEIVED", "CREATOR_EARNING"],
+        earnings: ["CREATOR_EARNING"],
         purchases: ["PURCHASE", "DEPOSIT"],
         withdrawals: ["WITHDRAWAL"],
         refunds: ["REFUND"],
@@ -2261,16 +2267,22 @@ export class WalletService {
     ledgerBalance: number;
     difference: number;
     logId: string;
+    earningsStatus: 'MATCH' | 'DISCREPANCY';
+    storedEarningsBalance: number;
+    ledgerEarningsBalance: number;
+    earningsDifference: number;
+    earningsLogId: string;
   }> {
     const wallet = await this.ensureWallet(userId);
     const txns = await prisma.walletTransaction.findMany({
-      where: { userId, currency: "VANTA" },
-      select: { type: true, amount: true, currency: true, metadata: true },
+      where: { userId, currency: { in: ["VANTA", "USD"] } },
+      select: { type: true, amount: true, currency: true, metadata: true, status: true },
     });
+
     const ledgerBalance = txns.reduce((sum, t) => {
-      // Defensive filter: USD/USDT earnings movements must never be applied to
-      // the VANTA Coin balance, even if a legacy/misconfigured query returns one.
-      if (t.currency && t.currency !== "VANTA") return sum;
+      // VANTA coin reconciliation must never include USD-denominated earnings
+      // or withdrawals, even if both currencies share one wallet record.
+      if (t.currency === "USD") return sum;
       const delta = resolveWalletTransactionDelta(t);
       return delta === null ? sum : sum + Math.trunc(delta);
     }, 0);
@@ -2278,29 +2290,78 @@ export class WalletService {
     const difference = storedBalance - ledgerBalance;
     const status: 'MATCH' | 'DISCREPANCY' = difference === 0 ? 'MATCH' : 'DISCREPANCY';
 
+    // Earnings are stored as decimal USD, while the reconciliation log uses
+    // integer fields. Convert to cents to avoid floating-point drift.
+    const ledgerEarningsCents = txns.reduce((sum, t) => {
+      if (t.currency !== "USD") return sum;
+      if (t.status && !["PENDING", "COMPLETED"].includes(t.status)) return sum;
+      const cents = Math.round(Math.abs(t.amount) * 100);
+      if (t.type === TX_TYPES.CREATOR_EARNING || t.type === TX_TYPES.ADMIN_CREDIT) return sum + cents;
+      if (t.type === TX_TYPES.WITHDRAWAL || t.type === TX_TYPES.ADMIN_DEBIT) return sum - cents;
+      return sum;
+    }, 0);
+    const storedEarningsCents = Math.round((wallet.earningsBalance || 0) * 100);
+    const earningsDifferenceCents = storedEarningsCents - ledgerEarningsCents;
+    const earningsStatus: 'MATCH' | 'DISCREPANCY' = earningsDifferenceCents === 0 ? 'MATCH' : 'DISCREPANCY';
+
     const log = await prisma.walletReconciliationLog.create({
       data: {
         userId,
         walletId: wallet.id,
+        currency: "VANTA_COIN",
         storedBalance,
         ledgerBalance,
         difference,
         status,
-        details: JSON.stringify({ transactionCount: txns.length, computedAt: new Date().toISOString() }),
+        details: JSON.stringify({ currency: "VANTA", transactionCount: txns.filter(t => t.currency !== "USD").length, computedAt: new Date().toISOString() }),
+      },
+    });
+    const earningsLog = await prisma.walletReconciliationLog.create({
+      data: {
+        userId,
+        walletId: wallet.id,
+        currency: "USD_CENTS",
+        storedBalance: storedEarningsCents,
+        ledgerBalance: ledgerEarningsCents,
+        difference: earningsDifferenceCents,
+        status: earningsStatus,
+        details: JSON.stringify({ currency: "USD", unit: "cents", transactionCount: txns.filter(t => t.currency === "USD").length, computedAt: new Date().toISOString() }),
       },
     });
 
     if (status === 'DISCREPANCY') {
       await this.logAudit(userId, 'RECONCILIATION_DISCREPANCY', {
+        currency: "VANTA",
         storedBalance,
         ledgerBalance,
         difference,
         reconciliationLogId: log.id,
       });
-      this.logTally('reconciliation_discrepancy', { userId, difference });
+      this.logTally('reconciliation_discrepancy', { userId, currency: "VANTA", difference });
+    }
+    if (earningsStatus === 'DISCREPANCY') {
+      await this.logAudit(userId, 'RECONCILIATION_DISCREPANCY', {
+        currency: "USD",
+        storedBalance: storedEarningsCents / 100,
+        ledgerBalance: ledgerEarningsCents / 100,
+        difference: earningsDifferenceCents / 100,
+        reconciliationLogId: earningsLog.id,
+      });
+      this.logTally('reconciliation_discrepancy', { userId, currency: "USD", difference: earningsDifferenceCents / 100 });
     }
 
-    return { status, storedBalance, ledgerBalance, difference, logId: log.id };
+    return {
+      status,
+      storedBalance,
+      ledgerBalance,
+      difference,
+      logId: log.id,
+      earningsStatus,
+      storedEarningsBalance: storedEarningsCents / 100,
+      ledgerEarningsBalance: ledgerEarningsCents / 100,
+      earningsDifference: earningsDifferenceCents / 100,
+      earningsLogId: earningsLog.id,
+    };
   }
 
   /**
@@ -2320,7 +2381,8 @@ export class WalletService {
     let frozen = 0;
     for (const wallet of wallets) {
       const result = await this.reconcileWallet(wallet.userId);
-      if (result.status === 'DISCREPANCY') {
+      const hasDiscrepancy = result.status === 'DISCREPANCY' || result.earningsStatus === 'DISCREPANCY';
+      if (hasDiscrepancy) {
         discrepancies++;
         if (options?.freezeOnDiscrepancy) {
           const update = await prisma.wallet.updateMany({
@@ -2328,7 +2390,7 @@ export class WalletService {
             data: {
               isFrozen: true,
               frozenBy: 'system:reconciliation',
-              freezeReason: `Reconciliation discrepancy: stored=${result.storedBalance}, ledger=${result.ledgerBalance}`,
+              freezeReason: `Reconciliation discrepancy: VANTA stored=${result.storedBalance}, ledger=${result.ledgerBalance}; USD stored=${result.storedEarningsBalance}, ledger=${result.ledgerEarningsBalance}`,
             },
           });
           if (update.count === 1) frozen++;

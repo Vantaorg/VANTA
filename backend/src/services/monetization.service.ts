@@ -431,9 +431,12 @@ export class MonetizationService {
         break;
     }
 
-    const result = await prisma.giftTransaction.aggregate({
+    const result = await prisma.walletTransaction.aggregate({
       where: {
-        receiverId: userId,
+        userId,
+        type: 'CREATOR_EARNING',
+        currency: 'USD',
+        status: 'COMPLETED',
         createdAt: { gte: startDate },
       },
       _sum: { amount: true },
@@ -502,7 +505,7 @@ export class MonetizationService {
       const platformShare = price - creatorEarningsCents;
       const creatorEarningsUsd = creatorEarningsCents / 100;
 
-      await tx.wallet.update({
+      const updatedCreatorWallet = await tx.wallet.update({
         where: { userId: creatorId },
         data: {
           earningsBalance: { increment: creatorEarningsUsd },
@@ -562,7 +565,7 @@ export class MonetizationService {
           metadata: JSON.stringify({
             source: "SUBSCRIPTION",
             subscriberId,
-            tierId,
+            tier,
             grossCoins: price,
             creatorSharePercent: REVENUE_SPLIT.CREATOR * 100,
           }),

@@ -32,7 +32,7 @@ jest.mock('../services/notification.service', () => ({
 
 const walletService = new WalletService();
 
-const walletRow = { id: 'wallet1', userId: 'user1', coinBalance: 1_000, lockedCoins: 0, isFrozen: false };
+const walletRow = { id: 'wallet1', userId: 'user1', coinBalance: 1_000, earningsBalance: 49.3, lockedCoins: 0, isFrozen: false };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -46,23 +46,39 @@ beforeEach(() => {
 describe('WalletService.reconcileWallet', () => {
   test('reports MATCH when the ledger equals the stored balance', async () => {
     (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
-      { type: 'PURCHASE', amount: 500, currency: 'VANTA' },
-      { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA' },
-      { type: 'GIFT_SENT', amount: 200, currency: 'VANTA' },
-      { type: 'WITHDRAWAL', amount: 500, currency: 'USD' },
-      { type: 'CREATOR_EARNING', amount: 0.7, currency: 'USD' },
+      { type: 'PURCHASE', amount: 500, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'GIFT_RECEIVED', amount: 700, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'GIFT_SENT', amount: 200, currency: 'VANTA', status: 'COMPLETED' },
+      { type: 'WITHDRAWAL', amount: 0.7, currency: 'USD', status: 'PENDING' },
+      { type: 'CREATOR_EARNING', amount: 50, currency: 'USD', status: 'COMPLETED' },
     ]);
     const result = await walletService.reconcileWallet('user1');
     expect(prisma.walletTransaction.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: 'user1', currency: 'VANTA' },
+      where: { userId: 'user1', currency: { in: ['VANTA', 'USD'] } },
     }));
     expect(result.status).toBe('MATCH');
     expect(result.ledgerBalance).toBe(1000); // +500 +700 -200
     expect(result.difference).toBe(0);
+    expect(result.earningsStatus).toBe('MATCH');
+    expect(result.storedEarningsBalance).toBe(49.3);
+    expect(result.ledgerEarningsBalance).toBe(49.3);
     expect(prisma.walletReconciliationLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'MATCH', storedBalance: 1000, ledgerBalance: 1000 }) })
+      expect.objectContaining({ data: expect.objectContaining({ currency: 'VANTA_COIN', status: 'MATCH', storedBalance: 1000, ledgerBalance: 1000 }) })
+    );
+    expect(prisma.walletReconciliationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ currency: 'USD_CENTS', status: 'MATCH', storedBalance: 4930, ledgerBalance: 4930 }) })
     );
     expect(prisma.walletAuditLog.create).not.toHaveBeenCalled();
+  });
+
+  test('excludes failed and cancelled withdrawals from the USD earnings ledger', async () => {
+    (prisma.walletTransaction.findMany as jest.Mock).mockResolvedValue([
+      { type: 'CREATOR_EARNING', amount: 49.3, currency: 'USD', status: 'COMPLETED' },
+      { type: 'WITHDRAWAL', amount: 10, currency: 'USD', status: 'CANCELLED' },
+    ]);
+    const result = await walletService.reconcileWallet('user1');
+    expect(result.earningsStatus).toBe('MATCH');
+    expect(result.ledgerEarningsBalance).toBe(49.3);
   });
 
   test('reports DISCREPANCY, audits it, and never mutates the stored balance', async () => {
