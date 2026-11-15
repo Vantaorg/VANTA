@@ -38,7 +38,7 @@ export class GroupService {
     }
     if (inviteModes.some(mode => mode === "followers" || mode === "following")) {
       const targetFollowsRequester = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: requesterId, followingId: targetUserId } },
+        where: { followerId_followingId: { followerId: targetUserId, followingId: requesterId } },
         select: { id: true },
       });
       if (!targetFollowsRequester) {
