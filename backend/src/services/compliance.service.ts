@@ -24,7 +24,7 @@ class ComplianceService {
         console.error(`[Compliance] ${source} media quarantine failed:`, removedFiles[index]?.id);
       }
     });
-    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*', 'search:*'].map((pattern) => cacheService.delPattern(pattern)));
+    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*', 'search:*', 'reels:*', 'profile:*', 'user:*', 'post:*', 'video:*', 'story:*'].map((pattern) => cacheService.delPattern(pattern)));
     cacheResults.forEach((result) => { if (result.status === 'rejected') console.error(`[Compliance] ${source} cache purge failed:`, result.reason); });
     return succeeded;
   }
