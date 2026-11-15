@@ -162,6 +162,7 @@ function protectMessageMedia(message: any, files: Array<{ id: string; url: strin
 }
 
 async function protectPersistedMessage(message: any, userId: string): Promise<any> {
+  if (message?.replyTo?.moderationRemovedAt) message = { ...message, replyTo: null };
   const recordIds = [message?.id, message?.replyTo?.id].filter((id): id is string => typeof id === "string" && id.length > 0);
   const attachmentUrls = [
     ...(Array.isArray(message?.attachments) ? message.attachments : []),
