@@ -2236,8 +2236,10 @@ model ModerationAction {
 
 model ModerationRemoval {
   id                    String          @id @default(cuid())
-  queueId               String          @unique
-  queue                 ModerationQueue @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  queueId               String?         @unique
+  queue                 ModerationQueue? @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  sourceType            String          @default("REPORT")
+  sourceId              String
   targetType            String
   targetId              String
   moderatorId           String
