@@ -140,6 +140,7 @@ export default async function RootLayout({
           <AccessibilityProvider>
             <ThemeProvider>
               <AuthProvider>
+                <AnalyticsWrapper />
                 <PushProvider>
                   <CallProvider>
                   <ToastProvider>
@@ -161,7 +162,6 @@ export default async function RootLayout({
             </ThemeProvider>
           </AccessibilityProvider>
         </I18nProvider>
-        <AnalyticsWrapper />
       </body>
     </html>
   );
