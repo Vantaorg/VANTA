@@ -238,6 +238,17 @@ export class GroupService {
       if (activeUsers !== normalizedMemberIds.length) throw new Error("One or more members do not exist");
 
       if (toAdd.length) {
+        // A member-add action is an invitation too: honor each invitee's
+        // privacy preference, regardless of whether the caller is an admin.
+        await Promise.all(toAdd.map(userId => this.assertCanInviteToGroup(userId, requesterId)));
+        const inviteFollows = await prisma.follow.findMany({
+          where: { followerId: { in: toAdd }, followingId: requesterId },
+          select: { followerId: true },
+        });
+        const allowedInvitees = new Set(inviteFollows.map(row => row.followerId));
+        if (toAdd.some(userId => !allowedInvitees.has(userId))) {
+          throw new Error("Groups can only add people who follow the inviter on VANTA");
+        }
         await prisma.groupMember.createMany({
           data: toAdd.map((userId: string) => ({ groupId, userId })),
         });
