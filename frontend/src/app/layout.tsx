@@ -113,9 +113,6 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//api.vanta.app" />
         <link rel="dns-prefetch" href="//cdn.vanta.app" />
 
-        {/* GoMine referral visit tracking (loads asynchronously) */}
-        <script async src="https://app.gomine.social/api/visit/v.js" />
-
         {/* JSON-LD Structured Data */}
         <script
           type="application/ld+json"
