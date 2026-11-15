@@ -41,6 +41,8 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
   const [challengeId, setChallengeId] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [pinCode, setPinCode] = useState('');
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [requestId, setRequestId] = useState('');
   const [resending, setResending] = useState(false);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
@@ -61,6 +63,8 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
       setChallengeId('');
       setOtpCode('');
       setPinCode('');
+      setRequiresTwoFactor(false);
+      setTwoFactorCode('');
       setRequestId('');
       setSending(false);
       setResending(false);
@@ -123,6 +127,8 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
       }, token);
       if (result?.requiresOTP) {
         setChallengeId(String(result.challengeId || ''));
+        setRequiresTwoFactor(result.requiresTwoFactor === true);
+        setTwoFactorCode('');
         setOtpCode('');
         setStep('otp');
         setSending(false);
@@ -152,6 +158,7 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
         note: note || undefined,
         otpCode,
         pinCode,
+        twoFactorCode: requiresTwoFactor ? twoFactorCode : undefined,
         challengeId,
         requestId,
       }, token);
@@ -488,7 +495,16 @@ export default function SendCoinsModal({ open, balance, onClose, onSuccess }: Se
                     <input id="vanta-transfer-otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter' && otpCode.length === 6) void handleVerifyOtp(); }} placeholder="000000" aria-describedby="vanta-transfer-otp-help" className="w-full rounded-2xl border border-[#c9a45c]/30 bg-white/[0.04] px-4 py-4 text-center text-2xl font-semibold tracking-[0.5em] text-white placeholder:text-white/20 outline-none focus:border-[#c9a45c]" />
                     <p id="vanta-transfer-otp-help" className="mt-2 text-[11px] text-white/35">The code expires after 10 minutes and can only be used once.</p>
                   </div>
-                  <button onClick={handleVerifyOtp} disabled={sending || otpCode.length !== 6 || !challengeId} className="w-full rounded-2xl bg-[#c9a45c] py-3.5 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-45">{sending ? <Loader2 size={15} className="mx-auto animate-spin" /> : 'Verify and Continue'}</button>
+                  <button {requiresTwoFactor && (
+                    <div>
+                      <label htmlFor="vanta-transfer-2fa" className="mb-2 block text-xs font-medium text-white/60">Authenticator app code</label>
+                      <input id="vanta-transfer-2fa" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8}
+                        value={twoFactorCode} onChange={e => setTwoFactorCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8))}
+                        placeholder="6-digit app code or backup code"
+                        className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-center text-sm tracking-widest text-white placeholder:tracking-normal placeholder:text-white/30 outline-none focus:border-white/30" />
+                    </div>
+                   )}
+                   onClick={handleVerifyOtp} disabled={sending || otpCode.length !== 6 || !challengeId} className="w-full rounded-2xl bg-[#c9a45c] py-3.5 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-45">{sending ? <Loader2 size={15} className="mx-auto animate-spin" /> : 'Verify and Continue'}</button>
                   <button type="button" onClick={handleResendOtp} disabled={resending || sending} className="w-full py-2 text-xs font-semibold text-white/60 transition hover:text-white disabled:opacity-40">{resending ? 'Sending new code…' : 'Resend verification code'}</button>
                 </div>
               )}
