@@ -68,6 +68,15 @@ describe('privacy settings enforcement compatibility', () => {
       update: expect.objectContaining({ accountType: 'PRIVATE', privacyProfile: 'private' }),
     }));
   });
+  test('maps followers-only message permissions to the recipient follower contract', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', { messagePermissions: 'followers' });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ messagePermissions: 'followers', privacyMessages: 'followers' }),
+      update: expect.objectContaining({ messagePermissions: 'followers', privacyMessages: 'followers' }),
+    }));
+  });
+
   test('maps story, call, live-stream, and invite permissions to established fields', async () => {
     (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', privacyReadReceipts: 'everyone' });
     await complianceService.updatePrivacySettings('user-1', {
