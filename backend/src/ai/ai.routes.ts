@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { AI_CONFIG } from './ai.config';
-import { privacyMiddleware, aiRateLimit, requireAIConsent } from './middleware/privacy.middleware';
+import { privacyMiddleware, aiRateLimit, requireAIConsent, validateConsent } from './middleware/privacy.middleware';
 import { prisma } from '../prisma';
 import { authenticate, optionalAuth, AuthenticatedRequest } from '../security/authMiddleware';
 
@@ -322,10 +322,11 @@ aiRouter.use('/nlp', nlpRouter);
 // ============================================================================
 const analyticsRouter = Router();
 
-analyticsRouter.post('/insights', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/insights', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const { userId, periodStart, periodEnd } = req.body;
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { periodStart, periodEnd } = req.body;
     const insights = await analyticsService.getCreatorInsights(userId, periodStart ? { start: new Date(periodStart), end: new Date(periodEnd || periodStart) } : undefined);
     res.json({ success: true, data: insights });
   } catch (error: any) {
@@ -333,9 +334,12 @@ analyticsRouter.post('/insights', aiRateLimit('analytics'), async (req: Request,
   }
 });
 
-analyticsRouter.post('/engagement', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/engagement', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const channel = await prisma.channel.findUnique({ where: { id: req.body.channelId }, select: { ownerId: true } });
+    if (!channel || channel.ownerId !== userId) { res.status(403).json({ success: false, error: 'Channel analytics are only available to the owner' }); return; }
     const trends = await analyticsService.getEngagementTrends(req.body.channelId, req.body.period);
     res.json({ success: true, data: trends });
   } catch (error: any) {
@@ -343,50 +347,55 @@ analyticsRouter.post('/engagement', aiRateLimit('analytics'), async (req: Reques
   }
 });
 
-analyticsRouter.post('/audience', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/audience', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const insights = await analyticsService.getAudienceInsights(req.body.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const insights = await analyticsService.getAudienceInsights(userId);
     res.json({ success: true, data: insights });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/optimal-times', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/optimal-times', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const times = await analyticsService.getOptimalPostingTimes(req.body.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const times = await analyticsService.getOptimalPostingTimes(userId);
     res.json({ success: true, data: times });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/revenue-forecast', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/revenue-forecast', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const forecast = await analyticsService.getRevenueForecasts(req.body.userId, req.body.period);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const forecast = await analyticsService.getRevenueForecasts(userId, req.body.period);
     res.json({ success: true, data: forecast });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.post('/content-performance', aiRateLimit('analytics'), async (req: Request, res: Response) => {
+analyticsRouter.post('/content-performance', authenticate, validateConsent('analytics'), aiRateLimit('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const summary = await analyticsService.getContentPerformanceSummary(req.body.userId, req.body.period);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const summary = await analyticsService.getContentPerformanceSummary(userId, req.body.period);
     res.json({ success: true, data: summary });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-analyticsRouter.get('/notifications', async (req: Request, res: Response) => {
+analyticsRouter.get('/notifications', authenticate, validateConsent('analytics'), async (req: Request, res: Response) => {
   try {
     const { analyticsService } = await import('./services/analytics.service');
-    const notifications = await analyticsService.generateSmartNotifications(req.query.userId as string || req.userId);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const notifications = await analyticsService.generateSmartNotifications(userId);
     res.json({ success: true, data: notifications });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
