@@ -234,7 +234,7 @@ describe('compliance account lifecycle transactions', () => {
       accountDeletionRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
     transaction.mockImplementation(async (callback: any) => callback(tx));
-    (prisma as any).uploadedFile.findMany.mockResolvedValue([]);
+    (prisma as any).uploadedFile.findMany.mockResolvedValue([{ id: 'file-1', filename: 'avatar.png' }]);
     await expect(complianceService.permanentlyDeleteExpiredAccounts()).resolves.toMatchObject({ deleted: 1, unrecovered: 0, failed: 0 });
     expect(tx.user.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'user-1' },
@@ -265,6 +265,7 @@ describe('compliance account lifecycle transactions', () => {
     expect((prisma as any).uploadedFile.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { userId: 'user-1', deletedAt: null },
     }));
+    expect(uploadService.deleteFile).toHaveBeenCalledWith('avatar.png', 'file-1');
     expect(tx.accountDeactivation.update).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, data: expect.objectContaining({ status: 'DELETED', recoveryToken: null }) }));
   });
 });
