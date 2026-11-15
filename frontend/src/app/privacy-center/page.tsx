@@ -464,7 +464,7 @@ export default function PrivacyCenterPage() {
         items: [
           { label: 'Analytics Cookies', key: 'cookieAnalytics', type: 'toggle', desc: 'Help us improve our platform' },
           { label: 'Marketing Cookies', key: 'cookieMarketing', type: 'toggle', desc: 'Personalized ads and offers' },
-          { label: 'Functional Cookies', key: 'cookieFunctional', type: 'toggle', desc: 'Essential for platform functionality' },
+          { label: 'Functional Cookies', key: 'cookieFunctional', type: 'fixed', desc: 'Always enabled for essential platform functionality' },
         ],
       },
     ];
@@ -507,6 +507,8 @@ export default function PrivacyCenterPage() {
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
+                    ) : item.type === 'fixed' ? (
+                      <span className="text-xs text-gray-400">Always on</span>
                     ) : (
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
