@@ -13,14 +13,20 @@ export class GDPRCompliance {
       where: { id: userId },
       include: {
         profile: true, posts: true, videos: true, stories: true,
-        messagesSent: true, sessions: true, securityLogs: true,
+        messagesSent: true,
+        sessions: { select: { id: true, deviceFingerprint: true, isTrusted: true, expiresAt: true, refreshExpiresAt: true, userAgent: true, ipAddress: true, lastActiveAt: true, createdAt: true } },
+        securityLogs: true,
         purchaseOrders: true, wallet: { include: { transactions: true } },
         userSettings: true, notificationPrefs: true,
-        consentRecords: true,
       },
     });
     if (!user) throw new Error('User not found');
-    return { exportedAt: new Date().toISOString(), user };
+    // ConsentRecord intentionally has no inverse User relation in the active schema.
+    const consentRecords = await prisma.consentRecord.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { exportedAt: new Date().toISOString(), user, consentRecords };
   }
 
   async requestAccountDeletion(userId: string, reason?: string): Promise<void> {
