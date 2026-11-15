@@ -90,14 +90,15 @@ async function requireAnalyticsConsent(req: Request, res: Response, next: NextFu
 }
 
 async function requireMarketingConsent(req: Request, res: Response, next: NextFunction) {
-  const events = Array.isArray(req.body?.events) ? req.body.events : [req.body];
-  const containsMarketingEvent = events.some((event: any) =>
-    ['ad_view', 'ad_click', 'referral_click'].includes(event?.eventType)
-  );
-  if (!containsMarketingEvent) return next();
+  const isBatch = Array.isArray(req.body?.events);
+  const events = isBatch ? req.body.events : [req.body];
+  const marketingEvents = (event: any) =>
+    ['ad_view', 'ad_click', 'referral_click'].includes(event?.eventType);
+  if (!events.some(marketingEvents)) return next();
 
   try {
     const actor = (req as AuthenticatedRequest).user;
+    let granted = false;
     if (actor?.userId) {
       const { prisma } = await import('../prisma');
       const consent = await prisma.consentRecord.findFirst({
@@ -105,13 +106,26 @@ async function requireMarketingConsent(req: Request, res: Response, next: NextFu
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { granted: true },
       });
-      if (consent?.granted === true) return next();
-      res.status(204).end();
-      return;
+      granted = consent?.granted === true;
+    } else {
+      granted = req.get('x-vanta-marketing-consent') === 'granted';
     }
-    if (req.get('x-vanta-marketing-consent') === 'granted') return next();
+
+    if (granted) return next();
+
+    // A denied marketing choice must not suppress unrelated product analytics
+    // events in the same batch. Remove only marketing events and continue.
+    if (isBatch) {
+      req.body.events = events.filter((event: any) => !marketingEvents(event));
+      if (req.body.events.length > 0) return next();
+    }
     res.status(204).end();
   } catch {
+    // Fail closed for marketing events while preserving non-marketing batch data.
+    if (isBatch) {
+      req.body.events = events.filter((event: any) => !marketingEvents(event));
+      if (req.body.events.length > 0) return next();
+    }
     res.status(204).end();
   }
 }
