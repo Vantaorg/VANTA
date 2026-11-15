@@ -85,7 +85,7 @@ export class PostService {
 
   async getPostById(postId: string, userId?: string) {
     const post = await prisma.post.findUnique({
-      where: { id: postId },
+      where: { id: postId, moderationRemovedAt: null },
       include: {
         author: {
           select: {
