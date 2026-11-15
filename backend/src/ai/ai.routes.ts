@@ -7,10 +7,12 @@ import { Router, Request, Response } from 'express';
 import { AI_CONFIG } from './ai.config';
 import { privacyMiddleware, aiRateLimit, validateConsent, requireAIConsent } from './middleware/privacy.middleware';
 import { prisma } from '../prisma';
+import { authenticate, optionalAuth, AuthenticatedRequest } from '../security/authMiddleware';
 
 const aiRouter = Router();
 
-// Apply privacy middleware to all AI routes
+// Resolve valid sessions before privacy middleware reads per-user preferences.
+aiRouter.use(optionalAuth);
 aiRouter.use(privacyMiddleware);
 
 // ============================================================================
@@ -18,21 +20,23 @@ aiRouter.use(privacyMiddleware);
 // ============================================================================
 const recommendationRouter = Router();
 
-recommendationRouter.post('/feed', aiRateLimit('recommendations'), async (req: Request, res: Response) => {
+recommendationRouter.post('/feed', authenticate, requireAIConsent, aiRateLimit('recommendations'), async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
-    const { userId, options } = req.body;
-    const feed = await recommendationService.getPersonalizedFeed(userId || req.userId, options);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { options } = req.body;
+    const feed = await recommendationService.getPersonalizedFeed(userId, options);
     res.json({ success: true, data: feed });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-recommendationRouter.post('/discover', aiRateLimit('recommendations'), async (req: Request, res: Response) => {
+recommendationRouter.post('/discover', authenticate, requireAIConsent, aiRateLimit('recommendations'), async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
-    const items = await recommendationService.getDiscoveryItems(req.body.userId || req.userId, req.body.options);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const items = await recommendationService.getDiscoveryItems(userId, req.body.options);
     res.json({ success: true, data: items });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -74,11 +78,12 @@ recommendationRouter.get('/topics', async (req: Request, res: Response) => {
   }
 });
 
-recommendationRouter.post('/interaction', async (req: Request, res: Response) => {
+recommendationRouter.post('/interaction', authenticate, requireAIConsent, async (req: Request, res: Response) => {
   try {
     const { recommendationService } = await import('./services/recommendation.service');
     const { eventType, targetType, targetId, metadata } = req.body;
-    await recommendationService.recordUserInteraction(req.body.userId || req.userId, eventType, targetType, targetId, metadata);
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    await recommendationService.recordUserInteraction(userId, eventType, targetType, targetId, metadata);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
