@@ -48,6 +48,9 @@ async function broadcastPresenceChange(io: Server, userId: string, isOnline: boo
     await emitPresenceToAudience(io, userId, settings?.onlineStatus, 'user_status', {
       userId, status: isOnline ? 'online' : 'offline',
     });
+    // Keep the two privacy controls on separate payloads. Combining these
+    // fields would leak online state to users allowed to see last-seen only,
+    // or leak last-seen timestamps to users allowed to see online state only.
     await emitPresenceToAudience(io, userId, settings?.onlineStatus, 'presence:changed', {
       userId, isOnline,
     });
