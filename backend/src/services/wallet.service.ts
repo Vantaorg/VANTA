@@ -5,6 +5,7 @@ import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { calculateTransferFee, coinsToUsd, VANTA_COINS_PER_USD, WITHDRAWAL_FEE_RATE, MIN_WITHDRAWAL_AMOUNT, PLATFORM_TRANSFER_LIMITS } from "../config/wallet.config";
 import { validateWithdrawalInput } from "./wallet-input-validation";
+import { twoFactorAuth } from "../security/twoFactorAuth";
 import { blockchainTxVerifier } from "./blockchain-verifier.service";
 import {
   COIN_PAYMENT_ORDER_TTL_SECONDS,
@@ -808,6 +809,19 @@ export class WalletService {
   // CHAT COIN TRANSFERS (5% Sender Fee)
   // ============================================================
 
+  private async isTwoFactorEnabled(userId: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { twoFactorEnabled: true } });
+    return user?.twoFactorEnabled === true;
+  }
+
+  private async verifyWalletTwoFactor(userId: string, token: string | undefined, action: string): Promise<void> {
+    if (!(await this.isTwoFactorEnabled(userId))) return;
+    if (typeof token !== 'string' || !token.trim()) throw new Error('Authenticator 2FA code is required for this wallet action');
+    const result = await twoFactorAuth.verifyLogin(userId, token.trim());
+    if (!result.valid) throw new Error('Invalid authenticator 2FA code');
+    await this.logAudit(userId, 'WALLET_2FA_VERIFIED', { action, isBackupCode: result.isBackupCode });
+  }
+
   async transferCoins(
     senderId: string,
     receiverId: string,
@@ -819,7 +833,8 @@ export class WalletService {
     requestId?: string,
     challengeId?: string,
     sessionId?: string,
-    pinCode?: string
+    pinCode?: string,
+    twoFactorCode?: string
   ) {
     if (senderId === receiverId) {
       throw new Error("Cannot send coins to yourself");
@@ -920,6 +935,7 @@ export class WalletService {
         });
         return {
           requiresOTP: true,
+          requiresTwoFactor: await this.isTwoFactorEnabled(senderId),
           challengeId: challenge.id,
           expirySeconds: TRANSFER_OTP_CONSTANTS.expiryMs / 1000,
           message: "OTP sent to your email/phone",
@@ -928,6 +944,18 @@ export class WalletService {
 
       if (!challengeId) {
         throw new Error("An OTP challenge id is required to complete this transfer");
+      }
+
+      if (await this.isTwoFactorEnabled(senderId)) {
+        const challenge = await prisma.transferOtpChallenge.findUnique({ where: { id: challengeId } });
+        const challengeMatches = challenge && challenge.userId === senderId &&
+          challenge.receiverId === receiverId && challenge.amount === totalDeduction &&
+          (!challenge.sessionId || !sessionId || challenge.sessionId === sessionId) &&
+          !challenge.consumedAt && challenge.expiresAt >= new Date() &&
+          challenge.attempts < challenge.maxAttempts;
+        if (challengeMatches && await bcrypt.compare(otpCode || "", challenge.otpHash)) {
+          await this.verifyWalletTwoFactor(senderId, twoFactorCode, 'high_value_transfer');
+        }
       }
     }
 
@@ -1518,7 +1546,7 @@ export class WalletService {
   // WITHDRAWALS (10% Platform Fee)
   // ============================================================
 
-  async requestWithdrawal(userId: string, amount: number, walletAddress: string, pinCode: string) {
+  async requestWithdrawal(userId: string, amount: number, walletAddress: string, pinCode: string, twoFactorCode?: string) {
     // Validate untrusted request values before any database access or balance mutation.
     // This remains a request-only/manual settlement flow; it does not initiate a payout.
     const validated = validateWithdrawalInput(amount, walletAddress);
@@ -1526,6 +1554,7 @@ export class WalletService {
     walletAddress = validated.walletAddress;
     if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error('A valid 4-6 digit wallet PIN is required');
     await this.verifyPin(userId, pinCode);
+    await this.verifyWalletTwoFactor(userId, twoFactorCode, 'withdrawal');
 
     const wallet = await this.ensureWallet(userId);
 
