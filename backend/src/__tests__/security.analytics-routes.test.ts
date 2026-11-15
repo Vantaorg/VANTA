@@ -18,7 +18,7 @@ import jwt from 'jsonwebtoken';
 jest.mock('../prisma', () => {
   const session = { findUnique: jest.fn(), delete: jest.fn(), update: jest.fn() };
   const user = { findUnique: jest.fn() };
-  return { prisma: { session, user, auditLog: { create: jest.fn() } } };
+  return { prisma: { session, user, consentRecord: { findFirst: jest.fn() }, auditLog: { create: jest.fn() } } };
 });
 
 jest.mock('../security/auditLog', () => ({
@@ -130,6 +130,68 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     (prisma.session.update as jest.Mock).mockResolvedValue(session);
   }
 
+  test('authenticated telemetry is allowed only by the latest analytics consent record', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(denied.status).toBe(204);
+    expect(prisma.consentRecord.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', type: 'analytics' },
+    }));
+
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValueOnce({ granted: true });
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  test('authenticated marketing events require a separate marketing consent record', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ granted: true })
+      .mockResolvedValueOnce({ granted: false });
+
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    (prisma.consentRecord.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ granted: true })
+      .mockResolvedValueOnce({ granted: true });
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  test('authenticated telemetry fails closed when the consent store is unavailable', async () => {
+    mockSession('user-1', 'USER');
+    const token = signToken('user-1', 'USER', 'sess-1');
+    (prisma.consentRecord.findFirst as jest.Mock).mockRejectedValueOnce(new Error('consent store unavailable'));
+
+    const response = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page_view' }),
+    });
+    expect(response.status).toBe(204);
+  });
+
   test('anonymous request is rejected with 401', async () => {
     const res = await fetch(`${baseUrl}/api/analytics/overview`);
     expect(res.status).toBe(401);
@@ -211,6 +273,63 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     expect(res.status).toBe(200);
   });
 
+  test('telemetry is denied until analytics consent is explicitly granted', async () => {
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page.view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    const allowedAnonymous = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-vanta-analytics-consent': 'granted' },
+      body: JSON.stringify({ eventType: 'page.view' }),
+    });
+    expect(allowedAnonymous.status).toBe(200);
+  });
+
+  test('marketing events require separate marketing consent', async () => {
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'denied',
+      },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'granted',
+      },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  test('a denied marketing choice preserves non-marketing events in a mixed batch', async () => {
+    const response = await fetch(`${baseUrl}/api/analytics/track/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'denied',
+      },
+      body: JSON.stringify({
+        events: [
+          { eventType: 'page_view' },
+          { eventType: 'ad_view' },
+        ],
+      }),
+    });
+    // The batch is still processed after marketing-only events are removed.
+    expect(response.status).toBe(200);
+  });
+
   test('telemetry /track rejects malformed payloads and accepts bounded ones', async () => {
     const bad = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
@@ -228,7 +347,7 @@ describe('/api/analytics authorization (VANTA-002)', () => {
 
     const ok = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-vanta-analytics-consent': 'granted' },
       body: JSON.stringify({ eventType: 'page.view', userId: 'user-1' }),
     });
     expect(ok.status).toBe(200);

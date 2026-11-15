@@ -128,6 +128,15 @@ export async function unwrap<T>(path: string): Promise<T> {
 class AnalyticsAPI {
   private baseUrl = '/api/analytics';
 
+  private getConsentHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    return {
+      'x-vanta-analytics-consent': localStorage.getItem('vanta_cookie_analytics_consent') || 'denied',
+      'x-vanta-marketing-consent': localStorage.getItem('vanta_cookie_marketing_consent') || 'denied',
+    };
+  }
+
+
   // ============================================================
   // Realtime Metrics
   // ============================================================
@@ -402,11 +411,11 @@ class AnalyticsAPI {
     targetId?: string;
     source?: string;
   }): Promise<void> {
-    await apiPost(`${this.baseUrl}/track`, event);
+    await apiPost(`${this.baseUrl}/track`, event, undefined, this.getConsentHeaders());
   }
 
   async trackBatch(events: any[]): Promise<void> {
-    await apiPost(`${this.baseUrl}/track/batch`, { events });
+    await apiPost(`${this.baseUrl}/track/batch`, { events }, undefined, this.getConsentHeaders());
   }
 // ============================================================
   // Alert Rules

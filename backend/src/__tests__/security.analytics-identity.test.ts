@@ -20,6 +20,7 @@ jest.mock('../prisma', () => ({
     user: {
       findUnique: jest.fn(),
     },
+    consentRecord: { findFirst: jest.fn() },
   },
 }));
 
@@ -77,6 +78,7 @@ describe('/api/analytics telemetry identity (VANTA-007)', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     (prisma.session.update as jest.Mock).mockResolvedValue({});
+    (prisma.consentRecord.findFirst as jest.Mock).mockResolvedValue({ granted: true });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: 'real-user',
       status: 'ACTIVE',
@@ -84,10 +86,10 @@ describe('/api/analytics telemetry identity (VANTA-007)', () => {
     });
   });
 
-  test('anonymous single-event telemetry cannot claim a user or session', async () => {
+  test('anonymous telemetry requires an explicit consent header and cannot claim identity', async () => {
     const response = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-vanta-analytics-consent': 'granted' },
       body: JSON.stringify({
         eventType: 'page_view',
         userId: 'victim-user',
