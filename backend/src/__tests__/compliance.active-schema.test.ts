@@ -168,6 +168,15 @@ describe('compliance account lifecycle transactions', () => {
       data: expect.objectContaining({ status: 'CANCELLED' }),
     }));
   });
+  test('does not reactivate an account after its recovery deadline', async () => {
+    account.findUnique.mockResolvedValue({
+      userId: 'user-1',
+      status: 'DEACTIVATED',
+      recoveryPeriodEnd: new Date(Date.now() - 1000),
+    });
+    await expect(complianceService.cancelDeletion('user-1')).rejects.toThrow('The account recovery period has expired.');
+    expect(transaction).not.toHaveBeenCalled();
+  });
   test('does not allow scheduling deletion in the past', async () => {
     await expect(complianceService.scheduleAccountDeletion('user-1', 'reason', new Date(Date.now() - 1000))).rejects.toThrow('The scheduled deletion date must be in the future.');
     expect(account.findUnique).not.toHaveBeenCalled();
