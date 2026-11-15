@@ -85,6 +85,30 @@ function normalizeRequestPath(path: string): string {
  * default: anything not explicitly allowlisted is a restricted mutation or
  * protected resource and must be rejected.
  */
+// ----------------------------------------------------------------------------
+// Deactivated-account recovery allowlist
+// ----------------------------------------------------------------------------
+// Deactivation intentionally blocks normal application use, but must not
+// strand an authenticated owner outside the recovery endpoints. Keep this
+// allowlist separate from the suspended-account routes and deny by default.
+// ----------------------------------------------------------------------------
+const DEACTIVATED_ALLOWED_ROUTES: readonly string[] = [
+  'GET /api/auth/me',
+  'POST /api/auth/logout',
+  'GET /api/compliance/account/deactivation-status',
+  'POST /api/compliance/account/cancel-deletion',
+  'POST /api/compliance/account/recover',
+];
+
+export function isDeactivatedAllowedRequest(method: string, path: string): boolean {
+  const normalizedMethod = (method || 'GET').toUpperCase();
+  const normalizedPath = normalizeRequestPath(path);
+  return DEACTIVATED_ALLOWED_ROUTES.some((route) => {
+    const [routeMethod, routePath] = route.split(' ');
+    return routeMethod === normalizedMethod && normalizedPath === routePath;
+  });
+}
+
 export function isSuspendedAllowedRequest(method: string, path: string): boolean {
   const normalizedMethod = (method || 'GET').toUpperCase();
   const normalizedPath = normalizeRequestPath(path);
