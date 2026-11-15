@@ -12,6 +12,7 @@ import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 jest.mock('../prisma', () => {
   const mock = {
     wallet: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+    user: { findUnique: jest.fn() },
     walletPIN: { findUnique: jest.fn(), updateMany: jest.fn() },
     transferLimit: { create: jest.fn() },
     withdrawal: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), findUniqueOrThrow: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
