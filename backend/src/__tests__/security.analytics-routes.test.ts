@@ -18,7 +18,7 @@ import jwt from 'jsonwebtoken';
 jest.mock('../prisma', () => {
   const session = { findUnique: jest.fn(), delete: jest.fn(), update: jest.fn() };
   const user = { findUnique: jest.fn() };
-  return { prisma: { session, user, auditLog: { create: jest.fn() } } };
+  return { prisma: { session, user, consentRecord: { findFirst: jest.fn() }, auditLog: { create: jest.fn() } } };
 });
 
 jest.mock('../security/auditLog', () => ({
@@ -211,6 +211,20 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     expect(res.status).toBe(200);
   });
 
+  test('telemetry is denied until analytics consent is explicitly granted', async () => {
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'page.view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    const allowedAnonymous = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-vanta-analytics-consent': 'granted' },
+      body: JSON.stringify({ eventType: 'page.view' }),
+    });
+    expect(allowedAnonymous.status).toBe(200);
+  });
+
   test('telemetry /track rejects malformed payloads and accepts bounded ones', async () => {
     const bad = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
@@ -228,7 +242,7 @@ describe('/api/analytics authorization (VANTA-002)', () => {
 
     const ok = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-vanta-analytics-consent': 'granted' },
       body: JSON.stringify({ eventType: 'page.view', userId: 'user-1' }),
     });
     expect(ok.status).toBe(200);
