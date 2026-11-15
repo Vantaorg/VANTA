@@ -27,9 +27,10 @@ export class LiveService {
     return enrichItemAuthors(stream) as T;
   }
 
-  private async filterVisibleStreams<T extends { hostId: string }>(streams: T[], viewerId?: string): Promise<T[]> {
-    if (!streams.length) return streams;
-    const hostIds = [...new Set(streams.map(stream => stream.hostId))];
+  private async filterVisibleStreams<T extends { hostId: string }>(streams: Array<T | null>, viewerId?: string): Promise<T[]> {
+    const validStreams = streams.filter((stream): stream is T => Boolean(stream));
+    if (!validStreams.length) return validStreams;
+    const hostIds = [...new Set(validStreams.map(stream => stream.hostId))];
     const [settings, follows] = await Promise.all([
       prisma.userSettings.findMany({
         where: { userId: { in: hostIds } },
@@ -42,7 +43,7 @@ export class LiveService {
     ]);
     const byHost = new Map(settings.map(item => [item.userId, item]));
     const followed = new Set(follows.map(item => item.followingId));
-    return streams.filter(stream => {
+    return validStreams.filter(stream => {
       if (viewerId && stream.hostId === viewerId) return true;
       const modes = [byHost.get(stream.hostId)?.liveStreamVisibility, byHost.get(stream.hostId)?.privacyLiveStream]
         .filter(Boolean).map(value => String(value).toLowerCase());
