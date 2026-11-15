@@ -637,12 +637,23 @@ export class UploadService {
     if (!publicId || !['image', 'video', 'raw'].includes(resourceType)) return false;
     const quarantineId = `${publicId}_moderated_${file.id}`;
 
-    await cloudinary.uploader.rename(publicId, quarantineId, {
-      resource_type: resourceType as any,
-      type: 'upload',
-      to_type: 'authenticated',
-      invalidate: true,
-    });
+    // Retry safely if the Cloudinary rename succeeded but persisting the new
+    // metadata path failed on the previous attempt.
+    let alreadyQuarantined = false;
+    try {
+      await cloudinary.api.resource(quarantineId, { resource_type: resourceType, type: 'authenticated' });
+      alreadyQuarantined = true;
+    } catch (error: any) {
+      if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+    }
+    if (!alreadyQuarantined) {
+      await cloudinary.uploader.rename(publicId, quarantineId, {
+        resource_type: resourceType as any,
+        type: 'upload',
+        to_type: 'authenticated',
+        invalidate: true,
+      });
+    }
     await prisma.uploadedFile.update({
       where: { id: file.id },
       data: {
@@ -667,12 +678,23 @@ export class UploadService {
       const currentId = currentIdParts.join(':');
       if (!originalId || !currentId || originalResourceType !== currentResourceType) return false;
 
-      await cloudinary.uploader.rename(currentId, originalId, {
-        resource_type: currentResourceType as any,
-        type: 'authenticated',
-        to_type: 'upload',
-        invalidate: true,
-      });
+      // Retry safely if the asset was already renamed back but the metadata
+      // update failed on the previous restoration attempt.
+      let alreadyRestored = false;
+      try {
+        await cloudinary.api.resource(originalId, { resource_type: currentResourceType, type: 'upload' });
+        alreadyRestored = true;
+      } catch (error: any) {
+        if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+      }
+      if (!alreadyRestored) {
+        await cloudinary.uploader.rename(currentId, originalId, {
+          resource_type: currentResourceType as any,
+          type: 'authenticated',
+          to_type: 'upload',
+          invalidate: true,
+        });
+      }
       await prisma.uploadedFile.update({
         where: { id: file.id },
         data: {
