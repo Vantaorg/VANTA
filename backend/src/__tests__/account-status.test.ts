@@ -12,8 +12,20 @@ import {
   signAppealToken,
   verifyAppealToken,
   accountStatusError,
+  isDeactivatedAccountStatus,
 } from '../security/accountStatus';
 import { describe, expect, test, jest } from '@jest/globals';
+
+describe('isDeactivatedAccountStatus', () => {
+  test('recognizes temporary deactivation and scheduled deletion only', () => {
+    expect(isDeactivatedAccountStatus('DEACTIVATED')).toBe(true);
+    expect(isDeactivatedAccountStatus('SCHEDULED_FOR_DELETION')).toBe(true);
+    expect(isDeactivatedAccountStatus('ACTIVE')).toBe(false);
+    expect(isDeactivatedAccountStatus('SUSPENDED')).toBe(false);
+    expect(isDeactivatedAccountStatus('BANNED')).toBe(false);
+    expect(isDeactivatedAccountStatus('LOCKED')).toBe(false);
+  });
+});
 
 describe('isSuspendedAllowedRequest', () => {
   test('permits the suspended screen + appeal + sign-out endpoints', () => {
