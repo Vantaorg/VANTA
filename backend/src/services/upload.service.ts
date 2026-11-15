@@ -670,6 +670,31 @@ export class UploadService {
     const file = await prisma.uploadedFile.findUnique({ where: { id: fileId } });
     if (!file || !file.deletedAt) return false;
 
+    if (!file.moderationOriginalPath && file.category !== 'message' && file.path?.startsWith('cloudinary:')) {
+      // Recover a partial quarantine where Cloudinary renamed the object but
+      // the metadata update did not commit.
+      const [, resourceType, ...publicIdParts] = file.path.split(':');
+      const publicId = publicIdParts.join(':');
+      const quarantineId = `${publicId}_moderated_${file.id}`;
+      if (publicId && ['image', 'video', 'raw'].includes(resourceType)) {
+        let quarantineExists = false;
+        try {
+          await cloudinary.api.resource(quarantineId, { resource_type: resourceType, type: 'authenticated' });
+          quarantineExists = true;
+        } catch (error: any) {
+          if (error?.http_code !== 404 && error?.error?.http_code !== 404) throw error;
+        }
+        if (quarantineExists) {
+          await cloudinary.uploader.rename(quarantineId, publicId, {
+            resource_type: resourceType as any,
+            type: 'authenticated',
+            to_type: 'upload',
+            invalidate: true,
+          });
+        }
+      }
+    }
+
     if (file.moderationOriginalPath?.startsWith('cloudinary:')) {
       if (!file.path?.startsWith('cloudinary:')) return false;
       const [, originalResourceType, ...originalIdParts] = file.moderationOriginalPath.split(':');
