@@ -771,7 +771,7 @@ export class FeedService {
       }) : [],
       mentionedIds.length ? prisma.follow.findMany({
         where: { followerId: userId, followingId: { in: mentionedIds } },
-        select: { followerId: true },
+        select: { followingId: true },
       }) : [],
     ]);
     const mentionPrefsByUser = new Map(mentionPrefs.map(pref => [pref.userId, pref]));
