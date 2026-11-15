@@ -351,6 +351,9 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await privacyApi.updateSettings({ [key]: value });
         setPrivacySettings(updated);
+        if (key === 'cookieAnalytics' || key === 'cookieMarketing') {
+          window.dispatchEvent(new Event('vanta:tracking-consent-changed'));
+        }
         showToast('Privacy setting updated');
       } catch (err: any) {
         showToast(err.message, 'error');
@@ -547,6 +550,9 @@ export default function PrivacyCenterPage() {
       try {
         const updated = await consentApi.updatePreferences({ [key]: value });
         setConsentPrefs(updated);
+        if (key === 'analytics' || key === 'marketing') {
+          window.dispatchEvent(new Event('vanta:tracking-consent-changed'));
+        }
         showToast(`${key} preference updated`);
       } catch (err: any) {
         showToast(err.message, 'error');
