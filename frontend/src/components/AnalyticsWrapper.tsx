@@ -18,11 +18,14 @@ export default function AnalyticsWrapper() {
   const [analyticsConsent, setAnalyticsConsent] = useState<string | null>(null);
   const [marketingConsent, setMarketingConsent] = useState<string | null>(null);
   const [consentLoading, setConsentLoading] = useState(true);
+  const [consentFor, setConsentFor] = useState<string | null>(null);
+  const consentIsCurrent = !authLoading && consentFor === (token || "anonymous");
 
   useEffect(() => {
     let cancelled = false;
     if (authLoading) {
       setConsentLoading(true);
+      setConsentFor(null);
       return () => { cancelled = true; };
     }
 
@@ -33,6 +36,7 @@ export default function AnalyticsWrapper() {
 
     if (!token) {
       applyLocalConsent();
+      setConsentFor("anonymous");
       setConsentLoading(false);
     } else {
       // A signed-in user's server-side consent record is authoritative. Do not
@@ -57,6 +61,7 @@ export default function AnalyticsWrapper() {
           else localStorage.removeItem(MARKETING_KEY);
           setAnalyticsConsent(analytics);
           setMarketingConsent(marketing);
+          setConsentFor(token);
         })
         .catch(() => {
           // Fail closed when the server's current consent cannot be verified.
@@ -65,6 +70,7 @@ export default function AnalyticsWrapper() {
             localStorage.removeItem(MARKETING_KEY);
             setAnalyticsConsent(null);
             setMarketingConsent(null);
+            setConsentFor(token);
           }
         })
         .finally(() => {
@@ -81,14 +87,14 @@ export default function AnalyticsWrapper() {
   }, [token, authLoading]);
 
   useEffect(() => {
-    if (consentLoading || marketingConsent !== "granted") return;
+    if (!consentIsCurrent || consentLoading || marketingConsent !== "granted") return;
     const script = document.createElement("script");
     script.src = "https://app.gomine.social/api/visit/v.js";
     script.async = true;
     script.dataset.vantaMarketingConsent = "true";
     document.head.appendChild(script);
     return () => script.remove();
-  }, [consentLoading, marketingConsent]);
+  }, [consentIsCurrent, consentLoading, marketingConsent]);
 
   const saveConsent = async (analytics: boolean, marketing: boolean) => {
     if (token) {
@@ -108,14 +114,15 @@ export default function AnalyticsWrapper() {
     localStorage.setItem(MARKETING_KEY, marketing ? "granted" : "denied");
     setAnalyticsConsent(analytics ? "granted" : "denied");
     setMarketingConsent(marketing ? "granted" : "denied");
+    setConsentFor(token || "anonymous");
     window.dispatchEvent(new Event("vanta-consent-updated"));
   };
 
   return (
     <>
-      {!consentLoading && analyticsConsent === "granted" && <Analytics />}
-      {!consentLoading && analyticsConsent === "granted" && <SpeedInsights />}
-      {!consentLoading && analyticsConsent === null && (
+      {consentIsCurrent && !consentLoading && analyticsConsent === "granted" && <Analytics />}
+      {consentIsCurrent && !consentLoading && analyticsConsent === "granted" && <SpeedInsights />}
+      {consentIsCurrent && !consentLoading && analyticsConsent === null && (
         <aside
           role="dialog"
           aria-label="Cookie preferences"
