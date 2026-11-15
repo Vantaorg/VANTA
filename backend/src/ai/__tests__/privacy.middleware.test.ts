@@ -47,6 +47,19 @@ describe('AI privacy preference enforcement', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test('does not let an older legacy denial override a newer canonical Privacy Center grant', async () => {
+    db.consentRecord.findFirst
+      .mockResolvedValueOnce({ id: 'canonical', type: 'aiFeatures', granted: true, createdAt: new Date() })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'legacy', type: 'ai_training', granted: false, createdAt: new Date(Date.now() + 1000) })
+      .mockResolvedValueOnce(null);
+    const res = makeResponse();
+    const next = jest.fn();
+    await requireAIConsent(makeRequest(), res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   test('allows personalized AI when preferences are enabled and no denial exists', async () => {
     const res = makeResponse();
     const next = jest.fn();
