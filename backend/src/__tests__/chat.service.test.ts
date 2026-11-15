@@ -5,7 +5,7 @@ jest.mock('../prisma', () => ({ prisma: {
   uploadedFile: { findMany: jest.fn(), updateMany: jest.fn() },
   messageRead: { createMany: jest.fn() }, user: { count: jest.fn() },
   blockedUser: { findFirst: jest.fn() },
-  follow: { findUnique: jest.fn() },
+  follow: { findUnique: jest.fn(), findMany: jest.fn() },
   userSettings: { findUnique: jest.fn(), findMany: jest.fn() },
   $transaction: jest.fn(),
 } }));
@@ -206,7 +206,7 @@ describe('ChatService security and persistence', () => {
     (db.conversation.findUnique as jest.Mock).mockResolvedValue({ id: 'conversation', participants: [{ userId: 'reader' }] });
     (db.message.findMany as jest.Mock).mockResolvedValue([{ id: 'one' }]);
     (db.messageRead.createMany as jest.Mock).mockResolvedValue({ count: 1 });
-    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ readReceipts: false });
+    (db.userSettings.findUnique as jest.Mock).mockResolvedValue({ readReceipts: true, privacyReadReceipts: 'nobody' });
     await expect(service.markMessagesAsRead('conversation', 'reader')).resolves.toEqual({ count: 1, receiptsHidden: true });
   });
 
