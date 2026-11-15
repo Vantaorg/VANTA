@@ -480,17 +480,110 @@ For questions about your data, contact privacy@vanta.app
               backupCodes: null, rememberMeToken: null,
             },
           });
+          // Remove authentication material, device identifiers and private
+          // personalization data. The anonymized User row remains as the
+          // stable owner of retained financial and compliance records.
           await tx.session.deleteMany({ where: { userId } });
+          await tx.trustedDevice.deleteMany({ where: { userId } });
+          await tx.providerAccount.deleteMany({ where: { userId } });
+          await tx.twoFactorLoginChallenge.deleteMany({ where: { userId } });
+          await tx.passwordResetToken.deleteMany({ where: { userId } });
+          await tx.transferOtpChallenge.deleteMany({ where: { userId } });
+          await tx.pushDevice.deleteMany({ where: { userId } });
+          await tx.pushDelivery.deleteMany({ where: { userId } });
+          await tx.uploadSession.deleteMany({ where: { userId } });
+          await tx.userPresence.deleteMany({ where: { userId } });
+          await tx.notificationPreferences.deleteMany({ where: { userId } });
+          await tx.userSettings.deleteMany({ where: { userId } });
+          await tx.notification.deleteMany({ where: { userId } });
+          await tx.userEmbedding.deleteMany({ where: { userId } });
+          await tx.userInterest.deleteMany({ where: { userId } });
+          await tx.interactionEvent.deleteMany({ where: { userId } });
+          await tx.aiContent.deleteMany({ where: { userId } });
+          await tx.aiAnalytics.deleteMany({ where: { userId } });
+          await tx.aiSession.deleteMany({ where: { userId } });
+          await tx.profile.deleteMany({ where: { userId } });
+          await tx.photo.deleteMany({ where: { userId } });
+          await tx.verificationRequest.deleteMany({ where: { userId } });
+          await tx.propertyVerification.deleteMany({ where: { userId } });
+
+          // Remove authored social content while retaining the groups,
+          // channels and communities themselves for their other members.
           await tx.post.deleteMany({ where: { authorId: userId } });
           await tx.video.deleteMany({ where: { creatorId: userId } });
           await tx.story.deleteMany({ where: { userId } });
           await tx.message.deleteMany({ where: { senderId: userId } });
+          await tx.communityPost.deleteMany({ where: { authorId: userId } });
+          await tx.channelMessage.deleteMany({ where: { authorId: userId } });
+          await tx.groupMessage.deleteMany({ where: { authorId: userId } });
+          await tx.liveChatMessage.deleteMany({ where: { userId } });
+          await tx.liveStream.updateMany({
+            where: { hostId: userId, active: true },
+            data: { active: false, status: 'ENDED', streamKey: null, liveKitToken: null, playbackUrl: null, endedAt: now },
+          });
+          await tx.liveStream.updateMany({
+            where: { coHostId: userId },
+            data: { coHostId: null },
+          });
+
+          // Stop recurring services without deleting payment/subscription
+          // history. Keep wallet and ledger rows for financial reconciliation,
+          // but remove reusable wallet authentication and payout destination.
+          await tx.creatorSubscription.updateMany({
+            where: { OR: [{ subscriberId: userId }, { creatorId: userId }], status: 'ACTIVE' },
+            data: { status: 'CANCELLED', autoRenew: false, cancelledAt: now },
+          });
+          await tx.premiumMembership.updateMany({
+            where: { userId, status: 'ACTIVE' },
+            data: { status: 'CANCELLED', autoRenew: false },
+          });
+          await tx.creatorMembership.updateMany({
+            where: { userId, status: 'ACTIVE' },
+            data: { status: 'CANCELLED', autoRenew: false, cancelledAt: now },
+          });
+          await tx.walletPIN.deleteMany({ where: { wallet: { userId } } });
+          await tx.wallet.updateMany({ where: { userId }, data: { usdtWalletAddress: null } });
+
+          // A listing must stop being discoverable and must no longer expose
+          // direct contact details after its owner requests account deletion.
+          await tx.propertyListing.updateMany({
+            where: { ownerId: userId },
+            data: {
+              availabilityStatus: 'ARCHIVED',
+              contactWhatsApp: null,
+              contactWhatsAppPublished: false,
+              contactPhone: null,
+              contactPhonePublished: false,
+              streetAddress: null,
+            },
+          });
         }
         await tx.accountDeactivation.update({ where: { userId }, data: { status: 'DELETED', permanentlyDeletedAt: now, recoveryToken: null } });
         await tx.accountDeletionRequest.updateMany({ where: { userId, status: 'PENDING' }, data: { status: 'PROCESSED', processedAt: now } });
         return true;
       });
-      if (deleted) await this.logComplianceAction(userId, 'ACCOUNT_PERMANENTLY_DELETED', 'USER', userId, {});
+      if (deleted) {
+        // UploadedFile is intentionally not FK-cascaded from User. Remove the
+        // actual private/public media after the database transaction commits;
+        // cleanup failures are logged and do not undo the completed deletion.
+        try {
+          const files = await prisma.uploadedFile.findMany({
+            where: { userId, deletedAt: null },
+            select: { id: true, filename: true },
+          });
+          const { uploadService } = require('./upload.service');
+          for (const file of files) {
+            try {
+              await uploadService.deleteFile(file.filename, file.id);
+            } catch (cleanupError) {
+              console.error('[Compliance] Uploaded media cleanup failed:', file.id, cleanupError);
+            }
+          }
+        } catch (cleanupError) {
+          console.error('[Compliance] Could not enumerate uploaded media for cleanup:', cleanupError);
+        }
+        await this.logComplianceAction(userId, 'ACCOUNT_PERMANENTLY_DELETED', 'USER', userId, {});
+      }
       return deleted;
     } catch (error) {
       console.error(`[Compliance] Error permanently deleting user ${userId}:`, error);
