@@ -196,268 +196,225 @@ class ComplianceService {
     return request;
   }
 
-  private async processDataExport(userId: string, requestId: string) {
-    try {
-      await prisma.dataExportRequest.update({
-        where: { id: requestId },
-        data: { status: 'PROCESSING' },
-      });
+  private readonly exportPageSize = 250;
 
+  /** Cursor-paginate one dataset so no query loads an entire account history. */
+  private async *iterateExportRows(
+    delegateName: string,
+    where: Record<string, unknown>,
+    include?: Record<string, unknown>,
+    select?: Record<string, unknown>,
+  ): AsyncGenerator<any> {
+    const delegate = (prisma as any)[delegateName];
+    if (!delegate || typeof delegate.findMany !== 'function') {
+      throw new Error(`Data export source "${delegateName}" is unavailable.`);
+    }
+    let cursor: string | undefined;
+    while (true) {
+      const rows = await delegate.findMany({
+        where, orderBy: { id: 'asc' }, take: this.exportPageSize,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        ...(include ? { include } : {}), ...(select ? { select } : {}),
+      });
+      if (!Array.isArray(rows)) throw new Error(`Data export source "${delegateName}" returned an invalid page.`);
+      for (const row of rows) yield row;
+      if (rows.length < this.exportPageSize) break;
+      const nextCursor = rows[rows.length - 1]?.id;
+      if (typeof nextCursor !== 'string' || nextCursor === cursor) {
+        throw new Error(`Data export source "${delegateName}" did not return a stable cursor.`);
+      }
+      cursor = nextCursor;
+    }
+  }
+
+  /** Emit a valid JSON array with back-pressure; only one database page is held at a time. */
+  private createExportJsonStream(dataset: {
+    delegate: string; where: Record<string, unknown>;
+    include?: Record<string, unknown>; select?: Record<string, unknown>;
+  }): any {
+    const { Readable } = require('stream');
+    const service = this;
+    return Readable.from((async function* () {
+      yield '[\n';
+      let first = true;
+      for await (const row of service.iterateExportRows(dataset.delegate, dataset.where, dataset.include, dataset.select)) {
+        yield `${first ? '' : ',\n'}${JSON.stringify(row)}`;
+        first = false;
+      }
+      yield '\n]\n';
+    })());
+  }
+
+  private async processDataExport(userId: string, requestId: string) {
+    let filePath: string | undefined;
+    try {
+      await prisma.dataExportRequest.update({ where: { id: requestId }, data: { status: 'PROCESSING' } });
+
+      // Only fetch small one-to-one records here. High-cardinality relations
+      // are cursor-paginated and streamed independently into the ZIP.
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: {
-          profile: true,
-          photos: true,
-          posts: { include: { likes: true, comments: true } },
-          videos: { include: { likes: true, comments: true } },
-          stories: { include: { viewedBy: true, likes: true, comments: true } },
-          messagesSent: true,
-          followers: true,
-          following: true,
-          postLikes: true,
-          postCommentLikes: true,
-          postSaves: true,
-          videoLikes: true,
-          videoCommentLikes: true,
-          videoSaves: true,
-          watchHistory: true,
-          contentViews: true,
-          storyViews: true,
-          storyLikes: true,
-          storyComments: true,
-          messageReads: true,
-          messageReactions: true,
-          groupMessages: true,
-          channelMessages: true,
-          communityPosts: true,
-          notifications: true,
-          userInterests: true,
-          interactionEvents: true,
-          wallet: { select: { id: true, coinBalance: true, earningsBalance: true, lifetimeEarnings: true, totalCoinsPurchased: true, totalCoinsReceived: true, totalCoinsSent: true, totalGiftsSent: true, totalGiftsReceived: true, totalWithdrawn: true, bonusCoins: true, lockedCoins: true, isFrozen: true, frozenAt: true, freezeReason: true, usdtWalletAddress: true, createdAt: true, updatedAt: true } },
-          walletTransactions: true,
-          sentGifts: true,
-          receivedGifts: true,
-          userSettings: true,
-          notificationPrefs: true,
-          communityMembers: { include: { community: true } },
-          channelMembers: { include: { channel: true } },
-          groupMembers: { include: { group: true } },
-          liveStreams: { select: { id: true, title: true, description: true, thumbnailUrl: true, playbackUrl: true, viewerCount: true, peakViewers: true, totalViewers: true, likes: true, gifts: true, allowGifts: true, allowPK: true, allowGuests: true, active: true, status: true, scheduledAt: true, categoryName: true, language: true, country: true, recordingEnabled: true, recordingUrl: true, duration: true, startedAt: true, endedAt: true, chatPaused: true, slowMode: true, slowModeInterval: true, createdAt: true, updatedAt: true } },
-          liveChatMessages: true,
-          liveReactions: true,
-          streamViewers: true,
-          userStreamFollows: true,
-          streamerFollowers: true,
-          savedProperties: true,
-          sentPropertyEnquiries: true,
-          receivedEnquiries: true,
-          sessions: { select: { id: true, deviceFingerprint: true, isTrusted: true, expiresAt: true, refreshExpiresAt: true, userAgent: true, ipAddress: true, lastActiveAt: true, createdAt: true } },
+        select: {
+          id: true, username: true, email: true, phone: true, fullName: true,
+          bio: true, gender: true, age: true, dateOfBirth: true, interestedIn: true,
+          avatar: true, country: true, city: true, verified: true, premium: true,
+          role: true, status: true, lastLoginAt: true, coins: true, earnings: true,
+          createdAt: true, profile: true,
+          wallet: { select: {
+            id: true, coinBalance: true, earningsBalance: true, lifetimeEarnings: true,
+            totalCoinsPurchased: true, totalCoinsReceived: true, totalCoinsSent: true,
+            totalGiftsSent: true, totalGiftsReceived: true, totalWithdrawn: true,
+            bonusCoins: true, lockedCoins: true, isFrozen: true, frozenAt: true,
+            freezeReason: true, usdtWalletAddress: true, createdAt: true, updatedAt: true,
+          } },
+          userSettings: true, notificationPrefs: true,
         },
       });
-
       if (!user) throw new Error('User not found');
-      // ConsentRecord has no Prisma relation on User; query it directly. Session
-      // credentials are intentionally excluded from exports above.
-      const consentRecords = await prisma.consentRecord.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
 
-      // Build export data
       const exportData = {
-        exportedAt: new Date().toISOString(),
-        platform: 'VANTA',
+        exportedAt: new Date().toISOString(), platform: 'VANTA',
         account: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          phone: user.phone,
-          fullName: user.fullName,
-          bio: user.bio,
-          gender: user.gender,
-          age: user.age,
-          dateOfBirth: user.dateOfBirth,
-          interestedIn: user.interestedIn,
-          avatar: user.avatar,
-          country: user.country,
-          city: user.city,
-          verified: user.verified,
-          premium: user.premium,
-          role: user.role,
-          status: user.status,
-          lastLoginAt: user.lastLoginAt,
-          coins: user.coins,
-          earnings: user.earnings,
-          createdAt: user.createdAt,
+          id: user.id, username: user.username, email: user.email, phone: user.phone,
+          fullName: user.fullName, bio: user.bio, gender: user.gender, age: user.age,
+          dateOfBirth: user.dateOfBirth, interestedIn: user.interestedIn, avatar: user.avatar,
+          country: user.country, city: user.city, verified: user.verified, premium: user.premium,
+          role: user.role, status: user.status, lastLoginAt: user.lastLoginAt,
+          coins: user.coins, earnings: user.earnings, createdAt: user.createdAt,
         },
-        profile: user.profile,
-        photos: user.photos,
-        posts: user.posts,
-        videos: user.videos,
-        stories: user.stories,
-        messages: user.messagesSent,
-        postLikes: user.postLikes,
-        postCommentLikes: user.postCommentLikes,
-        postSaves: user.postSaves,
-        videoLikes: user.videoLikes,
-        videoCommentLikes: user.videoCommentLikes,
-        videoSaves: user.videoSaves,
-        watchHistory: user.watchHistory,
-        contentViews: user.contentViews,
-        storyViews: user.storyViews,
-        storyLikes: user.storyLikes,
-        storyComments: user.storyComments,
-        messageReads: user.messageReads,
-        messageReactions: user.messageReactions,
-        groupMessages: user.groupMessages,
-        channelMessages: user.channelMessages,
-        communityPosts: user.communityPosts,
-        notifications: user.notifications,
-        userInterests: user.userInterests,
-        interactionEvents: user.interactionEvents,
-        followers: user.followers,
-        following: user.following,
-        wallet: user.wallet,
-        transactions: user.walletTransactions,
-        giftsSent: user.sentGifts,
-        giftsReceived: user.receivedGifts,
-        settings: {
-          userSettings: user.userSettings,
-          notificationPrefs: user.notificationPrefs,
-        },
-        communities: user.communityMembers,
-        channels: user.channelMembers,
-        groups: user.groupMembers,
-        liveStreams: user.liveStreams,
-        liveChatMessages: user.liveChatMessages,
-        liveReactions: user.liveReactions,
-        streamViewers: user.streamViewers,
-        userStreamFollows: user.userStreamFollows,
-        streamerFollowers: user.streamerFollowers,
-        savedProperties: user.savedProperties,
-        sentPropertyEnquiries: user.sentPropertyEnquiries,
-        receivedPropertyEnquiries: user.receivedEnquiries,
-        sessions: user.sessions,
-        consentRecords,
+        profile: user.profile, wallet: user.wallet,
+        settings: { userSettings: user.userSettings, notificationPrefs: user.notificationPrefs },
       };
 
-      // Generate archive
+      const datasets = [
+        { file: 'photos.json', delegate: 'photo', where: { userId } },
+        { file: 'posts.json', delegate: 'post', where: { authorId: userId } },
+        { file: 'videos.json', delegate: 'video', where: { creatorId: userId } },
+        { file: 'stories.json', delegate: 'story', where: { userId } },
+        { file: 'messages.json', delegate: 'message', where: { senderId: userId } },
+        { file: 'followers.json', delegate: 'follow', where: { followingId: userId } },
+        { file: 'following.json', delegate: 'follow', where: { followerId: userId } },
+        { file: 'post_likes.json', delegate: 'postLike', where: { userId } },
+        { file: 'post_comments.json', delegate: 'postComment', where: { userId } },
+        { file: 'post_comment_likes.json', delegate: 'postCommentLike', where: { userId } },
+        { file: 'post_saves.json', delegate: 'postSave', where: { userId } },
+        { file: 'video_likes.json', delegate: 'videoLike', where: { userId } },
+        { file: 'video_comments.json', delegate: 'videoComment', where: { userId } },
+        { file: 'video_comment_likes.json', delegate: 'videoCommentLike', where: { userId } },
+        { file: 'video_saves.json', delegate: 'videoSave', where: { userId } },
+        { file: 'watch_history.json', delegate: 'watchHistory', where: { userId } },
+        { file: 'content_views.json', delegate: 'contentView', where: { userId } },
+        { file: 'story_views.json', delegate: 'storyView', where: { userId } },
+        { file: 'story_likes.json', delegate: 'storyLike', where: { userId } },
+        { file: 'story_comments.json', delegate: 'storyComment', where: { userId } },
+        { file: 'message_reads.json', delegate: 'messageRead', where: { userId } },
+        { file: 'message_reactions.json', delegate: 'messageReaction', where: { userId } },
+        { file: 'group_messages.json', delegate: 'groupMessage', where: { authorId: userId } },
+        { file: 'channel_messages.json', delegate: 'channelMessage', where: { authorId: userId } },
+        { file: 'community_posts.json', delegate: 'communityPost', where: { authorId: userId } },
+        { file: 'notifications.json', delegate: 'notification', where: { userId } },
+        { file: 'interests.json', delegate: 'userInterest', where: { userId } },
+        { file: 'interaction_events.json', delegate: 'interactionEvent', where: { userId } },
+        { file: 'transactions.json', delegate: 'walletTransaction', where: { userId } },
+        { file: 'gifts_sent.json', delegate: 'giftTransaction', where: { senderId: userId } },
+        { file: 'gifts_received.json', delegate: 'giftTransaction', where: { receiverId: userId } },
+        { file: 'communities.json', delegate: 'communityMember', where: { userId }, include: { community: true } },
+        { file: 'channels.json', delegate: 'channelMember', where: { userId }, include: { channel: true } },
+        { file: 'groups.json', delegate: 'groupMember', where: { userId }, include: { group: true } },
+        { file: 'live_streams.json', delegate: 'liveStream', where: { hostId: userId }, select: {
+          id: true, title: true, description: true, thumbnailUrl: true, playbackUrl: true,
+          viewerCount: true, peakViewers: true, totalViewers: true, likes: true, gifts: true,
+          allowGifts: true, allowPK: true, allowGuests: true, active: true, status: true,
+          scheduledAt: true, categoryName: true, language: true, country: true,
+          recordingEnabled: true, recordingUrl: true, duration: true, startedAt: true,
+          endedAt: true, chatPaused: true, slowMode: true, slowModeInterval: true,
+          createdAt: true, updatedAt: true,
+        } },
+        { file: 'live_chat_messages.json', delegate: 'liveChatMessage', where: { userId } },
+        { file: 'live_reactions.json', delegate: 'liveReaction', where: { userId } },
+        { file: 'stream_viewers.json', delegate: 'streamViewer', where: { userId } },
+        { file: 'stream_follows.json', delegate: 'streamFollower', where: { followerId: userId } },
+        { file: 'streamer_followers.json', delegate: 'streamFollower', where: { streamerId: userId } },
+        { file: 'saved_properties.json', delegate: 'savedProperty', where: { userId } },
+        { file: 'property_enquiries_sent.json', delegate: 'propertyEnquiry', where: { enquirerId: userId } },
+        { file: 'property_enquiries_received.json', delegate: 'propertyEnquiry', where: { ownerId: userId } },
+        { file: 'sessions.json', delegate: 'session', where: { userId }, select: {
+          id: true, deviceFingerprint: true, isTrusted: true, expiresAt: true,
+          refreshExpiresAt: true, userAgent: true, ipAddress: true, lastActiveAt: true, createdAt: true,
+        } },
+        { file: 'consent_records.json', delegate: 'consentRecord', where: { userId } },
+      ];
+
       const exportDir = path.resolve(__dirname, '../../exports');
-      if (!fs.existsSync(exportDir)) {
-        fs.mkdirSync(exportDir, { recursive: true });
-      }
+      if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+      filePath = path.join(exportDir, `vanta-export-${userId}-${Date.now()}.zip`);
+      await this.createExportArchive(filePath, exportData, user, datasets);
 
-      const fileName = `vanta-export-${userId}-${Date.now()}.zip`;
-      const filePath = path.join(exportDir, fileName);
-
-      await this.createExportArchive(filePath, exportData, user);
-
-      // Update request status
       await prisma.dataExportRequest.update({
         where: { id: requestId },
-        data: {
-          status: 'COMPLETED',
-          filePath,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        },
+        data: { status: 'COMPLETED', filePath, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
       });
-
-      // Send notification
       await this.createComplianceNotification(userId, 'DATA_EXPORT_READY', {
         title: 'Your data export is ready',
         message: 'Your requested data export has been generated and is available for download. The file will be available for 7 days.',
         actionUrl: '/privacy-center?tab=export',
       });
-
       await this.logComplianceAction(userId, 'DATA_EXPORT_COMPLETED', 'USER', userId, { requestId });
     } catch (error: any) {
-      await prisma.dataExportRequest.update({
-        where: { id: requestId },
-        data: { status: 'FAILED' },
-      });
-
+      if (filePath) await fs.promises.unlink(filePath).catch(() => undefined);
+      await prisma.dataExportRequest.update({ where: { id: requestId }, data: { status: 'FAILED' } });
       await this.createComplianceNotification(userId, 'DATA_EXPORT_FAILED', {
         title: 'Data export failed',
         message: 'Your data export request could not be processed. Please try again or contact support.',
         actionUrl: '/privacy-center?tab=export',
       });
-
-      await this.logComplianceAction(userId, 'DATA_EXPORT_FAILED', 'USER', userId, { requestId, error: error.message });
+      await this.logComplianceAction(userId, 'DATA_EXPORT_FAILED', 'USER', userId, {
+        requestId, error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  private async createExportArchive(filePath: string, exportData: any, user: any): Promise<void> {
+  private async createExportArchive(
+    filePath: string, exportData: any, user: any,
+    datasets: Array<{ file: string; delegate: string; where: Record<string, unknown>; include?: Record<string, unknown>; select?: Record<string, unknown> }>,
+  ): Promise<void> {
     const archiver = require('archiver');
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(filePath);
-      const archive = archiver('zip', { zlib: { level: 9 } });
-
-      output.on('close', resolve);
-      archive.on('error', reject);
-
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      let settled = false;
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
+      output.on('error', fail);
+      archive.on('error', fail);
+      archive.on('warning', fail);
+      output.on('close', () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      });
       archive.pipe(output);
-
-      // Add JSON data files
       archive.append(JSON.stringify({ platform: exportData.platform, exportedAt: exportData.exportedAt }, null, 2), { name: 'export_metadata.json' });
       archive.append(JSON.stringify(exportData.account, null, 2), { name: 'account.json' });
       archive.append(JSON.stringify(exportData.profile, null, 2), { name: 'profile.json' });
-      archive.append(JSON.stringify(exportData.photos, null, 2), { name: 'photos.json' });
-      archive.append(JSON.stringify(exportData.posts, null, 2), { name: 'posts.json' });
-      archive.append(JSON.stringify(exportData.videos, null, 2), { name: 'videos.json' });
-      archive.append(JSON.stringify(exportData.stories, null, 2), { name: 'stories.json' });
-      archive.append(JSON.stringify(exportData.postLikes, null, 2), { name: 'post_likes.json' });
-      archive.append(JSON.stringify(exportData.postCommentLikes, null, 2), { name: 'post_comment_likes.json' });
-      archive.append(JSON.stringify(exportData.postSaves, null, 2), { name: 'post_saves.json' });
-      archive.append(JSON.stringify(exportData.videoLikes, null, 2), { name: 'video_likes.json' });
-      archive.append(JSON.stringify(exportData.videoCommentLikes, null, 2), { name: 'video_comment_likes.json' });
-      archive.append(JSON.stringify(exportData.videoSaves, null, 2), { name: 'video_saves.json' });
-      archive.append(JSON.stringify(exportData.watchHistory, null, 2), { name: 'watch_history.json' });
-      archive.append(JSON.stringify(exportData.contentViews, null, 2), { name: 'content_views.json' });
-      archive.append(JSON.stringify(exportData.storyViews, null, 2), { name: 'story_views.json' });
-      archive.append(JSON.stringify(exportData.storyLikes, null, 2), { name: 'story_likes.json' });
-      archive.append(JSON.stringify(exportData.storyComments, null, 2), { name: 'story_comments.json' });
-      archive.append(JSON.stringify(exportData.messageReads, null, 2), { name: 'message_reads.json' });
-      archive.append(JSON.stringify(exportData.messageReactions, null, 2), { name: 'message_reactions.json' });
-      archive.append(JSON.stringify(exportData.groupMessages, null, 2), { name: 'group_messages.json' });
-      archive.append(JSON.stringify(exportData.channelMessages, null, 2), { name: 'channel_messages.json' });
-      archive.append(JSON.stringify(exportData.communityPosts, null, 2), { name: 'community_posts.json' });
-      archive.append(JSON.stringify(exportData.notifications, null, 2), { name: 'notifications.json' });
-      archive.append(JSON.stringify(exportData.userInterests, null, 2), { name: 'interests.json' });
-      archive.append(JSON.stringify(exportData.interactionEvents, null, 2), { name: 'interaction_events.json' });
-      archive.append(JSON.stringify(exportData.messages, null, 2), { name: 'messages.json' });
-      archive.append(JSON.stringify(exportData.followers, null, 2), { name: 'followers.json' });
-      archive.append(JSON.stringify(exportData.following, null, 2), { name: 'following.json' });
       archive.append(JSON.stringify(exportData.wallet, null, 2), { name: 'wallet.json' });
-      archive.append(JSON.stringify(exportData.transactions, null, 2), { name: 'transactions.json' });
-      archive.append(JSON.stringify(exportData.giftsSent, null, 2), { name: 'gifts_sent.json' });
-      archive.append(JSON.stringify(exportData.giftsReceived, null, 2), { name: 'gifts_received.json' });
       archive.append(JSON.stringify(exportData.settings, null, 2), { name: 'settings.json' });
-      archive.append(JSON.stringify(exportData.communities, null, 2), { name: 'communities.json' });
-      archive.append(JSON.stringify(exportData.channels, null, 2), { name: 'channels.json' });
-      archive.append(JSON.stringify(exportData.groups, null, 2), { name: 'groups.json' });
-      archive.append(JSON.stringify(exportData.liveChatMessages, null, 2), { name: 'live_chat_messages.json' });
-      archive.append(JSON.stringify(exportData.liveReactions, null, 2), { name: 'live_reactions.json' });
-      archive.append(JSON.stringify(exportData.streamViewers, null, 2), { name: 'stream_viewers.json' });
-      archive.append(JSON.stringify(exportData.userStreamFollows, null, 2), { name: 'stream_follows.json' });
-      archive.append(JSON.stringify(exportData.streamerFollowers, null, 2), { name: 'streamer_followers.json' });
-      archive.append(JSON.stringify(exportData.savedProperties, null, 2), { name: 'saved_properties.json' });
-      archive.append(JSON.stringify(exportData.sentPropertyEnquiries, null, 2), { name: 'property_enquiries_sent.json' });
-      archive.append(JSON.stringify(exportData.receivedPropertyEnquiries, null, 2), { name: 'property_enquiries_received.json' });
-      archive.append(JSON.stringify(exportData.liveStreams, null, 2), { name: 'live_streams.json' });
-      archive.append(JSON.stringify(exportData.sessions, null, 2), { name: 'sessions.json' });
-      archive.append(JSON.stringify(exportData.consentRecords, null, 2), { name: 'consent_records.json' });
-
-      // Add README
+      for (const dataset of datasets) archive.append(this.createExportJsonStream(dataset), { name: dataset.file });
       const readme = `VANTA Data Export
 =======================
 Exported on: ${exportData.exportedAt}
 Account: ${user.username} (${user.id})
 
 This archive contains your data from VANTA in JSON format.
-Files can be opened with any text editor or JSON viewer.
+Each dataset is streamed in bounded pages to avoid loading your full account history into memory.
 
 For questions about your data, contact privacy@vanta.app
 `;
       archive.append(readme, { name: 'README.txt' });
-
-      archive.finalize();
+      archive.finalize().catch(fail);
     });
   }
 
