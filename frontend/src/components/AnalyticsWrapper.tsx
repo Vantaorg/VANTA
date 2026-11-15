@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { API_BASE_URL } from "@/lib/api";
 
 const ANALYTICS_KEY = "vanta_cookie_analytics_consent";
 const MARKETING_KEY = "vanta_cookie_marketing_consent";
@@ -22,7 +23,21 @@ export default function AnalyticsWrapper() {
     return () => window.removeEventListener("vanta-consent-updated", sync);
   }, []);
 
-  const saveConsent = (analytics: boolean, marketing: boolean) => {
+  const saveConsent = async (analytics: boolean, marketing: boolean) => {
+    const token = localStorage.getItem("vanta_token");
+    if (token) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/compliance/consent`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ analytics: analytics ? "granted" : "denied", marketing: marketing ? "granted" : "denied" }),
+        });
+        if (!response.ok) return;
+      } catch {
+        return;
+      }
+    }
     localStorage.setItem(ANALYTICS_KEY, analytics ? "granted" : "denied");
     localStorage.setItem(MARKETING_KEY, marketing ? "granted" : "denied");
     setAnalyticsConsent(analytics ? "granted" : "denied");
