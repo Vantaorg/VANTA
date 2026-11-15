@@ -94,6 +94,24 @@ describe('privacy settings enforcement compatibility', () => {
     }));
   });
 
+  test('records analytics and marketing cookie toggles in the append-only consent ledger', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({
+      userId: 'user-1', cookieAnalytics: false, cookieMarketing: true,
+      privacyReadReceipts: 'everyone',
+    });
+    consentRecord.create.mockResolvedValue({});
+    await complianceService.updatePrivacySettings('user-1', {
+      cookieAnalytics: false,
+      cookieMarketing: true,
+    });
+    expect(consentRecord.create).toHaveBeenNthCalledWith(1, {
+      data: { userId: 'user-1', type: 'analytics', granted: false },
+    });
+    expect(consentRecord.create).toHaveBeenNthCalledWith(2, {
+      data: { userId: 'user-1', type: 'marketing', granted: true },
+    });
+  });
+
   test('does not let community invite preferences overwrite group invitation rules', async () => {
     (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', communityInvites: 'nobody', groupInvites: 'everyone', privacyReadReceipts: 'everyone' });
     await complianceService.updatePrivacySettings('user-1', { communityInvites: 'nobody' });
@@ -173,6 +191,10 @@ describe('compliance consent storage on the active Prisma schema', () => {
     });
 
     expect(consentRecord.create).toHaveBeenCalledTimes(3);
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ cookieAnalytics: true, cookieMarketing: false }),
+      update: expect.objectContaining({ cookieAnalytics: true, cookieMarketing: false }),
+    }));
     expect(consentRecord.create).toHaveBeenNthCalledWith(1, expect.objectContaining({
       data: expect.objectContaining({ userId: 'user-1', type: 'analytics', granted: true, ipAddress: '127.0.0.1' }),
     }));
