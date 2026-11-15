@@ -63,7 +63,7 @@ router.get('/:streamId/blocked', authenticateJWT, getStreamBlocked);
 router.get('/:streamId/following', authenticateJWT, getStreamFollowing);
 router.get('/:streamId/guests', authenticateJWT, getGuests);
 router.get('/:streamId/guest-token', authenticateJWT, getGuestToken);
-router.get('/:streamId', getStream);
+router.get('/:streamId', optionallyAuthenticateJWT, getStream);
 
 router.use(authenticateJWT);
 
