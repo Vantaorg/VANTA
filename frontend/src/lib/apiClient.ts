@@ -323,11 +323,12 @@ export const apiGet = async <T>(
 export const apiPost = async <T>(
   path: string,
   payload: unknown,
-  token?: string
+  token?: string,
+  headers?: Record<string, string>
 ): Promise<T> => {
   // Invalidate related caches on mutation
   invalidateCache(path.split('/').slice(1, 3).join('/'));
-  return makeRequest<T>('POST', path, { body: payload, token });
+  return makeRequest<T>('POST', path, { body: payload, token, headers });
 };
 
 export const apiPut = async <T>(
