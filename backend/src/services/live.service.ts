@@ -78,8 +78,8 @@ export class LiveService {
     return { ...result, items: visibleItems };
   }
 
-  async getStream(streamId: string) {
-    return cacheService.getOrSet(CACHE_KEYS.LIVE_STREAM(streamId), async () => {
+  async getStream(streamId: string, viewerId?: string) {
+    const stream = await cacheService.getOrSet(CACHE_KEYS.LIVE_STREAM(streamId), async () => {
       const queryStart = Date.now();
       
       const stream = await prisma.liveStream.findUnique({
@@ -96,6 +96,9 @@ export class LiveService {
       
       return this.serializeStream(stream);
     }, CACHE_TTL.SHORT);
+    if (!stream) return null;
+    const [visible] = await this.filterVisibleStreams([stream], viewerId);
+    return visible || null;
   }
 
   async startStream(
