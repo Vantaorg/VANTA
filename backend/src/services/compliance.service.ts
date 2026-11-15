@@ -355,6 +355,9 @@ For questions about your data, contact privacy@vanta.app
     return prisma.dataExportRequest.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      // Never expose the server's absolute export path or internal ownership
+      // fields through the public privacy-center listing endpoint.
+      select: { id: true, status: true, createdAt: true, expiresAt: true },
     });
   }
 
