@@ -127,7 +127,7 @@ describe('GroupService member permissions', () => {
     expect(db.groupMember.create).not.toHaveBeenCalled();
   });
 
-  it('allows a group invitation from an account the invitee follows', async () => {
+  it('allows a group invitation from one of the invitee's followers', async () => {
     (db.group.findUnique as jest.Mock).mockResolvedValue({ id: 'group-1', ownerId: 'owner-1', conversationId: 'conversation-1' });
     (db.groupMember.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'req', role: 'ADMIN', userId: 'owner-1' })
