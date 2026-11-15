@@ -13,6 +13,7 @@ import { PLATFORM_TRANSFER_LIMITS } from '../config/wallet.config';
 import { notificationService } from '../services/notification.service';
 import { emailService } from '../services/email.service';
 import { prisma } from '../prisma';
+import { twoFactorAuth } from '../security/twoFactorAuth';
 import bcrypt from 'bcryptjs';
 import { describe, expect, test, jest, beforeEach } from '@jest/globals';
 
@@ -32,6 +33,8 @@ jest.mock('../prisma', () => {
   return { prisma: mock };
 });
 
+jest.mock('../security/twoFactorAuth', () => ({ twoFactorAuth: { verifyLogin: jest.fn().mockResolvedValue({ valid: true, isBackupCode: false }) } }));
+
 jest.mock('../services/email.service', () => ({ emailService: { sendTransferOtpEmail: jest.fn().mockResolvedValue({ delivered: true, transport: 'sendgrid' }) } }));
 
 jest.mock('../services/notification.service', () => ({
@@ -50,8 +53,9 @@ jest.mock('bcryptjs', () => ({
 const walletService = new WalletService();
 const transferWithPin = (...args: any[]) => {
   const positional = [...args];
+  const twoFactorCode = positional.length > 10 ? positional.pop() : undefined;
   while (positional.length < 10) positional.push(undefined);
-  return walletService.transferCoins(...positional, '1234');
+  return walletService.transferCoins(...positional, '1234', twoFactorCode);
 };
 
 const senderWallet: any = { id: 'wallet1', userId: 'user1', coinBalance: 1_000_000, earningsBalance: 0, totalCoinsPurchased: 0, totalCoinsReceived: 0, totalCoinsSent: 0, totalGiftsSent: 0, totalGiftsReceived: 0, totalWithdrawn: 0, lifetimeEarnings: 0, bonusCoins: 0, lockedCoins: 0, isFrozen: false, usdtWalletAddress: null };
@@ -94,8 +98,9 @@ beforeEach(() => {
   (prisma.walletPIN.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
   (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ failedAttempts: 1, lockedUntil: null }]);
   (prisma.user.findUnique as jest.Mock).mockImplementation(async ({ where }: { where: { id: string } }) =>
-    where.id === 'user1' ? senderInfo : receiverInfo
+    where.id === 'user1' ? { ...senderInfo, twoFactorEnabled: false } : { ...receiverInfo, twoFactorEnabled: false }
   );
+  (twoFactorAuth.verifyLogin as jest.Mock).mockResolvedValue({ valid: true, isBackupCode: false });
   (prisma.transferOtpChallenge.create as jest.Mock).mockResolvedValue({ id: 'challenge1', userId: 'user1', receiverId: 'user2', amount: 105 });
   (prisma.coinTransfer.findFirst as jest.Mock).mockResolvedValue(null);
   (prisma.coinTransfer.count as jest.Mock).mockResolvedValue(0);
@@ -166,6 +171,36 @@ describe('WalletService.transferCoins — OTP challenge (Phase 5)', () => {
     expect(notificationArgs[3]).not.toMatch(/\b\d{6}\b/);
     expect(notificationArgs[3]).toContain('not available in notifications');
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test('requires authenticator 2FA for a high-value transfer when the sender enabled it', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ twoFactorEnabled: true });
+    (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue({ ...defaultLimit, otpThreshold: 1000 });
+    (prisma.transferOtpChallenge.findUnique as jest.Mock).mockResolvedValue({
+      id: 'challenge1', userId: 'user1', receiverId: 'user2', amount: 2100, sessionId: 'session1',
+      otpHash: 'hashed_otp', expiresAt: new Date(Date.now() + 60_000), maxAttempts: 3, attempts: 0, consumedAt: null,
+    });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    await expect(transferWithPin('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1'))
+      .rejects.toThrow('Authenticator 2FA code is required');
+    expect(twoFactorAuth.verifyLogin).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  test('verifies authenticator 2FA before a high-value transfer when enabled', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ twoFactorEnabled: true });
+    (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue({ ...defaultLimit, otpThreshold: 1000 });
+    const challenge = {
+      id: 'challenge1', userId: 'user1', receiverId: 'user2', amount: 2100, sessionId: 'session1',
+      otpHash: 'hashed_otp', expiresAt: new Date(Date.now() + 60_000), maxAttempts: 3, attempts: 0, consumedAt: null,
+    };
+    (prisma.transferOtpChallenge.findUnique as jest.Mock).mockResolvedValue(challenge);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    const tx = txMock();
+    tx.transferOtpChallenge.findUnique.mockResolvedValue(challenge);
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => cb(tx));
+    await transferWithPin('user1', 'user2', 2000, undefined, '123456', '127.0.0.1', undefined, undefined, 'challenge1', 'session1', '654321');
+    expect(twoFactorAuth.verifyLogin).toHaveBeenCalledWith('user1', '654321');
   });
 
   test('rejects an invalid OTP inside the transaction and aborts the transfer', async () => {
