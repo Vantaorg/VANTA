@@ -359,10 +359,34 @@ export class StoryService {
       },
     });
 
-    const visibleStories = await Promise.all(stories.map(async (story) =>
-      (await this.canViewStories(story.userId, currentUserId)) ? story : null
-    ));
-    const allowedStories = visibleStories.filter((story): story is NonNullable<typeof story> => Boolean(story));
+    const ownerIds = [...new Set(stories.map((story) => story.userId))];
+    const ownerSettings = ownerIds.length ? await prisma.userSettings.findMany({
+      where: { userId: { in: ownerIds } },
+      select: { userId: true, storyVisibility: true, privacyStories: true },
+    }) : [];
+    const settingsByOwner = new Map(ownerSettings.map((settings) => [settings.userId, settings]));
+    const restrictedOwnerIds = ownerIds.filter((ownerId) => {
+      const settings = settingsByOwner.get(ownerId);
+      const values = [settings?.storyVisibility, settings?.privacyStories].filter(Boolean);
+      return values.some((value) => value === "followers" || value === "following");
+    });
+    const followedOwners = currentUserId && restrictedOwnerIds.length
+      ? await prisma.follow.findMany({
+          where: { followerId: currentUserId, followingId: { in: restrictedOwnerIds } },
+          select: { followingId: true },
+        })
+      : [];
+    const followedOwnerIds = new Set(followedOwners.map((follow) => follow.followingId));
+    const allowedStories = stories.filter((story) => {
+      if (story.userId === currentUserId) return true;
+      const settings = settingsByOwner.get(story.userId);
+      const values = [settings?.storyVisibility, settings?.privacyStories].filter(Boolean);
+      if (values.some((value) => value === "nobody" || value === "noone")) return false;
+      if (values.some((value) => value === "followers" || value === "following")) {
+        return followedOwnerIds.has(story.userId);
+      }
+      return true;
+    });
     const storyIds = allowedStories.map((story) => story.id);
     const [viewerCounts, ownViews] = await Promise.all([
       prisma.contentView.groupBy({
