@@ -151,6 +151,7 @@ describe('UserService', () => {
     (prisma.liveStream.count as jest.Mock).mockResolvedValue(0);
     (prisma.postLike.count as jest.Mock).mockResolvedValue(0);
     (prisma.postComment.count as jest.Mock).mockResolvedValue(0);
+    (prisma.post.count as jest.Mock).mockResolvedValue(0);
     // Set up default bcrypt mocks
     (bcrypt.compare as jest.Mock).mockResolvedValue(true as never);
     (bcrypt.genSalt as jest.Mock).mockResolvedValue('salt' as never);
@@ -182,6 +183,53 @@ describe('UserService', () => {
       const result = await userService.getPublicProfileByUsername('testuser', 'currentUser');
       expect(result.username).toBe('testuser');
       expect(result.isFollowing).toBe(false);
+    });
+
+    test('filters moderation-removed posts and streams from public profile summaries', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...mockUser, _count: { followers: 5, following: 3, posts: 9 } });
+      (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({ privacyProfile: 'public', liveStreamVisibility: 'everyone', privacyLiveStream: 'everyone' });
+      (prisma.follow.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await userService.getPublicProfileByUsername('testuser', 'viewer-1');
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        include: expect.objectContaining({
+          posts: expect.objectContaining({ where: { moderationRemovedAt: null } }),
+        }),
+      }));
+      expect(prisma.liveStream.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ moderationRemovedAt: null }),
+      }));
+      expect(prisma.post.count).toHaveBeenCalledWith({ where: { authorId: 'user1', moderationRemovedAt: null } });
+    });
+
+    test('hides current live stream from viewers excluded by live-stream privacy', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.userSettings.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ privacyProfile: 'public' })
+        .mockResolvedValueOnce({ liveStreamVisibility: 'nobody', privacyLiveStream: 'everyone' });
+      (prisma.follow.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const result = await userService.getPublicProfileByUsername('testuser', 'viewer-1');
+
+      expect(result.currentStream).toBeNull();
+      expect(prisma.liveStream.findFirst).not.toHaveBeenCalled();
+    });
+
+    test('shows followers-only current stream only to a viewer who follows the host', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.userSettings.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ privacyProfile: 'public' })
+        .mockResolvedValueOnce({ liveStreamVisibility: 'followers', privacyLiveStream: 'everyone' });
+      (prisma.follow.findUnique as jest.Mock).mockResolvedValue({ id: 'follow-1' });
+      (prisma.liveStream.findFirst as jest.Mock).mockResolvedValue({ id: 'stream-1' });
+
+      const result = await userService.getPublicProfileByUsername('testuser', 'viewer-1');
+
+      expect(result.currentStream).toMatchObject({ id: 'stream-1' });
+      expect(prisma.liveStream.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { hostId: 'user1', active: true, status: 'LIVE', moderationRemovedAt: null },
+      }));
     });
 
     test('should throw Error if profile not found', async () => {
