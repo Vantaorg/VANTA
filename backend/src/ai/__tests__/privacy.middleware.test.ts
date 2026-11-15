@@ -57,6 +57,17 @@ describe('AI privacy preference enforcement', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  test('blocks when the account has explicitly opted out through the AI privacy endpoint', async () => {
+    db.aIFeatureFlag.findMany.mockResolvedValue([
+      { featureKey: 'opt_out:user-1', enabled: false },
+    ]);
+    const res = makeResponse();
+    const next = jest.fn();
+    await requireAIConsent(makeRequest(), res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('honors the global AI kill switch but not a disabled user opt-out flag', async () => {
     db.aIFeatureFlag.findMany.mockResolvedValue([
       { featureKey: 'opt_out:user-1', enabled: true },
