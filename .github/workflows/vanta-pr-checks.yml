@@ -32,8 +32,8 @@ jobs:
       - name: Build frontend for production
         run: npm --prefix frontend run build
 
-  backend:
-    name: Backend TypeScript production build
+  backend-tests:
+    name: Backend security regression tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -101,5 +101,28 @@ jobs:
           src/__tests__/feed.moderation-guards.test.ts
           src/__tests__/post.service.test.ts
           src/ai/__tests__/privacy.middleware.test.ts
+
+  backend-build:
+    name: Backend TypeScript production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend dependencies
+        run: npm --prefix backend install
+      - name: Validate active Prisma schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+        run: npx prisma validate
+      - name: Generate Prisma Client from active schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+        run: npx prisma generate
       - name: Build backend
         run: npm --prefix backend run build
