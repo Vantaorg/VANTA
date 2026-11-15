@@ -33,7 +33,7 @@ export default function WithdrawModal({ open, balance, walletAddress, onClose, o
     if (!open || !token) return;
     apiGet<{ enabled: boolean }>('/api/auth/2fa/status', token)
       .then(status => setTwoFactorEnabled(status?.enabled === true))
-      .catch(() => setTwoFactorEnabled(false));
+      .catch(() => setTwoFactorEnabled(true));
   }, [open, token]);
 
   // Reset state when opened
