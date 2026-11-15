@@ -90,8 +90,9 @@ const tryBatchRequest = async <T>(
   path: string,
   options: { body?: unknown; token?: string }
 ): Promise<T | null> => {
-  // Only batch GET requests to specific endpoints
-  if (method !== 'GET') return null;
+  // Only batch cacheable GET requests to specific endpoints. A skipCache
+  // caller explicitly requests an independent fresh network read.
+  if (method !== 'GET' || options.skipCache) return null;
   
   const basePath = '/' + path.split('/').slice(1, 3).join('/');
   if (!BATCH_ENDPOINTS.includes(basePath)) return null;
