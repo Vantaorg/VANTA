@@ -4,6 +4,7 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from "./cache.service";
 import { dbPerformanceTracker } from "./monitoring.service";
 import { emitSocialEvent } from "./social-events.service";
 import { notificationService } from "./notification.service";
+import { canReceiveMention } from "../security/privacyPermissions";
 import { BADGE_USER_SELECT, enrichPublicUser, enrichItemAuthors } from "./public-verification";
 
 const AUTHOR_SELECT = {
@@ -784,10 +785,10 @@ export class FeedService {
     const followersAllowedToMention = new Set(mentionFollows.map(follow => follow.followerId));
     const mentionedUsers = mentionedUsersRaw.filter(mentioned => {
       if (mentioned.id === userId) return false;
-      const mode = String(mentionPrefsByUser.get(mentioned.id)?.mentionPermissions || "everyone").toLowerCase();
-      if (mode === "nobody" || mode === "noone" || mode === "none") return false;
-      if (mode === "followers" || mode === "following") return followersAllowedToMention.has(mentioned.id);
-      return true;
+      return canReceiveMention(
+        mentionPrefsByUser.get(mentioned.id)?.mentionPermissions,
+        followersAllowedToMention.has(mentioned.id),
+      );
     });
 
     const comment = await prisma.$transaction(async tx => {
