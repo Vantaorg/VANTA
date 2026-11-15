@@ -76,5 +76,11 @@ jobs:
           src/__tests__/security.audit-log-hash.test.ts
           src/__tests__/wallet.service.test.ts
           src/__tests__/admin.finance-currency.test.ts
+          src/__tests__/account-status.test.ts
+          src/__tests__/call-session.service.test.ts
+          src/__tests__/story.service.test.ts
+          src/__tests__/live.service.test.ts
+          src/__tests__/compliance.active-schema.test.ts
+          src/ai/__tests__/privacy.middleware.test.ts
       - name: Build backend
         run: npm --prefix backend run build
