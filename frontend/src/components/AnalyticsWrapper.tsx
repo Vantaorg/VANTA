@@ -8,30 +8,82 @@ import { API_BASE_URL } from "@/lib/api";
 const ANALYTICS_KEY = "vanta_cookie_analytics_consent";
 const MARKETING_KEY = "vanta_cookie_marketing_consent";
 
+function normalizeConsent(value: string | null | undefined): string | null {
+  return !value || value === "not_set" ? null : value;
+}
+
 export default function AnalyticsWrapper() {
   const [analyticsConsent, setAnalyticsConsent] = useState<string | null>(null);
   const [marketingConsent, setMarketingConsent] = useState<string | null>(null);
+  const [consentLoading, setConsentLoading] = useState(true);
 
   useEffect(() => {
-    if (marketingConsent !== "granted") return;
+    let cancelled = false;
+    const token = localStorage.getItem("vanta_token");
+
+    const applyLocalConsent = () => {
+      setAnalyticsConsent(normalizeConsent(localStorage.getItem(ANALYTICS_KEY)));
+      setMarketingConsent(normalizeConsent(localStorage.getItem(MARKETING_KEY)));
+    };
+
+    if (!token) {
+      applyLocalConsent();
+      setConsentLoading(false);
+    } else {
+      // A signed-in user's server-side consent record is authoritative. Do not
+      // mount third-party analytics from a stale localStorage grant while it is
+      // being checked.
+      fetch(`${API_BASE_URL}/api/compliance/consent`, {
+        method: "GET",
+        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Unable to verify consent preferences");
+          return response.json();
+        })
+        .then((preferences) => {
+          if (cancelled) return;
+          const analytics = normalizeConsent(preferences?.analytics);
+          const marketing = normalizeConsent(preferences?.marketing);
+          if (analytics) localStorage.setItem(ANALYTICS_KEY, analytics);
+          else localStorage.removeItem(ANALYTICS_KEY);
+          if (marketing) localStorage.setItem(MARKETING_KEY, marketing);
+          else localStorage.removeItem(MARKETING_KEY);
+          setAnalyticsConsent(analytics);
+          setMarketingConsent(marketing);
+        })
+        .catch(() => {
+          // Fail closed when the server's current consent cannot be verified.
+          if (!cancelled) {
+            localStorage.removeItem(ANALYTICS_KEY);
+            localStorage.removeItem(MARKETING_KEY);
+            setAnalyticsConsent(null);
+            setMarketingConsent(null);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setConsentLoading(false);
+        });
+    }
+
+    const sync = () => applyLocalConsent();
+    window.addEventListener("vanta-consent-updated", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("vanta-consent-updated", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (consentLoading || marketingConsent !== "granted") return;
     const script = document.createElement("script");
     script.src = "https://app.gomine.social/api/visit/v.js";
     script.async = true;
     script.dataset.vantaMarketingConsent = "true";
     document.head.appendChild(script);
     return () => script.remove();
-  }, [marketingConsent]);
-
-  useEffect(() => {
-    setAnalyticsConsent(localStorage.getItem(ANALYTICS_KEY));
-    setMarketingConsent(localStorage.getItem(MARKETING_KEY));
-    const sync = () => {
-      setAnalyticsConsent(localStorage.getItem(ANALYTICS_KEY));
-      setMarketingConsent(localStorage.getItem(MARKETING_KEY));
-    };
-    window.addEventListener("vanta-consent-updated", sync);
-    return () => window.removeEventListener("vanta-consent-updated", sync);
-  }, []);
+  }, [consentLoading, marketingConsent]);
 
   const saveConsent = async (analytics: boolean, marketing: boolean) => {
     const token = localStorage.getItem("vanta_token");
@@ -57,9 +109,9 @@ export default function AnalyticsWrapper() {
 
   return (
     <>
-      {analyticsConsent === "granted" && <Analytics />}
-      {analyticsConsent === "granted" && <SpeedInsights />}
-      {analyticsConsent === null && (
+      {!consentLoading && analyticsConsent === "granted" && <Analytics />}
+      {!consentLoading && analyticsConsent === "granted" && <SpeedInsights />}
+      {!consentLoading && analyticsConsent === null && (
         <aside
           role="dialog"
           aria-label="Cookie preferences"
