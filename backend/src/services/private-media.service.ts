@@ -21,8 +21,22 @@ export function verifyPrivateMediaToken(token: string, fileId: string): string {
 export async function privateMediaStaticGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const filename = path.basename(decodeURIComponent(req.path));
-    const privateFile = await prisma.uploadedFile.findFirst({ where: { filename, category: 'message' }, select: { id: true } });
-    if (privateFile) { res.status(404).json({ error: 'Not found' }); return; }
+    const baseName = path.parse(filename).name;
+    const file = await prisma.uploadedFile.findFirst({
+      where: {
+        OR: [
+          { filename },
+          ...(baseName ? [{ filename: { startsWith: `${baseName}.` } }] : []),
+        ],
+      },
+      select: { id: true, category: true, deletedAt: true },
+    });
+    // Message media is private by design; moderated/deleted uploads must also
+    // stop resolving through the public static path, including optimized URLs.
+    if (file?.category === 'message' || file?.deletedAt) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
     next();
   } catch (error) {
     console.error('Private media static guard failed:', error instanceof Error ? error.message : 'unknown error');
