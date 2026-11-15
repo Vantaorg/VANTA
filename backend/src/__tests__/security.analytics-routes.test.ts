@@ -225,6 +225,30 @@ describe('/api/analytics authorization (VANTA-002)', () => {
     expect(allowedAnonymous.status).toBe(200);
   });
 
+  test('marketing events require separate marketing consent', async () => {
+    const denied = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'denied',
+      },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(denied.status).toBe(204);
+
+    const allowed = await fetch(`${baseUrl}/api/analytics/track`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vanta-analytics-consent': 'granted',
+        'x-vanta-marketing-consent': 'granted',
+      },
+      body: JSON.stringify({ eventType: 'ad_view' }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
   test('telemetry /track rejects malformed payloads and accepts bounded ones', async () => {
     const bad = await fetch(`${baseUrl}/api/analytics/track`, {
       method: 'POST',
