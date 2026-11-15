@@ -349,7 +349,7 @@ describe('compliance account lifecycle transactions', () => {
       data: expect.objectContaining({ availabilityStatus: 'ARCHIVED', contactWhatsApp: null, contactPhone: null }),
     }));
     expect((prisma as any).uploadedFile.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: 'user-1', deletedAt: null, category: { not: 'verification' } },
+      where: { userId: 'user-1', deletedAt: null, category: { in: ['avatar', 'banner', 'profile-media', 'thumbnail', 'group-avatar', 'channel-avatar', 'community-avatar', 'community-banner', 'reel', 'post-media', 'story'] } },
     }));
     expect(uploadService.deleteFile).toHaveBeenCalledWith('avatar.png', 'file-1');
     expect(tx.accountDeactivation.update).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, data: expect.objectContaining({ status: 'DELETED', recoveryToken: null }) }));
