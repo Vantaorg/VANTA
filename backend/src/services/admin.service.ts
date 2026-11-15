@@ -1,4 +1,7 @@
 import { prisma } from '../prisma';
+import { cacheService } from './cache.service';
+import { removeModeratedContent } from './content-removal.service';
+import { uploadService } from './upload.service';
 import { healthStatus } from './monitoring.service';
 import {
   startOfToday,
@@ -478,18 +481,28 @@ const [
     };
   }
 
-  /** Review a moderation-queue item (records a ModerationAction + audit trail). */
+  /** Review a moderation item. REMOVED is an atomic content deletion, not just a queue status. */
   async reviewContent(queueId: string, action: 'APPROVED' | 'REMOVED', adminId: string, reason?: string) {
-    const item = await prisma.moderationQueue.findUnique({ where: { id: queueId } });
-    if (!item) throw new Error('Moderation item not found');
-    if (item.status !== 'PENDING') throw new Error('Moderation item is already resolved');
+    let removedFiles: Array<{ id: string; filename: string }> = [];
+    const updated = await prisma.$transaction(async (tx) => {
+      const item = await tx.moderationQueue.findUnique({ where: { id: queueId } });
+      if (!item) throw new Error('Moderation item not found');
+      if (item.status !== 'PENDING') throw new Error('Moderation item is already resolved');
 
-    const [updated] = await prisma.$transaction([
-      prisma.moderationQueue.update({
-        where: { id: queueId },
+      // If the content cannot be found or its type is unsupported, throw before
+      // resolving the queue item. The transaction then leaves the report pending.
+      if (action === 'REMOVED') {
+        removedFiles = await removeModeratedContent(tx, item.targetType, item.targetId);
+      }
+
+      const resolution = await tx.moderationQueue.updateMany({
+        where: { id: queueId, status: 'PENDING' },
         data: { status: action, reviewedBy: adminId, reviewedAt: new Date(), humanReview: true },
-      }),
-      prisma.moderationAction.create({
+      });
+      if (resolution.count !== 1) throw new Error('Moderation item is already resolved');
+      const resolved = await tx.moderationQueue.findUnique({ where: { id: queueId } });
+      if (!resolved) throw new Error('Moderation item not found after review');
+      await tx.moderationAction.create({
         data: {
           queueId,
           moderatorId: adminId,
@@ -497,8 +510,32 @@ const [
           reason: reason || null,
           automated: false,
         },
-      }),
-    ]);
+      });
+      return resolved;
+    });
+
+    if (action === 'REMOVED') {
+      // The database tombstone is committed first. Delete the corresponding
+      // local/Cloudinary assets afterwards so a storage outage cannot roll
+      // back a completed moderation decision or leave content visible.
+      const cleanup = await Promise.allSettled(removedFiles.map(file => uploadService.deleteFile(file.filename, file.id)));
+      cleanup.forEach((result, index) => {
+        if (result.status === 'rejected' || result.value === false) {
+          console.error('[AdminModeration] Removed content media cleanup failed:', removedFiles[index]?.id);
+        }
+      });
+
+      // Purge all shared discovery/feed caches so deleted material cannot
+      // reappear from a previously cached page after moderation succeeds.
+      await Promise.all([
+        cacheService.delPattern('feed:*'),
+        cacheService.delPattern('homefeed:*'),
+        cacheService.delPattern('explore:*'),
+        cacheService.delPattern('trending:*'),
+        cacheService.delPattern('stories:*'),
+        cacheService.delPattern('live:*'),
+      ]);
+    }
 
     return updated;
   }
