@@ -345,7 +345,7 @@ export class StoryService {
   async getComments(storyId: string) {
     await this.requireActiveStory(storyId);
     return prisma.storyComment.findMany({
-      where: { storyId, moderationRemovedAt: null },
+      where: { storyId },
       orderBy: { createdAt: "asc" },
       include: {
         user: { select: { id: true, username: true, fullName: true, avatar: true, verified: true, ...BADGE_USER_SELECT } },
