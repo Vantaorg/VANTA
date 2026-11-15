@@ -65,6 +65,33 @@ describe('privacy settings enforcement compatibility', () => {
       update: expect.objectContaining({ accountType: 'PRIVATE', privacyProfile: 'private' }),
     }));
   });
+  test('maps story, call, live-stream, and invite permissions to established fields', async () => {
+    (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', privacyReadReceipts: 'everyone' });
+    await complianceService.updatePrivacySettings('user-1', {
+      storyVisibility: 'followers',
+      callPermissions: 'nobody',
+      liveStreamVisibility: 'followers',
+      communityInvites: 'nobody',
+      tagPermissions: 'followers',
+    });
+    expect((prisma as any).userSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        storyVisibility: 'followers', privacyStories: 'following',
+        callPermissions: 'nobody', privacyCalls: 'noone',
+        liveStreamVisibility: 'followers', privacyLiveStream: 'following',
+        communityInvites: 'nobody', privacyInvites: 'noone',
+        tagPermissions: 'followers', privacyTagging: 'following',
+      }),
+      update: expect.objectContaining({
+        storyVisibility: 'followers', privacyStories: 'following',
+        callPermissions: 'nobody', privacyCalls: 'noone',
+        liveStreamVisibility: 'followers', privacyLiveStream: 'following',
+        communityInvites: 'nobody', privacyInvites: 'noone',
+        tagPermissions: 'followers', privacyTagging: 'following',
+      }),
+    }));
+  });
+
   test('maps new message permission values to the existing chat enforcement field', async () => {
     (prisma as any).userSettings.upsert.mockResolvedValue({ userId: 'user-1', messagePermissions: 'nobody', privacyMessages: 'noone', privacyReadReceipts: 'everyone' });
     await complianceService.updatePrivacySettings('user-1', { messagePermissions: 'nobody' });
