@@ -152,7 +152,7 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
     const pageReelIds = pageItems.map((item) => item.id);
 
     const reels = await prisma.video.findMany({
-      where: { id: { in: pageReelIds } },
+      where: { id: { in: pageReelIds }, moderationRemovedAt: null },
       include: {
         creator: {
           select: {
@@ -230,7 +230,7 @@ export const getReelById = async (req: AuthRequest, res: Response): Promise<void
   try {
     const userId = req.user?.userId;
     const reel = await prisma.video.findUnique({
-      where: { id: req.params.id, publishStatus: "PUBLISHED" },
+      where: { id: req.params.id, publishStatus: "PUBLISHED", moderationRemovedAt: null },
       include: {
         creator: {
           select: {
@@ -281,7 +281,7 @@ export const likeReel = async (req: AuthRequest, res: Response): Promise<void> =
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
     const reelId = req.params.id;
-    const reel = await prisma.video.findUnique({ where: { id: reelId } });
+    const reel = await prisma.video.findUnique({ where: { id: reelId, moderationRemovedAt: null } });
     if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
 
     const existing = await prisma.videoLike.findUnique({
@@ -313,7 +313,7 @@ export const commentOnReel = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const reelId = req.params.id;
-    const reel = await prisma.video.findUnique({ where: { id: reelId } });
+    const reel = await prisma.video.findUnique({ where: { id: reelId, moderationRemovedAt: null } });
     if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
 
     const comment = await prisma.videoComment.create({
@@ -343,7 +343,7 @@ export const getReelComments = async (req: AuthRequest, res: Response): Promise<
     const userId = req.user?.userId;
 
     const comments = await prisma.videoComment.findMany({
-      where: { videoId: req.params.id },
+      where: { videoId: req.params.id, moderationRemovedAt: null },
       orderBy: { createdAt: "desc" },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -408,7 +408,7 @@ export const saveReel = async (req: AuthRequest, res: Response): Promise<void> =
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
     const reelId = req.params.id;
-    const reel = await prisma.video.findUnique({ where: { id: reelId } });
+    const reel = await prisma.video.findUnique({ where: { id: reelId, moderationRemovedAt: null } });
     if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
 
     const existing = await prisma.videoSave.findUnique({
@@ -435,7 +435,7 @@ export const incrementReelViews = async (req: AuthRequest, res: Response): Promi
     const reelId = req.params.id;
     const watchTime = Math.max(0, Math.min(Number(req.body?.watchTime) || 0, 86_400));
     const completed = Boolean(req.body?.completed);
-    const reel = await prisma.video.findUnique({ where: { id: reelId }, select: { id: true } });
+    const reel = await prisma.video.findUnique({ where: { id: reelId, moderationRemovedAt: null }, select: { id: true } });
     if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
     if (watchTime < 2) { res.status(400).json({ error: "A Reel view requires at least 2 seconds of playback" }); return; }
 
@@ -458,7 +458,7 @@ export const deleteReel = async (req: AuthRequest, res: Response): Promise<void>
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
     const reelId = req.params.id;
-    const reel = await prisma.video.findUnique({ where: { id: reelId } });
+    const reel = await prisma.video.findUnique({ where: { id: reelId, moderationRemovedAt: null } });
     if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
     if (reel.creatorId !== userId && req.user?.role !== "ADMIN") {
       res.status(403).json({ error: "Unauthorized to delete this reel" });
@@ -472,7 +472,7 @@ export const deleteReel = async (req: AuthRequest, res: Response): Promise<void>
     });
     await Promise.all(files.map(file => uploadService.deleteFile(file.filename, file.id)));
 
-    await prisma.video.delete({ where: { id: reelId } });
+    await prisma.video.delete({ where: { id: reelId, moderationRemovedAt: null } });
     res.status(200).json({ message: "Reel deleted" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
