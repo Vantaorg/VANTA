@@ -346,7 +346,7 @@ export const completeLogin2FA = async (req: Request, res: Response): Promise<voi
       });
       return;
     }
-    if (!['ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(user.status)) {
+    if (!['ACTIVE', 'SUSPENDED'].includes(user.status) && !isDeactivatedAccountStatus(user.status)) {
       const accountError = accountStatusError(user.status);
       res.status(accountError.status).json({ error: accountError.error, code: accountError.code, accountStatus: user.status });
       return;
