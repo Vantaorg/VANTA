@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { auditLog } from '../security/auditLog';
-import { removeModeratedContent } from './content-removal.service';
+import { removeModeratedContent, restoreModeratedContent } from './content-removal.service';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,16 +10,23 @@ import { v4 as uuidv4 } from 'uuid';
 // ============================================================================
 
 class ComplianceService {
-  private async cleanupRemovedContent(removedFiles: Array<{ id: string; filename: string }>, source: string) {
-    // Load storage/cache adapters only when an actual removal needs cleanup.
+  private async cleanupRemovedContent(removedFiles: Array<{ id: string; filename: string }>, source: string): Promise<boolean> {
+    // Quarantine media instead of destroying it: local public URLs are blocked
+    // by the UploadedFile tombstone, while Cloudinary assets are renamed to
+    // authenticated delivery. Both paths can be restored after an audited reversal.
     const { uploadService } = require('./upload.service');
     const { cacheService } = require('./cache.service');
-    const cleanup = await Promise.allSettled(removedFiles.map((file) => uploadService.deleteFile(file.filename, file.id)));
+    const cleanup = await Promise.allSettled(removedFiles.map((file) => uploadService.quarantineModeratedFile(file.id)));
+    let succeeded = true;
     cleanup.forEach((result, index) => {
-      if (result.status === 'rejected' || result.value === false) console.error(`[Compliance] ${source} media cleanup failed:`, removedFiles[index]?.id);
+      if (result.status === 'rejected' || result.value === false) {
+        succeeded = false;
+        console.error(`[Compliance] ${source} media quarantine failed:`, removedFiles[index]?.id);
+      }
     });
-    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*'].map((pattern) => cacheService.delPattern(pattern)));
+    const cacheResults = await Promise.allSettled(['feed:*', 'homefeed:*', 'explore:*', 'trending:*', 'stories:*', 'live:*', 'search:*'].map((pattern) => cacheService.delPattern(pattern)));
     cacheResults.forEach((result) => { if (result.status === 'rejected') console.error(`[Compliance] ${source} cache purge failed:`, result.reason); });
+    return succeeded;
   }
 
   // ==========================================================================
@@ -773,6 +780,18 @@ For questions about your data, contact privacy@vanta.app
       if (action === 'remove') {
         if (!report.targetType || !report.targetId) throw new Error('Report has no supported content target.');
         removedFiles = await removeModeratedContent(tx, report.targetType, report.targetId);
+        await tx.moderationRemoval.create({
+          data: {
+            queueId: reportId,
+            sourceType: 'REPORT',
+            sourceId: reportId,
+            targetType: report.targetType,
+            targetId: report.targetId,
+            moderatorId: adminId,
+            reason: note || null,
+            mediaQuarantineStatus: 'PENDING',
+          },
+        });
       }
       const targetUserId = report.targetUserId || (report.targetType?.toUpperCase() === 'USER' ? report.targetId : null);
       if (['warn', 'suspend', 'ban'].includes(action) && !targetUserId) {
@@ -804,7 +823,13 @@ For questions about your data, contact privacy@vanta.app
       await tx.moderationAction.create({ data: { queueId: reportId, moderatorId: adminId, action, reason: note || null, automated: false } });
       return tx.moderationQueue.findUnique({ where: { id: reportId } });
     });
-    if (action === 'remove') await this.cleanupRemovedContent(removedFiles, 'Report');
+    if (action === 'remove') {
+      const mediaQuarantined = await this.cleanupRemovedContent(removedFiles, 'Report');
+      await prisma.moderationRemoval.update({
+        where: { queueId: reportId },
+        data: { mediaQuarantineStatus: mediaQuarantined ? 'COMPLETED' : 'FAILED' },
+      });
+    }
     await this.logComplianceAction(adminId, 'REPORT_PROCESSED', 'REPORT', reportId, { action, note, status: updated?.status });
     return updated;
   }
