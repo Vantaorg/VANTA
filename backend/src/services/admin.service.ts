@@ -368,7 +368,7 @@ const [
       ];
     }
 
-    const [transactions, total, completedAgg, pendingAgg, refundedAgg, purchaseAgg] = await Promise.all([
+    const [transactions, total, completedVanta, completedUsd, pendingVanta, pendingUsd, reversedVanta, reversedUsd, purchaseAgg, legacyGiftRows] = await Promise.all([
       prisma.walletTransaction.findMany({
         where,
         include: { user: { select: { id: true, username: true, email: true } } },
@@ -377,18 +377,44 @@ const [
         skip: offset,
       }),
       prisma.walletTransaction.count({ where }),
-      prisma.walletTransaction.aggregate({ where: { status: 'COMPLETED' }, _sum: { amount: true } }),
-      prisma.walletTransaction.aggregate({ where: { status: 'PENDING' }, _sum: { amount: true } }),
-      prisma.walletTransaction.aggregate({ where: { status: 'REVERSED' }, _sum: { amount: true } }),
-      prisma.purchaseOrder.aggregate({ where: { status: 'COMPLETED' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'COMPLETED', currency: 'VANTA' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'COMPLETED', currency: 'USD' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'PENDING', currency: 'VANTA' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'PENDING', currency: 'USD' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'REVERSED', currency: 'VANTA' }, _sum: { amount: true } }),
+      prisma.walletTransaction.aggregate({ where: { status: 'REVERSED', currency: 'USD' }, _sum: { amount: true } }),
+      prisma.purchaseOrder.aggregate({ where: { status: 'COMPLETED', currency: 'USD' }, _sum: { amount: true } }),
+      prisma.walletTransaction.findMany({
+        where: { type: 'GIFT_RECEIVED', currency: 'VANTA' },
+        select: { amount: true, status: true, metadata: true },
+      }),
     ]);
 
-    return {
-      transactions: transactions.map((t) => ({
+    const legacyCashByStatus = { COMPLETED: 0, PENDING: 0, REVERSED: 0 };
+    for (const row of legacyGiftRows) {
+      let metadata: any = null;
+      try { metadata = row.metadata ? JSON.parse(row.metadata) : null; } catch { metadata = null; }
+      if (metadata?.autoConverted === true || metadata?.creatorEarningsUsd == null || !Number.isFinite(Number(metadata.creatorEarningsUsd))) continue;
+      if (row.status === 'COMPLETED' || row.status === 'PENDING' || row.status === 'REVERSED') {
+        legacyCashByStatus[row.status] += Math.abs(row.amount);
+      }
+    }
+
+    const transactionsWithCurrency = transactions.map((t) => {
+      const metadata = t.metadata ? (() => { try { return JSON.parse(t.metadata!); } catch { return null; } })() : null;
+      const legacyCashGift = t.type === 'GIFT_RECEIVED' && t.currency !== 'USD' &&
+        metadata?.autoConverted !== true && metadata?.creatorEarningsUsd != null &&
+        Number.isFinite(Number(metadata.creatorEarningsUsd));
+      const currency = legacyCashGift ? 'USD' : (t.currency || 'VANTA');
+      const outgoing = new Set(['TRANSFER_SENT', 'GIFT_SENT', 'WITHDRAWAL', 'FEE', 'SUBSCRIPTION', 'ADMIN_DEBIT', 'FOLLOWER_REWARD_RESERVE']);
+      const isOutgoing = outgoing.has(t.type) || (t.type === 'FOLLOWER_REWARD_CLAIM' && metadata?.side === 'creator');
+      return {
         id: t.id,
         type: t.type,
         status: t.status,
-        amount: t.amount,
+        currency,
+        amount: Math.abs(t.amount),
+        displayAmount: isOutgoing ? -Math.abs(t.amount) : Math.abs(t.amount),
         fee: t.fee,
         balance: t.balance,
         description: t.description || '',
@@ -396,13 +422,20 @@ const [
         createdAt: t.createdAt.toISOString(),
         userName: t.user?.username || 'unknown',
         userId: t.user?.id,
-        metadata: t.metadata ? (() => { try { return JSON.parse(t.metadata!); } catch { return null; } })() : null,
-      })),
+        metadata,
+      };
+    });
+
+    return {
+      transactions: transactionsWithCurrency,
       total,
       summary: {
-        totalProcessed: completedAgg._sum.amount || 0,
-        pendingReview: pendingAgg._sum.amount || 0,
-        refunds: refundedAgg._sum.amount || 0,
+        totalProcessedUsd: (completedUsd._sum.amount || 0) + legacyCashByStatus.COMPLETED,
+        totalProcessedVanta: (completedVanta._sum.amount || 0) - legacyCashByStatus.COMPLETED,
+        pendingReviewUsd: (pendingUsd._sum.amount || 0) + legacyCashByStatus.PENDING,
+        pendingReviewVanta: (pendingVanta._sum.amount || 0) - legacyCashByStatus.PENDING,
+        refundsUsd: (reversedUsd._sum.amount || 0) + legacyCashByStatus.REVERSED,
+        refundsVanta: (reversedVanta._sum.amount || 0) - legacyCashByStatus.REVERSED,
         totalPurchaseRevenue: purchaseAgg._sum.amount || 0,
         count: total,
       },
