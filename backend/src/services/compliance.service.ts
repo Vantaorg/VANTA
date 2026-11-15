@@ -854,6 +854,7 @@ For questions about your data, contact privacy@vanta.app
     const recordTypesByTarget: Record<string, string[]> = {
       POST: ['Post'],
       VIDEO: ['Video', 'Reel'],
+      REEL: ['Video', 'Reel'],
       STORY: ['Story'],
       POST_COMMENT: ['PostComment'],
       VIDEO_COMMENT: ['VideoComment'],
