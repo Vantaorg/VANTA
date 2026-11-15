@@ -253,7 +253,7 @@ class ComplianceService {
         groups: user.groupMembers,
         liveStreams: user.liveStreams,
         sessions: user.sessions,
-        consentRecords: user.consentRecords,
+        consentRecords,
       };
 
       // Generate archive
