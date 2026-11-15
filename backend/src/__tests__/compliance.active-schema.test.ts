@@ -15,6 +15,7 @@ jest.mock('../prisma', () => ({
     user: { update: jest.fn(), findMany: jest.fn() },
     consentRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
     uploadedFile: { findMany: jest.fn() },
+    dataExportRequest: { findMany: jest.fn() },
   },
 }));
 
@@ -39,6 +40,20 @@ import { uploadService } from '../services/upload.service';
 
 const consentRecord = (prisma as any).consentRecord;
 const audit = auditLog as any;
+
+describe('compliance data export API privacy', () => {
+  const exports = (prisma as any).dataExportRequest;
+  beforeEach(() => { jest.clearAllMocks(); });
+  test('lists only public export status fields and never exposes storage paths', async () => {
+    exports.findMany.mockResolvedValue([{ id: 'export-1', status: 'COMPLETED', createdAt: new Date(), expiresAt: new Date(), filePath: '/srv/private/exports/export.zip', userId: 'user-1' }]);
+    await complianceService.getDataExports('user-1');
+    expect(exports.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true, createdAt: true, expiresAt: true },
+    });
+  });
+});
 
 describe('deactivated account recovery allowlist', () => {
   test('allows only the owner recovery and sign-out endpoints', () => {
