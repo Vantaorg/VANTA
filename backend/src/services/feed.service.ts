@@ -700,7 +700,7 @@ export class FeedService {
   }
 
   async likePost(postId: string, userId: string) {
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    const post = await prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null }, select: { authorId: true } });
     if (!post) throw new Error("Post not found");
 
     const result = await prisma.$transaction(async (tx) => {
@@ -736,8 +736,8 @@ export class FeedService {
     const [post, actor, recent, parent] = await Promise.all([
       prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } }),
       prisma.user.findUnique({ where: { id: userId }, select: { username: true, status: true } }),
-      prisma.postComment.findFirst({ where: { userId, postId }, orderBy: { createdAt: "desc" }, select: { content: true, createdAt: true } }),
-      parentId ? prisma.postComment.findFirst({ where: { id: parentId, postId }, select: { id: true, userId: true } }) : Promise.resolve(null),
+      prisma.postComment.findFirst({ where: { userId, postId, moderationRemovedAt: null }, orderBy: { createdAt: "desc" }, select: { content: true, createdAt: true } }),
+      parentId ? prisma.postComment.findFirst({ where: { id: parentId, postId, moderationRemovedAt: null }, select: { id: true, userId: true } }) : Promise.resolve(null),
     ]);
     if (!post) throw new Error("Post not found");
     if (!actor || actor.status !== "ACTIVE") throw new Error("Commenting is unavailable for this account");
