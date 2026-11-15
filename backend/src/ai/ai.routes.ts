@@ -888,14 +888,16 @@ aiRouter.use('/admin', adminRouter);
 // ============================================================================
 const privacyRouter = Router();
 
-privacyRouter.post('/opt-out', async (req: Request, res: Response) => {
+privacyRouter.post('/opt-out', authenticate, async (req: Request, res: Response) => {
   try {
-    const { userId, optOut } = req.body;
-    const featureKey = `opt_out:${userId || req.userId}`;
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { optOut } = req.body;
+    if (typeof optOut !== 'boolean') { res.status(400).json({ success: false, error: 'optOut must be a boolean' }); return; }
+    const featureKey = `opt_out:${userId}`;
     await prisma.aIFeatureFlag.upsert({
       where: { featureKey },
       update: { enabled: !optOut, userOverride: true },
-      create: { featureKey, featureName: `AI Opt-Out: ${userId || req.userId}`, enabled: !optOut, userOverride: true },
+      create: { featureKey, featureName: `AI Opt-Out: ${userId}`, enabled: !optOut, userOverride: true },
     });
     res.json({ success: true, data: { optedOut: optOut } });
   } catch (error: any) {
@@ -903,25 +905,25 @@ privacyRouter.post('/opt-out', async (req: Request, res: Response) => {
   }
 });
 
-privacyRouter.post('/consent', async (req: Request, res: Response) => {
+privacyRouter.post('/consent', authenticate, async (req: Request, res: Response) => {
   try {
-    const { userId, consentType, granted } = req.body;
-    await prisma.consentRecord.create({
-      data: {
-        userId: userId || req.userId,
-        type: `ai_${consentType}`,
-        granted,
-      },
-    });
+    const userId = (req as AuthenticatedRequest).user!.userId;
+    const { consentType, granted } = req.body;
+    if (typeof consentType !== 'string' || !['training', 'profiling', 'analytics'].includes(consentType) || typeof granted !== 'boolean') {
+      res.status(400).json({ success: false, error: 'Invalid consent request' });
+      return;
+    }
+    const consentKey = consentType === 'training' ? 'aiFeatures' : consentType === 'profiling' ? 'personalization' : 'analytics';
+    await prisma.consentRecord.create({ data: { userId, type: consentKey, granted } });
     res.json({ success: true, data: { consentType, granted } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-privacyRouter.get('/status', async (req: Request, res: Response) => {
+privacyRouter.get('/status', authenticate, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string || req.userId;
+    const userId = (req as AuthenticatedRequest).user!.userId;
     const [optOutFlag, consentRecords] = await Promise.all([
       prisma.aIFeatureFlag.findUnique({ where: { featureKey: `opt_out:${userId}` } }),
       prisma.consentRecord.findMany({ where: { userId } }),
