@@ -85,7 +85,7 @@ describe('ChatService security and persistence', () => {
     await service.sendMessage('conversation', 'sender', 'I will be there.', 'TEXT', [], 'other-message');
 
     expect(db.message.findFirst).toHaveBeenCalledWith({
-      where: { id: 'other-message', conversationId: 'conversation' },
+      where: { id: 'other-message', conversationId: 'conversation', moderationRemovedAt: null, deletedAt: null },
       select: { id: true },
     });
     expect(db.message.create).toHaveBeenCalledWith(expect.objectContaining({
