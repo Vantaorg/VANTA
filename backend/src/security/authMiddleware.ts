@@ -9,7 +9,7 @@ import { config } from './config';
 import { auditLog } from './auditLog';
 import { Role, Permission, hasPermission, parseRole } from './rbac';
 import { botProtection } from './botProtection';
-import { accountStatusError, isSuspendedAllowedRequest, isDeactivatedAllowedRequest } from './accountStatus';
+import { accountStatusError, isSuspendedAllowedRequest, isDeactivatedAllowedRequest, isDeactivatedAccountStatus } from './accountStatus';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -89,7 +89,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       const requestPath = req.originalUrl || req.url || req.path;
       const allowedRestrictedRequest =
         (user.status === 'SUSPENDED' && isSuspendedAllowedRequest(requestMethod, requestPath)) ||
-        (['DEACTIVATED', 'SCHEDULED_FOR_DELETION'].includes(user.status) &&
+        (isDeactivatedAccountStatus(user.status) &&
           isDeactivatedAllowedRequest(requestMethod, requestPath));
 
       if (allowedRestrictedRequest) {
