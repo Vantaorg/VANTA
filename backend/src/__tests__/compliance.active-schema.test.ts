@@ -173,6 +173,28 @@ describe('compliance account lifecycle transactions', () => {
       aiSession: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       profile: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       photo: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      follow: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      postLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      postComment: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      postCommentLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      postSave: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      videoLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      videoComment: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      videoCommentLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      videoSave: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      watchHistory: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      contentView: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      storyView: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      storyLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      storyComment: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      participant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      messageRead: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      messageReaction: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      streamViewer: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      liveReaction: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      streamFollower: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      blockedUser: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      mutedUser: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       verificationRequest: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       propertyVerification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       post: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -184,6 +206,9 @@ describe('compliance account lifecycle transactions', () => {
       groupMessage: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       liveChatMessage: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       liveStream: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      community: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      channel: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      group: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       creatorSubscription: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       premiumMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       creatorMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -208,6 +233,9 @@ describe('compliance account lifecycle transactions', () => {
     expect(tx.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
     expect(tx.profile.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
     expect(tx.communityPost.deleteMany).toHaveBeenCalledWith({ where: { authorId: 'user-1' } });
+    expect(tx.follow.deleteMany).toHaveBeenCalledWith({ where: { OR: [{ followerId: 'user-1' }, { followingId: 'user-1' }] } });
+    expect(tx.messageReaction.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.community.updateMany).toHaveBeenCalledWith({ where: { ownerId: 'user-1' }, data: { avatar: null, bannerUrl: null } });
     expect(tx.creatorSubscription.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { OR: [{ subscriberId: 'user-1' }, { creatorId: 'user-1' }], status: 'ACTIVE' },
       data: expect.objectContaining({ status: 'CANCELLED', autoRenew: false }),
