@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { API_BASE_URL } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const ANALYTICS_KEY = "vanta_cookie_analytics_consent";
 const MARKETING_KEY = "vanta_cookie_marketing_consent";
@@ -13,13 +14,17 @@ function normalizeConsent(value: string | null | undefined): string | null {
 }
 
 export default function AnalyticsWrapper() {
+  const { token, isLoading: authLoading } = useAuth();
   const [analyticsConsent, setAnalyticsConsent] = useState<string | null>(null);
   const [marketingConsent, setMarketingConsent] = useState<string | null>(null);
   const [consentLoading, setConsentLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    const token = localStorage.getItem("vanta_token");
+    if (authLoading) {
+      setConsentLoading(true);
+      return () => { cancelled = true; };
+    }
 
     const applyLocalConsent = () => {
       setAnalyticsConsent(normalizeConsent(localStorage.getItem(ANALYTICS_KEY)));
@@ -73,7 +78,7 @@ export default function AnalyticsWrapper() {
       cancelled = true;
       window.removeEventListener("vanta-consent-updated", sync);
     };
-  }, []);
+  }, [token, authLoading]);
 
   useEffect(() => {
     if (consentLoading || marketingConsent !== "granted") return;
@@ -86,7 +91,6 @@ export default function AnalyticsWrapper() {
   }, [consentLoading, marketingConsent]);
 
   const saveConsent = async (analytics: boolean, marketing: boolean) => {
-    const token = localStorage.getItem("vanta_token");
     if (token) {
       try {
         const response = await fetch(`${API_BASE_URL}/api/compliance/consent`, {
