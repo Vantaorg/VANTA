@@ -64,6 +64,8 @@ export async function requireAIConsent(req: Request, res: Response, next: NextFu
     const explicitlyDenied = effectiveConsents.some(record =>
       Boolean(record && !record.type.endsWith(':NOT_SET') && record.granted === false)
     );
+    const userOptedOut = featureFlags.some(flag => flag.featureKey === `opt_out:${userId}` && flag.enabled === false);
+    const globallyDisabled = featureFlags.some(flag => flag.featureKey === 'global_ai_disabled' && flag.enabled === true);
     const featureDisabled = userOptedOut || globallyDisabled;
 
     if (settings?.aiPersonalization === false || explicitlyDenied || featureDisabled) {
