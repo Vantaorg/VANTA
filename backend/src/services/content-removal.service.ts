@@ -132,7 +132,7 @@ export async function restoreModeratedContent(
         where: { id: targetId },
         select: { id: true, moderationRemovedAt: true },
       });
-      if (postComment?.moderationRemovedAt) {
+      if (postComment) {
         await restoreRecord(tx.postComment, 'Post comment');
         break;
       }
