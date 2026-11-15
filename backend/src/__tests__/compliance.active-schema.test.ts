@@ -31,6 +31,7 @@ jest.mock('../security/auditLog', () => ({
 
 import { prisma } from '../prisma';
 import { auditLog } from '../security/auditLog';
+import { isDeactivatedAllowedRequest } from '../security/accountStatus';
 import { complianceService } from '../services/compliance.service';
 import { removeModeratedContent } from '../services/content-removal.service';
 import { cacheService } from '../services/cache.service';
@@ -38,6 +39,18 @@ import { uploadService } from '../services/upload.service';
 
 const consentRecord = (prisma as any).consentRecord;
 const audit = auditLog as any;
+
+describe('deactivated account recovery allowlist', () => {
+  test('allows only the owner recovery and sign-out endpoints', () => {
+    expect(isDeactivatedAllowedRequest('GET', '/api/compliance/account/deactivation-status')).toBe(true);
+    expect(isDeactivatedAllowedRequest('POST', '/api/compliance/account/cancel-deletion')).toBe(true);
+    expect(isDeactivatedAllowedRequest('POST', '/api/compliance/account/recover')).toBe(true);
+    expect(isDeactivatedAllowedRequest('POST', '/api/auth/logout')).toBe(true);
+    expect(isDeactivatedAllowedRequest('GET', '/api/compliance/privacy-settings')).toBe(false);
+    expect(isDeactivatedAllowedRequest('POST', '/api/posts')).toBe(false);
+    expect(isDeactivatedAllowedRequest('POST', '/api/compliance/account/recover/extra')).toBe(false);
+  });
+});
 
 describe('compliance consent storage on the active Prisma schema', () => {
   beforeEach(() => {
