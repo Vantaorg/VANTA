@@ -347,10 +347,10 @@ export const likeStream = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const getTrendingStreams = async (req: Request, res: Response): Promise<void> => {
+export const getTrendingStreams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
-    const streams = await liveService.getTrendingStreams(Math.min(Math.max(limit, 1), 50));
+    const streams = await liveService.getTrendingStreams(Math.min(Math.max(limit, 1), 50), req.user?.userId);
     res.status(200).json({ streams });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
