@@ -94,6 +94,7 @@ jobs:
           src/__tests__/live.service.test.ts
           src/__tests__/compliance.active-schema.test.ts
           src/__tests__/content-removal.service.test.ts
+          src/__tests__/feed.moderation-guards.test.ts
           src/__tests__/post.service.test.ts
           src/ai/__tests__/privacy.middleware.test.ts
       - name: Build backend
