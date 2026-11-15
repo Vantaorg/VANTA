@@ -162,6 +162,23 @@ describe('LiveService', () => {
       expect(result.items).toHaveLength(0);
     });
 
+    test('hides a direct stream lookup from viewers excluded by host privacy', async () => {
+      (prisma.liveStream.findUnique as jest.Mock).mockResolvedValue(mockStream);
+      (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
+        { userId: 'host1', liveStreamVisibility: 'nobody', privacyLiveStream: 'public' },
+      ]);
+      await expect(liveService.getStream('stream1', 'viewer1')).resolves.toBeNull();
+    });
+
+    test('allows a followed viewer to open a followers-only stream', async () => {
+      (prisma.liveStream.findUnique as jest.Mock).mockResolvedValue(mockStream);
+      (prisma.userSettings.findMany as jest.Mock).mockResolvedValue([
+        { userId: 'host1', liveStreamVisibility: 'followers', privacyLiveStream: 'public' },
+      ]);
+      (prisma.follow.findMany as jest.Mock).mockResolvedValue([{ followingId: 'host1' }]);
+      await expect(liveService.getStream('stream1', 'viewer1')).resolves.toMatchObject({ id: 'stream1' });
+    });
+
     test('should return active streams', async () => {
       (prisma.liveStream.findMany as jest.Mock).mockResolvedValue([mockStream]);
 
