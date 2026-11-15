@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { analyticsService } from '../services/analytics.service';
 import { analyticsEventsService } from '../services/analytics-events.service';
 import { prisma } from '../prisma';
+import { AuthenticatedRequest } from '../security/authMiddleware';
 
 export class AnalyticsController {
   // ============================================================
@@ -331,8 +332,13 @@ export class AnalyticsController {
   async trackEvent(req: Request, res: Response) {
     try {
       const event = req.body;
+      // Identity is server-authoritative. Anonymous telemetry stays anonymous;
+      // authenticated telemetry is attributed only to the verified session.
+      const actor = (req as AuthenticatedRequest).user;
       await analyticsEventsService.track({
         ...event,
+        userId: actor?.userId,
+        sessionId: actor?.sessionId,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
       });
@@ -348,9 +354,13 @@ export class AnalyticsController {
       if (!Array.isArray(events)) {
         return res.status(400).json({ success: false, error: 'events must be an array' });
       }
+      // Never trust identity fields supplied by a client in a batch payload.
+      const actor = (req as AuthenticatedRequest).user;
       await analyticsEventsService.trackBatch(
         events.map((e: any) => ({
           ...e,
+          userId: actor?.userId,
+          sessionId: actor?.sessionId,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent'],
         }))

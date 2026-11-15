@@ -226,6 +226,18 @@ control, but hashing tokens in the DB would reduce the impact of a DB dump (need
   precise status after entering the right password.
 - Added `rateLimiter.login2fa` (per-user+IP, default 10/15min) and wired it to `/login/2fa`.
 
+### VANTA-007 — Public analytics telemetry accepted spoofed user/session identity (Medium, Confirmed & Fixed)
+
+**Affected:** `backend/src/routes/analytics.routes.ts`, `backend/src/controllers/analytics.controller.ts`.
+
+**Evidence:** The public `/track` and `/track/batch` routes bounded payload size and event counts, but the controller spread caller-controlled payloads directly into the analytics service. A caller could therefore submit another account's `userId` and `sessionId`; the existing route regression test explicitly accepted a forged `userId`.
+
+**Impact:** Analytics attribution and user activity metrics could be polluted or falsely associated with another account.
+
+**Fix:** Apply canonical optional session authentication to both telemetry routes. The controller now overwrites client identity fields with the verified session identity; anonymous events are stored without a user or session identity. Invalid bearer tokens fail closed.
+
+**Regression tests:** `backend/src/__tests__/security.analytics-identity.test.ts` — anonymous spoofing, authenticated identity binding, batch identity binding, and invalid-token rejection.
+
 ### VANTA-006 — Password change did not revoke other sessions (Low/Medium, Confirmed & Fixed)
 
 **Affected:** `backend/src/controllers/auth.controller.ts` (`changePassword`).

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response, Router } from 'express';
 import { analyticsController } from '../controllers/analytics.controller';
-import { authenticateJWT } from '../middleware/auth.middleware';
+import { authenticateJWT, optionallyAuthenticateJWT } from '../middleware/auth.middleware';
 import { requireRole, AuthenticatedRequest } from '../security/authMiddleware';
 import { Role } from '../security/rbac';
 
@@ -159,7 +159,7 @@ router.get('/dashboard/snapshot', ...requirePlatformAnalytics, analyticsControll
 // ============================================================
 // Event Tracking (no auth required for basic client telemetry, bounded)
 // ============================================================
-router.post('/track', (req: Request, res: Response, next: NextFunction) => {
+router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const event = req.body;
   if (!validateTrackPayload([event])) {
     res.status(400).json({ success: false, error: 'Invalid analytics event' });
@@ -167,7 +167,7 @@ router.post('/track', (req: Request, res: Response, next: NextFunction) => {
   }
   next();
 }, analyticsController.trackEvent.bind(analyticsController));
-router.post('/track/batch', (req: Request, res: Response, next: NextFunction) => {
+router.post('/track/batch', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const events = req.body?.events;
   if (!validateTrackPayload(events)) {
     res.status(400).json({ success: false, error: 'Invalid analytics events batch' });
