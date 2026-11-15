@@ -143,6 +143,34 @@ describe('compliance account lifecycle transactions', () => {
     await expect(complianceService.scheduleAccountDeletion('user-1', 'reason', new Date(Date.now() - 1000))).rejects.toThrow('The scheduled deletion date must be in the future.');
     expect(account.findUnique).not.toHaveBeenCalled();
   });
+  test('permanent deletion anonymizes profile identifiers and revokes sessions atomically', async () => {
+    account.findMany.mockResolvedValueOnce([{ userId: 'user-1' }]).mockResolvedValueOnce([]);
+    const tx = {
+      accountDeactivation: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'user-1', status: 'SCHEDULED_FOR_DELETION', scheduledFor: new Date(Date.now() - 1000) }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1' }), update: jest.fn().mockResolvedValue({}) },
+      session: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      post: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      video: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      story: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      message: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      accountDeletionRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    };
+    transaction.mockImplementation(async (callback: any) => callback(tx));
+    await expect(complianceService.permanentlyDeleteExpiredAccounts()).resolves.toMatchObject({ deleted: 1, unrecovered: 0, failed: 0 });
+    expect(tx.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'user-1' },
+      data: expect.objectContaining({
+        status: 'DELETED', age: null, dateOfBirth: null, country: null, city: null,
+        gender: null, interestedIn: null, emailVerified: false, verified: false,
+        twoFactorSecret: null, backupCodes: null,
+      }),
+    }));
+    expect(tx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.accountDeactivation.update).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' }, data: expect.objectContaining({ status: 'DELETED', recoveryToken: null }) }));
+  });
 });
 
 describe('copyright claim enforcement', () => {
