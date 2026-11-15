@@ -228,7 +228,9 @@ export const fetchHomes = (params: {
   if (params.furnished !== undefined) qs.set('furnished', params.furnished);
   if (params.search) qs.set('search', params.search);
   if (params.sort) qs.set('sort', params.sort);
-  return apiGet<any>(`/api/homes?${qs.toString()}`);
+  // Listings can change immediately after moderation or owner availability updates.
+  // Do not let the shared GET cache keep a stale empty/public result across Homes entry points.
+  return apiGet<any>(`/api/homes?${qs.toString()}`, undefined, { skipCache: true });
 };
 
 export const fetchHome = (id: string, token?: string | null) =>
