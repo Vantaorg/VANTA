@@ -350,6 +350,28 @@ describe('Wallet PIN transfer authorization and concurrent lockout', () => {
     }));
   });
 
+  test('PIN updates use the shared lockout verifier before changing the hash', async () => {
+    const verifySpy = jest.spyOn(walletService, 'verifyPin').mockRejectedValueOnce(new Error('PIN is locked'));
+    await expect(walletService.updatePin('user1', '0000', '5678')).rejects.toThrow('PIN is locked');
+    expect(verifySpy).toHaveBeenCalledWith('user1', '0000');
+    expect(prisma.walletPIN.updateMany).not.toHaveBeenCalled();
+    verifySpy.mockRestore();
+  });
+
+  test('PIN updates compare-and-swap the previously verified hash', async () => {
+    const verifySpy = jest.spyOn(walletService, 'verifyPin').mockResolvedValue({ success: true, message: 'PIN verified' });
+    (prisma.walletPIN.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    await expect(walletService.updatePin('user1', '1234', '5678')).resolves.toEqual({
+      success: true, message: 'PIN updated successfully',
+    });
+    expect(verifySpy).toHaveBeenCalledWith('user1', '1234');
+    expect(prisma.walletPIN.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'pin1', pinHash: 'hashed_pin' },
+      data: expect.objectContaining({ failedAttempts: 0, lockedUntil: null }),
+    }));
+    verifySpy.mockRestore();
+  });
+
   test('atomic concurrent failures persist the lockout threshold', async () => {
     let attempts = 0;
     let lockedUntil: Date | null = null;
