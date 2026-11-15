@@ -157,11 +157,11 @@ export default async function RootLayout({
                   </ToastProvider>
                 </CallProvider>
                 </PushProvider>
+                <AnalyticsWrapper />
               </AuthProvider>
             </ThemeProvider>
           </AccessibilityProvider>
         </I18nProvider>
-        <AnalyticsWrapper />
       </body>
     </html>
   );
