@@ -1582,6 +1582,24 @@ export class UserService {
     const user = await prisma.user.findUnique({ where: { username } });
     if (!user) throw new Error('Profile not found');
     assertProfileAccessible(user, viewerId);
+    if (viewerId !== user.id) {
+      const settings = await prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { liveStreamVisibility: true, privacyLiveStream: true },
+      });
+      const visibility = settings?.liveStreamVisibility || settings?.privacyLiveStream || 'everyone';
+      if (visibility === 'nobody' || visibility === 'noone') {
+        throw new Error('This user does not share live streams publicly');
+      }
+      if (visibility === 'followers' || visibility === 'following') {
+        if (!viewerId) throw new Error('This user shares live streams with followers only');
+        const followsHost = await prisma.follow.findUnique({
+          where: { followerId_followingId: { followerId: viewerId, followingId: user.id } },
+          select: { id: true },
+        });
+        if (!followsHost) throw new Error('This user shares live streams with followers only');
+      }
+    }
     return this.getUserLivestreams(user.id, cursor, limit);
   }
 
