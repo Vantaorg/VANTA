@@ -201,6 +201,9 @@ describe('compliance account lifecycle transactions', () => {
       storyLike: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       storyComment: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       participant: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      communityMember: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      channelMember: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      groupMember: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       messageRead: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       messageReaction: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       streamViewer: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -248,6 +251,7 @@ describe('compliance account lifecycle transactions', () => {
     expect(tx.communityPost.deleteMany).toHaveBeenCalledWith({ where: { authorId: 'user-1' } });
     expect(tx.follow.deleteMany).toHaveBeenCalledWith({ where: { OR: [{ followerId: 'user-1' }, { followingId: 'user-1' }] } });
     expect(tx.messageReaction.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(tx.communityMember.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
     expect(tx.community.updateMany).toHaveBeenCalledWith({ where: { ownerId: 'user-1' }, data: { avatar: null, bannerUrl: null } });
     expect(tx.creatorSubscription.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { OR: [{ subscriberId: 'user-1' }, { creatorId: 'user-1' }], status: 'ACTIVE' },
