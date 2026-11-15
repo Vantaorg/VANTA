@@ -182,7 +182,7 @@ const makeRequestInternal = async <T>(
         // Enable keep-alive for connection reuse
         keepalive: method !== 'GET',
         // Enable cache mode for GET requests
-        cache: method === 'GET' ? 'default' : 'no-store',
+        cache: method === 'GET' && !options.skipCache ? 'default' : 'no-store',
       });
 
       const data = await readJson(response);
