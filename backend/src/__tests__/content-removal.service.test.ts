@@ -21,6 +21,7 @@ describe('removeModeratedContent', () => {
   const removalCases: Array<[string, string, string[]]> = [
     ['POST', 'post', ['Post']],
     ['VIDEO', 'video', ['Video', 'Reel']],
+    ['REEL', 'video', ['Video', 'Reel']],
     ['STORY', 'story', ['Story']],
     ['POST_COMMENT', 'postComment', ['PostComment']],
     ['VIDEO_COMMENT', 'videoComment', ['VideoComment']],
