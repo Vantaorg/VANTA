@@ -834,6 +834,104 @@ For questions about your data, contact privacy@vanta.app
     return updated;
   }
 
+  async restoreReport(reportId: string, adminId: string, reason: string) {
+    const restorationReason = typeof reason === 'string' ? reason.trim().slice(0, 2000) : '';
+    if (!restorationReason) throw new Error('A restoration reason is required.');
+
+    const removal = await prisma.moderationRemoval.findUnique({ where: { queueId: reportId } });
+    if (!removal || removal.sourceType !== 'REPORT') throw new Error('No reversible moderation removal exists for this report.');
+    if (removal.restoredAt) throw new Error('This moderation removal has already been restored.');
+
+    const report = await prisma.moderationQueue.findUnique({ where: { id: reportId } });
+    if (!report || report.status !== 'REMOVED') throw new Error('Only removed reports can be restored.');
+
+    const claim = await prisma.moderationRemoval.updateMany({
+      where: { id: removal.id, restoredAt: null, mediaQuarantineStatus: { not: 'RESTORING' } },
+      data: { mediaQuarantineStatus: 'RESTORING' },
+    });
+    if (claim.count !== 1) throw new Error('This moderation removal is already being restored.');
+
+    const recordTypesByTarget: Record<string, string[]> = {
+      POST: ['Post'],
+      VIDEO: ['Video', 'Reel'],
+      STORY: ['Story'],
+      POST_COMMENT: ['PostComment'],
+      VIDEO_COMMENT: ['VideoComment'],
+      COMMENT: ['PostComment', 'VideoComment'],
+      MESSAGE: ['Message'],
+      STREAM: ['LiveStream'],
+      LIVE_STREAM: ['LiveStream'],
+    };
+    const recordTypes = recordTypesByTarget[removal.targetType.trim().toUpperCase()];
+    if (!recordTypes) {
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw new Error('Unsupported moderation target type.');
+    }
+
+    const files = await prisma.uploadedFile.findMany({
+      where: { recordType: { in: recordTypes }, recordId: removal.targetId, deletedAt: { not: null } },
+      select: { id: true },
+    });
+    const { uploadService } = require('./upload.service');
+    const restoredFileIds: string[] = [];
+    try {
+      for (const file of files) {
+        const restored = await uploadService.restoreModeratedFile(file.id);
+        if (!restored) throw new Error('A moderated media asset could not be restored.');
+        restoredFileIds.push(file.id);
+      }
+    } catch (error) {
+      if (restoredFileIds.length) {
+        await prisma.uploadedFile.updateMany({ where: { id: { in: restoredFileIds } }, data: { deletedAt: new Date() } });
+        await Promise.allSettled(restoredFileIds.map((id) => uploadService.quarantineModeratedFile(id)));
+      }
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw new Error(error instanceof Error ? error.message : 'Media restoration failed; content remains hidden.');
+    }
+
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        const currentRemoval = await tx.moderationRemoval.findUnique({ where: { id: removal.id } });
+        if (!currentRemoval || currentRemoval.restoredAt) throw new Error('This moderation removal has already been restored.');
+        await restoreModeratedContent(tx, removal.targetType, removal.targetId);
+        const resolution = await tx.moderationQueue.updateMany({
+          where: { id: reportId, status: 'REMOVED' },
+          data: { status: 'RESTORED', reviewedBy: adminId, reviewedAt: new Date(), humanReview: true },
+        });
+        if (resolution.count !== 1) throw new Error('Report is no longer in a restorable state.');
+        await tx.moderationRemoval.update({
+          where: { id: removal.id },
+          data: {
+            restoredAt: new Date(),
+            restoredBy: adminId,
+            restorationReason,
+            mediaQuarantineStatus: 'RESTORED',
+          },
+        });
+        await tx.moderationAction.create({
+          data: { queueId: reportId, moderatorId: adminId, action: 'restore', reason: restorationReason, automated: false },
+        });
+        return tx.moderationQueue.findUnique({ where: { id: reportId } });
+      });
+    } catch (error) {
+      if (restoredFileIds.length) {
+        await prisma.uploadedFile.updateMany({ where: { id: { in: restoredFileIds } }, data: { deletedAt: new Date() } });
+        await Promise.allSettled(restoredFileIds.map((id) => uploadService.quarantineModeratedFile(id)));
+      }
+      await prisma.moderationRemoval.update({ where: { id: removal.id }, data: { mediaQuarantineStatus: 'FAILED' } });
+      throw error;
+    }
+
+    await this.cleanupRemovedContent([], 'Report restoration');
+    await this.logComplianceAction(adminId, 'REPORT_CONTENT_RESTORED', 'REPORT', reportId, {
+      targetType: removal.targetType,
+      targetId: removal.targetId,
+      reason: restorationReason,
+    });
+    return updated;
+  }
+
   // ==========================================================================
   // APPEALS SYSTEM
   // ==========================================================================
