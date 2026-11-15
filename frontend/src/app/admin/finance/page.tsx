@@ -393,7 +393,7 @@ function SummaryCard({ label, value, icon, cls }: { label: string; value: string
   return (
     <div className="glass rounded-2xl border border-white/[0.06] p-4">
       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-2', cls)}>{icon}</div>
-      <p className="text-xl font-bold text-white tabular-nums">{value}</p>
+      <p className="text-xs sm:text-sm leading-snug break-words font-bold text-white tabular-nums">{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{label}</p>
     </div>
   );
