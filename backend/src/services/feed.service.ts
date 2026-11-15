@@ -684,7 +684,7 @@ export class FeedService {
   }
 
   async deletePost(postId: string, userId: string) {
-    const post = await prisma.post.findUnique({ where: { id: postId } });
+    const post = await prisma.post.findUnique({ where: { id: postId, moderationRemovedAt: null } });
     if (!post) throw new Error("Post not found");
     if (post.authorId !== userId) throw new Error("Unauthorized");
 
@@ -837,7 +837,7 @@ export class FeedService {
     const blocked = await prisma.blockedUser.findMany({ where: { OR: [{ userId }, { targetId: userId }] }, select: { userId: true, targetId: true } });
     const excludedUsers = blocked.map(entry => entry.userId === userId ? entry.targetId : entry.userId);
     const comments = await prisma.postComment.findMany({
-      where: { postId, parentId: null, userId: { notIn: excludedUsers }, ...(search ? { content: { contains: search } } : {}) },
+      where: { postId, parentId: null, moderationRemovedAt: null, post: { moderationRemovedAt: null }, userId: { notIn: excludedUsers }, ...(search ? { content: { contains: search } } : {}) },
       orderBy: sort === "top" ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }] : { createdAt: "desc" },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -845,6 +845,7 @@ export class FeedService {
         user: { select: COMMENT_USER },
         likes: { where: { userId }, select: { id: true } },
         replies: {
+          where: { moderationRemovedAt: null },
           orderBy: { createdAt: "asc" },
           take: 3,
           include: {
@@ -864,12 +865,12 @@ export class FeedService {
   }
 
   async getCommentReplies(postId: string, commentId: string, userId: string, cursor?: string, limit = 20) {
-    const parent = await prisma.postComment.findFirst({ where: { id: commentId, postId }, select: { id: true } });
+    const parent = await prisma.postComment.findFirst({ where: { id: commentId, postId, moderationRemovedAt: null, post: { moderationRemovedAt: null } }, select: { id: true } });
     if (!parent) throw new Error("Comment not found");
     const blocked = await prisma.blockedUser.findMany({ where: { OR: [{ userId }, { targetId: userId }] }, select: { userId: true, targetId: true } });
     const excludedUsers = blocked.map(entry => entry.userId === userId ? entry.targetId : entry.userId);
     const replies = await prisma.postComment.findMany({
-      where: { postId, parentId: commentId, userId: { notIn: excludedUsers } }, orderBy: { createdAt: "asc" }, take: limit + 1,
+      where: { postId, parentId: commentId, moderationRemovedAt: null, post: { moderationRemovedAt: null }, userId: { notIn: excludedUsers } }, orderBy: { createdAt: "asc" }, take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { user: { select: COMMENT_USER }, likes: { where: { userId }, select: { id: true } }, _count: { select: { likes: true, replies: true } } },
     });
@@ -880,7 +881,7 @@ export class FeedService {
   }
 
   async updateComment(commentId: string, userId: string, content: string) {
-    const existing = await prisma.postComment.findUnique({ where: { id: commentId } });
+    const existing = await prisma.postComment.findUnique({ where: { id: commentId, moderationRemovedAt: null } });
     if (!existing) throw new Error("Comment not found");
     if (existing.userId !== userId) throw new Error("Unauthorized");
     const cleanContent = normalizeComment(content);
