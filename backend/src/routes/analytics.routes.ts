@@ -58,9 +58,9 @@ function selfOrPrivileged(getResourceUserId: (req: Request) => string | undefine
 }
 
 /**
- * Telemetry endpoints stay unauthenticated (client-side product tracking) but
- * payloads are bounded so an anonymous caller cannot flood the analytics store
- * with unbounded/oversized events or inject arbitrary userId attributes.
+ * Telemetry routes retain optional-auth compatibility for existing clients,
+ * but the consent middleware skips anonymous events and any account without
+ * an explicit analytics opt-in. Payloads are also bounded to limit abuse.
  */
 function validateTrackPayload(events: unknown[]): boolean {
   return (
