@@ -214,7 +214,7 @@ export class ChatService {
           },
         },
         messages: {
-          where: { deletedAt: null },
+          where: { deletedAt: null, moderationRemovedAt: null },
           orderBy: { createdAt: "desc" },
           take: 1,
           include: {
@@ -259,6 +259,7 @@ export class ChatService {
           where: {
             conversationId: conversation.id,
             deletedAt: null,
+            moderationRemovedAt: null,
             senderId: { not: userId },
             reads: { none: { userId } },
           },
