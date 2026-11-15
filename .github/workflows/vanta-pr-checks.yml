@@ -1,6 +1,8 @@
 name: VANTA pull request checks
 
 on:
+  push:
+    branches: [fix/moderation-removal-propagation-2026-11-15-compliance-base]
   pull_request:
     branches: [main]
   workflow_dispatch:
