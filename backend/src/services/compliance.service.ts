@@ -758,7 +758,7 @@ For questions about your data, contact privacy@vanta.app
     if (role === 'USER' || role === 'MODERATOR') where.reportedBy = userId;
     const items = await prisma.moderationQueue.findMany({
       where, orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }], take: Math.min(Math.max(limit, 1), 200), skip: Math.max(offset, 0),
-      include: { actions: { orderBy: { createdAt: 'desc' }, take: 1 } },
+      include: { actions: { orderBy: { createdAt: 'desc' }, take: 1 }, removal: true },
     });
     const reporterIds = [...new Set(items.map((item: any) => item.reportedBy).filter(Boolean))];
     const reporters = reporterIds.length ? await prisma.user.findMany({ where: { id: { in: reporterIds } }, select: { id: true, username: true, avatar: true } }) : [];
