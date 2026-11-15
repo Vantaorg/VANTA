@@ -158,7 +158,7 @@ router.get('/ai', ...requirePlatformAnalytics, analyticsController.getAIAnalytic
 router.get('/dashboard/snapshot', ...requirePlatformAnalytics, analyticsController.getDashboardSnapshot.bind(analyticsController));
 
 // ============================================================
-// Event Tracking (no auth required for basic client telemetry, bounded)
+// Event Tracking (optional auth, explicit consent required, bounded)
 // ============================================================
 router.post('/track', optionallyAuthenticateJWT, (req: Request, res: Response, next: NextFunction) => {
   const event = req.body;
