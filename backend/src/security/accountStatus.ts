@@ -35,10 +35,16 @@ const STATUS_ERROR_BODIES: Record<string, AccountStatusErrorBody> = {
   SUSPENDED: { status: 403, error: 'Account suspended', code: 'ACCOUNT_SUSPENDED' },
   BANNED: { status: 403, error: 'Account banned', code: 'ACCOUNT_BANNED' },
   DEACTIVATED: { status: 403, error: 'Account deactivated', code: 'ACCOUNT_DEACTIVATED' },
+  SCHEDULED_FOR_DELETION: { status: 403, error: 'Account scheduled for deletion', code: 'ACCOUNT_DEACTIVATED' },
   LOCKED: { status: 423, error: 'Account locked', code: 'ACCOUNT_LOCKED' },
 };
 
 /** HTTP status + error + machine-readable code for a restricted account. */
+/** True for account states that may only enter the recovery allowlist. */
+export function isDeactivatedAccountStatus(status: string): boolean {
+  return status === 'DEACTIVATED' || status === 'SCHEDULED_FOR_DELETION';
+}
+
 export function accountStatusError(status: string): AccountStatusErrorBody {
   return STATUS_ERROR_BODIES[status] || {
     status: 403,
