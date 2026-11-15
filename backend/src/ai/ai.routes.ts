@@ -7,7 +7,8 @@ import { Router, Request, Response } from 'express';
 import { AI_CONFIG } from './ai.config';
 import { privacyMiddleware, aiRateLimit, requireAIConsent, validateConsent } from './middleware/privacy.middleware';
 import { prisma } from '../prisma';
-import { authenticate, optionalAuth, AuthenticatedRequest } from '../security/authMiddleware';
+import { authenticate, optionalAuth, requireRole, AuthenticatedRequest } from '../security/authMiddleware';
+import { Role } from '../security/rbac';
 
 const aiRouter = Router();
 
@@ -129,10 +130,11 @@ moderationRouter.post('/batch', aiRateLimit('moderation'), async (req: Request, 
   }
 });
 
-moderationRouter.post('/report', async (req: Request, res: Response) => {
+moderationRouter.post('/report', authenticate, async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
-    const { reporterId, targetId, type, reason, description } = req.body;
+    const reporterId = (req as AuthenticatedRequest).user!.userId;
+    const { targetId, type, reason, description } = req.body;
     const report = await moderationService.submitReport(reporterId, targetId, type, reason, description);
     res.json({ success: true, data: report });
   } catch (error: any) {
@@ -140,7 +142,7 @@ moderationRouter.post('/report', async (req: Request, res: Response) => {
   }
 });
 
-moderationRouter.get('/queue', async (req: Request, res: Response) => {
+moderationRouter.get('/queue', authenticate, requireRole(Role.MODERATOR, Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), async (req: Request, res: Response) => {
   try {
     const { moderationService } = await import('./services/moderation.service');
     const filters = {
@@ -705,7 +707,7 @@ aiRouter.use('/accessibility', accessibilityRouter);
 // ============================================================================
 const fraudRouter = Router();
 
-fraudRouter.post('/detect-fake-account', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-fake-account', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectFakeAccount(req.body.userId, req.body.signupData);
@@ -715,7 +717,7 @@ fraudRouter.post('/detect-fake-account', aiRateLimit('fraud'), async (req: Reque
   }
 });
 
-fraudRouter.post('/detect-fake-followers', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-fake-followers', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectFakeFollowers(req.body.creatorId);
@@ -725,7 +727,7 @@ fraudRouter.post('/detect-fake-followers', aiRateLimit('fraud'), async (req: Req
   }
 });
 
-fraudRouter.post('/detect-takeover', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-takeover', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectAccountTakeover(req.body.userId, req.body.loginContext);
@@ -735,7 +737,7 @@ fraudRouter.post('/detect-takeover', aiRateLimit('fraud'), async (req: Request, 
   }
 });
 
-fraudRouter.post('/detect-gift-abuse', aiRateLimit('fraud'), async (req: Request, res: Response) => {
+fraudRouter.post('/detect-gift-abuse', authenticate, requireRole(Role.ADMIN, Role.SUPER_ADMIN, Role.CEO), aiRateLimit('fraud'), async (req: Request, res: Response) => {
   try {
     const { fraudService } = await import('./services/fraud.service');
     const result = await fraudService.detectGiftAbuse(req.body.userId);
