@@ -950,13 +950,28 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const onRead = (data: any) => { if (data.readerId !== user.id) setMessages(previous => previous.map(item => item.isOwn ? { ...item, read: true } : item)); fetchConversations(); };
     const onPresence = (data: any) => setConversations(previous => previous.map(conversation => {
       if (conversation.type === 'direct') {
-        return conversation.partnerId === data.userId ? { ...conversation, online: data.isOnline, lastSeen: data.lastActive } : conversation;
+        return conversation.partnerId === data.userId ? {
+          ...conversation,
+          ...(typeof data.isOnline === 'boolean' ? { online: data.isOnline } : {}),
+          ...(data.lastActive !== undefined ? { lastSeen: data.lastActive } : {}),
+        } : conversation;
       }
       if (conversation.type === 'group' && conversation.participants?.some((p: any) => (p.id ?? p.userId) === data.userId)) {
         const participants = (conversation.participants || []).map((p: any) =>
-          (p.id ?? p.userId) === data.userId ? { ...p, userPresence: { ...(p.userPresence || {}), isOnline: data.isOnline, lastActive: data.lastActive } } : p
+          (p.id ?? p.userId) === data.userId ? {
+            ...p,
+            userPresence: {
+              ...(p.userPresence || {}),
+              ...(typeof data.isOnline === 'boolean' ? { isOnline: data.isOnline } : {}),
+              ...(data.lastActive !== undefined ? { lastActive: data.lastActive } : {}),
+            },
+          } : p
         );
-        return { ...conversation, participants, onlineMemberCount: participants.filter((p: any) => p.userPresence?.isOnline).length };
+        return {
+          ...conversation,
+          participants,
+          ...(typeof data.isOnline === 'boolean' ? { onlineMemberCount: participants.filter((p: any) => p.userPresence?.isOnline).length } : {}),
+        };
       }
       return conversation;
     }));
