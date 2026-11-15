@@ -400,7 +400,7 @@ export default function AdminCompliancePage() {
                       >
                         <Lock size={16} />
                       </button>
-                      {['POST', 'VIDEO', 'STORY', 'COMMENT', 'POST_COMMENT', 'VIDEO_COMMENT', 'MESSAGE', 'STREAM', 'LIVE_STREAM'].includes(String(report.targetType).toUpperCase()) && (
+                      {['POST', 'VIDEO', 'REEL', 'STORY', 'COMMENT', 'POST_COMMENT', 'VIDEO_COMMENT', 'MESSAGE', 'STREAM', 'LIVE_STREAM'].includes(String(report.targetType).toUpperCase()) && (
                         <button
                           onClick={() => handleProcess(report.id, 'remove')}
                           disabled={processingId === report.id}
