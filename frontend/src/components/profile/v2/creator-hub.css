@@ -1147,3 +1147,44 @@ html.light .tile-type { background: rgba(5, 5, 5, 0.78); }
 @media (max-width: 420px) {
   .content-grid { gap: 4px; }
 }
+
+
+/* Profile mobile polish: keep the identity prominent and expose media stats
+   without relying on hover, which touch screens do not have. */
+@media (max-width: 420px) {
+  .profile-avatar {
+    width: 90px;
+    height: 90px;
+    margin-top: -45px;
+  }
+  .profile-actions { gap: 5px; }
+  .profile-tabs { margin-top: 22px; }
+  .profile-tabs button {
+    gap: 3px;
+    min-height: 46px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 360px) {
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+    margin-top: -48px;
+  }
+  .profile-actions { gap: 4px; }
+  .profile-tabs button { font-size: 9px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .profile-content .content-tile .tile-overlay {
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 8px;
+    opacity: 1;
+    background: linear-gradient(180deg, transparent 48%, rgba(5, 5, 5, .62) 100%);
+    pointer-events: none;
+  }
+  .profile-content .content-tile .tile-metrics,
+  .profile-content .content-tile .tile-actions {
+    pointer-events: auto;
+  }
+}

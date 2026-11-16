@@ -25,6 +25,7 @@ const TABS: Array<{ id: ProfileTab; label: string; icon: typeof Film; ownOnly?: 
   { id: 'posts', label: 'Posts', icon: MessageCircle },
   { id: 'reels', label: 'Reels', icon: Film },
   { id: 'media', label: 'Media', icon: ImageIcon },
+  { id: 'about', label: 'About', icon: Info },
   { id: 'likes', label: 'Likes', icon: Heart, ownOnly: true },
 ];
 
@@ -93,7 +94,8 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   }, [normalized, own, tab]);
 
   useEffect(() => {
-    if (!profile || tab === 'about') return;
+    if (!profile) return;
+    if (tab === 'about') { setContentLoading(false); setContentError(''); return; }
     if (!endpoint) { setContent(current => ({ ...current, [tab]: [] })); setNextCursor(current => ({ ...current, [tab]: undefined })); return; }
     let active = true; setContentLoading(true); setContentError(''); setNextCursor(current => ({ ...current, [tab]: undefined }));
     apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
