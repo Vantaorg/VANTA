@@ -305,7 +305,7 @@ class AnalyticsAPI {
   }): Promise<TopContentItem[]> {
     const query = params ? `?${new URLSearchParams(params as any).toString()}` : '';
     const body = await apiGet<{ data: any }>(`${this.baseUrl}/content/top${query}`, getAnalyticsAccessToken());
-    const payload = body?.data;
+    const payload = body?.data ?? body;
     if (Array.isArray(payload)) return payload as TopContentItem[];
     return payload && Array.isArray(payload.topContent) ? payload.topContent : [];
   }
@@ -434,7 +434,7 @@ class AnalyticsAPI {
 
   async createAlertRule(rule: Partial<AlertRule>): Promise<AlertRule> {
     const body = await apiPost<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules`, rule, getAnalyticsAccessToken());
-    return (body as any)?.data?.topContent ?? (body as any)?.topContent ?? (body as any)?.data ?? body;
+    return (body as any)?.data ?? body;
   }
 
   async updateAlertRule(id: string, rule: Partial<AlertRule>): Promise<AlertRule> {
