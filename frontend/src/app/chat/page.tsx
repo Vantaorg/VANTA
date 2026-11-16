@@ -3,6 +3,7 @@
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
@@ -1025,7 +1026,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     conversationLongPressTimerRef.current = null;
   };
 
-  const beginConversationLongPress = (id: string, event: React.PointerEvent<HTMLButtonElement>) => {
+  const beginConversationLongPress = (id: string, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (selectedConversationIds.size > 0 || (event.pointerType === 'mouse' && event.button !== 0)) return;
     clearConversationLongPress();
     conversationLongPressTimerRef.current = setTimeout(() => {
