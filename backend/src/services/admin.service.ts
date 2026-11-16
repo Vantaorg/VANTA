@@ -268,13 +268,32 @@ const [
   }
 
   /** Audit log listing backed by the tamper-resistant SecurityLog chain. */
-  async getAuditLogs(params: { action?: string; adminId?: string; page?: number; limit?: number }) {
+  async getAuditLogs(params: { action?: string; adminId?: string; search?: string; page?: number; limit?: number }) {
     const limit = Math.min(Math.max(params.limit || 50, 1), 200);
     const offset = Math.max((params.page || 1) - 1, 0) * limit;
 
     const where: any = {};
     if (params.action) where.action = { contains: params.action };
     if (params.adminId) where.userId = params.adminId;
+    const search = params.search?.trim().slice(0, 200);
+    if (search) {
+      where.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { ipAddress: { contains: search, mode: 'insensitive' } },
+        { userAgent: { contains: search, mode: 'insensitive' } },
+        { metadata: { contains: search, mode: 'insensitive' } },
+        {
+          user: {
+            is: {
+              OR: [
+                { username: { contains: search, mode: 'insensitive' } },
+                { fullName: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      ];
+    }
 
     const [logs, total] = await Promise.all([
       prisma.securityLog.findMany({
