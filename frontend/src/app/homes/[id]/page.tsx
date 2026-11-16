@@ -413,7 +413,7 @@ export default function HomeDetailPage() {
 
   return (
     <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[#080808] text-white flex flex-col overflow-hidden">
-      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.07] bg-[#080808]/95 px-3 backdrop-blur-xl sm:px-5">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.07] bg-[#1f2630]/95 px-3 backdrop-blur-xl sm:px-5">
         <div className="flex h-full w-full items-center justify-between gap-3">
           <a href="/homes" className="flex min-w-0 items-center gap-2.5" aria-label="VANTA Homes">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
@@ -428,8 +428,8 @@ export default function HomeDetailPage() {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
 
-      <div className="w-full pb-28 lg:pb-12">
-        <div className="flex min-h-12 items-center justify-between gap-3 px-3 sm:px-5">
+      <div className="mx-auto w-full max-w-[1440px] pb-28 lg:pb-12">
+        <div className="flex min-h-12 items-center justify-between gap-3 px-3 sm:px-5 lg:px-8">
           <button type="button" onClick={() => router.push('/homes')} className="inline-flex min-h-10 items-center gap-2 text-sm text-white/55 transition hover:text-white"><ArrowLeft size={16} /> All homes</button>
           <div className="flex items-center gap-1 sm:gap-2">
             <button type="button" onClick={() => void handleShare()} aria-label="Share property" className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs text-white/65 transition hover:bg-white/[.06] hover:text-white sm:px-3 sm:text-sm"><Share2 size={15} /><span>Share</span></button>
@@ -461,8 +461,8 @@ export default function HomeDetailPage() {
 
         {isOwner && listing.availabilityStatus !== 'PUBLISHED' && <div className="mx-3 mb-3 flex items-start gap-2 border-l-2 border-[#c9a227] bg-[#c9a227]/[.06] px-3 py-3 text-sm text-[#e6c65a] sm:mx-5"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span>This listing is <strong>{(listing.availabilityStatus || 'DRAFT').replace(/_/g, ' ').toLowerCase()}</strong> and is only visible to you until it is published.</span></div>}
 
-        <section aria-label="Property photos" className="relative w-full overflow-hidden bg-[#111]">
-          <div className="relative h-[62vw] min-h-[260px] max-h-[640px] sm:h-[min(62vh,640px)]">
+        <section aria-label="Property photos" className="relative mx-auto w-full overflow-hidden bg-[#111] sm:px-5 lg:px-8">
+          <div className="relative h-[56vw] min-h-[230px] max-h-[560px] overflow-hidden bg-[#10151c] sm:rounded-2xl sm:ring-1 sm:ring-white/[.08] lg:h-[min(58vh,560px)]">
             {activeMedia ? (
               activeMedia.type === 'VIDEO' || activeMedia.type === 'video' ? (
                 <video key={activeMedia.id} src={activeSrc || undefined} poster={resolveHomeMediaUrl(activeMedia) || undefined} controls playsInline className="h-full w-full bg-[#101010] object-contain" />
@@ -481,7 +481,7 @@ export default function HomeDetailPage() {
               <span className="absolute bottom-4 left-4 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white/85 backdrop-blur">{activeIndex + 1} / {media.length}</span>
             </>}
           </div>
-          {media.length > 1 && <div className="flex gap-2 overflow-x-auto border-b border-white/[.06] px-3 py-2.5 sm:px-5">
+          {media.length > 1 && <div className="mx-auto flex max-w-[1440px] gap-2 overflow-x-auto px-3 py-2.5 sm:px-5 lg:px-8">
             {media.map((item, index) => {
               const thumb = resolveHomeMediaUrl(item) || '';
               const isActive = index === activeIndex;
@@ -495,7 +495,7 @@ export default function HomeDetailPage() {
 
         <ImageViewer src={lightboxOpen && activeMedia && !['VIDEO', 'video'].includes(activeMedia.type) ? activeSrc : null} alt={listing.title} onClose={() => setLightboxOpen(false)} />
 
-        <div className="grid w-full grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8">
           <div className="min-w-0 px-4 sm:px-6 lg:px-8">
             <section className="border-b border-white/[.08] py-5 sm:py-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -532,7 +532,7 @@ export default function HomeDetailPage() {
             <section className="py-5 text-xs text-white/35 sm:py-6"><div className="flex flex-wrap gap-x-5 gap-y-2">{listing.publishedAt && <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} /> Listed {formatDate(listing.publishedAt)}</span>}<span>Reference {String(listing.id).slice(0, 10).toUpperCase()}</span></div></section>
           </div>
 
-          <aside className="min-w-0 border-t border-white/[.08] px-4 sm:px-6 lg:border-l lg:border-t-0 lg:px-6 lg:py-7">
+          <aside className="min-w-0 border-t border-white/[.08] bg-white/[.015] px-4 sm:px-6 lg:sticky lg:top-0 lg:self-start lg:border-l lg:border-t-0 lg:px-6 lg:py-7">
             <section className="py-5 lg:sticky lg:top-[4.5rem]">
               <h2 className="text-xs font-semibold uppercase tracking-[.16em] text-white/40">Property contact</h2>
               <div className="mt-4 flex items-center gap-3">
