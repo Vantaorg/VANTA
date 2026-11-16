@@ -455,6 +455,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedConversationRef = useRef<string | null>(null);
+  const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Live auto-scroll: only follow the newest message when the user is already
   // at (or near) the bottom. When they are reading older messages, keep their
@@ -1024,16 +1025,28 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const clearConversationLongPress = () => {
     if (conversationLongPressTimerRef.current) clearTimeout(conversationLongPressTimerRef.current);
     conversationLongPressTimerRef.current = null;
+    conversationLongPressStartRef.current = null;
   };
 
   const beginConversationLongPress = (id: string, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (selectedConversationIds.size > 0 || (event.pointerType === 'mouse' && event.button !== 0)) return;
     clearConversationLongPress();
+    conversationLongPressStartRef.current = { x: event.clientX, y: event.clientY };
     conversationLongPressTimerRef.current = setTimeout(() => {
       longPressedConversationRef.current = id;
       setSelectedConversationIds(new Set([id]));
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate?.(18);
     }, 480);
+  };
+
+  const trackConversationLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = conversationLongPressStartRef.current;
+    if (!start) return;
+    // Ignore tiny touch jitter, but cancel when the finger is clearly scrolling.
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) {
+      clearConversationLongPress();
+      conversationLongPressStartRef.current = null;
+    }
   };
 
   const toggleConversationSelection = (id: string) => {
@@ -2228,7 +2241,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 onPointerUp={clearConversationLongPress}
                 onPointerCancel={clearConversationLongPress}
                 onPointerLeave={clearConversationLongPress}
-                onPointerMove={clearConversationLongPress}
+                onPointerMove={trackConversationLongPress}
                 onContextMenu={event => {
                   event.preventDefault();
                   clearConversationLongPress();
