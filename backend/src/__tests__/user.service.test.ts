@@ -1,6 +1,15 @@
 import { UserService } from '../services/user.service';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
+import { CryptoUtils } from '../security/crypto';
+import { emailService } from '../services/email.service';
+
+jest.mock('../services/email.service', () => ({
+  emailService: {
+    sendEmailChangeVerification: jest.fn(),
+    sendEmailChangedNotice: jest.fn(),
+  },
+}));
 
 jest.mock('../prisma', () => ({
   prisma: {
@@ -85,6 +94,14 @@ jest.mock('../prisma', () => ({
     conversation: {
       count: jest.fn(),
     },
+    emailChangeRequest: {
+      count: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -142,6 +159,8 @@ const mockUser: any = {
 describe('UserService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.EMAIL_CHANGE_CODE_SECRET = 'test-email-change-secret-with-at-least-32-bytes';
+    jest.spyOn(CryptoUtils, 'verifyPassword').mockResolvedValue(true);
     (prisma.$transaction as jest.Mock).mockImplementation(async callback => callback(prisma));
     (prisma.notificationPreferences.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notification1' });
@@ -290,6 +309,44 @@ describe('UserService', () => {
     test('requires a six-digit verification code', async () => {
       await expect(userService.verifyEmailChange('user1', '123'))
         .rejects.toThrow('Enter the 6-digit verification code');
+    });
+
+    test('invalidates the challenge when the verification email transport throws', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user1', email: 'test@example.com', passwordHash: 'hash',
+      });
+      (prisma.emailChangeRequest.count as jest.Mock).mockResolvedValue(0);
+      (prisma.emailChangeRequest.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.emailChangeRequest.create as jest.Mock).mockResolvedValue({ id: 'email-change-1' });
+      (emailService.sendEmailChangeVerification as jest.Mock).mockRejectedValue(new Error('provider unavailable'));
+
+      await expect(userService.requestEmailChange('user1', 'new@example.com', 'currentPass'))
+        .rejects.toThrow('We could not send the verification email');
+
+      expect(prisma.emailChangeRequest.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'email-change-1', usedAt: null },
+        data: { usedAt: expect.any(Date) },
+      });
+    });
+
+    test('invalidates the challenge when the email provider reports no delivery', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user1', email: 'test@example.com', passwordHash: 'hash',
+      });
+      (prisma.emailChangeRequest.count as jest.Mock).mockResolvedValue(0);
+      (prisma.emailChangeRequest.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.emailChangeRequest.create as jest.Mock).mockResolvedValue({ id: 'email-change-2' });
+      (emailService.sendEmailChangeVerification as jest.Mock).mockResolvedValue({
+        delivered: false, transport: 'none',
+      });
+
+      await expect(userService.requestEmailChange('user1', 'new@example.com', 'currentPass'))
+        .rejects.toThrow('We could not send the verification email');
+
+      expect(prisma.emailChangeRequest.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'email-change-2', usedAt: null },
+        data: { usedAt: expect.any(Date) },
+      });
     });
   });
 
