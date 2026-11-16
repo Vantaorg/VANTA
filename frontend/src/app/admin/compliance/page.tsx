@@ -46,6 +46,8 @@ export default function AdminCompliancePage() {
   const [copyrightClaims, setCopyrightClaims] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [transparency, setTransparency] = useState<any[]>([]);
+  const [childSafetyFlags, setChildSafetyFlags] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<any[]>([]);
 
   // Filters
   const [reportFilter, setReportFilter] = useState('all');
@@ -81,11 +83,19 @@ export default function AdminCompliancePage() {
         case 'copyright':
           setCopyrightClaims(await adminComplianceApi.getCopyrightClaims(100, 0));
           break;
+        case 'child-safety': {
+          const result = await adminComplianceApi.getChildSafetyFlags(100, 0);
+          setChildSafetyFlags(result.flags || []);
+          break;
+        }
         case 'audit-logs':
           setAuditLogs(await adminComplianceApi.getAuditLogs({ limit: 100 }));
           break;
         case 'transparency':
-          setTransparency(await adminComplianceApi.getDashboard());
+          setTransparency(await adminComplianceApi.getTransparencyMetrics('MONTHLY'));
+          break;
+        case 'policies':
+          setPolicies(await adminComplianceApi.getPolicies());
           break;
         default:
           break;
@@ -124,6 +134,9 @@ export default function AdminCompliancePage() {
     { id: 'transparency', label: 'Transparency', icon: Globe, description: 'Transparency reports' },
     { id: 'policies', label: 'Policies', icon: FileText, description: 'Manage policies' },
   ];
+  const visibleTabs = user?.role === 'MODERATOR'
+    ? tabs.filter((tab) => ['overview', 'reports', 'appeals', 'copyright', 'child-safety'].includes(tab.id))
+    : tabs;
 
   return (
     <div className="min-h-screen pb-24 ">
@@ -147,7 +160,7 @@ export default function AdminCompliancePage() {
 
         {/* Tab Navigation */}
         <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
@@ -627,16 +640,92 @@ export default function AdminCompliancePage() {
   // CHILD SAFETY
   // ==========================================================================
   function renderChildSafety() {
+    const handleProcess = async (flag: any, action: 'approve' | 'dismiss' | 'escalate' | 'restrict') => {
+      let note = '';
+      if (action === 'restrict') {
+        if (!window.confirm('This action will suspend the associated user account and escalate the child-safety flag. Continue?')) return;
+        note = window.prompt('Enter the reason for restricting this account:')?.trim() || '';
+        if (!note) {
+          showToast('A reason is required before restricting an account.', 'error');
+          return;
+        }
+      } else if (action === 'escalate') {
+        note = window.prompt('Optional escalation note:')?.trim() || '';
+      }
+
+      setProcessingId(flag.id);
+      try {
+        await adminComplianceApi.processChildSafetyFlag(flag.id, action, note || undefined);
+        const result = await adminComplianceApi.getChildSafetyFlags(100, 0);
+        setChildSafetyFlags(result.flags || []);
+        showToast(action === 'restrict' ? 'Account restricted and flag escalated.' : `Child-safety flag ${action}d.`);
+      } catch (err: any) {
+        showToast(err?.message || 'Unable to process child-safety flag.', 'error');
+      } finally {
+        setProcessingId(null);
+      }
+    };
+
+    const statusColors: Record<string, string> = {
+      PENDING_REVIEW: 'text-amber-300',
+      APPROVED: 'text-emerald-300',
+      DISMISSED: 'text-gray-400',
+      ESCALATED: 'text-red-300',
+    };
+
     return (
       <div className="space-y-6">
-        <p className="text-lg font-semibold text-white">Child Safety Flags</p>
-        <p className="text-sm text-gray-400">
-          Review and process child safety flags. Escalated flags require immediate attention.
-        </p>
-        <div className="p-8 text-center text-gray-500">
-          <Shield size={48} className="mx-auto mb-3 text-gray-600" />
-          <p>Child safety flag management tools ready. Flags will appear here when detected or reported.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-lg font-semibold text-white">Child Safety Flags</p>
+            <p className="text-sm text-gray-400 mt-1">Review flagged accounts and escalate urgent safety concerns.</p>
+          </div>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>
+            Refresh
+          </Button>
         </div>
+
+        {childSafetyFlags.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <Shield size={40} className="mx-auto mb-3 text-gray-600" />
+            <p>No child-safety flags found.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {childSafetyFlags.map((flag: any) => (
+              <div key={flag.id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className={`text-xs font-semibold ${statusColors[flag.status] || 'text-gray-400'}`}>{flag.status}</span>
+                      <span className="text-xs text-gray-400">{String(flag.flagType || 'UNKNOWN').replace(/_/g, ' ')}</span>
+                      <span className={`text-xs ${flag.escalationLevel === 'URGENT' ? 'text-red-300' : flag.escalationLevel === 'HIGH' ? 'text-amber-300' : 'text-gray-500'}`}>
+                        {flag.escalationLevel || 'NORMAL'} priority
+                      </span>
+                    </div>
+                    <p className="text-sm text-white">User: {flag.user?.username || flag.userId}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {flag.ageEstimate != null ? `Estimated age: ${flag.ageEstimate}` : 'Age estimate unavailable'}
+                      {' · '}
+                      {flag.declaredAge != null ? `Declared age: ${flag.declaredAge}` : 'No declared age'}
+                    </p>
+                    {flag.notes && <p className="text-xs text-gray-400 mt-2">{flag.notes}</p>}
+                    {flag.actionDetail && <p className="text-xs text-gray-500 mt-1">Review note: {flag.actionDetail}</p>}
+                    <p className="text-xs text-gray-600 mt-2">Created {new Date(flag.createdAt).toLocaleString()}</p>
+                  </div>
+                  {flag.status === 'PENDING_REVIEW' && (
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <button onClick={() => void handleProcess(flag, 'approve')} disabled={processingId === flag.id} className="px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-300 text-xs disabled:opacity-50">Approve</button>
+                      <button onClick={() => void handleProcess(flag, 'dismiss')} disabled={processingId === flag.id} className="px-3 py-2 rounded-lg bg-white/10 text-gray-300 text-xs disabled:opacity-50">Dismiss</button>
+                      <button onClick={() => void handleProcess(flag, 'escalate')} disabled={processingId === flag.id} className="px-3 py-2 rounded-lg bg-amber-500/15 text-amber-300 text-xs disabled:opacity-50">Escalate</button>
+                      <button onClick={() => void handleProcess(flag, 'restrict')} disabled={processingId === flag.id} className="px-3 py-2 rounded-lg bg-red-500/15 text-red-300 text-xs disabled:opacity-50">Restrict account</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -723,25 +812,58 @@ export default function AdminCompliancePage() {
   // ==========================================================================
   function renderTransparency() {
     const handleGenerate = async () => {
+      setProcessingId('transparency');
       try {
         await adminComplianceApi.generateTransparencyReport();
-        showToast('Transparency report generated');
+        setTransparency(await adminComplianceApi.getTransparencyMetrics('MONTHLY'));
+        showToast('Transparency report generated and metrics refreshed.');
       } catch (err: any) {
-        showToast(err.message, 'error');
+        showToast(err?.message || 'Unable to generate transparency report.', 'error');
+      } finally {
+        setProcessingId(null);
       }
+    };
+
+    const metricLabels: Record<string, string> = {
+      ENFORCEMENT_ACTIONS: 'Enforcement actions',
+      REPORT_VOLUME: 'Reports received',
+      APPEAL_OUTCOMES: 'Appeal outcomes',
+      CONTENT_REMOVALS: 'Content removals',
+      DATA_REQUESTS: 'Data requests',
+      GOVERNMENT_REQUESTS: 'Government requests',
     };
 
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <p className="text-lg font-semibold text-white">Transparency Reports</p>
-          <Button variant="primary" size="sm" onClick={handleGenerate}>
-            Generate Report
-          </Button>
+          <div>
+            <p className="text-lg font-semibold text-white">Transparency Reports</p>
+            <p className="text-sm text-gray-400 mt-1">Published monthly platform enforcement and compliance metrics.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>Refresh</Button>
+            <Button variant="primary" size="sm" loading={processingId === 'transparency'} onClick={handleGenerate}>
+              Generate Report
+            </Button>
+          </div>
         </div>
-        <p className="text-sm text-gray-400">
-          Generate and manage platform transparency reports. These reports show enforcement actions, report volumes, and appeal outcomes.
-        </p>
+
+        {transparency.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-8">No published transparency metrics yet. Generate the current monthly report to populate this section.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {transparency.map((metric: any) => (
+              <div key={metric.id || `${metric.metricType}-${metric.periodStart}`} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-xs text-gray-400">{metricLabels[metric.metricType] || String(metric.metricType || 'Metric').replace(/_/g, ' ')}</p>
+                <p className="text-2xl font-semibold text-white mt-2">{Number(metric.totalCount || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {metric.periodStart ? new Date(metric.periodStart).toLocaleDateString() : 'Period unavailable'}
+                  {metric.publishedAt ? ` · Published ${new Date(metric.publishedAt).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -767,6 +889,7 @@ export default function AdminCompliancePage() {
       setPublishing(true);
       try {
         await adminComplianceApi.publishPolicy(policyType, policyVersion, policyTitle, policyContent);
+        setPolicies(await adminComplianceApi.getPolicies());
         showToast('Policy published successfully');
         setPolicyTitle('');
         setPolicyContent('');
@@ -780,10 +903,34 @@ export default function AdminCompliancePage() {
 
     return (
       <div className="space-y-6">
-        <p className="text-lg font-semibold text-white">Policy Management</p>
-        <p className="text-sm text-gray-400">Publish new versions of platform policies and user agreements.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-lg font-semibold text-white">Policy Management</p>
+            <p className="text-sm text-gray-400 mt-1">Current published versions and policy publishing.</p>
+          </div>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} onClick={() => void loadTabData()}>Refresh</Button>
+        </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-white">Current published policies</p>
+          {policies.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4">No current policies found.</p>
+          ) : policies.map((policy: any) => (
+            <div key={policy.id} className="p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <p className="text-sm text-white">{policy.title}</p>
+                <p className="text-xs text-gray-500 mt-1">{String(policy.policyType || '').replace(/_/g, ' ')} · Version {policy.version}</p>
+              </div>
+              <div className="text-xs text-gray-500 sm:text-right">
+                <p>Published {policy.publishedAt ? new Date(policy.publishedAt).toLocaleDateString() : '—'}</p>
+                <p>Effective {policy.effectiveAt ? new Date(policy.effectiveAt).toLocaleDateString() : '—'}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-white/10 pt-5 space-y-4">
+          <p className="text-sm font-medium text-white">Publish a new policy version</p>
           <label className="space-y-2 text-sm text-gray-300">
             <span>Policy Type</span>
             <select
