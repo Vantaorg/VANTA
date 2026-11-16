@@ -431,6 +431,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [filter, setFilter] = useState<'all' | 'direct' | 'group' | 'channel' | 'unread'>('all');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [directMenuOpen, setDirectMenuOpen] = useState(false);
   const [memberBrowserOpen, setMemberBrowserOpen] = useState(false);
   const [memberBrowserQuery, setMemberBrowserQuery] = useState('');
   const [isLoadingEntityInfo, setIsLoadingEntityInfo] = useState(false);
@@ -589,8 +590,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (view !== 'info' && view !== 'settings') setDetailsOpen(false);
     if (view !== 'settings') setEditEntityOpen(false);
     if (view !== 'media') setMediaViewer(null);
-    // Back navigation from any chat subview also closes the call menu.
+    // Back navigation closes transient chat overlays.
     setCallMenuOpen(false);
+    setDirectMenuOpen(false);
   }, [searchParams]);
 
   const pushChatView = useCallback((view: 'info' | 'settings' | 'media') => {
@@ -624,6 +626,16 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       setIsLoadingEntityInfo(false);
     }
   }, [activeConversation, conversations, pushChatView, token]);
+
+  const handleOpenConversationActions = useCallback(() => {
+    const selectedConversation = conversations.find(item => item.id === activeConversation);
+    if (selectedConversation?.type === 'direct') {
+      setDirectMenuOpen(true);
+      setCallMenuOpen(false);
+      return;
+    }
+    void openConversationInfo();
+  }, [activeConversation, conversations, openConversationInfo]);
 
   const openMediaViewer = useCallback((attachment: { url: string; fileType: string; fileName?: string }) => {
     setMediaViewer(attachment);
@@ -1043,6 +1055,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setMessages([]);
     setShowMobileList(true);
     setDetailsOpen(false);
+    setDirectMenuOpen(false);
     router.replace('/chat', { scroll: false });
   }, [router]);
 
@@ -2307,7 +2320,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   </>
                 )}
                 <button onClick={() => setMessageSearchOpen(value => !value)} className="btn-icon h-9 w-9" aria-label="Search chat"><Search size={15} /></button>
-                 <button onClick={openConversationInfo} className="btn-icon h-9 w-9" aria-label={`Open ${activeConv.type === 'group' ? 'group' : activeConv.type === 'channel' ? 'channel' : 'conversation'} information`}><MoreVertical size={17} /></button>
+                 <button onClick={handleOpenConversationActions} className="btn-icon h-9 w-9" aria-label={activeConv.type === 'direct' ? 'Open conversation actions' : `Open ${activeConv.type === 'group' ? 'group' : 'channel'} information`}><MoreVertical size={17} /></button>
               </div>
             </header>
 
@@ -2842,6 +2855,50 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           </div>
         )}
       </div>
+
+      {activeConv?.type === 'direct' && directMenuOpen && (
+        <>
+          <button type="button" aria-label="Close conversation actions" onClick={() => setDirectMenuOpen(false)} className="fixed inset-0 z-[80] bg-black/65 backdrop-blur-[2px]" />
+          <motion.section
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="direct-chat-actions-title"
+            className="fixed inset-x-0 bottom-0 z-[81] mx-auto w-full max-w-lg rounded-t-3xl border border-white/[0.08] bg-[#1F2630] px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-3 text-white shadow-[0_-18px_60px_rgba(0,0,0,.5)] sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20 sm:hidden" />
+            <div className="flex items-center gap-3 border-b border-white/[0.07] pb-4">
+              <Avatar src={activeConv.avatar} alt={activeConv.name} size="lg" />
+              <div className="min-w-0 flex-1">
+                <h2 id="direct-chat-actions-title" className="truncate text-sm font-semibold">{activeConv.name}</h2>
+                {activeConv.username && <p className="mt-0.5 truncate text-[11px] text-white/40">@{activeConv.username}</p>}
+              </div>
+              <button type="button" onClick={() => setDirectMenuOpen(false)} className="grid h-9 w-9 place-items-center rounded-full text-white/50 transition hover:bg-white/[0.07] hover:text-white" aria-label="Close menu"><X size={17}/></button>
+            </div>
+            <div className="grid gap-1 py-3">
+              <button type="button" onClick={() => { setDirectMenuOpen(false); setMessageSearchOpen(true); }} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm text-white/80 transition hover:bg-white/[0.06]">
+                <Search size={17} className="text-white/55"/>Search chat
+              </button>
+              <button type="button" onClick={() => { setDirectMenuOpen(false); void toggleMute(); }} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm text-white/80 transition hover:bg-white/[0.06]">
+                <BellOff size={17} className="text-white/55"/>{activeConv.muted ? 'Unmute notifications' : 'Mute notifications'}
+              </button>
+              {activeConv.username && <a href={`/profile/${activeConv.username}`} onClick={() => setDirectMenuOpen(false)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm text-white/80 transition hover:bg-white/[0.06]">
+                <User size={17} className="text-white/55"/>View profile
+              </a>}
+            </div>
+            <div className="border-t border-white/[0.07] pt-2">
+              {activeConv.partnerId && <button type="button" onClick={() => { setDirectMenuOpen(false); void blockActiveUser(); }} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm text-red-300/90 transition hover:bg-red-500/[0.08]">
+                <Ban size={17}/>Block account
+              </button>}
+              <button type="button" onClick={() => { setDirectMenuOpen(false); void reportActiveConversation(); }} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm text-red-300/90 transition hover:bg-red-500/[0.08]">
+                <Flag size={17}/>Report account
+              </button>
+            </div>
+          </motion.section>
+        </>
+      )}
 
       {activeConv && detailsOpen && <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} className="vanta-conversation-info fixed inset-0 z-50 h-[var(--chat-viewport-height,100dvh)] w-full overflow-y-auto overscroll-contain border-l border-white/[0.08] bg-[#1F2630] md:left-0 md:right-0 md:w-full">
         {memberBrowserOpen && activeConv.type !== 'direct' ? <section role="dialog" aria-modal="true" aria-label={activeConv.type === 'group' ? 'Group members' : 'Channel administrators'} className="fixed inset-0 z-[60] flex h-[var(--chat-viewport-height,100dvh)] flex-col bg-[#0d0d0f]"><header className="flex min-h-16 items-center gap-3 border-b border-white/[0.08] px-3 pt-[max(0px,env(safe-area-inset-top))]"><button type="button" onClick={() => setMemberBrowserOpen(false)} className="btn-icon h-10 w-10 shrink-0" aria-label="Back to information"><ArrowLeft size={18}/></button><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold text-white">{activeConv.type === 'group' ? 'Members' : 'Administrators'}</h2><p className="mt-0.5 text-[10px] text-white/35">{activeConv.type === 'group' ? managedEntity?._count?.members ?? activeConv.memberCount ?? activeConv.participants?.length ?? 0 : managedEntity?.members?.filter((member: any) => ['OWNER','ADMIN','MODERATOR'].includes(member.role)).length ?? 0} {activeConv.type === 'group' ? 'people in this group' : 'channel administrators'}</p></div></header><div className="border-b border-white/[0.07] p-3"><div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#151517] px-3"><Search size={15} className="shrink-0 text-white/35"/><input autoFocus type="search" value={memberBrowserQuery} onChange={event => setMemberBrowserQuery(event.target.value)} placeholder={activeConv.type === 'group' ? 'Find a member' : 'Find an administrator'} className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"/></div></div><div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(20px,env(safe-area-inset-bottom))]"><div className="divide-y divide-white/[0.06]">{(managedEntity?.members || activeConv.participants || []).filter((member: any) => activeConv.type !== 'channel' || ['OWNER','ADMIN','MODERATOR'].includes(member.role)).filter((member: any) => { const person = member.user || member; const query = memberBrowserQuery.trim().toLowerCase(); return !query || `${person.fullName || ''} ${person.username || ''} ${member.role || ''}`.toLowerCase().includes(query); }).map((member: any) => { const person = member.user || member; const role = member.role || member.membershipRole; return <div key={member.userId || person.id} className="flex items-center gap-3 py-3"><Avatar src={person.avatar} alt={person.username || person.fullName || 'Member'} size="sm"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white/85">{person.fullName || person.username || 'Member'}</p><p className="mt-0.5 truncate text-[11px] text-white/35">{person.username ? `@${person.username}` : ''}</p></div>{role && role !== 'MEMBER' && <span className="rounded-full bg-[#d6a83f]/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-[#d6a83f]">{role.toLowerCase()}</span>}</div>; })}{(managedEntity?.members || activeConv.participants || []).filter((member: any) => activeConv.type !== 'channel' || ['OWNER','ADMIN','MODERATOR'].includes(member.role)).filter((member: any) => { const person = member.user || member; const query = memberBrowserQuery.trim().toLowerCase(); return !query || `${person.fullName || ''} ${person.username || ''} ${member.role || ''}`.toLowerCase().includes(query); }).length === 0 && <p className="py-10 text-center text-xs text-white/35">{memberBrowserQuery ? 'No matching people found.' : 'Member details are unavailable.'}</p>}</div></div></section> : <><div className="sticky top-0 z-10 grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-white/[0.08] bg-[#1F2630]/95 px-3 pt-[max(0px,env(safe-area-inset-top))] backdrop-blur-xl"><button onClick={() => closeChatSubview(() => setDetailsOpen(false))} className="btn-icon h-10 w-10 shrink-0" aria-label={`Close ${activeConv.type === 'group' ? 'group' : activeConv.type === 'channel' ? 'channel' : 'conversation'} information`}><ArrowLeft size={18}/></button><div className="min-w-0 text-center"><h2 className="truncate text-sm font-semibold text-white">{activeConv.type === 'group' ? 'Group info' : activeConv.type === 'channel' ? 'Channel info' : 'Conversation info'}</h2></div>{activeConv.type !== 'direct' && canEditEntity ? <button onClick={() => void openEntityEditor()} className="btn-icon h-10 w-10 shrink-0 text-[#f2c75c]" aria-label={`Manage ${activeConv.type === 'group' ? 'group' : 'channel'}`} title={`Edit ${activeConv.type === 'group' ? 'group' : 'channel'}`}><Pencil size={16}/></button> : <span className="h-10 w-10 shrink-0" aria-hidden="true"/>}</div>
