@@ -904,21 +904,27 @@ export class UserService {
     const existing = await prisma.user.findUnique({ where: { email: normalized }, select: { id: true } });
     if (existing && existing.id !== userId) throw new Error('That email address is already in use');
 
-    const recentRequests = await prisma.emailChangeRequest.count({
-      where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
-    });
-    if (recentRequests >= 5) throw new Error('Too many email change attempts. Try again in an hour.');
-
     const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const codeHash = this.emailChangeCodeHash(userId, normalized, code);
 
-    await prisma.emailChangeRequest.updateMany({
-      where: { userId, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-    const request = await prisma.emailChangeRequest.create({
-      data: { userId, oldEmail: user.email, newEmail: normalized, codeHash, expiresAt },
+    // Serialize per-account issuance before counting and inserting. The
+    // transaction-scoped advisory lock closes the count-then-create race:
+    // concurrent requests for this user cannot all pass the hourly limit.
+    const request = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
+      const recentRequests = await tx.emailChangeRequest.count({
+        where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+      });
+      if (recentRequests >= 5) throw new Error('Too many email change attempts. Try again in an hour.');
+
+      await tx.emailChangeRequest.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return tx.emailChangeRequest.create({
+        data: { userId, oldEmail: user.email, newEmail: normalized, codeHash, expiresAt },
+      });
     });
 
     let delivery;
