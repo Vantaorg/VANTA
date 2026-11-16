@@ -126,8 +126,10 @@ const getAnalyticsAccessToken = (): string | undefined => {
 };
 
 export async function unwrap<T>(path: string): Promise<T> {
-  const body = await apiGet<{ success: boolean; data: T }>(path, getAnalyticsAccessToken());
-  return (body as any).data;
+  const body = await apiGet<any>(path, getAnalyticsAccessToken());
+  // Analytics endpoints predate the standard { success, data } envelope:
+  // some return the payload directly while others wrap it in data.
+  return (body?.data ?? body) as T;
 }
 
 class AnalyticsAPI {
@@ -199,8 +201,8 @@ class AnalyticsAPI {
 
   async getCohortAnalysis(): Promise<CohortAnalysis[]> {
     const body = await apiGet<{ data: { cohorts: CohortAnalysis[] } }>(`${this.baseUrl}/cohorts`, getAnalyticsAccessToken());
-    const payload = body?.data;
-    return payload && Array.isArray(payload.cohorts) ? payload.cohorts : [];
+    const payload = body?.data ?? body;
+    return Array.isArray(payload?.cohorts) ? payload.cohorts : Array.isArray(payload) ? payload : [];
   }
 
   // ============================================================
@@ -237,12 +239,12 @@ class AnalyticsAPI {
 
   async getCurrentDAU(): Promise<number> {
     const body = await apiGet<{ data: { dau: number } }>(`${this.baseUrl}/users/dau`, getAnalyticsAccessToken());
-    return body?.data?.dau ?? 0;
+    return body?.data?.dau ?? body?.dau ?? 0;
   }
 
   async getOnlineUsers(): Promise<number> {
     const body = await apiGet<{ data: { online: number } }>(`${this.baseUrl}/users/online`, getAnalyticsAccessToken());
-    return body?.data?.online ?? 0;
+    return body?.data?.online ?? body?.online ?? 0;
   }
 
   async getRetentionRates(cohortDate?: string): Promise<RetentionRate[]> {
@@ -432,7 +434,7 @@ class AnalyticsAPI {
 
   async createAlertRule(rule: Partial<AlertRule>): Promise<AlertRule> {
     const body = await apiPost<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules`, rule, getAnalyticsAccessToken());
-    return (body as any).data;
+    return (body as any)?.data?.topContent ?? (body as any)?.topContent ?? (body as any)?.data ?? body;
   }
 
   async updateAlertRule(id: string, rule: Partial<AlertRule>): Promise<AlertRule> {
