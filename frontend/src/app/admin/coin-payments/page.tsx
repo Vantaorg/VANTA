@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Coins, Shield, Filter, RefreshCcw, AlertCircle, RotateCcw, MoreHorizontal
+  Coins, Shield, RefreshCcw, AlertCircle, RotateCcw, MoreHorizontal
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
@@ -35,12 +35,16 @@ export default function CoinPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selected, setSelected] = useState<CoinPurchaseRecord | null>(null);
   const [refunding, setRefunding] = useState(false);
-  const [refundReason, setRefundReason] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        return;
+      }
       const data = await getCoinPaymentsDashboard(token);
       setDashboard(data);
       const list = await listCoinPurchases(token, { limit: 100 });
@@ -50,9 +54,9 @@ export default function CoinPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return purchases;
@@ -71,7 +75,6 @@ export default function CoinPaymentsPage() {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
       if (!token) return;
       await refundCoinPurchase(token, order.id, reason.trim());
-      setRefundReason('');
       await fetchData();
       setSelected(null);
     } catch (err: any) {
@@ -94,7 +97,7 @@ export default function CoinPaymentsPage() {
           <p className="text-sm text-gray-400 mt-1">VANTA Coin purchases, payment mode, and auditable refunds.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" icon={<RefreshCcw size={14} />} onClick={() => { setLoading(true); fetchData(); }}>Refresh</Button>
+          <Button variant="ghost" size="sm" icon={<RefreshCcw size={14} />} onClick={() => { void fetchData(); }}>Refresh</Button>
         </div>
       </div>
 
@@ -165,7 +168,6 @@ export default function CoinPaymentsPage() {
                 <option value="all">All Statuses</option>
                 {Object.keys(statusConfig).map(s => <option key={s} value={s}>{statusConfig[s].label}</option>)}
               </select>
-              <Button variant="ghost" size="sm" icon={<Filter size={14} />}>Filter</Button>
             </div>
           </GlassCard>
 
@@ -215,7 +217,15 @@ export default function CoinPaymentsPage() {
                       </td>
                       <td className="py-3 px-2 text-right text-gray-400 text-xs">{new Date(p.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-2 text-center">
-                        <button className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                        <button
+                          type="button"
+                          aria-label={selected?.id === p.id ? 'Close purchase details' : 'View purchase details'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected(selected?.id === p.id ? null : p);
+                          }}
+                          className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                        >
                           <MoreHorizontal size={14} className="text-gray-500" />
                         </button>
                       </td>
