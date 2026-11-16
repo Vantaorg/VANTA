@@ -39,14 +39,14 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div className="flex w-full sm:w-auto items-center gap-2 overflow-hidden">
+    <div className="space-y-2.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex w-full min-w-0 items-center gap-2 sm:max-w-2xl">
         <Input
-          placeholder="Search city, area or keyword"
+          placeholder="City, neighbourhood or keyword"
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-          className="w-full sm:w-64 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/40"
+          className="w-full min-w-0 bg-[#171d25] border border-white/[0.08] text-white placeholder-white/35"
         />
         <Button variant="gold" size="sm" onClick={() => buildUrl({ q: search.trim() })}>
           Search
@@ -56,10 +56,10 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
         </Button>
       </div>
 
-      <div className="flex w-full flex-wrap items-center gap-2 overflow-hidden">
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/80 hover:bg-white/[0.08] text-sm"
+          className="flex min-h-9 items-center gap-2 rounded-lg border border-white/[.09] bg-white/[.035] px-3 py-2 text-xs font-medium text-white/75 transition hover:bg-white/[.07] sm:text-sm"
         >
           Filters <span className="text-[#c9a227]">{hasFilters ? '· active' : ''}</span>
         </button>
@@ -70,13 +70,13 @@ export function HomeFilterBar({ propertyTypes, rentPeriods, current }: HomeFilte
       </div>
 
       {open && (
-        <div className="p-4 rounded-xl border border-white/[0.08] bg-white/[0.03] w-full">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+        <div className="w-full rounded-xl border border-white/[.08] bg-[#171d25] p-3.5 sm:p-4">
+          <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-3">
             <FilterSelect label="Property type" name="propertyType" options={propertyTypes.map((t) => ({ value: t, label: TYPE_LABEL[t] || t }))} current={current.propertyType || ''} buildUrl={buildUrl} />
             <FilterSelect label="Bedrooms" name="bedrooms" options={['1', '2', '3', '4'].map((v) => ({ value: v, label: v === '4' ? '4+' : v }))} current={current.bedrooms || ''} buildUrl={buildUrl} />
             <FilterSelect label="Bathrooms" name="bathrooms" options={['1', '2', '3', '4'].map((v) => ({ value: v, label: v === '4' ? '4+' : v }))} current={current.bathrooms || ''} buildUrl={buildUrl} />
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="mb-3 grid grid-cols-2 gap-3">
             <FilterInput label="Min rent" value={draftMinRent} onChange={setDraftMinRent} />
             <FilterInput label="Max rent" value={draftMaxRent} onChange={setDraftMaxRent} />
           </div>
@@ -98,7 +98,7 @@ function FilterSelect({ label, name, options, current, buildUrl }: { label: stri
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs text-white/50">{label}</span>
-      <select value={current} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => buildUrl({ [name]: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-2 focus:ring-[#c9a227] outline-none">
+      <select value={current} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => buildUrl({ [name]: e.target.value })} className="w-full rounded-lg border border-white/[.09] bg-[#10151c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#c9a227]/60 focus:ring-2 focus:ring-[#c9a227]/10">
         <option value="">Any</option>
         {options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
       </select>
@@ -110,7 +110,7 @@ function FilterInput({ label, value, onChange }: { label: string; value: string;
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs text-white/50">{label}</span>
-      <input type="number" min="0" value={value} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm focus:ring-2 focus:ring-[#c9a227] outline-none" />
+      <input type="number" min="0" value={value} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)} className="w-full rounded-lg border border-white/[.09] bg-[#10151c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#c9a227]/60 focus:ring-2 focus:ring-[#c9a227]/10" />
     </div>
   );
 }
