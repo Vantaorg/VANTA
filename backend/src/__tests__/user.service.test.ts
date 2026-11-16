@@ -281,23 +281,15 @@ describe('UserService', () => {
     });
   });
 
-  describe('updateEmail', () => {
-    test('should update email', async () => {
-      (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.user.update as jest.Mock).mockResolvedValue({ id: 'user1', email: 'new@example.com' });
-
-      const result = await userService.updateEmail('user1', 'new@example.com');
-      expect(result.email).toBe('new@example.com');
+  describe('verified email change', () => {
+    test('rejects invalid email addresses before creating a challenge', async () => {
+      await expect(userService.requestEmailChange('user1', 'invalid-email', 'currentPass'))
+        .rejects.toThrow('Invalid email address');
     });
 
-    test('should throw for duplicate email', async () => {
-      (prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'user2', email: 'existing@example.com' });
-
-      await expect(userService.updateEmail('user1', 'existing@example.com')).rejects.toThrow('Email already in use');
-    });
-
-    test('should throw for invalid email format', async () => {
-      await expect(userService.updateEmail('user1', 'invalid-email')).rejects.toThrow('Invalid email address');
+    test('requires a six-digit verification code', async () => {
+      await expect(userService.verifyEmailChange('user1', '123'))
+        .rejects.toThrow('Enter the 6-digit verification code');
     });
   });
 
