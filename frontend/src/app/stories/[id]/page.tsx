@@ -831,7 +831,7 @@ const creator = current.group.user || {};
                   <article key={comment.id} className="flex items-start gap-3 border-b border-white/[.06] py-3">
                     <Avatar src={comment.user.avatar} alt={comment.user.username} size="sm"/>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm"><b className="mr-1">@{comment.user.username}</b><span className="break-words text-white/90">{renderTextWithLinks(comment.content, 'linkify')}</span></p>
+                      <p className="text-sm"><b className="mr-1">@{comment.user.username}</b><span className="break-words text-white/90">{renderTextWithLinks(comment.content, 'linkify', { mentions: true, hashtags: true })}</span></p>
                       <time className="text-[11px] text-[#c8c8cc]/45">{new Date(comment.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
                     </div>
                     {(comment.user.id === user?.id || isOwner) && (
