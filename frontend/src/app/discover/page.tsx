@@ -7,7 +7,7 @@ import {
   Flame, Hash, Heart, Loader2, Menu, MessageCircle, Play, Radio, RefreshCw, Search,
   Share2, Users, X,
 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import Avatar from '@/components/ui/Avatar';
@@ -61,13 +61,12 @@ const scrollPageTop = (el: HTMLDivElement | null) => el?.scrollTo?.({ top: 0, be
 export default function DiscoverPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const toast = useToast();
   const sentinel = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const pageScrollRef = useRef<HTMLDivElement>(null);
   const [category, setCategory] = useState<Category>('forYou');
-  const [query, setQuery] = useState(() => searchParams.get('q') || '');
+  const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
   const [searching, setSearching] = useState(false);
@@ -138,6 +137,11 @@ export default function DiscoverPage() {
     () => loadDiscover(false, undefined, true),
     [loadDiscover]
   );
+
+  useEffect(() => {
+    const initialQuery = new URLSearchParams(window.location.search).get('q');
+    if (initialQuery) setQuery(initialQuery);
+  }, []);
 
   useEffect(() => { void loadDiscover(); }, [loadDiscover]);
   useEffect(() => {
