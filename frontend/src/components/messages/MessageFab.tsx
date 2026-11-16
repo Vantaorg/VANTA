@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Users,
+  UserPlus,
   X,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
@@ -34,11 +35,12 @@ export default function MessageFab({
   onNewChannel,
 }: MessageFabProps) {
   const [open, setOpen] = useState(false);
+  const [contactMode, setContactMode] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const close = () => setOpen(false);
+  const close = () => { setOpen(false); setContactMode(false); };
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('vanta:floating-create-open', { detail: { open } }));
@@ -128,7 +130,7 @@ export default function MessageFab({
               <button type="button" onClick={close} aria-label="Go back" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/[0.06]">
                 <ArrowLeft size={21} />
               </button>
-              <h2 id="message-fab-title" className="text-lg font-semibold tracking-tight text-white">New Message</h2>
+              <h2 id="message-fab-title" className="text-lg font-semibold tracking-tight text-white">{contactMode ? "New Contact" : "New Message"}</h2>
             </header>
             <div className="shrink-0 px-4 pb-3">
               <label htmlFor="message-fab-search" className="sr-only">Search username</label>
@@ -229,6 +231,20 @@ export default function MessageFab({
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-white">New Channel</span>
                     
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-white/30" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setContactMode(true); searchRef.current?.focus(); }}
+                  className={actionBase + ' hover:bg-white/[0.055]'}
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.06] text-white/75">
+                    <UserPlus size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-white">New Contact</span>
+                    <span className="mt-0.5 block text-xs text-white/40">Find a member and start a chat</span>
                   </span>
                   <ChevronRight size={16} className="shrink-0 text-white/30" />
                 </button>
