@@ -955,12 +955,26 @@ export class UserService {
     const valid = expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
 
     if (!valid) {
-      const nextAttempts = request.attempts + 1;
-      await prisma.emailChangeRequest.update({
-        where: { id: request.id },
-        data: { attempts: nextAttempts, ...(nextAttempts >= 5 ? { usedAt: new Date() } : {}) },
+      // Atomic increment prevents concurrent guesses from bypassing the limit.
+      const incremented = await prisma.emailChangeRequest.updateMany({
+        where: { id: request.id, userId, usedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+        data: { attempts: { increment: 1 } },
       });
-      throw new Error(nextAttempts >= 5 ? 'Too many incorrect codes. Request a new one.' : 'That verification code is incorrect.');
+      if (incremented.count !== 1) {
+        throw new Error('This verification code has already been used, expired, or exhausted.');
+      }
+      const latest = await prisma.emailChangeRequest.findUnique({
+        where: { id: request.id },
+        select: { attempts: true },
+      });
+      const exhausted = (latest?.attempts || 0) >= 5;
+      if (exhausted) {
+        await prisma.emailChangeRequest.updateMany({
+          where: { id: request.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+      }
+      throw new Error(exhausted ? 'Too many incorrect codes. Request a new one.' : 'That verification code is incorrect.');
     }
 
     const now = new Date();
