@@ -456,6 +456,7 @@ export const refundCoinPurchase = (token: string, orderId: string, reason: strin
 export const getAuditLogs = (token: string, params?: {
   action?: string;
   admin?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }): Promise<{ logs: AuditLog[]; total: number }> => {
