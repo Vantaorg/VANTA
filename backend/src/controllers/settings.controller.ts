@@ -93,6 +93,30 @@ export const revokeAllSessions = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+export const requestEmailChange = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return handleUnauthorized(res);
+    const { email, currentPassword } = req.body || {};
+    const result = await userService.requestEmailChange(userId, email, currentPassword);
+    res.status(200).json({ message: 'Verification code sent to your new email address', ...result });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const verifyEmailChange = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return handleUnauthorized(res);
+    const { code } = req.body || {};
+    const result = await userService.verifyEmailChange(userId, code);
+    res.status(200).json({ message: 'Email address verified and updated', ...result });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const updateAccountSettings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -101,7 +125,8 @@ export const updateAccountSettings = async (req: AuthRequest, res: Response): Pr
     const result: any = {};
 
     if (email) {
-      result.email = await userService.updateEmail(userId, email);
+      res.status(400).json({ error: 'Email changes must use the verification flow in Password & Security.' });
+      return;
     }
 
     if (currentPassword || newPassword) {
