@@ -215,12 +215,22 @@ describe('WalletService', () => {
   });
 
   describe('saveUsdtWalletAddress', () => {
-    test('should save USDT wallet address', async () => {
-      (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(mockWallet);
-      (prisma.wallet.update as jest.Mock).mockResolvedValue({ ...mockWallet, usdtWalletAddress: '0x123' });
+    const validAddress = '0x' + 'a'.repeat(40);
 
-      const result = await walletService.saveUsdtWalletAddress('user1', '0x123');
-      expect(result.usdtWalletAddress).toBe('0x123');
+    test('should save a valid BEP-20 wallet address', async () => {
+      (prisma.wallet.findUnique as jest.Mock).mockResolvedValue(mockWallet);
+      (prisma.wallet.update as jest.Mock).mockResolvedValue({ ...mockWallet, usdtWalletAddress: validAddress });
+
+      const result = await walletService.saveUsdtWalletAddress('user1', validAddress);
+      expect(result.usdtWalletAddress).toBe(validAddress);
+    });
+
+    test('should reject invalid and zero addresses before writing', async () => {
+      await expect(walletService.saveUsdtWalletAddress('user1', '0x123'))
+        .rejects.toThrow('Enter a valid non-zero BNB Smart Chain (BEP-20) address');
+      await expect(walletService.saveUsdtWalletAddress('user1', '0x' + '0'.repeat(40)))
+        .rejects.toThrow('Enter a valid non-zero BNB Smart Chain (BEP-20) address');
+      expect(prisma.wallet.update).not.toHaveBeenCalled();
     });
   });
 
