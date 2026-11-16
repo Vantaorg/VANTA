@@ -107,7 +107,7 @@ export default function SecuritySettingsPage() {
 
   const requestEmailVerification = async () => {
     if (!token) return;
-    if (!/^\S+@\S+\\.\S+$/.test(newEmail.trim())) {
+    if (!/^\S+@\S+\.\S+$/.test(newEmail.trim())) {
       toast.error('Enter a valid new email address');
       return;
     }
