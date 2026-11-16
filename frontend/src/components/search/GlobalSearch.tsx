@@ -110,7 +110,10 @@ export default function GlobalSearch() {
   const performSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (trimmed.length < 1) {
+      abortRef.current?.abort();
+      searchRequestIdRef.current += 1;
       setResults(null);
+      setSearchError(null);
       setLoading(false);
       return;
     }
