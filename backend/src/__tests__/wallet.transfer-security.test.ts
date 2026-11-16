@@ -71,9 +71,10 @@ const receiverInfo = { id: 'user2', username: 'bob', displayName: 'Bob', email: 
 function txMock() {
   return {
     wallet: {
-      findUniqueOrThrow: jest.fn().mockImplementation(async ({ where }: { where: { userId: string } }) =>
-        where.userId === 'user1' ? senderWallet : receiverWallet
-      ),
+      findUniqueOrThrow: jest.fn()
+        .mockResolvedValueOnce(senderWallet)
+        .mockResolvedValueOnce({ ...senderWallet, coinBalance: senderWallet.coinBalance - 105 })
+        .mockResolvedValueOnce(receiverWallet),
       update: jest.fn().mockResolvedValue(receiverWallet),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
