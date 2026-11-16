@@ -46,6 +46,8 @@ const MENTION_PATTERN = /(?:^|\s)@([a-zA-Z0-9_]{2,30})\b/g;
 export interface LinkifyOptions {
   /** Render @username tokens as links to the user's VANTA profile. */
   mentions?: boolean;
+  /** Render #hashtag tokens as links to matching VANTA content. */
+  hashtags?: boolean;
 }
 
 /** Normalise a detected URL token into a safe, openable href. */
@@ -55,42 +57,43 @@ export function safeUrlHref(match: string): string {
   return `https://${match}`;
 }
 
-/** Split a plain text segment into React nodes, linking @username mentions. */
-function renderMentions(text: string, enabled: boolean, linkClassName: string | undefined, keyRef: { current: number }): ReactNode[] {
-  if (!enabled) {
-    return [createElement(Fragment, { key: keyRef.current++ }, text)];
-  }
-
+/** Split a plain text segment into React nodes, linking mentions and hashtags. */
+function renderTextTokens(
+  text: string,
+  options: LinkifyOptions | undefined,
+  linkClassName: string | undefined,
+  keyRef: { current: number },
+): ReactNode[] {
   const nodes: ReactNode[] = [];
   let lastIndex = 0;
-  MENTION_PATTERN.lastIndex = 0;
+  TEXT_TOKEN_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
-  while ((match = MENTION_PATTERN.exec(text)) !== null) {
-    // The match may include leading whitespace (e.g. " @alex"); keep that
-    // whitespace plain and link only the "@username" token itself.
-    const username = match[1];
-    // Offset of the "@" within the match, then within the whole text segment.
-    const atIndex = match.index + (match[0].length - username.length - 1);
+  while ((match = TEXT_TOKEN_PATTERN.exec(text)) !== null) {
+    const prefix = match[0].slice(0, match[0].length - match[2].length - 1);
+    const tokenStart = match.index + prefix.length;
+    const marker = match[1];
+    const value = match[2];
+    const enabled = marker === '@' ? Boolean(options?.mentions) : options?.hashtags !== false;
+    if (!enabled) continue;
 
-    if (atIndex > lastIndex) {
-      nodes.push(createElement(Fragment, { key: keyRef.current++ }, text.slice(lastIndex, atIndex)));
+    if (tokenStart > lastIndex) {
+      nodes.push(createElement(Fragment, { key: keyRef.current++ }, text.slice(lastIndex, tokenStart)));
     }
-    nodes.push(
-      createElement('a', {
-        key: keyRef.current++,
-        href: `/profile/${username.toLowerCase()}`,
-        className: linkClassName,
-        onClick: (event: ReactMouseEvent) => event.stopPropagation(),
-      }, `@${username}`),
-    );
-
-    lastIndex = atIndex + username.length + 1;
+    const href = marker === '@'
+      ? `/profile/${value.toLowerCase()}`
+      : `/explore?q=%23${encodeURIComponent(value)}`;
+    nodes.push(createElement('a', {
+      key: keyRef.current++,
+      href,
+      className: linkClassName,
+      onClick: (event: ReactMouseEvent) => event.stopPropagation(),
+    }, `${marker}${value}`));
+    lastIndex = tokenStart + value.length + 1;
   }
-
   if (lastIndex < text.length) {
     nodes.push(createElement(Fragment, { key: keyRef.current++ }, text.slice(lastIndex)));
   }
-
+  if (!nodes.length) return [createElement(Fragment, { key: keyRef.current++ }, text)];
   return nodes;
 }
 
@@ -109,7 +112,7 @@ export function renderTextWithLinks(text: string, linkClassName?: string, option
 
     // Leading text before this URL (plain, unlinked — mentions opt-in).
     if (start > lastIndex) {
-      result.push(...renderMentions(text.slice(lastIndex, start), Boolean(options?.mentions), linkClassName, keyRef));
+      result.push(...renderTextTokens(text.slice(lastIndex, start), options, linkClassName, keyRef));
     }
 
     const href = safeUrlHref(urlToken);
@@ -133,7 +136,7 @@ export function renderTextWithLinks(text: string, linkClassName?: string, option
 
   // Trailing plain text after the last URL.
   if (lastIndex < text.length) {
-    result.push(...renderMentions(text.slice(lastIndex), Boolean(options?.mentions), linkClassName, keyRef));
+    result.push(...renderTextTokens(text.slice(lastIndex), options, linkClassName, keyRef));
   }
 
   return result;
