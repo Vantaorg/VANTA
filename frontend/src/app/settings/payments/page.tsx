@@ -44,11 +44,11 @@ export default function PaymentsSettingsPage() {
 
   const savePin = async () => {
     if (!token) return;
-    if (!/^\\d{4,6}$/.test(pin)) {
+    if (!/^\d{4,6}$/.test(pin)) {
       toast.error('Enter a 4–6 digit PIN');
       return;
     }
-    if (wallet?.hasPin && !/^\\d{4,6}$/.test(oldPin)) {
+    if (wallet?.hasPin && !/^\d{4,6}$/.test(oldPin)) {
       toast.error('Enter your current wallet PIN');
       return;
     }
@@ -59,7 +59,7 @@ export default function PaymentsSettingsPage() {
       } else {
         await apiPost('/api/wallets/pin/setup', { pin }, token);
       }
-      setWallet((current) => current ? { ...current, hasPin: true } : current);
+      setWallet((current) => ({ hasPin: true, usdtWalletAddress: current?.usdtWalletAddress ?? null }));
       setPin('');
       setOldPin('');
       toast.success(wallet?.hasPin ? 'Wallet PIN updated' : 'Wallet PIN created');
@@ -81,7 +81,7 @@ export default function PaymentsSettingsPage() {
     try {
       await apiPost('/api/wallets/address', { address: normalized }, token);
       setAddress(normalized);
-      setWallet((current) => current ? { ...current, usdtWalletAddress: normalized } : current);
+      setWallet((current) => ({ hasPin: current?.hasPin ?? false, usdtWalletAddress: normalized }));
       toast.success('USDT withdrawal address saved');
     } catch (error) {
       toast.error('Could not save withdrawal address', (error as Error)?.message);
@@ -115,12 +115,12 @@ export default function PaymentsSettingsPage() {
               {wallet?.hasPin && (
                 <label className="block space-y-1.5">
                   <span className="text-xs text-white/55">Current PIN</span>
-                  <input className={inputClass} type="password" inputMode="numeric" autoComplete="current-password" maxLength={6} value={oldPin} onChange={(event) => setOldPin(event.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="Enter current PIN" />
+                  <input className={inputClass} type="password" inputMode="numeric" autoComplete="current-password" maxLength={6} value={oldPin} onChange={(event) => setOldPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter current PIN" />
                 </label>
               )}
               <label className="block space-y-1.5">
                 <span className="text-xs text-white/55">{wallet?.hasPin ? 'New PIN' : 'Create PIN'}</span>
-                <input className={inputClass} type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="4–6 digits" />
+                <input className={inputClass} type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="4–6 digits" />
               </label>
               <button type="button" onClick={savePin} disabled={busy !== null || !pin} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#d6a83f] px-4 text-sm font-semibold text-[#17130a] transition hover:bg-[#e6bb58] disabled:opacity-50">
                 {busy === 'pin' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
