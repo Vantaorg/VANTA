@@ -2273,12 +2273,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         )}
                         {conv.lastMessage ? (
                           <p className={cn('text-xs truncate flex-1', conv.unread > 0 ? 'font-semibold text-white/85' : 'text-gray-500')}>
-                            {conv.lastMessage.isOwn ? (
+                            {conv.unread > 0 ? (
+                              <span className="mr-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d6a83f] px-1 align-middle text-[9px] font-bold leading-none text-black">{conv.unread > 99 ? '99+' : conv.unread}</span>
+                            ) : conv.lastMessage.isOwn ? (
                               conv.lastMessage.read
                                 ? <CheckCheck size={10} className="inline mr-1 text-white/70" />
                                 : <Check size={10} className="inline mr-1 text-gray-500" />
-                            ) : conv.unread > 0 ? (
-                              <span className="mr-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d6a83f] px-1 align-middle text-[9px] font-bold leading-none text-black">{conv.unread > 99 ? '99+' : conv.unread}</span>
                             ) : null}
                             {conv.lastMessage.type === 'STORY_REPLY' && <span className="inline-flex items-center gap-1 rounded bg-[#d6a83f]/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#d6a83f]"><MessageCircle size={9} />Story reply</span>}
                             {(conv.type === 'group' || conv.type === 'channel') && conv.lastMessage.sender && conv.lastMessage.sender !== 'Unknown' && (
