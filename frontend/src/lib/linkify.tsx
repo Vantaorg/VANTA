@@ -41,7 +41,7 @@ const SAFE_SCHEME = /^(https?:\/\/)/i;
 // Mirrors the backend mention matcher (`mentionNames` in feed.service.ts):
 // an `@username` token at the start of the text or after whitespace, using the
 // same charset/length limits VANTA stores usernames with (2-30 of \w).
-const MENTION_PATTERN = /(?:^|\s)@([a-zA-Z0-9_]{2,30})\b/g;
+const TEXT_TOKEN_PATTERN = /(?:^|[\s([{])([@#])([a-zA-Z0-9_]{2,30})\b/g;
 
 export interface LinkifyOptions {
   /** Render @username tokens as links to the user's VANTA profile. */
