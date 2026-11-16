@@ -208,7 +208,7 @@ export default function GlobalSearch() {
         handleSelectIndex(selectedIndex);
       } else if (query.trim()) {
         saveRecentSearch(query);
-        router.push(`/explore?q=${encodeURIComponent(query.trim())}`);
+        router.push(`/discover?q=${encodeURIComponent(query.trim())}`);
         setShowDropdown(false);
         inputRef.current?.blur();
       }
@@ -297,7 +297,7 @@ export default function GlobalSearch() {
   const navigateToSearchPage = () => {
     if (query.trim()) {
       saveRecentSearch(query.trim());
-      router.push(`/explore?q=${encodeURIComponent(query.trim())}`);
+      router.push(`/discover?q=${encodeURIComponent(query.trim())}`);
       setShowDropdown(false);
       inputRef.current?.blur();
     }
