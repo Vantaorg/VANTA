@@ -94,4 +94,14 @@ describe('renderTextWithLinks — @username mentions', () => {
     expect(output).toContain('A[https://t.me/alphidrop]https://t.me/alphidrop');
     expect(output).toContain(' now');
   });
+
+  it('links hashtags to Discover search without changing their visible text', () => {
+    const output = stripReact(renderTextWithLinks('Hello #VANTA community'));
+    expect(output).toBe('Hello A[/discover?q=%23VANTA]#VANTA community');
+  });
+
+  it('links mentions and hashtags together in chat text', () => {
+    const output = stripReact(renderTextWithLinks('@alex check #VANTA', 'linkify', { mentions: true, hashtags: true }));
+    expect(output).toBe('A[/profile/alex]@alex check A[/discover?q=%23VANTA]#VANTA');
+  });
 });
