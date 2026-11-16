@@ -346,8 +346,8 @@ function Action({ icon: Icon, label, value, active, onClick }: any) { return <bu
 function FollowButton({ active, onClick }: { active: boolean; onClick: () => void }) { return <button type="button" onClick={onClick} aria-pressed={active} className={cn('min-h-9 shrink-0 rounded-lg px-3 text-xs font-semibold transition active:scale-[.97]', active ? 'border border-white/[.12] text-[#b8b8b8] hover:bg-white/[.04]' : 'bg-[#f5f5f5] text-black hover:bg-white')}>{active ? 'Following' : 'Follow'}</button>; }
 function Verified({ type }: { type?: string }) {
   const normalized = String(type || '').toUpperCase();
-  const badgeType = normalized === 'BLUE' ? 'BLUE' : 'GOLD';
-  return <VerificationBadge verified type={badgeType} size="sm" />;
+  const badgeType = normalized === 'BLUE' || normalized === 'GOLD' ? normalized : 'NONE';
+  return <VerificationBadge type={badgeType} size="sm" />;
 }
 function CommunityAvatar({ item, small = false }: { item: Item; small?: boolean }) { const className = small ? 'h-10 w-10' : 'h-14 w-14'; return <span className={cn('flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[.08] bg-[#1c1c1c] text-[#8a8a8a]', className)}>{item.avatar || item.bannerUrl ? <img src={resolveMediaUrl(item.avatar || item.bannerUrl)} alt="" loading="lazy" className="h-full w-full object-cover"/> : isChannelCommunity(item) ? <Hash size={small ? 16 : 20}/> : <Users size={small ? 16 : 20}/>}</span>; }
 function SidebarPanel({ title, children }: any) { return <section className="border-b border-white/[.08] pb-5"><h2 className="mb-2 text-[10px] font-semibold tracking-[.18em] text-[#8a8a8a]">{title}</h2>{children}</section>; }
