@@ -8,7 +8,8 @@ const SEARCH_RESULTS_CACHE_TTL = 60_000; // 1 minute
 export class SearchService {
   async search(query: string, type?: string, cursor?: string, limit: number = 20) {
     // Cache search results for identical queries
-    const cacheKey = `search:${query}:${type || 'all'}:${cursor || 'none'}`;
+    const normalizedQuery = query.trim().toLowerCase();
+    const cacheKey = `search:${normalizedQuery}:${type || 'all'}:${cursor || 'none'}:${limit}`;
     
     return cacheService.getOrSet(cacheKey, async () => {
       const results: any = {};
@@ -27,19 +28,25 @@ export class SearchService {
       if (!type || type === "users" || type === "all") {
         results.users = await prisma.user.findMany({
           where: {
-            OR: type === "users"
-              ? [
-                  { username: { startsWith: userQuery } },
-                  { fullName: { startsWith: userQuery } },
-                ]
-              : [
-                  { username: { contains: userQuery } },
-                  { fullName: { contains: userQuery } },
+            AND: [
+              {
+                OR: type === "users"
+                  ? [
+                      { username: { startsWith: userQuery } },
+                      { fullName: { startsWith: userQuery } },
+                    ]
+                  : [
+                      { username: { contains: userQuery } },
+                      { fullName: { contains: userQuery } },
+                    ],
+              },
+              { status: "ACTIVE" },
+              {
+                OR: [
+                  { userSettings: null },
+                  { userSettings: { is: { profileSearchVisibility: true, searchVisibility: true, discoverability: true } } },
                 ],
-            status: "ACTIVE",
-            OR: [
-              { userSettings: null },
-              { userSettings: { is: { profileSearchVisibility: true, searchVisibility: true, discoverability: true } } },
+              },
             ],
           },
           orderBy: { username: "asc" },
