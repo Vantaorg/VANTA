@@ -75,7 +75,7 @@ function txMock() {
         .mockResolvedValueOnce(senderWallet)
         .mockResolvedValueOnce({ ...senderWallet, coinBalance: senderWallet.coinBalance - 105 })
         .mockResolvedValueOnce(receiverWallet),
-      update: jest.fn().mockResolvedValue(receiverWallet),
+      update: jest.fn().mockResolvedValue({ ...receiverWallet, coinBalance: receiverWallet.coinBalance + 100 }),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     transferOtpChallenge: {
@@ -98,6 +98,7 @@ beforeEach(() => {
     where.userId === 'user1' ? senderWallet : receiverWallet
   );
   (prisma.transferLimit.findUnique as jest.Mock).mockResolvedValue(defaultLimit);
+  (prisma.coinTransfer.findUnique as jest.Mock).mockResolvedValue(null);
   (prisma.walletPIN.findUnique as jest.Mock).mockResolvedValue({ id: 'pin1', walletId: 'wallet1', pinHash: 'hashed_pin', failedAttempts: 0, lockedUntil: null });
   (prisma.walletPIN.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
   (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ failedAttempts: 1, lockedUntil: null }]);
