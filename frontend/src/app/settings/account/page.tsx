@@ -10,11 +10,9 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
-  Check,
   CreditCard,
   KeyRound,
   Link2,
-  Loader2,
   LogOut,
   Mail,
   Pencil,
@@ -28,7 +26,6 @@ import { apiDelete, apiGet } from '@/lib/apiClient';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsGroup, SettingsLink } from '@/components/settings/SettingsUI';
 import Avatar from '@/components/ui/Avatar';
-import { cn } from '@/lib/utils';
 
 interface ProfileData {
   id: string;
