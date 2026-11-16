@@ -921,13 +921,27 @@ export class UserService {
       data: { userId, oldEmail: user.email, newEmail: normalized, codeHash, expiresAt },
     });
 
-    const delivery = await emailService.sendEmailChangeVerification({
-      to: normalized,
-      code,
-      expiresInMinutes: 10,
-    });
+    let delivery;
+    try {
+      delivery = await emailService.sendEmailChangeVerification({
+        to: normalized,
+        code,
+        expiresInMinutes: 10,
+      });
+    } catch (error) {
+      // A transport exception must not leave a live challenge whose code was
+      // never delivered to the account owner.
+      await prisma.emailChangeRequest.updateMany({
+        where: { id: request.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      throw new Error('We could not send the verification email. Your current email address has not changed.');
+    }
     if (!delivery.delivered) {
-      await prisma.emailChangeRequest.update({ where: { id: request.id }, data: { usedAt: new Date() } });
+      await prisma.emailChangeRequest.updateMany({
+        where: { id: request.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
       throw new Error('We could not send the verification email. Your current email address has not changed.');
     }
 
@@ -1001,8 +1015,18 @@ export class UserService {
 
     if (request.oldEmail) {
       // The email update is committed before notification. A mail failure must
-      // never roll back a verified address or reveal the verification code.
-      await emailService.sendEmailChangedNotice({ to: request.oldEmail, newEmail: changed.email || request.newEmail });
+      // never make a successful change look unsuccessful or invite code replay.
+      try {
+        const notice = await emailService.sendEmailChangedNotice({
+          to: request.oldEmail,
+          newEmail: changed.email || request.newEmail,
+        });
+        if (!notice.delivered) {
+          console.warn('[EMAIL_CHANGE] Security notice was not delivered to the previous address.');
+        }
+      } catch {
+        console.warn('[EMAIL_CHANGE] Security notice delivery failed after the email change was committed.');
+      }
     }
     return { success: true, email: changed.email };
   }
