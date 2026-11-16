@@ -569,9 +569,17 @@ export const adminVerificationPurchaseDashboard = async (req: AuthenticatedReque
 export const adminRefundVerificationPurchase = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { purchaseId } = req.params;
-    const { reason } = req.body || {};
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!purchaseId) {
       res.status(400).json({ error: 'purchaseId is required' });
+      return;
+    }
+    if (!reason) {
+      res.status(400).json({ error: 'A reason is required for the purchase reversal audit record.' });
+      return;
+    }
+    if (reason.length > 500) {
+      res.status(400).json({ error: 'The reason must be 500 characters or fewer.' });
       return;
     }
     const result = await verificationPaymentService.refundPurchase(req.user!.userId, purchaseId, reason, req.ip);
