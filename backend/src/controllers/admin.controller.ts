@@ -1945,9 +1945,18 @@ export const getContentItems = async (req: AuthenticatedRequest, res: Response):
 export const reviewContentItem = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { queueId } = req.params;
-    const { action, reason } = req.body;
+    const { action } = req.body;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!action || !['APPROVED', 'REMOVED'].includes(action)) {
       res.status(400).json({ error: 'action must be APPROVED or REMOVED' });
+      return;
+    }
+    if (action === 'REMOVED' && !reason) {
+      res.status(400).json({ error: 'A removal reason is required for the moderation audit.' });
+      return;
+    }
+    if (reason.length > 500) {
+      res.status(400).json({ error: 'The moderation reason must be 500 characters or fewer.' });
       return;
     }
     const adminId = req.user?.userId || '';
