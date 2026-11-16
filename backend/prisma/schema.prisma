@@ -125,6 +125,7 @@ model User {
   sessions          Session[]
   twoFactorLoginChallenges TwoFactorLoginChallenge[]
   passwordResetTokens PasswordResetToken[]
+  emailChangeRequests EmailChangeRequest[]
   blockedUsers      BlockedUser[]            @relation("BlockedBy")
   blockedBy         BlockedUser[]            @relation("BlockedTarget")
   mutedUsers        MutedUser[]              @relation("MutedBy")
@@ -1229,6 +1230,26 @@ model PhoneOTP {
 /// on successful password change. Issuing a new request invalidates all other
 /// outstanding tokens for the same account (superseding), so a leaked old link
 /// cannot be replayed after a newer request or a completed reset.
+
+/// One-time, password-confirmed email change verification.
+/// Only a keyed hash of the six-digit code is stored; codes expire and are single-use.
+model EmailChangeRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oldEmail       String?
+  newEmail       String
+  codeHash       String
+  expiresAt      DateTime
+  attempts       Int       @default(0)
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([newEmail, createdAt])
+  @@index([expiresAt, usedAt])
+}
+
 model PasswordResetToken {
   id           String    @id @default(cuid())
   userId       String
