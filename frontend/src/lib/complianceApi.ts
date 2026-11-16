@@ -245,6 +245,11 @@ export const adminComplianceApi = {
     }),
 
   // Child Safety
+  getChildSafetyFlags: (limit = 50, offset = 0, status?: string) => {
+    const query = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (status && status !== 'all') query.set('status', status);
+    return request(`/admin/child-safety?${query.toString()}`);
+  },
   processChildSafetyFlag: (id: string, action: string, note?: string) =>
     request(`/admin/child-safety/${id}/process`, {
       method: 'PUT',
@@ -273,6 +278,8 @@ export const adminComplianceApi = {
   },
 
   // Transparency
+  getTransparencyMetrics: (period = 'MONTHLY') =>
+    request(`/transparency?period=${encodeURIComponent(period)}`),
   generateTransparencyReport: () =>
     request('/admin/transparency/generate', { method: 'POST' }),
 
@@ -284,6 +291,7 @@ export const adminComplianceApi = {
     }),
 
   // Policy Admin
+  getPolicies: () => request('/policies'),
   publishPolicy: (policyType: string, version: string, title: string, content: string) =>
     request('/admin/policies', {
       method: 'POST',
