@@ -628,13 +628,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   }, [activeConversation, conversations, pushChatView, token]);
 
   const handleOpenConversationActions = useCallback(() => {
-    if (activeConv?.type === 'direct') {
+    const selectedConversation = conversations.find(item => item.id === activeConversation);
+    if (selectedConversation?.type === 'direct') {
       setDirectMenuOpen(true);
       setCallMenuOpen(false);
       return;
     }
     void openConversationInfo();
-  }, [activeConv?.type, openConversationInfo]);
+  }, [activeConversation, conversations, openConversationInfo]);
 
   const openMediaViewer = useCallback((attachment: { url: string; fileType: string; fileName?: string }) => {
     setMediaViewer(attachment);
