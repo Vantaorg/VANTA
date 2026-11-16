@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import {
   DollarSign, Wallet, Search, ChevronLeft, ChevronRight,
@@ -45,13 +45,21 @@ export default function FinancePage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequest = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        setTransactions([]);
+        setSummary(null);
+        setTotal(0);
+        return;
+      }
       const result = await getTransactions(token, {
         page,
         limit: 50,
@@ -59,14 +67,15 @@ export default function FinancePage() {
         type: typeFilter === 'all' ? undefined : typeFilter,
         search: search || undefined,
       });
+      if (requestId !== latestRequest.current) return;
       setTransactions(result.transactions || []);
       setSummary(result.summary || null);
       setTotal(result.total || 0);
       setPages(Math.max(1, Math.ceil((result.total || 0) / 50)));
     } catch (err: any) {
-      setError(err?.message || 'Failed to load transactions.');
+      if (requestId === latestRequest.current) setError(err?.message || 'Failed to load transactions.');
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, [page, statusFilter, typeFilter, search]);
 
