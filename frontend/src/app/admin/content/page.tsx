@@ -206,7 +206,7 @@ function EvidenceLinks({ value }: { value: string }) {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) {
       urls = parsed.filter((entry): entry is string =>
-        typeof entry === 'string' && /^https?:\\/\\//i.test(entry)
+        typeof entry === 'string' && /^https?:\/\//i.test(entry)
       );
     }
   } catch {
