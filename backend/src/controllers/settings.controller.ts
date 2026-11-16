@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { authService, userService } from '../services';
+import { prisma } from '../prisma';
 
 const handleUnauthorized = (res: Response): void => {
   res.status(401).json({ error: 'Unauthorized' });
@@ -92,6 +93,30 @@ export const revokeAllSessions = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+export const requestEmailChange = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return handleUnauthorized(res);
+    const { email, currentPassword } = req.body || {};
+    const result = await userService.requestEmailChange(userId, email, currentPassword);
+    res.status(200).json({ message: 'Verification code sent to your new email address', ...result });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const verifyEmailChange = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return handleUnauthorized(res);
+    const { code } = req.body || {};
+    const result = await userService.verifyEmailChange(userId, code);
+    res.status(200).json({ message: 'Email address verified and updated', ...result });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const updateAccountSettings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -100,7 +125,8 @@ export const updateAccountSettings = async (req: AuthRequest, res: Response): Pr
     const result: any = {};
 
     if (email) {
-      result.email = await userService.updateEmail(userId, email);
+      res.status(400).json({ error: 'Email changes must use the verification flow in Password & Security.' });
+      return;
     }
 
     if (currentPassword || newPassword) {
@@ -143,13 +169,24 @@ export const getBlockedUsers = async (req: AuthRequest, res: Response): Promise<
 export const blockUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { targetUsername } = req.body;
+    const { targetUsername, targetId } = req.body || {};
     if (!userId) return handleUnauthorized(res);
-    if (!targetUsername) {
-      res.status(400).json({ error: 'Target username is required' });
+
+    // Chat actions identify the other participant by immutable user ID,
+    // while the Privacy settings form uses a username. Accept both contracts.
+    let resolvedUsername = typeof targetUsername === 'string' ? targetUsername.trim().replace(/^@/, '') : '';
+    if (!resolvedUsername && typeof targetId === 'string' && targetId.trim()) {
+      const target = await prisma.user.findUnique({
+        where: { id: targetId.trim() },
+        select: { username: true },
+      });
+      resolvedUsername = target?.username || '';
+    }
+    if (!resolvedUsername) {
+      res.status(400).json({ error: 'A valid target account is required' });
       return;
     }
-    const blocked = await userService.blockUser(userId, targetUsername);
+    const blocked = await userService.blockUser(userId, resolvedUsername);
     res.status(200).json({ message: 'User blocked', blocked });
   } catch (error) {
     handleError(res, error);

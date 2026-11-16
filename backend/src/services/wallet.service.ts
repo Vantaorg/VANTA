@@ -2324,10 +2324,14 @@ export class WalletService {
   // ============================================================
 
   async saveUsdtWalletAddress(userId: string, address: string) {
-    const wallet = await this.ensureWallet(userId);
+    const normalized = String(address || '').trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(normalized) || /^0x0{40}$/i.test(normalized)) {
+      throw new Error('Enter a valid non-zero BNB Smart Chain (BEP-20) address');
+    }
+    await this.ensureWallet(userId);
     return prisma.wallet.update({
       where: { userId },
-      data: { usdtWalletAddress: address.trim() },
+      data: { usdtWalletAddress: normalized },
     });
   }
 

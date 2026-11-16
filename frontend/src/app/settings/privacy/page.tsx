@@ -238,6 +238,7 @@ return (
               options={[
                 { value: 'everyone', label: 'Everyone', description: 'Anyone on VANTA can send you a message.' },
                 { value: 'following', label: 'People I follow', description: 'Only accounts you follow can message you.' },
+                { value: 'followers', label: 'People who follow me', description: 'Only your followers can send you a message.' },
                 { value: 'noone', label: 'No one', description: 'Nobody can send you direct messages.' },
               ]}
             />

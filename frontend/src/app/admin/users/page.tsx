@@ -1279,7 +1279,10 @@ function UsersContent() {
                                 <span className="ml-1.5 rounded bg-console-gold-soft px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-console-gold">You</span>
                               ) : null}
                             </p>
-                            <p className={cn('truncate text-[11px] font-medium', roleClass[u.role] || 'text-console-text-3')}>
+                            <p className="mt-0.5 max-w-[190px] truncate text-[10px] text-console-text-3" title={u.email || 'No email address on file'}>
+                              {u.email || 'No email address on file'}
+                            </p>
+                            <p className={cn('mt-0.5 truncate text-[10px] font-medium', roleClass[u.role] || 'text-console-text-3')}>
                               {(u.role || 'USER').replace(/_/g, ' ')}
                             </p>
                           </div>
@@ -1327,6 +1330,9 @@ function UsersContent() {
                           ) : null}
                         </p>
                         <p className="truncate font-mono text-[11px] text-console-text-3">@{u.username}</p>
+                        <p className="mt-0.5 max-w-[220px] truncate text-[10px] text-console-text-3" title={u.email || 'No email address on file'}>
+                          {u.email || 'No email address on file'}
+                        </p>
                       </div>
                     </div>
                     <ActionMenu actions={actionsFor(u)} label={`Actions for @${u.username}`} />

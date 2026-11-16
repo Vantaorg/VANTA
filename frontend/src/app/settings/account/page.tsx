@@ -10,11 +10,9 @@ import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
-  Check,
   CreditCard,
   KeyRound,
   Link2,
-  Loader2,
   LogOut,
   Mail,
   Pencil,
@@ -24,11 +22,10 @@ import {
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
-import { apiDelete, apiGet, apiPut } from '@/lib/apiClient';
+import { apiDelete, apiGet } from '@/lib/apiClient';
 import { useToast } from '@/components/ui/Toast';
 import { SettingsGroup, SettingsLink } from '@/components/settings/SettingsUI';
 import Avatar from '@/components/ui/Avatar';
-import { cn } from '@/lib/utils';
 
 interface ProfileData {
   id: string;
@@ -47,9 +44,6 @@ export default function AccountSettingsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const [email, setEmail] = useState('');
-  const [savingEmail, setSavingEmail] = useState(false);
-  const [emailDirty, setEmailDirty] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -58,7 +52,6 @@ export default function AccountSettingsPage() {
       .then((data) => {
         if (cancel) return;
         setProfile(data);
-        setEmail(data?.email || '');
       })
       .catch(() => {
         if (!cancel) toast.error('Could not load your account');
@@ -71,20 +64,6 @@ export default function AccountSettingsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast identity churns on each render; load-once behaviour is intentional
   }, [token]);
-
-  const saveEmail = async () => {
-    if (!token || !email.trim()) return;
-    setSavingEmail(true);
-    try {
-      await apiPut('/api/settings/account', { email: email.trim() }, token);
-      setEmailDirty(false);
-      toast.success('Email address updated');
-    } catch (err) {
-      toast.error('Could not update email', (err as Error)?.message);
-    } finally {
-      setSavingEmail(false);
-    }
-  };
 
   const handleLogout = () => {
     if (window.confirm('Log out of VANTA?')) logout();
@@ -167,48 +146,13 @@ export default function AccountSettingsPage() {
           </SettingsGroup>
 
           {/* ── Email & phone ── */}
-          <SettingsGroup
-            icon={Mail}
-            title="Email & Phone"
-            description="Where VANTA reaches you"
-          >
-            <div className="px-4 pb-4 pt-3">
-              <label htmlFor="account-email" className="text-xs text-white/40">
-                Email address
-              </label>
-              <div className="mt-1.5 flex gap-2">
-                <input
-                  id="account-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailDirty(e.target.value !== (profile?.email || ''));
-                  }}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  className="settings-input min-w-0 flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={saveEmail}
-                  disabled={savingEmail || !emailDirty || !email.trim()}
-                  className={cn(
-                    'btn-accent shrink-0 disabled:opacity-40'
-                  )}
-                >
-                  {savingEmail ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Check size={14} aria-hidden="true" />
-                  )}
-                  Save
-                </button>
-              </div>
-              <p className="mt-2 text-[11px] text-white/25">
-                We&apos;ll use this address for account notifications and recovery.
-              </p>
-            </div>
+          <SettingsGroup icon={Mail} title="Email & Phone" description="Where VANTA reaches you">
+            <SettingsLink
+              href="/settings/security"
+              icon={Mail}
+              title="Change email address"
+              description={profile?.email || 'Add and verify your email address'}
+            />
           </SettingsGroup>
 
           {/* ── Connected accounts ── */}

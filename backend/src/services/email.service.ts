@@ -37,6 +37,17 @@ export interface TransferOtpEmailContext {
   expiresInMinutes: number;
 }
 
+export interface EmailChangeVerificationContext {
+  to: string;
+  code: string;
+  expiresInMinutes: number;
+}
+
+export interface EmailChangedNoticeContext {
+  to: string;
+  newEmail: string;
+}
+
 export interface PasswordChangedEmailContext {
   to: string;
   /** Set when the change was NOT initiated by the account owner (e.g. a reset). */
@@ -303,6 +314,40 @@ export class EmailService {
       html: buildPasswordResetEmailHtml(ctx),
     };
     return this.dispatch(message);
+  }
+
+  async sendEmailChangeVerification(ctx: EmailChangeVerificationContext): Promise<SendResult> {
+    const safeEmail = escapeHtml(ctx.to);
+    const safeCode = escapeHtml(ctx.code);
+    const text = [
+      'VANTA — Verify your new email address',
+      '',
+      `We received a request to change the email address on your VANTA account to ${ctx.to}.`,
+      '',
+      `Your verification code is: ${ctx.code}`,
+      `This code expires in ${ctx.expiresInMinutes} minutes and can only be used once.`,
+      '',
+      'If you did not request this change, do not share the code. Your current email address will remain unchanged.',
+      '',
+      '© VANTA. Do not reply to this automated email.',
+    ].join('\n');
+    const html = `<!DOCTYPE html><html lang="en"><body style="margin:0;padding:24px;background:#0b0b0d;font-family:Arial,sans-serif;color:#f3f3f1"><main style="max-width:520px;margin:auto;background:#111114;padding:28px;border-radius:16px"><p style="color:#c7a447;font-weight:700;letter-spacing:.18em">VANTA</p><h1 style="font-size:20px">Verify your new email</h1><p style="color:#aaa9a5;line-height:1.6">Confirm the email address <strong>${safeEmail}</strong> for your VANTA account using this code:</p><p style="font-size:30px;letter-spacing:.28em;font-weight:700;color:#f3f3f1">${safeCode}</p><p style="color:#aaa9a5;font-size:12px">This code expires in ${ctx.expiresInMinutes} minutes and can only be used once. If you did not request this change, ignore this message; your current email remains unchanged.</p></main></body></html>`;
+    return this.dispatch({ to: ctx.to, subject: 'VANTA — Verify your new email address', text, html });
+  }
+
+  async sendEmailChangedNotice(ctx: EmailChangedNoticeContext): Promise<SendResult> {
+    const safeNewEmail = escapeHtml(ctx.newEmail);
+    const text = [
+      'VANTA — Your account email was changed',
+      '',
+      `The email address on your VANTA account was changed to ${ctx.newEmail}.`,
+      '',
+      'If you did not make this change, secure your account immediately by changing your password and ending other sessions.',
+      '',
+      '© VANTA. Do not reply to this automated email.',
+    ].join('\n');
+    const html = `<!DOCTYPE html><html lang="en"><body style="margin:0;padding:24px;background:#0b0b0d;font-family:Arial,sans-serif;color:#f3f3f1"><main style="max-width:520px;margin:auto;background:#111114;padding:28px;border-radius:16px"><p style="color:#c7a447;font-weight:700;letter-spacing:.18em">VANTA</p><h1 style="font-size:20px">Your account email changed</h1><p style="color:#aaa9a5;line-height:1.6">The email address on your VANTA account was changed to <strong>${safeNewEmail}</strong>.</p><p style="color:#aaa9a5;font-size:12px">If you did not make this change, secure your account immediately by changing your password and ending other sessions.</p></main></body></html>`;
+    return this.dispatch({ to: ctx.to, subject: 'VANTA — Your account email was changed', text, html });
   }
 
   async sendTransferOtpEmail(ctx: TransferOtpEmailContext): Promise<SendResult> {
