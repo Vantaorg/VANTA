@@ -5,6 +5,7 @@ import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
 import { emailService } from './email.service';
 import { AppError } from '../utils/api-error';
+import { CryptoUtils } from '../security/crypto';
 import { isBadgeRowActive, BADGE_USER_SELECT, enrichPublicUser } from './public-verification';
 
 /**
@@ -893,7 +894,7 @@ export class UserService {
       select: { id: true, email: true, passwordHash: true },
     });
     if (!user) throw new Error('Account not found');
-    if (!user.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    if (!user.passwordHash || !(await CryptoUtils.verifyPassword(user.passwordHash, currentPassword))) {
       throw new Error('Current password is incorrect');
     }
     if (normalized === (user.email || '').toLowerCase()) {
