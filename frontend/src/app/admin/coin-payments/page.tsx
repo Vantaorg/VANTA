@@ -35,6 +35,7 @@ export default function CoinPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selected, setSelected] = useState<CoinPurchaseRecord | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -67,14 +68,16 @@ export default function CoinPaymentsPage() {
 
   const handleRefund = async (order: CoinPurchaseRecord) => {
     if (!window.confirm(`Refund purchase ${order.id.slice(-8)}? This returns ${order.coins.toLocaleString()} coins to the user's balance.`)) return;
-    const reason = window.prompt('Refund reason (required for the audit record):');
-    if (reason === null) return;
-    if (!reason.trim()) { setError('A refund reason is required for the audit record.'); return; }
+    if (!refundReason.trim()) { setError('A refund reason is required for the audit record.'); return; }
     setRefunding(true);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
-      await refundCoinPurchase(token, order.id, reason.trim());
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        return;
+      }
+      await refundCoinPurchase(token, order.id, refundReason.trim());
+      setRefundReason('');
       await fetchData();
       setSelected(null);
     } catch (err: any) {
