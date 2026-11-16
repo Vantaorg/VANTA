@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   Shield,
@@ -51,26 +51,20 @@ export default function AdminCompliancePage() {
   const [reportFilter, setReportFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [policyType, setPolicyType] = useState('TERMS_OF_SERVICE');
+  const [policyTitle, setPolicyTitle] = useState('');
+  const [policyContent, setPolicyContent] = useState('');
+  const [policyVersion, setPolicyVersion] = useState('');
+  const [publishing, setPublishing] = useState(false);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     if (type === 'success') setSuccess(msg);
     else setError(msg);
     setTimeout(() => { setSuccess(null); setError(null); }, 4000);
-  };
+  }, []);
 
-  useEffect(() => {
-    if (!token) return;
-    void loadTabData();
-    if (activeTab !== 'reports') return;
-
-    // Reports are stored in the backend database. Poll the protected admin
-    // endpoint while this queue is open so new submissions and status changes
-    // appear without requiring a manual refresh.
-    const interval = window.setInterval(() => { void loadTabData(true); }, 5000);
-    return () => window.clearInterval(interval);
-  }, [token, activeTab]);
-
-  const loadTabData = async (silent = false) => {
+  const loadTabData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
@@ -98,11 +92,27 @@ export default function AdminCompliancePage() {
       }
     } catch (err: any) {
       if (silent) setError(err?.message || 'Unable to refresh moderation data.');
-      else showToast(err.message, 'error');
+      else showToast(err?.message || 'Unable to load compliance data.', 'error');
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [activeTab, showToast]);
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      setError('Your admin session is unavailable. Please sign in again.');
+      return;
+    }
+    void loadTabData();
+    if (activeTab !== 'reports') return;
+
+    // Reports are stored in the backend database. Poll the protected admin
+    // endpoint while this queue is open so new submissions and status changes
+    // appear without requiring a manual refresh.
+    const interval = window.setInterval(() => { void loadTabData(true); }, 5000);
+    return () => window.clearInterval(interval);
+  }, [token, activeTab, loadTabData]);
 
   const tabs: { id: AdminTab; label: string; icon: any; description: string }[] = [
     { id: 'overview', label: 'Dashboard', icon: BarChart3, description: 'Compliance overview' },
@@ -267,8 +277,6 @@ export default function AdminCompliancePage() {
   // REPORTS MANAGEMENT
   // ==========================================================================
   function renderReports() {
-    const [processingId, setProcessingId] = useState<string | null>(null);
-
     const statusColors: Record<string, string> = {
       PENDING: 'text-amber-400',
       UNDER_REVIEW: 'text-[#c8c8cc]',
@@ -438,8 +446,6 @@ export default function AdminCompliancePage() {
   // APPEALS MANAGEMENT
   // ==========================================================================
   function renderAppeals() {
-    const [processingId, setProcessingId] = useState<string | null>(null);
-
     const statusColors: Record<string, string> = {
       PENDING: 'text-amber-400',
       UNDER_REVIEW: 'text-[#c8c8cc]',
@@ -536,8 +542,6 @@ export default function AdminCompliancePage() {
   // COPYRIGHT MANAGEMENT
   // ==========================================================================
   function renderCopyright() {
-    const [processingId, setProcessingId] = useState<string | null>(null);
-
     const statusColors: Record<string, string> = {
       PENDING: 'text-amber-400',
       UNDER_REVIEW: 'text-[#c8c8cc]',
@@ -746,12 +750,6 @@ export default function AdminCompliancePage() {
   // POLICIES MANAGEMENT
   // ==========================================================================
   function renderPolicies() {
-    const [policyType, setPolicyType] = useState('TERMS_OF_SERVICE');
-    const [policyTitle, setPolicyTitle] = useState('');
-    const [policyContent, setPolicyContent] = useState('');
-    const [policyVersion, setPolicyVersion] = useState('');
-    const [publishing, setPublishing] = useState(false);
-
     const policyTypes = [
       { value: 'TERMS_OF_SERVICE', label: 'Terms of Service' },
       { value: 'PRIVACY_POLICY', label: 'Privacy Policy' },
