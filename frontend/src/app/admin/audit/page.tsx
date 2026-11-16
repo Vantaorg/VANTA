@@ -11,6 +11,7 @@ import { getAuditLogs, type AuditLog } from '@/lib/adminApi';
 
 export default function AuditPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -25,9 +26,16 @@ export default function AuditPage() {
     setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        setLogs([]);
+        setTotal(0);
+        setPages(1);
+        return;
+      }
       const data = await getAuditLogs(token, {
         action: actionFilter === 'all' ? undefined : actionFilter,
+        search: debouncedSearch || undefined,
         page,
         limit: 40,
       });
@@ -39,7 +47,15 @@ export default function AuditPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [actionFilter, page]);
+  }, [actionFilter, page, debouncedSearch]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
 
   // Audit entries are persisted in the backend. Refresh the current page
   // every five seconds without replacing the table with a loading skeleton.
@@ -51,7 +67,7 @@ export default function AuditPage() {
 
   const actions = [...new Set(logs.map((l) => l.action))];
 
-  const filtered = useFilteredLogs(logs, search);
+  const filtered = logs;
 
   return (
     <div className="space-y-6">
@@ -193,12 +209,3 @@ export default function AuditPage() {
   );
 }
 
-function useFilteredLogs(logs: AuditLog[], search: string) {
-  if (!search) return logs;
-  const q = search.toLowerCase();
-  return logs.filter((l) =>
-    (l.adminName || '').toLowerCase().includes(q) ||
-    (l.action || '').toLowerCase().includes(q) ||
-    (l.resource || '').toLowerCase().includes(q)
-  );
-}

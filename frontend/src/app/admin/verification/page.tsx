@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { apiGet, apiPost } from '@/lib/apiClient';
@@ -75,32 +75,34 @@ export default function AdminVerificationPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [purchases, setPurchases] = useState<AdminPurchase[]>([]);
+  const [purchaseTotal, setPurchaseTotal] = useState(0);
   const [plans, setPlans] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (token) loadData();
-  }, [token, activeTab]);
-
-  const loadData = async () => {
-    if (!token) return;
+  const loadData = useCallback(async () => {
+    if (!token) {
+      setError('Your admin session is unavailable. Please sign in again.');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       if (activeTab === 'requests') {
         const data = await apiGet<AdminRequest[]>('/api/verification/admin/requests', token);
-        setRequests(data);
+        setRequests(Array.isArray(data) ? data : []);
       } else if (activeTab === 'badges') {
         const data = await apiGet<AdminBadge[]>('/api/verification/admin/badges', token);
-        setBadges(data);
+        setBadges(Array.isArray(data) ? data : []);
       } else if (activeTab === 'memberships') {
         const data = await apiGet<AdminMembership[]>('/api/verification/admin/memberships', token);
-        setMemberships(data);
+        setMemberships(Array.isArray(data) ? data : []);
       } else if (activeTab === 'purchases') {
         const data = await apiGet<{ purchases: AdminPurchase[]; total: number }>(
           '/api/verification/admin/purchases?limit=100',
           token
         );
         setPurchases(data.purchases || []);
+        setPurchaseTotal(data.total || 0);
       } else if (activeTab === 'plans') {
         const data = await apiGet<any[]>('/api/verification/plans', token);
         setPlans(Array.isArray(data) ? data : []);
@@ -110,17 +112,24 @@ export default function AdminVerificationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, activeTab]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleAction = async (action: string, body: any) => {
-    if (!token) return;
+    if (!token) {
+      setError('Your admin session is unavailable. Please sign in again.');
+      return;
+    }
     setActionLoading(`${action}-${body.userId}`);
     setError(null);
     setSuccess(null);
     try {
       await apiPost(`/api/verification/admin/${action}`, body, token);
+      await loadData();
       setSuccess('Action completed successfully!');
-      loadData();
     } catch (err: any) {
       setError(err.message || 'Action failed');
     } finally {
@@ -129,16 +138,29 @@ export default function AdminVerificationPage() {
   };
 
   const handleRefund = async (purchaseId: string) => {
-    if (!token) return;
-    const reason = prompt('Refund reason:');
-    if (!reason) return;
+    if (!token) {
+      setError('Your admin session is unavailable. Please sign in again.');
+      return;
+    }
+    const reasonInput = window.prompt('Reason for reversing this Verified Badge purchase:');
+    if (reasonInput === null) return;
+    const reason = reasonInput.trim();
+    if (!reason) {
+      setError('A reason is required for the purchase reversal audit record.');
+      return;
+    }
+    if (reason.length > 500) {
+      setError('The reason must be 500 characters or fewer.');
+      return;
+    }
+    if (!window.confirm('This will mark the purchase as refunded and revoke the active badge or membership entitlement created by this exact purchase. It does not send a cash, card or crypto payment-provider refund. Continue?')) return;
     setActionLoading(`refund-${purchaseId}`);
     setError(null);
     setSuccess(null);
     try {
       await apiPost(`/api/verification/admin/purchases/${purchaseId}/refund`, { reason }, token);
-      setSuccess('Purchase refunded. If it sourced an active badge, the badge was revoked.');
-      loadData();
+      await loadData();
+      setSuccess('Purchase marked refunded. Any active entitlement created by this purchase was revoked. No payment-provider refund was sent.');
     } catch (err: any) {
       setError(err.message || 'Refund failed');
     } finally {
@@ -153,6 +175,19 @@ export default function AdminVerificationPage() {
     { id: 'purchases', label: 'Purchases', icon: History },
     { id: 'plans', label: 'Plans', icon: DollarSign },
   ];
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredRequests = requests.filter((r) =>
+    !normalizedSearch ||
+    r.user.username.toLowerCase().includes(normalizedSearch) ||
+    r.user.email?.toLowerCase().includes(normalizedSearch)
+  );
+
+  const filteredPurchases = purchases.filter((p) =>
+    !normalizedSearch ||
+    p.user?.username?.toLowerCase().includes(normalizedSearch) ||
+    p.user?.email?.toLowerCase().includes(normalizedSearch)
+  );
 
   const filteredBadges = badges.filter(b =>
     b.user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -222,7 +257,7 @@ export default function AdminVerificationPage() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-6">
+        {activeTab !== 'plans' && <div className="relative mb-6">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
@@ -231,7 +266,7 @@ export default function AdminVerificationPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-2xl pl-9 pr-4 py-2.5 text-sm text-white outline-none transition-colors"
           />
-        </div>
+        </div>}
 
         {/* Content */}
         {loading ? (
@@ -240,13 +275,13 @@ export default function AdminVerificationPage() {
           </div>
         ) : activeTab === 'requests' ? (
           <div className="space-y-3">
-            {requests.length === 0 ? (
+            {filteredRequests.length === 0 ? (
               <div className="text-center py-16 text-gray-500">
                 <UserCheck size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No pending verification requests</p>
+                <p className="text-sm">No pending verification requests match this search</p>
               </div>
             ) : (
-              requests.map((req) => (
+              filteredRequests.map((req) => (
                 <motion.div
                   key={req.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -406,14 +441,15 @@ export default function AdminVerificationPage() {
           </div>
         ) : activeTab === 'purchases' ? (
           <div className="space-y-3">
-            {purchases.length === 0 ? (
+            <p className="text-xs text-gray-500">Showing {purchases.length} of {purchaseTotal.toLocaleString()} purchases</p>
+            {filteredPurchases.length === 0 ? (
               <div className="text-center py-16 text-gray-500">
                 <History size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No Verified Badge purchases recorded yet</p>
+                <p className="text-sm">No Verified Badge purchases match this search</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {purchases.map((p) => (
+                {filteredPurchases.map((p) => (
                   <motion.div
                     key={p.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -449,7 +485,7 @@ export default function AdminVerificationPage() {
                               onClick={() => handleRefund(p.id)}
                               disabled={actionLoading === `refund-${p.id}`}
                               className="ml-1 p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
-                              title="Refund purchase"
+                              title="Reverse purchase entitlement (no provider refund)"
                             >
                               {actionLoading === `refund-${p.id}` ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
                             </button>
@@ -556,7 +592,7 @@ function PlanManager({
 
       {/* Create / update */}
       <div className="glass rounded-2xl border border-white/[0.06] p-4">
-        <h3 className="text-sm font-bold text-white mb-3">Create / Update Plan</h3>
+        <h3 className="text-sm font-bold text-white mb-3">Create Plan</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Plan name" value={name} onChange={setName} placeholder="e.g. Gold Badge — 12 months" />
           <div className="grid grid-cols-3 gap-2">

@@ -117,12 +117,19 @@ export interface Prediction {
 }
 
 /**
- * Every /api/analytics endpoint responds `{ success: boolean, data: <payload> }`.
- * `unwrap` returns the payload so pages consume exactly one access level.
+ * Analytics endpoints use both direct JSON payloads and the `{ data }` envelope.
+ * `unwrap` normalizes both response shapes for the dashboard.
  */
+const getAnalyticsAccessToken = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return localStorage.getItem('vanta_token') || localStorage.getItem('token') || undefined;
+};
+
 export async function unwrap<T>(path: string): Promise<T> {
-  const body = await apiGet<{ success: boolean; data: T }>(path);
-  return (body as any).data;
+  const body = await apiGet<any>(path, getAnalyticsAccessToken());
+  // Analytics endpoints predate the standard { success, data } envelope:
+  // some return the payload directly while others wrap it in data.
+  return (body?.data ?? body) as T;
 }
 
 class AnalyticsAPI {
@@ -146,7 +153,7 @@ class AnalyticsAPI {
     // response makes the dashboard appear stale even while the backend is up.
     const body = await apiGet<{ success?: boolean; data?: any }>(
       `${this.baseUrl}/realtime`,
-      undefined,
+      getAnalyticsAccessToken(),
       { skipCache: true, cacheTTL: 0 }
     );
     return body?.data ?? body;
@@ -193,9 +200,9 @@ class AnalyticsAPI {
   // ============================================================
 
   async getCohortAnalysis(): Promise<CohortAnalysis[]> {
-    const body = await apiGet<{ data: { cohorts: CohortAnalysis[] } }>(`${this.baseUrl}/cohorts`);
-    const payload = body?.data;
-    return payload && Array.isArray(payload.cohorts) ? payload.cohorts : [];
+    const body = await apiGet<any>(`${this.baseUrl}/cohorts`, getAnalyticsAccessToken());
+    const payload = body?.data ?? body;
+    return Array.isArray(payload?.cohorts) ? payload.cohorts : Array.isArray(payload) ? payload : [];
   }
 
   // ============================================================
@@ -231,13 +238,13 @@ class AnalyticsAPI {
   }
 
   async getCurrentDAU(): Promise<number> {
-    const body = await apiGet<{ data: { dau: number } }>(`${this.baseUrl}/users/dau`);
-    return body?.data?.dau ?? 0;
+    const body = await apiGet<{ data?: { dau?: number }; dau?: number }>(`${this.baseUrl}/users/dau`, getAnalyticsAccessToken());
+    return body?.data?.dau ?? body?.dau ?? 0;
   }
 
   async getOnlineUsers(): Promise<number> {
-    const body = await apiGet<{ data: { online: number } }>(`${this.baseUrl}/users/online`);
-    return body?.data?.online ?? 0;
+    const body = await apiGet<{ data?: { online?: number }; online?: number }>(`${this.baseUrl}/users/online`, getAnalyticsAccessToken());
+    return body?.data?.online ?? body?.online ?? 0;
   }
 
   async getRetentionRates(cohortDate?: string): Promise<RetentionRate[]> {
@@ -297,8 +304,8 @@ class AnalyticsAPI {
     endDate?: string;
   }): Promise<TopContentItem[]> {
     const query = params ? `?${new URLSearchParams(params as any).toString()}` : '';
-    const body = await apiGet<{ data: any }>(`${this.baseUrl}/content/top${query}`);
-    const payload = body?.data;
+    const body = await apiGet<{ data: any }>(`${this.baseUrl}/content/top${query}`, getAnalyticsAccessToken());
+    const payload = body?.data ?? body;
     if (Array.isArray(payload)) return payload as TopContentItem[];
     return payload && Array.isArray(payload.topContent) ? payload.topContent : [];
   }
@@ -411,11 +418,11 @@ class AnalyticsAPI {
     targetId?: string;
     source?: string;
   }): Promise<void> {
-    await apiPost(`${this.baseUrl}/track`, event, undefined, this.getConsentHeaders());
+    await apiPost(`${this.baseUrl}/track`, event, getAnalyticsAccessToken(), this.getConsentHeaders());
   }
 
   async trackBatch(events: any[]): Promise<void> {
-    await apiPost(`${this.baseUrl}/track/batch`, { events }, undefined, this.getConsentHeaders());
+    await apiPost(`${this.baseUrl}/track/batch`, { events }, getAnalyticsAccessToken(), this.getConsentHeaders());
   }
 // ============================================================
   // Alert Rules
@@ -426,17 +433,17 @@ class AnalyticsAPI {
   }
 
   async createAlertRule(rule: Partial<AlertRule>): Promise<AlertRule> {
-    const body = await apiPost<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules`, rule);
-    return (body as any).data;
+    const body = await apiPost<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules`, rule, getAnalyticsAccessToken());
+    return (body as any)?.data ?? body;
   }
 
   async updateAlertRule(id: string, rule: Partial<AlertRule>): Promise<AlertRule> {
-    const body = await apiPut<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules/${id}`, rule);
+    const body = await apiPut<{ data: AlertRule }>(`${this.baseUrl}/alerts/rules/${id}`, rule, getAnalyticsAccessToken());
     return (body as any).data;
   }
 
   async deleteAlertRule(id: string): Promise<void> {
-    await apiDelete(`${this.baseUrl}/alerts/rules/${id}`);
+    await apiDelete(`${this.baseUrl}/alerts/rules/${id}`, getAnalyticsAccessToken());
   }
 
   async getAlertHistory(params?: {
@@ -449,11 +456,11 @@ class AnalyticsAPI {
   }
 
   async acknowledgeAlert(id: string): Promise<void> {
-    await apiPost(`${this.baseUrl}/alerts/${id}/acknowledge`, {});
+    await apiPost(`${this.baseUrl}/alerts/${id}/acknowledge`, {}, getAnalyticsAccessToken());
   }
 
   async resolveAlert(id: string): Promise<void> {
-    await apiPost(`${this.baseUrl}/alerts/${id}/resolve`, {});
+    await apiPost(`${this.baseUrl}/alerts/${id}/resolve`, {}, getAnalyticsAccessToken());
   }
 
   // ============================================================
@@ -465,7 +472,7 @@ class AnalyticsAPI {
   }
 
   async createMarketingCampaign(campaign: Partial<MarketingCampaign>): Promise<MarketingCampaign> {
-    const body = await apiPost<{ data: MarketingCampaign }>(`${this.baseUrl}/marketing/campaigns`, campaign);
+    const body = await apiPost<{ data: MarketingCampaign }>(`${this.baseUrl}/marketing/campaigns`, campaign, getAnalyticsAccessToken());
     return (body as any).data;
   }
 

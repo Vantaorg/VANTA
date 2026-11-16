@@ -10,7 +10,7 @@ jest.mock('../prisma', () => ({
     moderationQueue: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), count: jest.fn() },
     moderationAction: { create: jest.fn(), count: jest.fn() },
     moderationRemoval: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
-    childSafetyFlag: { findUnique: jest.fn(), update: jest.fn() },
+    childSafetyFlag: { findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     notification: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
     user: { update: jest.fn(), findMany: jest.fn() },
@@ -43,6 +43,41 @@ import { uploadService } from '../services/upload.service';
 const consentRecord = (prisma as any).consentRecord;
 const moderationRemoval = (prisma as any).moderationRemoval;
 const audit = auditLog as any;
+
+describe('child safety flag admin queue', () => {
+  const flags = (prisma as any).childSafetyFlag;
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  test('returns paginated flags with only the user fields required by the review queue', async () => {
+    const rows = [{
+      id: 'flag-1',
+      flagType: 'UNDERAGE_ACCOUNT',
+      status: 'PENDING_REVIEW',
+      escalationLevel: 'URGENT',
+      user: { id: 'user-1', username: 'sample-user', status: 'ACTIVE' },
+    }];
+    flags.findMany.mockResolvedValue(rows);
+    flags.count.mockResolvedValue(1);
+
+    await expect(complianceService.getChildSafetyFlags(25, 5, 'PENDING_REVIEW')).resolves.toEqual({
+      flags: rows,
+      total: 1,
+      limit: 25,
+      offset: 5,
+    });
+
+    expect(flags.findMany).toHaveBeenCalledWith({
+      where: { status: 'PENDING_REVIEW' },
+      include: {
+        user: { select: { id: true, username: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: 5,
+      take: 25,
+    });
+    expect(flags.count).toHaveBeenCalledWith({ where: { status: 'PENDING_REVIEW' } });
+  });
+});
 
 describe('compliance data export API privacy', () => {
   const exports = (prisma as any).dataExportRequest;

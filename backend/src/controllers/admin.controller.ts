@@ -1522,9 +1522,17 @@ export const refundCoinPurchase = async (req: AuthenticatedRequest, res: Respons
   try {
     const adminId = req.user?.userId || '';
     const orderId = req.params.orderId;
-    const reason = req.body?.reason;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!orderId) {
       res.status(400).json({ error: 'orderId is required' });
+      return;
+    }
+    if (!reason) {
+      res.status(400).json({ error: 'A refund reason is required for the audit record.' });
+      return;
+    }
+    if (reason.length > 500) {
+      res.status(400).json({ error: 'Refund reason must be 500 characters or fewer.' });
       return;
     }
     const result = await walletService.refundCoinPurchase(adminId, orderId, reason, req.ip);
@@ -1797,11 +1805,12 @@ export const getAllAdsAnalytics = async (req: AuthenticatedRequest, res: Respons
 
 export const getAuditLogs = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const action = req.query.action as string;
-    const adminId = req.query.admin as string;
+    const action = typeof req.query.action === 'string' ? req.query.action : undefined;
+    const adminId = typeof req.query.admin === 'string' ? req.query.admin : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 200) : undefined;
     const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
     const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
-    const result = await adminService.getAuditLogs({ action, adminId, page, limit });
+    const result = await adminService.getAuditLogs({ action, adminId, search, page, limit });
     res.status(200).json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -1937,9 +1946,18 @@ export const getContentItems = async (req: AuthenticatedRequest, res: Response):
 export const reviewContentItem = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { queueId } = req.params;
-    const { action, reason } = req.body;
+    const { action } = req.body;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!action || !['APPROVED', 'REMOVED'].includes(action)) {
       res.status(400).json({ error: 'action must be APPROVED or REMOVED' });
+      return;
+    }
+    if (action === 'REMOVED' && !reason) {
+      res.status(400).json({ error: 'A removal reason is required for the moderation audit.' });
+      return;
+    }
+    if (reason.length > 500) {
+      res.status(400).json({ error: 'The moderation reason must be 500 characters or fewer.' });
       return;
     }
     const adminId = req.user?.userId || '';

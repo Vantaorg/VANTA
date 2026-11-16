@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Coins, Shield, Filter, RefreshCcw, AlertCircle, RotateCcw, MoreHorizontal
+  Coins, Shield, RefreshCcw, AlertCircle, RotateCcw, MoreHorizontal
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
@@ -30,6 +30,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 export default function CoinPaymentsPage() {
   const [dashboard, setDashboard] = useState<CoinPaymentsDashboard | null>(null);
   const [purchases, setPurchases] = useState<CoinPurchaseRecord[]>([]);
+  const [totalPurchases, setTotalPurchases] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -37,40 +38,47 @@ export default function CoinPaymentsPage() {
   const [refunding, setRefunding] = useState(false);
   const [refundReason, setRefundReason] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        return;
+      }
       const data = await getCoinPaymentsDashboard(token);
       setDashboard(data);
-      const list = await listCoinPurchases(token, { limit: 100 });
-      setPurchases(list.purchases);
+      const list = await listCoinPurchases(token, {
+        limit: 100,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+      });
+      setPurchases(list.purchases || []);
+      setTotalPurchases(list.total || 0);
     } catch (err: any) {
       setError(err?.message || 'Failed to load coin payments.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
-  useEffect(() => { fetchData(); }, []);
-
-  const filtered = useMemo(() => {
-    if (statusFilter === 'all') return purchases;
-    return purchases.filter(p => p.status === statusFilter);
-  }, [statusFilter, purchases]);
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const stats = dashboard?.stats;
 
   const handleRefund = async (order: CoinPurchaseRecord) => {
-    if (!window.confirm(`Refund purchase ${order.id.slice(-8)}? This returns ${order.coins.toLocaleString()} coins to the user's balance.`)) return;
-    const reason = window.prompt('Refund reason (required for the audit record):');
-    if (reason === null) return;
-    if (!reason.trim()) { setError('A refund reason is required for the audit record.'); return; }
+    if (!refundReason.trim()) { setError('A refund reason is required for the audit record.'); return; }
+    if (!window.confirm(
+      `Reverse purchase ${order.id.slice(-8)}? This marks the order refunded and debits ${order.coins.toLocaleString()} VANTA Coins from the user's spendable wallet balance. It does not send a cash, card or crypto payment refund.`
+    )) return;
     setRefunding(true);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
-      await refundCoinPurchase(token, order.id, reason.trim());
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        return;
+      }
+      await refundCoinPurchase(token, order.id, refundReason.trim());
       setRefundReason('');
       await fetchData();
       setSelected(null);
@@ -94,7 +102,7 @@ export default function CoinPaymentsPage() {
           <p className="text-sm text-gray-400 mt-1">VANTA Coin purchases, payment mode, and auditable refunds.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" icon={<RefreshCcw size={14} />} onClick={() => { setLoading(true); fetchData(); }}>Refresh</Button>
+          <Button variant="ghost" size="sm" icon={<RefreshCcw size={14} />} onClick={() => { void fetchData(); }}>Refresh</Button>
         </div>
       </div>
 
@@ -165,14 +173,13 @@ export default function CoinPaymentsPage() {
                 <option value="all">All Statuses</option>
                 {Object.keys(statusConfig).map(s => <option key={s} value={s}>{statusConfig[s].label}</option>)}
               </select>
-              <Button variant="ghost" size="sm" icon={<Filter size={14} />}>Filter</Button>
             </div>
           </GlassCard>
 
           {/* Purchases Table */}
           <GlassCard>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-white">Purchases ({filtered.length})</h3>
+              <h3 className="text-sm font-bold text-white">Purchases ({purchases.length}{totalPurchases > purchases.length ? ` of ${totalPurchases}` : ''})</h3>
             </div>
 
             <div className="overflow-x-auto">
@@ -190,7 +197,7 @@ export default function CoinPaymentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p, i) => (
+                  {purchases.map((p, i) => (
                     <motion.tr
                       key={p.id}
                       initial={{ opacity: 0 }}
@@ -215,7 +222,15 @@ export default function CoinPaymentsPage() {
                       </td>
                       <td className="py-3 px-2 text-right text-gray-400 text-xs">{new Date(p.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-2 text-center">
-                        <button className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                        <button
+                          type="button"
+                          aria-label={selected?.id === p.id ? 'Close purchase details' : 'View purchase details'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected(selected?.id === p.id ? null : p);
+                          }}
+                          className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                        >
                           <MoreHorizontal size={14} className="text-gray-500" />
                         </button>
                       </td>
@@ -225,7 +240,7 @@ export default function CoinPaymentsPage() {
               </table>
             </div>
 
-            {filtered.length === 0 && (
+            {purchases.length === 0 && (
               <div className="text-center py-12 text-gray-500 text-sm">No purchases found.</div>
             )}
 
@@ -263,7 +278,7 @@ export default function CoinPaymentsPage() {
                   </div>
                 </div>
 
-                {selected.status === 'COMPLETED' && (
+                {(selected.status === 'COMPLETED' || selected.status === 'PAID') && (
                   <div className="mt-3 pt-3 border-t border-white/[0.06]">
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Refund</p>
                     <div className="flex items-center gap-2">
@@ -281,11 +296,11 @@ export default function CoinPaymentsPage() {
                         disabled={refunding || !refundReason.trim()}
                         onClick={() => handleRefund(selected)}
                       >
-                        {refunding ? 'Refundingâ€¦' : 'Refund'}
+                        {refunding ? 'Reversingâ€¦' : 'Reverse coin credit'}
                       </Button>
                     </div>
                     <p className="text-[10px] text-white/40 mt-1">
-                      Refunds are audited: a REFUND ledger entry is created and the original purchase stays immutable. The user's spendable balance must cover the refund amount.
+                      This reverses the VANTA Coin credit only; it does not initiate a cash, card or crypto payment-provider refund. A REFUND ledger entry is recorded, the original purchase remains immutable, and the user's spendable balance must cover the debit.
                     </p>
                   </div>
                 )}

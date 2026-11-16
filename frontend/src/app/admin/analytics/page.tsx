@@ -49,6 +49,21 @@ export default function AnalyticsPage() {
 
   // Auto-refresh critical data
   useAutoRefresh(executive.refresh, 60000);
+
+  const analyticsErrors = [
+    ['Live metrics', realtime.error],
+    ['Executive dashboard', executive.error],
+    ['Revenue dashboard', revenue.error],
+    ['Growth dashboard', growth.error],
+    ['Operations dashboard', operations.error],
+    ['Creator dashboard', creator.error],
+    ['Product dashboard', product.error],
+    ['Funnel', funnel.error],
+    ['Cohort analysis', cohorts.error],
+    ['Top content', topContent.error],
+    ['Traffic sources', trafficSources.error],
+    ['DAU forecast', dauPredictions.error],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
   
   const tabs: { key: TabType; label: string; icon: any }[] = [
     { key: 'executive', label: 'Executive', icon: BarChart3 },
@@ -90,6 +105,17 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
+
+      {analyticsErrors.length > 0 && (
+        <div role="alert" className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <p className="text-sm font-medium text-amber-300">Some analytics data could not be loaded.</p>
+          <ul className="mt-2 space-y-1">
+            {analyticsErrors.map(([label, message]) => (
+              <li key={label} className="text-xs text-gray-400">{label}: {message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Real-time Bar */}
       <GlassCard>
