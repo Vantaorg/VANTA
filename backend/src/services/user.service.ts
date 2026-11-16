@@ -935,7 +935,7 @@ export class UserService {
 
   async verifyEmailChange(userId: string, code: string) {
     const normalizedCode = String(code || '').trim();
-    if (!/^\\d{6}$/.test(normalizedCode)) throw new Error('Enter the 6-digit verification code');
+    if (!/^\d{6}$/.test(normalizedCode)) throw new Error('Enter the 6-digit verification code');
 
     const request = await prisma.emailChangeRequest.findFirst({
       where: { userId, usedAt: null },
