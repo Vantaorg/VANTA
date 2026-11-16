@@ -436,6 +436,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [directMenuOpen, setDirectMenuOpen] = useState(false);
+  const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
   const [memberBrowserOpen, setMemberBrowserOpen] = useState(false);
   const [memberBrowserQuery, setMemberBrowserQuery] = useState('');
   const [isLoadingEntityInfo, setIsLoadingEntityInfo] = useState(false);
@@ -1368,12 +1369,21 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     finally { setSearchingMessages(false); }
   };
 
-  const blockActiveUser = async () => {
-    if (!token || !activeConv?.partnerId || !window.confirm(`Block ${activeConv.name}? You will no longer receive chats from this account.`)) return;
+  const blockActiveUser = () => {
+    if (!token || !activeConv?.partnerId) return;
+    setBlockConfirmOpen(true);
+  };
+
+  const confirmBlockActiveUser = async () => {
+    if (!token || !activeConv?.partnerId) return;
+    setBlockConfirmOpen(false);
     try {
       await apiPost('/api/settings/blocked', { targetId: activeConv.partnerId }, token);
-      showToast?.({ type: 'success', title: 'Account blocked', message: `${activeConv.name} has been blocked.` });
-    } catch (err: any) { showToast?.({ type: 'error', title: 'Block failed', message: err?.message || 'Please try again.' }); }
+      showToast?.({ type: 'success', title: 'Account blocked', message: `@${activeConv.username || activeConv.name} can no longer message you.` });
+      setActiveConversation(null);
+    } catch (err: any) {
+      showToast?.({ type: 'error', title: 'Could not block account', message: err?.message || 'Please try again.' });
+    }
   };
 
   const reportActiveConversation = async () => {
@@ -3236,6 +3246,20 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           onNewGroup={handleNewGroup}
           onNewChannel={handleNewChannel}
         />
+      )}
+
+      {blockConfirmOpen && activeConv && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 px-5 py-8 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBlockConfirmOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="block-account-title" className="w-full max-w-sm rounded-2xl border border-white/[0.1] bg-[#1F2630] p-5 shadow-2xl">
+            <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-red-500/10 text-red-300"><Ban size={20} /></div>
+            <h2 id="block-account-title" className="text-base font-semibold text-white">Block @{activeConv.username || activeConv.name}?</h2>
+            <p className="mt-2 text-sm leading-6 text-white/55">They won’t be able to message you, and VANTA will prevent direct messaging between both accounts. You can unblock them later in Privacy settings.</p>
+            <div className="mt-6 flex gap-2">
+              <button type="button" onClick={() => setBlockConfirmOpen(false)} className="min-h-11 flex-1 rounded-xl border border-white/[0.1] px-4 text-sm font-medium text-white/75 transition hover:bg-white/[0.05]">Cancel</button>
+              <button type="button" onClick={() => void confirmBlockActiveUser()} className="min-h-11 flex-1 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-400">Block account</button>
+            </div>
+          </section>
+        </div>
       )}
 
     </motion.div>
