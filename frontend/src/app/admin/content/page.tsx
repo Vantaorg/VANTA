@@ -14,7 +14,11 @@ interface QueueItem {
   id: string;
   targetType: string;
   targetId: string;
+  targetUserId?: string | null;
   reportedBy?: string | null;
+  category?: string | null;
+  description?: string | null;
+  evidenceUrls?: string | null;
   reason?: string | null;
   aiScore: number;
   aiCategories?: string | null;
@@ -39,7 +43,14 @@ export default function ContentPage() {
     setError(null);
     try {
       const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Your admin session is unavailable. Please sign in again.');
+        setCounts(null);
+        setQueue([]);
+        setPendingQueue(0);
+        setPendingReports(0);
+        return;
+      }
       const data = await getContentItems(token);
       setCounts(data.counts || {});
       setQueue(data.queue || []);
@@ -56,15 +67,31 @@ export default function ContentPage() {
 
   const review = async (item: QueueItem, action: 'APPROVED' | 'REMOVED') => {
     const token = localStorage.getItem('vanta_token') || localStorage.getItem('token');
-    if (!token || busyId) return;
+    if (!token) {
+      setNotice('Action failed: your admin session is unavailable. Please sign in again.');
+      return;
+    }
+    if (busyId) return;
+    let reason: string | undefined;
     if (action === 'REMOVED') {
       const ok = window.confirm('Remove this content item from the platform? This records a moderation action and closes the review.');
       if (!ok) return;
+      const enteredReason = window.prompt('Removal reason (required for the moderation audit):');
+      if (enteredReason === null) return;
+      reason = enteredReason.trim();
+      if (!reason) {
+        setNotice('Action failed: a removal reason is required.');
+        return;
+      }
+      if (reason.length > 500) {
+        setNotice('Action failed: the removal reason must be 500 characters or fewer.');
+        return;
+      }
     }
     setBusyId(item.id);
     setNotice(null);
     try {
-      await reviewContentItem(token, item.id, action);
+      await reviewContentItem(token, item.id, action, reason);
       setNotice(`Content ${action.toLowerCase()} — review closed.`);
       await fetchData();
     } catch (err: any) {
@@ -165,6 +192,30 @@ export default function ContentPage() {
           </div>
         )}
       </GlassCard>
+    </div>
+  );
+}
+
+function EvidenceLinks({ value }: { value: string }) {
+  let urls: string[] = [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      urls = parsed.filter((entry): entry is string =>
+        typeof entry === 'string' && /^https?:\\/\\//i.test(entry)
+      );
+    }
+  } catch {
+    urls = [];
+  }
+  if (urls.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {urls.map((url, index) => (
+        <a key={url + index} href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-300 underline underline-offset-2">
+          Open evidence {index + 1}
+        </a>
+      ))}
     </div>
   );
 }
