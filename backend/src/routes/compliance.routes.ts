@@ -381,7 +381,7 @@ router.get('/audit-logs', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.S
 // ADMIN COMPLIANCE DASHBOARD
 // ============================================================================
 
-router.get('/admin/dashboard', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/dashboard', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.VIEW_COMPLIANCE_DASHBOARD), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const stats = await complianceService.getComplianceDashboardStats();
     res.json(stats);
@@ -391,7 +391,7 @@ router.get('/admin/dashboard', authenticate, requireRole(Role.ADMIN, Role.CEO, R
 });
 
 // Admin: Process reports
-router.put('/admin/reports/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/reports/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processReport(req.params.id, req.user!.userId, action, note);
@@ -402,7 +402,7 @@ router.put('/admin/reports/:id/process', authenticate, requireRole(Role.ADMIN, R
 });
 
 // Admin: Restore content removed by a moderation report. Requires an explicit reason.
-router.put('/admin/reports/:id/restore', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/reports/:id/restore', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const result = await complianceService.restoreReport(req.params.id, req.user!.userId, req.body?.reason);
     res.json(result);
@@ -412,7 +412,7 @@ router.put('/admin/reports/:id/restore', authenticate, requireRole(Role.ADMIN, R
 });
 
 // Admin: Process appeals
-router.put('/admin/appeals/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/appeals/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { decision, reason } = req.body;
     const result = await complianceService.processAppeal(req.params.id, req.user!.userId, decision, reason);
@@ -423,7 +423,7 @@ router.put('/admin/appeals/:id/process', authenticate, requireRole(Role.ADMIN, R
 });
 
 // Admin: Process copyright claims
-router.put('/admin/copyright/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.put('/admin/copyright/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processCopyrightClaim(req.params.id, req.user!.userId, action, note);
@@ -434,7 +434,25 @@ router.put('/admin/copyright/:id/process', authenticate, requireRole(Role.ADMIN,
 });
 
 // Admin: Process child safety flags
-router.put('/admin/child-safety/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/child-safety', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const rawLimit = Number(req.query.limit);
+    const rawOffset = Number(req.query.offset);
+    const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, Math.trunc(rawLimit))) : 50;
+    const offset = Number.isFinite(rawOffset) ? Math.max(0, Math.trunc(rawOffset)) : 0;
+    const status = typeof req.query.status === 'string' && req.query.status !== 'all' ? req.query.status : undefined;
+    if (status && !['PENDING_REVIEW', 'APPROVED', 'DISMISSED', 'ESCALATED'].includes(status)) {
+      res.status(400).json({ error: 'Invalid child-safety status filter.' });
+      return;
+    }
+    const result = await complianceService.getChildSafetyFlags(limit, offset, status);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/admin/child-safety/:id/process', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { action, note } = req.body;
     const result = await complianceService.processChildSafetyFlag(req.params.id, req.user!.userId, action, note);
@@ -445,7 +463,7 @@ router.put('/admin/child-safety/:id/process', authenticate, requireRole(Role.ADM
 });
 
 // Admin: Get all reports
-router.get('/admin/reports', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/reports', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -457,7 +475,7 @@ router.get('/admin/reports', authenticate, requireRole(Role.ADMIN, Role.CEO, Rol
 });
 
 // Admin: Get all appeals
-router.get('/admin/appeals', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/appeals', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -469,7 +487,7 @@ router.get('/admin/appeals', authenticate, requireRole(Role.ADMIN, Role.CEO, Rol
 });
 
 // Admin: Get copyright claims
-router.get('/admin/copyright', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/admin/copyright', authenticate, requireRole(Role.ADMIN, Role.CEO, Role.SUPER_ADMIN, Role.MODERATOR), requireAdminTwoFactorVerified, requirePermission(Permission.MODERATE_CONTENT), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
