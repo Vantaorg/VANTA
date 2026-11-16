@@ -175,7 +175,11 @@ export default function ContentPage() {
                     <span className="text-[10px] text-gray-600">{new Date(item.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="text-xs text-gray-300 line-clamp-2">{item.aiSummary || item.reason || 'Flagged for review.'}</p>
+                  {item.description && <p className="text-xs text-gray-400 mt-2">Report details: {item.description}</p>}
+                  {item.category && <p className="text-[10px] text-gray-500 mt-1">Report category: {item.category}</p>}
+                  {item.targetUserId && <p className="text-[10px] text-gray-500 mt-1">Target account: {item.targetUserId}</p>}
                   {item.aiCategories && <p className="text-[10px] text-gray-500 mt-1">Categories: {item.aiCategories}</p>}
+                  {item.evidenceUrls && <EvidenceLinks value={item.evidenceUrls} />}
                   <p className="text-[10px] text-gray-600 font-mono mt-1 truncate">target: {item.targetId}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
