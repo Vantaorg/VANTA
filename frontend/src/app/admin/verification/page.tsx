@@ -119,7 +119,10 @@ export default function AdminVerificationPage() {
   }, [loadData]);
 
   const handleAction = async (action: string, body: any) => {
-    if (!token) return;
+    if (!token) {
+      setError('Your admin session is unavailable. Please sign in again.');
+      return;
+    }
     setActionLoading(`${action}-${body.userId}`);
     setError(null);
     setSuccess(null);
