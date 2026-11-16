@@ -1522,9 +1522,17 @@ export const refundCoinPurchase = async (req: AuthenticatedRequest, res: Respons
   try {
     const adminId = req.user?.userId || '';
     const orderId = req.params.orderId;
-    const reason = req.body?.reason;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!orderId) {
       res.status(400).json({ error: 'orderId is required' });
+      return;
+    }
+    if (!reason) {
+      res.status(400).json({ error: 'A refund reason is required for the audit record.' });
+      return;
+    }
+    if (reason.length > 500) {
+      res.status(400).json({ error: 'Refund reason must be 500 characters or fewer.' });
       return;
     }
     const result = await walletService.refundCoinPurchase(adminId, orderId, reason, req.ip);
