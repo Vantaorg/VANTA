@@ -76,8 +76,8 @@ export const transferCoins = async (req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: 'Amount is required' });
       return;
     }
-    if (requestId !== undefined && (typeof requestId !== 'string' || requestId.length > 100 || !/^[A-Za-z0-9._-]+$/.test(requestId))) {
-      res.status(400).json({ error: 'requestId must be a short string (letters, numbers, . _ -)' });
+    if (typeof requestId !== 'string' || requestId.length < 8 || requestId.length > 100 || !/^[A-Za-z0-9._-]+$/.test(requestId)) {
+      res.status(400).json({ error: 'A valid requestId (8-100 letters, numbers, . _ -) is required for every transfer' });
       return;
     }
 

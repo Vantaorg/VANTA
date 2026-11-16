@@ -55,6 +55,7 @@ const transferWithPin = (...args: any[]) => {
   const positional = [...args];
   const twoFactorCode = positional.length > 10 ? positional.pop() : undefined;
   while (positional.length < 10) positional.push(undefined);
+  if (!positional[7]) positional[7] = 'test-request-id';
   return walletService.transferCoins(...positional, '1234', twoFactorCode);
 };
 
@@ -70,7 +71,9 @@ const receiverInfo = { id: 'user2', username: 'bob', displayName: 'Bob', email: 
 function txMock() {
   return {
     wallet: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue(senderWallet),
+      findUniqueOrThrow: jest.fn().mockImplementation(async ({ where }: { where: { userId: string } }) =>
+        where.userId === 'user1' ? senderWallet : receiverWallet
+      ),
       update: jest.fn().mockResolvedValue(receiverWallet),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
@@ -309,6 +312,41 @@ describe('WalletService.transferCoins — concurrency & idempotency (Phase 4)', 
     });
 
     await expect(transferWithPin('user1', 'user2', 100)).rejects.toThrow('Insufficient coins');
+  });
+
+  test('requires a valid idempotency key at the service boundary', async () => {
+    await expect(walletService.transferCoins('user1', 'user2', 100, undefined, undefined, undefined, undefined, undefined, undefined, undefined, '1234'))
+      .rejects.toThrow('requestId');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.coinTransfer.create).not.toHaveBeenCalled();
+  });
+
+  test('records before-and-after balances for both sides of a transfer', async () => {
+    let tx: any;
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (t: any) => unknown) => {
+      tx = txMock();
+      return cb(tx);
+    });
+
+    await transferWithPin('user1', 'user2', 100, undefined, undefined, 'ip', undefined, 'ledger-snapshot-123');
+
+    expect(tx.walletTransaction.create).toHaveBeenCalledTimes(2);
+    expect(tx.walletTransaction.create).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      data: expect.objectContaining({
+        userId: 'user1',
+        type: 'TRANSFER_SENT',
+        balanceBefore: senderWallet.coinBalance,
+        balance: senderWallet.coinBalance - 105,
+      }),
+    }));
+    expect(tx.walletTransaction.create).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      data: expect.objectContaining({
+        userId: 'user2',
+        type: 'TRANSFER_RECEIVED',
+        balanceBefore: receiverWallet.coinBalance,
+        balance: receiverWallet.coinBalance + 100,
+      }),
+    }));
   });
 
   test('returns the committed transfer when a requestId is retried (idempotent)', async () => {
