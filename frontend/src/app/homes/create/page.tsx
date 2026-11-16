@@ -367,7 +367,7 @@ function CreateHomeContent() {
     { title: 'Photos & features', subtitle: 'Show off the property', icon: ImagePlus },
     { title: 'Contact & review', subtitle: 'Choose how people reach you', icon: ShieldCheck },
   ];
-  const fieldClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-[#111113] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#c9a227]/70 focus:ring-2 focus:ring-[#c9a227]/10';
+  const fieldClass = 'mt-1.5 w-full rounded-lg border border-white/[.09] bg-[#171d25] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#c9a227]/70 focus:ring-2 focus:ring-[#c9a227]/10';
   const labelClass = 'block text-xs font-semibold tracking-wide text-white/65';
   const setField = (key: keyof FormState, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const advance = () => {
@@ -385,7 +385,7 @@ function CreateHomeContent() {
 
   return (
     <main className="relative left-1/2 h-[var(--vanta-vh,100dvh)] min-h-0 w-screen max-w-none -translate-x-1/2 overflow-x-clip bg-[var(--background)] pb-36 text-white flex flex-col overflow-hidden">
-      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[var(--header-surface)] px-4">
+      <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[#1f2630] px-4">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => router.push(isEdit ? '/homes/manage' : '/homes')} aria-label="Back to Homes" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/60 transition hover:bg-white/[.06] hover:text-white">
@@ -402,17 +402,17 @@ function CreateHomeContent() {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
 
-      <div className="w-full px-0 pt-3 sm:pt-4">
-        <section className="border-b border-white/[.07] px-3 pb-5 pt-2 sm:px-5">
+      <div className="mx-auto w-full max-w-[1180px] px-0 pt-3 sm:pt-4">
+        <section className="border-b border-white/[.07] px-4 pb-5 pt-2 sm:px-6 lg:px-8">
           <p className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#c9a227]">{isEdit ? 'Manage your listing' : 'List a property'}</p>
-          <h1 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Add your property to VANTA Homes.'}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{isEdit ? 'Review your details and resubmit if changes are needed.' : 'Enter accurate details, add clear photos, then send your listing to the VANTA team for review before it goes live.'}</p>
+          <h1 className="mt-2 max-w-2xl text-[25px] font-semibold tracking-tight sm:text-3xl">{isEdit ? 'Update your property' : 'Add your property to VANTA Homes.'}</h1>
+          <p className="mt-2 max-w-2xl text-[13px] leading-5 text-white/55 sm:text-sm sm:leading-6">{isEdit ? 'Review your details and resubmit if changes are needed.' : 'Enter accurate details, add clear photos, then send your listing to the VANTA team for review before it goes live.'}</p>
           <p className="mt-3 text-xs text-white/40">Up to {MAX_PHOTOS} photos <span className="mx-2 text-white/20">·</span> Admin review before publication <span className="mx-2 text-white/20">·</span> You control contact details</p>
         </section>
 
         {(existingStatus === 'PENDING_REVIEW' || existingStatus === 'REJECTED') && <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${existingStatus === 'REJECTED' ? 'border-red-400/25 bg-red-500/[.07] text-red-300' : 'border-amber-400/25 bg-amber-500/[.07] text-amber-200'}`}>{existingStatus === 'REJECTED' ? 'This listing was rejected. Update the details and submit it again for review.' : 'This listing is under review. Your edits may require another review.'}</div>}
 
-        <div className="mt-4 grid gap-3 px-3 sm:px-5 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <div className="mt-4 grid gap-4 px-3 sm:px-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-6">
           <aside className="h-fit border-b border-white/[.08] pb-3 lg:sticky lg:top-16 lg:border-b-0 lg:pb-0">
             <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[.18em] text-white/35">Your progress</p>
             <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-1 lg:gap-2">
@@ -420,7 +420,7 @@ function CreateHomeContent() {
                 const Icon = item.icon;
                 const active = step === index;
                 const complete = index < step;
-                return <button key={item.title} type="button" onClick={() => { setFormError(null); setStep(index); }} className={`flex min-w-0 items-center gap-3 rounded-xl border p-2.5 text-left transition sm:p-3 ${active ? 'border-[#c9a227]/40 bg-[#c9a227]/[.09]' : 'border-transparent hover:bg-white/[.035]'}`}>
+                return <button key={item.title} type="button" onClick={() => { setFormError(null); setStep(index); }} className={`flex min-w-0 items-center gap-3 rounded-lg border p-2.5 text-left transition sm:p-3 ${active ? 'border-[#c9a227]/40 bg-[#c9a227]/[.09]' : 'border-transparent hover:bg-white/[.035]'}`}>
                   <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active || complete ? 'bg-[#c9a227] text-black' : 'bg-white/[.05] text-white/40'}`}>{complete ? <Check size={16}/> : <Icon size={16}/>}</span>
                   <span className="hidden min-w-0 lg:block"><span className={`block text-sm font-semibold ${active ? 'text-[#f0d36a]' : 'text-white/75'}`}>{item.title}</span><span className="mt-0.5 block text-[11px] text-white/35">{item.subtitle}</span></span>
                   <span className="sr-only lg:hidden">{item.title}</span>
@@ -432,7 +432,7 @@ function CreateHomeContent() {
 
           <section className="min-w-0">
             {loadingExisting ? <div className="space-y-3"><div className="h-24 animate-pulse rounded-2xl bg-white/[.04]"/><div className="h-56 animate-pulse rounded-2xl bg-white/[.04]"/></div> : <>
-              <div className="mb-3 flex items-center justify-between"><div><p className="text-xs font-semibold text-[#c9a227]">STEP {step + 1} OF {steps.length}</p><h2 className="mt-1 text-xl font-bold">{steps[step].title}</h2><p className="mt-1 text-xs text-white/40">{steps[step].subtitle}</p></div><span className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-white/45">{Math.round(((step + 1) / steps.length) * 100)}%</span></div>
+              <div className="mb-3 flex items-center justify-between"><div><p className="text-xs font-semibold text-[#c9a227]">STEP {step + 1} OF {steps.length}</p><h2 className="mt-1 text-lg font-semibold tracking-tight">{steps[step].title}</h2><p className="mt-1 text-xs text-white/40">{steps[step].subtitle}</p></div><span className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-white/45">{Math.round(((step + 1) / steps.length) * 100)}%</span></div>
               <div className="mb-5 h-1 overflow-hidden rounded-full bg-white/[.07]"><div className="h-full rounded-full bg-[#c9a227] transition-all" style={{width:`${((step + 1) / steps.length) * 100}%`}}/></div>
 
               {step === 0 && <div className="space-y-4 border-t border-white/[.08] py-4 sm:py-5">
