@@ -117,8 +117,8 @@ export interface Prediction {
 }
 
 /**
- * Every /api/analytics endpoint responds `{ success: boolean, data: <payload> }`.
- * `unwrap` returns the payload so pages consume exactly one access level.
+ * Analytics endpoints use both direct JSON payloads and the `{ data }` envelope.
+ * `unwrap` normalizes both response shapes for the dashboard.
  */
 const getAnalyticsAccessToken = (): string | undefined => {
   if (typeof window === 'undefined') return undefined;
