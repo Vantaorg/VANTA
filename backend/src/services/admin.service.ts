@@ -365,9 +365,9 @@ const [
     if (params.status) where.status = params.status;
     if (params.search) {
       where.OR = [
-        { description: { contains: params.search } },
-        { reference: { contains: params.search } },
-        { user: { username: { contains: params.search } } },
+        { description: { contains: params.search, mode: 'insensitive' } },
+        { reference: { contains: params.search, mode: 'insensitive' } },
+        { user: { username: { contains: params.search, mode: 'insensitive' } } },
       ];
     }
 
