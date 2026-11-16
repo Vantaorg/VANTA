@@ -1284,8 +1284,8 @@
      URLs from overflowing narrow bubbles. */
   .linkify {
     color: #6aa5ff;
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration: none;
+    text-underline-offset: 0;
     overflow-wrap: anywhere;
     word-break: break-word;
     cursor: pointer;

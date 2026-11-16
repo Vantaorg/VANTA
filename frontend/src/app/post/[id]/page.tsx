@@ -234,7 +234,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             {post.content && (
               <div className="px-3.5 pb-2 pt-2">
                 <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.4] tracking-normal text-[#f0f0f0]">
-                  {renderTextWithLinks(post.content, 'linkify')}
+                  {renderTextWithLinks(post.content, 'linkify', { mentions: true, hashtags: true })}
                 </p>
               </div>
             )}

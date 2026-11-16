@@ -3,6 +3,7 @@
 import DeleteConfirmDialog from '@/components/ui/DeleteConfirmDialog';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload, invalidateCache } from '@/lib/apiClient';
@@ -47,6 +48,8 @@ interface Conversation {
     sender: string;
     timestamp: string;
     read: boolean;
+    senderId?: string;
+    isOwn?: boolean;
     type?: string;
     hasAttachments?: boolean;
   };
@@ -422,6 +425,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [conversationCursor, setConversationCursor] = useState<string | null>(null);
   const [messageContextId, setMessageContextId] = useState<string | null>(null);
+  const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyState<Message> | null>(null);
@@ -449,6 +453,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const newChatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressedConversationRef = useRef<string | null>(null);
+  const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Live auto-scroll: only follow the newest message when the user is already
   // at (or near) the bottom. When they are reading older messages, keep their
@@ -661,6 +668,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         lastMessage: conv.lastMessage ? {
           text: conversationPreviewText(conv.lastMessage.content ?? conv.lastMessage.text ?? '', conv.lastMessage.type),
           sender: conv.lastMessage.sender?.username ?? 'Unknown',
+          senderId: conv.lastMessage.senderId ?? conv.lastMessage.sender?.id,
+          isOwn: (conv.lastMessage.senderId ?? conv.lastMessage.sender?.id) === user?.id,
           timestamp: conv.lastMessage.createdAt ?? conv.lastMessage.timestamp,
           read: conv.lastMessage.read ?? false,
           type: conv.lastMessage.type ?? 'TEXT',
@@ -699,7 +708,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     } finally {
       if (!background) setLoading(false);
     }
-  }, [token]);
+  }, [token, user?.id]);
 
   const loadMoreConversations = async () => {
     if (!token || !conversationCursor) return;
@@ -707,7 +716,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       const data = await apiGet<any>(`/api/messages?limit=25&cursor=${encodeURIComponent(conversationCursor)}`, token);
       const next = (data?.conversations ?? []).map((conv: any) => ({
         id: conv.id, type: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toLowerCase(), name: conv.name || conv.partner?.fullName || conv.partner?.username || 'Conversation', avatar: conv.partner?.avatar || conv.avatar,
-        lastMessage: conv.lastMessage ? { text: conversationPreviewText(conv.lastMessage.content ?? conv.lastMessage.text ?? '', conv.lastMessage.type), sender: conv.lastMessage.sender?.username ?? 'Unknown', timestamp: conv.lastMessage.createdAt, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT', hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0 } : undefined,
+        lastMessage: conv.lastMessage ? { text: conversationPreviewText(conv.lastMessage.content ?? conv.lastMessage.text ?? '', conv.lastMessage.type), sender: conv.lastMessage.sender?.username ?? 'Unknown', senderId: conv.lastMessage.senderId ?? conv.lastMessage.sender?.id, isOwn: (conv.lastMessage.senderId ?? conv.lastMessage.sender?.id) === user?.id, timestamp: conv.lastMessage.createdAt ?? conv.lastMessage.timestamp, read: Boolean(conv.lastMessage.read), type: conv.lastMessage.type ?? 'TEXT', hasAttachments: Array.isArray(conv.lastMessage.attachments) && conv.lastMessage.attachments.length > 0 } : undefined,
         unread: conv.unreadCount ?? 0, description: conv.description, handle: conv.handle, participants: conv.participants ?? [], online: (conv.type || (conv.isGroup ? 'GROUP' : 'DIRECT')).toUpperCase() === 'DIRECT' ? Boolean(conv.partner?.userPresence?.isOnline ?? conv.partner?.isOnline ?? conv.online) : false, onlineMemberCount: typeof conv.onlineMemberCount === 'number' ? conv.onlineMemberCount : undefined, username: conv.partner?.username, verified: Boolean(conv.partner?.verified), verificationType: conv.partner?.verificationType || undefined, lastSeen: conv.partner?.userPresence?.lastActive, partnerId: conv.partner?.id, memberCount: conv.memberCount, currentRole: conv.currentRole, entityId: conv.entityId,
       }));
       setConversations(previous => [...previous, ...next.filter((item: Conversation) => !previous.some(existing => existing.id === item.id))]);
@@ -1012,6 +1021,54 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (recordingStreamRef.current) recordingStreamRef.current.getTracks().forEach(track => track.stop());
     if (recordingTickRef.current) clearInterval(recordingTickRef.current);
   }, []);
+
+  const clearConversationLongPress = () => {
+    if (conversationLongPressTimerRef.current) clearTimeout(conversationLongPressTimerRef.current);
+    conversationLongPressTimerRef.current = null;
+    conversationLongPressStartRef.current = null;
+  };
+
+  const beginConversationLongPress = (id: string, event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (selectedConversationIds.size > 0 || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    clearConversationLongPress();
+    conversationLongPressStartRef.current = { x: event.clientX, y: event.clientY };
+    conversationLongPressTimerRef.current = setTimeout(() => {
+      longPressedConversationRef.current = id;
+      setSelectedConversationIds(new Set([id]));
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate?.(18);
+    }, 480);
+  };
+
+  const trackConversationLongPress = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = conversationLongPressStartRef.current;
+    if (!start) return;
+    // Ignore tiny touch jitter, but cancel when the finger is clearly scrolling.
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) {
+      clearConversationLongPress();
+      conversationLongPressStartRef.current = null;
+    }
+  };
+
+  const toggleConversationSelection = (id: string) => {
+    setSelectedConversationIds(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleConversationRowClick = (id: string) => {
+    if (longPressedConversationRef.current === id) {
+      longPressedConversationRef.current = null;
+      return;
+    }
+    if (selectedConversationIds.size > 0) {
+      toggleConversationSelection(id);
+      return;
+    }
+    handleSelectConversation(id);
+  };
 
   const handleSelectConversation = (id: string) => {
     stopOutgoingTyping();
@@ -2160,6 +2217,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           
         </div>
 
+        {selectedConversationIds.size > 0 && (
+          <div className="flex min-h-11 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#171717] px-4">
+            <span className="text-xs font-semibold text-white">{selectedConversationIds.size} selected</span>
+            <button type="button" onClick={() => { setSelectedConversationIds(new Set()); longPressedConversationRef.current = null; }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#d6a83f] hover:bg-white/[.05]">Cancel</button>
+          </div>
+        )}
+
         {/* Conversation List */}
         <PullToRefresh onRefresh={() => fetchConversations(true)} className="min-h-0 w-full flex-1 touch-pan-y" ariaLabel="Your conversations">
           {filteredConversations.length === 0 ? (
@@ -2172,15 +2236,28 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             filteredConversations.map((conv) => (
               <button
                 key={conv.id}
-                onClick={() => handleSelectConversation(conv.id)}
+                onClick={() => handleConversationRowClick(conv.id)}
+                onPointerDown={event => beginConversationLongPress(conv.id, event)}
+                onPointerUp={clearConversationLongPress}
+                onPointerCancel={clearConversationLongPress}
+                onPointerLeave={clearConversationLongPress}
+                onPointerMove={trackConversationLongPress}
+                onContextMenu={event => {
+                  event.preventDefault();
+                  clearConversationLongPress();
+                  setSelectedConversationIds(current => current.has(conv.id) ? current : new Set([conv.id]));
+                }}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2.5 transition-colors text-left',
-                  activeConversation === conv.id
-                    ? 'bg-[#d6a83f]/[0.07] border-l-2 border-[#d6a83f]'
-                    : 'hover:bg-white/[0.02] border-l-2 border-transparent'
+                  'w-full flex items-center gap-2.5 px-3 py-2.5 transition-colors text-left select-none',
+                  selectedConversationIds.has(conv.id)
+                    ? 'bg-[#d6a83f]/[0.12] border-l-2 border-[#d6a83f]'
+                    : activeConversation === conv.id
+                      ? 'bg-[#d6a83f]/[0.07] border-l-2 border-[#d6a83f]'
+                      : 'hover:bg-white/[0.02] border-l-2 border-transparent'
                 )}
               >
                 <div className="relative shrink-0">
+                  {selectedConversationIds.size > 0 && <span className={cn('absolute -left-1.5 -top-1.5 z-10 grid h-4 w-4 place-items-center rounded-full border', selectedConversationIds.has(conv.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-black' : 'border-white/35 bg-[#111] text-transparent')}>{selectedConversationIds.has(conv.id) && <Check size={11} strokeWidth={3}/>}</span>}
                   <Avatar src={conv.avatar} alt={conv.name} size="md" wrapperClassName="!h-10 !w-10" className="!h-10 !w-10" />
                   {conv.type === 'direct' && conv.online && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0a0a0f]" />
@@ -2209,15 +2286,17 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           </span>
                         )}
                         {conv.lastMessage ? (
-                          <p className="text-xs text-gray-500 truncate flex-1">
-                            {conv.lastMessage.read ? (
-                              <CheckCheck size={10} className="inline mr-1 text-white/70" />
-                            ) : (
-                              <Check size={10} className="inline mr-1 text-gray-500" />
-                            )}
+                          <p className={cn('text-xs truncate flex-1', conv.unread > 0 ? 'font-semibold text-white/85' : 'text-gray-500')}>
+                            {conv.unread > 0 ? (
+                              <span className="mr-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d6a83f] px-1 align-middle text-[9px] font-bold leading-none text-black">{conv.unread > 99 ? '99+' : conv.unread}</span>
+                            ) : conv.lastMessage.isOwn ? (
+                              conv.lastMessage.read
+                                ? <CheckCheck size={10} className="inline mr-1 text-white/70" />
+                                : <Check size={10} className="inline mr-1 text-gray-500" />
+                            ) : null}
                             {conv.lastMessage.type === 'STORY_REPLY' && <span className="inline-flex items-center gap-1 rounded bg-[#d6a83f]/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#d6a83f]"><MessageCircle size={9} />Story reply</span>}
                             {(conv.type === 'group' || conv.type === 'channel') && conv.lastMessage.sender && conv.lastMessage.sender !== 'Unknown' && (
-                              <span className="font-medium text-white/60">{conv.lastMessage.sender === user?.username ? 'You' : conv.lastMessage.sender}: </span>
+                              <span className="font-medium text-white/60">{conv.lastMessage.isOwn ? 'You' : conv.lastMessage.sender}: </span>
                             )}
                             {conv.lastMessage.text.trim() || (conv.lastMessage.hasAttachments ? (conv.lastMessage.type === 'AUDIO' ? 'Voice message' : 'Attachment') : conv.lastMessage.type === 'SYSTEM' ? 'System message' : conv.lastMessage.type === 'AUDIO' ? 'Voice message' : conv.lastMessage.type === 'CALL' ? 'Call' : conv.lastMessage.type === 'WALLET' ? 'Wallet update' : conv.lastMessage.type === 'POLL' ? 'Poll' : 'Message')}
                           </p>
@@ -2400,7 +2479,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         {msg.deletedAt ? null : msg.type === 'CALL' ? (
                           <span className="flex items-center justify-center gap-1.5 whitespace-nowrap py-0.5 px-3 text-xs text-white/50">
                             <Phone size={12} className="text-[#d6a83f]" />
-                            {renderTextWithLinks(msg.text || msg.content || '', 'linkify')}
+                            {renderTextWithLinks(msg.text || msg.content || '', 'linkify', { mentions: true, hashtags: true })}
                           </span>
                         ) : msg.type === 'LOCATION' ? (
                           <button type="button" onClick={() => { try { const loc = JSON.parse(msg.text); window.open(`https://maps.google.com/?q=${loc.lat},${loc.lng}`, '_blank'); } catch {} }} className="flex min-w-0 max-w-[min(100%,300px)] items-center gap-2.5 px-3 py-2.5 text-left">
@@ -2468,7 +2547,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                 <img src={resolveMediaUrl(msg.storyReplyMediaUrl)} alt="Story preview" decoding="async" loading="lazy" className="mt-1 h-16 w-full rounded-[10px] object-cover" />
                               )}
                             </div>
-                            {msg.text.trim() && <p className="px-3 pt-1 pb-0.5 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(msg.text, 'linkify')}</p>}
+                            {msg.text.trim() && <p className="px-3 pt-1 pb-0.5 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{renderTextWithLinks(msg.text, 'linkify', { mentions: true, hashtags: true })}</p>}
                           </div>
                         ) : (
                           <>
@@ -2517,7 +2596,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                               </>
                             );
                           })()}
-                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{showMessageTime && !msg.deletedAt && !(msg.isOwn && hasAudioAttachment) && <span className={cn('float-right ml-2 inline-flex translate-y-[3px] items-center gap-1 select-none text-[10px] leading-none tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}{msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />)}</span>}{renderTextWithLinks(visibleMessageText(msg), 'linkify')}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
+                          {visibleMessageText(msg).trim() && <p className="px-3 py-2 max-w-[min(420px,65vw)] whitespace-pre-wrap break-normal [overflow-wrap:break-word]">{showMessageTime && !msg.deletedAt && !(msg.isOwn && hasAudioAttachment) && <span className={cn('float-right ml-2 inline-flex translate-y-[3px] items-center gap-1 select-none text-[10px] leading-none tabular-nums', msg.isOwn ? 'text-white/75' : 'text-white/40')}>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}{msg.isOwn && (msg.failed ? <button onClick={() => retryFailedMessage(msg)} className="text-[9px] text-red-100">Retry</button> : msg.pending ? <Loader2 size={10} className="animate-spin" /> : <CheckCheck size={11} />)}</span>}{renderTextWithLinks(visibleMessageText(msg), 'linkify', { mentions: true, hashtags: true })}{msg.editedAt && <span className="ml-1 text-[9px] opacity-60">edited</span>}</p>}
                           {!visibleMessageText(msg).trim() && showMessageTime && !msg.deletedAt && !(msg.isOwn && hasAudioAttachment) && (
                           <div className={cn('flex items-center gap-1 px-3 pb-1.5 pt-0.5 text-[10px] tabular-nums', msg.isOwn ? 'justify-end text-white/75' : 'text-white/40')}>
                             <span>{currentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>

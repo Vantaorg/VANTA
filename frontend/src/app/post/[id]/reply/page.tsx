@@ -47,7 +47,7 @@ export default function DirectPostReplyPage({ params }: { params: Promise<{ id: 
           <Link href={`/profile/${encodeURIComponent(post.author.username)}`}><Avatar src={post.author.avatar} alt={post.author.username} size="md"/></Link>
           <div className="min-w-0"><p className="truncate text-sm font-semibold">{post.author.fullName || post.author.username}</p><p className="truncate text-xs text-white/40">@{post.author.username}</p></div>
         </div>
-        {post.content && <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-6 text-white/90">{renderTextWithLinks(post.content, 'linkify')}</p>}
+        {post.content && <p className="mt-3 whitespace-pre-wrap break-words text-[14px] leading-6 text-white/90">{renderTextWithLinks(post.content, 'linkify', { mentions: true, hashtags: true })}</p>}
         {post.mediaUrl && <img src={resolveMediaUrl(post.mediaUrl)} alt="Post attachment" className="mt-3 max-h-[42vh] w-full rounded-xl bg-black/20 object-contain"/>}
         <p className="mt-3 text-xs text-white/45">Replying to <span className="text-[#55b8f2]">@{post.author.username}</span></p>
       </article>
