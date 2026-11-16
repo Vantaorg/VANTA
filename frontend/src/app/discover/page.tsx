@@ -27,11 +27,11 @@ type SearchFilter = 'all' | 'people' | 'posts' | 'reels' | 'live' | 'communities
 
 const CATEGORIES: Array<[Category, string]> = [
   ['forYou', 'For You'], ['trending', 'Trending'], ['homes', 'VANTA Homes'],
-  ['creators', 'Creators'], ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'], ['topics', 'Topics'], 
+  ['creators', 'Creators'], ['reels', 'Reels'], ['live', 'Live'], ['communities', 'Communities'],
 ];
 const SEARCH_FILTERS: Array<[SearchFilter, string]> = [
   ['all', 'All'], ['people', 'People'], ['posts', 'Posts'], ['reels', 'Reels'],
-  ['live', 'Live'], ['communities', 'Communities'],
+  ['live', 'Live'], ['communities', 'Communities'], ['topics', 'Topics'],
 ];
 const unwrap = (data: any): Item[] => Array.isArray(data) ? data : data?.items || data?.data || data?.results || data?.profiles || data?.streams || data?.videos || data?.communities || [];
 const creatorOf = (item: Item) => item.author || item.creator || item.user || item.host || item.owner || {};
@@ -127,7 +127,8 @@ export default function DiscoverPage() {
       if (background) throw reason;
       setError("Couldn't load Discover.");
     } finally {
-      if (!background) { setLoading(false); setLoadingMore(false); }    }
+      if (!background) { setLoading(false); setLoadingMore(false); }
+    }
   }, [token]);
 
   // Pull-to-refresh: re-request every discovery source with the cache bypassed
@@ -256,7 +257,8 @@ export default function DiscoverPage() {
               <LiveSection items={live} open={(item: Item) => openItem({ ...item, type: 'live' }, router)} setCategory={setCategory} hideEmpty/>
               <CommunitySection items={communities} join={joinCommunity} open={(item: Item) => router.push(`/communities/${item.id}`)} copyLink={copyCommunityLink} setCategory={setCategory} hideEmpty/>
               <PostSection title="POPULAR POSTS" items={posts.slice(0, 6)} mutate={mutatePost} comment={setCommentsFor} share={setShareFor} openProfile={(name: string) => router.push(`/profile/${name}`)} hideEmpty/>
-            </>}          </>}
+            </>}
+          </>}
           {category === 'trending' && <><TrendingSection items={trending} open={(item: Item) => openItem(item, router)}/><PostSection title="TRENDING POSTS" items={trending.filter(item => item.type === 'post' || Boolean(item.content))} mutate={mutatePost} comment={setCommentsFor} share={setShareFor} openProfile={(name: string) => router.push(`/profile/${name}`)}/></>}
           {category === 'creators' && <><CreatorSection title="POPULAR CREATORS" subtitle="Established voices across VANTA" profiles={[...creators].sort((a, b) => profileFollowers(b) - profileFollowers(a))} follow={follow} open={(profile: Item) => router.push(`/profile/${profile.username}`)}/><CreatorSection title="RISING CREATORS" subtitle="Recently active creators building momentum" profiles={rising} follow={follow} open={(profile: Item) => router.push(`/profile/${profile.username}`)}/></>}
           {category === 'reels' && <ReelSection items={reels} open={(item: Item) => openItem({ ...item, type: 'video' }, router)}/>} 
@@ -289,7 +291,7 @@ function SearchResults({ query, filter, results, searching, open, follow, onTopi
   if (!visible.length) return <div className="px-5 py-10 text-center"><Search className="mx-auto text-[#666]"/><p className="mt-3 text-sm font-medium">No results for &quot;{query}&quot;</p><p className="mt-1 text-xs text-[#666]">Try another name, topic, or keyword.</p></div>;
   return <div className="max-h-[60vh] overflow-y-auto p-2">{visible.map(group => <section key={group.id}><h2 className="px-2 pb-1 pt-3 text-[10px] font-semibold tracking-[.18em] text-[#666]">{group.label.toUpperCase()}</h2>{group.rows.slice(0, filter === 'all' ? 4 : 12).map((item: Item, index: number) => <SearchRow key={`${group.id}-${item.id || item.name || item.tag || index}`} item={item} open={() => group.id === 'topics' ? onTopic?.(item.name || item.tag || item.value || item.title || '') : open(item)} follow={group.id === 'people' ? () => follow(item) : undefined}/>)}</section>)}</div>;
 }
-function SearchRow({ item, open, follow }: any) { const person = item.__kind === 'person' ? item : creatorOf(item); const image = item.__kind === 'person' ? item.avatar : mediaOf(item) || person.avatar; const topic = item.__kind === 'topics'; const topicName = String(item.name || item.tag || item.value || item.title || '').replace(/^#/, ''); return <div className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/[.04]"><button type="button" onClick={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">{item.__kind === 'person' ? <Avatar src={image} alt={item.username || 'Person'} size="md"/> : <span className="flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#1c1c1c]">{topic ? <Hash size={17} className="text-[#c9a227]"/> : image ? <img src={resolveMediaUrl(image)} alt="" className="h-full w-full object-cover"/> : item.__kind === 'live' ? <Radio size={17} className="text-[#8a8a8a]"/> : item.__kind === 'community' ? <Users size={17} className="text-[#8a8a8a]"/> : <Compass size={17} className="text-[#8a8a8a]"/>}</span>}<span className="min-w-0"><b className="block truncate text-sm font-medium text-[#e8e8e8]">{topic ? `#${topicName}` : item.fullName || item.name || item.title || item.content || person.fullName || person.username || 'VANTA content'}</b><small className="block truncate text-[#666]">{topic ? 'Explore topic' : item.username ? `@${item.username}` : categoryName(item.category) || (person.username ? `@${person.username}` : item.__kind)}</small></span></button>{follow && <FollowButton active={Boolean(item.following || item.isFollowing)} onClick={follow}/>}</div>; }
+function SearchRow({ item, open, follow }: any) { const person = item.__kind === 'person' ? item : creatorOf(item); const image = item.__kind === 'person' ? item.avatar : mediaOf(item) || person.avatar; const topic = item.__kind === 'topics'; const topicName = String(item.name || item.tag || item.value || item.title || '').replace(/^#/, ''); return <div className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/[.04]"><button type="button" onClick={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">{item.__kind === 'person' ? <Avatar src={image} alt={item.username || 'Person'} size="md"/> : <span className="flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#1c1c1c]">{topic ? <Hash size={17}/> : image ? <img src={resolveMediaUrl(image)} alt="" className="h-full w-full object-cover"/> : item.__kind === 'live' ? <Radio size={17}/> : item.__kind === 'community' ? <Users size={17}/> : <Compass size={17}/>}</span>}<span className="min-w-0"><b className="block truncate text-sm font-medium text-[#e8e8e8]">{topic ? `#${topicName}` : item.fullName || item.name || item.title || item.content || person.fullName || person.username || 'VANTA content'}</b><small className="block truncate text-[#666]">{topic ? 'Explore topic' : item.username ? `@${item.username}` : categoryName(item.category) || (person.username ? `@${person.username}` : item.__kind)}</small></span></button>{follow && <FollowButton active={Boolean(item.following || item.isFollowing)} onClick={follow}/>}</div>; }
 
 function Featured({ item, open, hideEmpty }: { item?: Item; open: () => void; hideEmpty?: boolean }) {
   if (!item) return hideEmpty ? null : <EmptyState title="Nothing featured yet." actionLabel="Refresh Discover" onAction={() => location.reload()}/>;
