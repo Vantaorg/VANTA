@@ -107,7 +107,7 @@ export default function SecuritySettingsPage() {
 
   const requestEmailVerification = async () => {
     if (!token) return;
-    if (!/^\\S+@\\S+\\.\\S+$/.test(newEmail.trim())) {
+    if (!/^\S+@\S+\\.\S+$/.test(newEmail.trim())) {
       toast.error('Enter a valid new email address');
       return;
     }
@@ -133,7 +133,7 @@ export default function SecuritySettingsPage() {
 
   const verifyEmailChange = async () => {
     if (!token) return;
-    if (!/^\\d{6}$/.test(emailCode.trim())) {
+    if (!/^\d{6}$/.test(emailCode.trim())) {
       toast.error('Enter the 6-digit code sent to your new email');
       return;
     }
@@ -352,7 +352,7 @@ export default function SecuritySettingsPage() {
                   </div>
                   <label className="block space-y-1.5">
                     <span className="text-xs text-white/55">6-digit verification code</span>
-                    <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="000000" className="settings-input w-full tracking-[0.3em]" />
+                    <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="settings-input w-full tracking-[0.3em]" />
                   </label>
                   <button type="button" onClick={() => void verifyEmailChange()} disabled={emailBusy || emailCode.length !== 6} className="btn-accent flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50">
                     {emailBusy ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
