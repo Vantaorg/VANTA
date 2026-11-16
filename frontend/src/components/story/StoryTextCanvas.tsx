@@ -101,7 +101,7 @@ export default function StoryTextCanvas({
           transform: `translateY(${offsetY || 0}px)`,
         }}
       >
-        {renderTextWithLinks(text, 'linkify')}
+        {renderTextWithLinks(text, 'linkify', { mentions: true, hashtags: true })}
       </div>
     </div>
   );
