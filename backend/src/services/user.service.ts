@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { emitSocialEvent } from './social-events.service';
 import { notificationService } from './notification.service';
+import { emailService } from './email.service';
 import { AppError } from '../utils/api-error';
 import { isBadgeRowActive, BADGE_USER_SELECT, enrichPublicUser } from './public-verification';
 
@@ -873,24 +875,121 @@ export class UserService {
     });
   }
 
-  async updateEmail(userId: string, email: string) {
+  private emailChangeCodeHash(userId: string, email: string, code: string): string {
+    const pepper = process.env.EMAIL_CHANGE_CODE_SECRET || process.env.JWT_SECRET || '';
+    if (pepper.length < 32) {
+      throw new Error('Email verification is temporarily unavailable. Please contact support.');
+    }
+    return crypto.createHmac('sha256', pepper).update(`${userId}:${email}:${code}`).digest('hex');
+  }
+
+  async requestEmailChange(userId: string, email: string, currentPassword: string) {
     const normalized = ensureValidEmail(email);
-    const existing = await prisma.user.findFirst({
-      where: {
-        email: normalized,
-        NOT: { id: userId },
-      },
+    if (!normalized) throw new Error('A valid new email address is required');
+    if (!currentPassword) throw new Error('Enter your current password to continue');
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
     });
-    if (existing) {
-      throw new Error('Email already in use');
+    if (!user) throw new Error('Account not found');
+    if (!user.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new Error('Current password is incorrect');
+    }
+    if (normalized === (user.email || '').toLowerCase()) {
+      throw new Error('That is already your current email address');
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { email: normalized },
+    const existing = await prisma.user.findUnique({ where: { email: normalized }, select: { id: true } });
+    if (existing && existing.id !== userId) throw new Error('That email address is already in use');
+
+    const recentRequests = await prisma.emailChangeRequest.count({
+      where: { userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+    });
+    if (recentRequests >= 5) throw new Error('Too many email change attempts. Try again in an hour.');
+
+    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const codeHash = this.emailChangeCodeHash(userId, normalized, code);
+
+    await prisma.emailChangeRequest.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    const request = await prisma.emailChangeRequest.create({
+      data: { userId, oldEmail: user.email, newEmail: normalized, codeHash, expiresAt },
     });
 
-    return { id: user.id, email: user.email };
+    const delivery = await emailService.sendEmailChangeVerification({
+      to: normalized,
+      code,
+      expiresInMinutes: 10,
+    });
+    if (!delivery.delivered) {
+      await prisma.emailChangeRequest.update({ where: { id: request.id }, data: { usedAt: new Date() } });
+      throw new Error('We could not send the verification email. Your current email address has not changed.');
+    }
+
+    return { success: true, email: normalized, expiresInMinutes: 10 };
+  }
+
+  async verifyEmailChange(userId: string, code: string) {
+    const normalizedCode = String(code || '').trim();
+    if (!/^\\d{6}$/.test(normalizedCode)) throw new Error('Enter the 6-digit verification code');
+
+    const request = await prisma.emailChangeRequest.findFirst({
+      where: { userId, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!request) throw new Error('No pending email change was found. Request a new code.');
+    if (request.expiresAt.getTime() <= Date.now()) {
+      await prisma.emailChangeRequest.update({ where: { id: request.id }, data: { usedAt: new Date() } });
+      throw new Error('That verification code has expired. Request a new one.');
+    }
+    if (request.attempts >= 5) throw new Error('Too many incorrect codes. Request a new one.');
+
+    const suppliedHash = this.emailChangeCodeHash(userId, request.newEmail, normalizedCode);
+    const expected = Buffer.from(request.codeHash, 'hex');
+    const supplied = Buffer.from(suppliedHash, 'hex');
+    const valid = expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
+
+    if (!valid) {
+      const nextAttempts = request.attempts + 1;
+      await prisma.emailChangeRequest.update({
+        where: { id: request.id },
+        data: { attempts: nextAttempts, ...(nextAttempts >= 5 ? { usedAt: new Date() } : {}) },
+      });
+      throw new Error(nextAttempts >= 5 ? 'Too many incorrect codes. Request a new one.' : 'That verification code is incorrect.');
+    }
+
+    const now = new Date();
+    const changed = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.emailChangeRequest.updateMany({
+        where: { id: request.id, userId, usedAt: null, expiresAt: { gt: now }, attempts: { lt: 5 } },
+        data: { usedAt: now },
+      });
+      if (claimed.count !== 1) throw new Error('This verification code has already been used or expired.');
+
+      const collision = await tx.user.findFirst({
+        where: { email: request.newEmail, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (collision) throw new Error('That email address is already in use. Your current email remains unchanged.');
+
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { email: request.newEmail, emailVerified: true },
+        select: { id: true, email: true },
+      });
+      return updated;
+    });
+
+    if (request.oldEmail) {
+      // The email update is committed before notification. A mail failure must
+      // never roll back a verified address or reveal the verification code.
+      await emailService.sendEmailChangedNotice({ to: request.oldEmail, newEmail: changed.email || request.newEmail });
+    }
+    return { success: true, email: changed.email };
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
