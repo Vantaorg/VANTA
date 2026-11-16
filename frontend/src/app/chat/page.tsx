@@ -590,8 +590,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (view !== 'info' && view !== 'settings') setDetailsOpen(false);
     if (view !== 'settings') setEditEntityOpen(false);
     if (view !== 'media') setMediaViewer(null);
-    // Back navigation from any chat subview also closes the call menu.
+    // Back navigation closes transient chat overlays.
     setCallMenuOpen(false);
+    setDirectMenuOpen(false);
   }, [searchParams]);
 
   const pushChatView = useCallback((view: 'info' | 'settings' | 'media') => {
@@ -1053,6 +1054,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setMessages([]);
     setShowMobileList(true);
     setDetailsOpen(false);
+    setDirectMenuOpen(false);
     router.replace('/chat', { scroll: false });
   }, [router]);
 
@@ -2875,7 +2877,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               <button type="button" onClick={() => setDirectMenuOpen(false)} className="grid h-9 w-9 place-items-center rounded-full text-white/50 transition hover:bg-white/[0.07] hover:text-white" aria-label="Close menu"><X size={17}/></button>
             </div>
             <div className="grid gap-1 py-3">
-              <button type="button" onClick={() => { setDirectMenuOpen(false); setMessageSearchOpen(true); setTimeout(() => messageInputRef.current?.blur(), 0); }} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm text-white/80 transition hover:bg-white/[0.06]">
+              <button type="button" onClick={() => { setDirectMenuOpen(false); setMessageSearchOpen(true); }} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm text-white/80 transition hover:bg-white/[0.06]">
                 <Search size={17} className="text-white/55"/>Search chat
               </button>
               <button type="button" onClick={() => { setDirectMenuOpen(false); void toggleMute(); }} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm text-white/80 transition hover:bg-white/[0.06]">
