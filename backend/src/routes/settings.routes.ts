@@ -8,6 +8,8 @@ import {
   revokeSession,
   revokeAllSessions,
   updateAccountSettings,
+  requestEmailChange,
+  verifyEmailChange,
   deleteAccount,
   getBlockedUsers,
   blockUser,
@@ -34,6 +36,8 @@ router.delete('/sessions/:id', revokeSession);
 router.delete('/sessions', revokeAllSessions);
 
 router.put('/account', updateAccountSettings);
+router.post('/account/email-change/request', requestEmailChange);
+router.post('/account/email-change/verify', verifyEmailChange);
 router.delete('/account', deleteAccount);
 
 router.get('/blocked', getBlockedUsers);
