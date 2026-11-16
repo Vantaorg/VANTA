@@ -75,6 +75,7 @@ export default function GlobalSearch() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -114,32 +115,39 @@ export default function GlobalSearch() {
       return;
     }
 
-    // Cancel previous request
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    abortRef.current = new AbortController();
+    // Cancel stale requests and ignore late responses so rapid typing never
+    // lets an older query overwrite the newest results.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestId = ++searchRequestIdRef.current;
 
     setLoading(true);
+    setSearchError(null);
     try {
       const data = await apiGet<SearchResults>(
         `/api/search?q=${encodeURIComponent(trimmed)}`,
         token || undefined,
-        { signal: abortRef.current.signal, cacheTTL: 15000 }
+        { signal: controller.signal, skipCache: true }
       );
-      setResults(data);
+      if (requestId !== searchRequestIdRef.current) return;
+      const payload = (data as any)?.results ?? (data as any)?.data ?? data;
+      setResults(payload && typeof payload === 'object' ? payload : null);
     } catch (err: any) {
-      console.error('[Search] API Error:', err?.message || err);
-      if (err?.statusCode !== 499) { // Not aborted
+      if (requestId !== searchRequestIdRef.current) return;
+      if (err?.statusCode !== 499 && err?.name !== 'AbortError') {
         setResults(null);
-        // Show error state for debugging
         setSearchError(err?.message || 'Search request failed');
-        setTimeout(() => setSearchError(null), 5000);
       }
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestIdRef.current) setLoading(false);
     }
   }, [token]);
+
+  useEffect(() => () => {
+    searchRequestIdRef.current += 1;
+    abortRef.current?.abort();
+  }, []);
 
   // Debounced search on query change
   useEffect(() => {
