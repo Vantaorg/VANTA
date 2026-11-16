@@ -890,7 +890,7 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
                 </b>
                 {item.createdAt && <time className="shrink-0 text-[11px] leading-none text-white/35">{timeAgo(item.createdAt)}</time>}
               </div>
-              <p className="mt-1 break-words text-sm leading-5 text-white/75">{renderTextWithLinks(item.content, 'linkify')}</p>
+              <p className="mt-1 break-words text-sm leading-5 text-white/75">{renderTextWithLinks(item.content, 'linkify', { mentions: true, hashtags: true })}</p>
               <button type="button" onClick={() => toggleLike(item)} aria-label={item.liked ? 'Unlike comment' : 'Like comment'} aria-pressed={Boolean(item.liked)} className={cn('mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] transition hover:bg-white/[.06]', item.liked ? 'text-[#c9a227]' : 'text-white/45 hover:text-white')}>
                 <Heart size={13} fill={item.liked ? 'currentColor' : 'none'} /> Like {item._count?.likes || 0}
               </button>
