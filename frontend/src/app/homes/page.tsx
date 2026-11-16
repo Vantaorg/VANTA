@@ -63,7 +63,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Promis
       <header className="relative z-50 h-14 shrink-0 border-b border-white/[.06] bg-[var(--header-surface)] px-4">
         <div className="flex h-full w-full items-center justify-between gap-4">
           <a href="/homes" className="flex min-w-0 items-center gap-3" aria-label="VANTA Homes">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#c9a227] text-black"><Building2 size={19} /></span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#c9a227] text-black"><Building2 size={19} /></span>
             <span className="flex items-baseline gap-2">
               <span className="text-sm font-black tracking-[.16em] text-[#d7b548]">VANTA</span>
               <span className="text-sm font-medium text-white/80">Homes</span>
@@ -79,33 +79,33 @@ export default async function HomesPage({ searchParams }: { searchParams: Promis
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
 
-      <section className="border-b border-white/[.06]">
-        <div className="w-full px-3 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
+      <section className="border-b border-white/[.06] bg-[radial-gradient(ellipse_at_top_left,rgba(201,162,39,.075),transparent_52%)]">
+        <div className="mx-auto w-full max-w-[1500px] px-3 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6 lg:px-8">
           <div className="w-full">
-            <p className="text-[11px] font-semibold uppercase leading-4 tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
-            <h1 className="mt-3 max-w-3xl text-2xl font-semibold leading-[1.2] tracking-tight sm:mt-4 sm:text-3xl">Homes for the way you live.</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/55 sm:mt-3 sm:text-base sm:leading-7">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
+            <p className="text-[10px] font-bold uppercase leading-4 tracking-[.2em] text-[#c9a227]">Find a place to call home</p>
+            <h1 className="mt-2 max-w-3xl text-[26px] font-semibold leading-[1.15] tracking-tight sm:text-3xl">Homes for the way you live.</h1>
+            <p className="mt-2 max-w-2xl text-[13px] leading-5 text-white/55 sm:text-sm sm:leading-6">Search available rentals by location, price and property type. Compare the details and contact the owner when you find the right fit.</p>
           </div>
-          <div className="mt-4 w-full">
+          <div className="mt-4 w-full max-w-5xl">
             <HomeFilterBar propertyTypes={propertyTypes} rentPeriods={rentPeriods} current={params} />
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-white/40">
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/40">
             <ShieldCheck size={14} className="shrink-0 text-[#c9a227]" />
             Verify the property and owner before paying a deposit.
           </div>
         </div>
       </section>
 
-      <section className="w-full px-0 pb-28 pt-5 sm:pt-6">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-3 sm:px-5">
+      <section className="mx-auto w-full max-w-[1500px] px-3 pb-28 pt-5 sm:px-5 sm:pt-6 lg:px-8">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
-            <p className="mt-1.5 text-sm text-white/45">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'No approved listings matched this search.'}</p>
+            <h2 className="text-lg font-semibold tracking-tight sm:text-xl">{params.q || params.city || params.area ? 'Search results' : 'Recently added homes'}</h2>
+            <p className="mt-1 text-xs text-white/45 sm:text-sm">{data.data.length ? `Showing ${data.data.length} available propert${data.data.length === 1 ? 'y' : 'ies'}.` : 'No approved listings matched this search.'}</p>
           </div>
           <a href="/homes/manage" className="inline-flex items-center gap-1.5 py-2 text-sm text-white/55 transition hover:text-[#e2c45f]">Manage listings <ArrowRight size={14} /></a>
         </div>
         {loadError ? (
-          <div role="alert" className="mx-3 rounded-xl border border-red-400/20 bg-[var(--surface)] px-4 py-7 text-center sm:mx-5">
+          <div role="alert" className="rounded-xl border border-red-400/20 bg-[var(--surface)] px-4 py-7 text-center">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-red-400/10 text-red-300"><Building2 size={22} /></span>
             <h3 className="mt-4 text-base font-semibold text-white">Homes could not be loaded</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/50">{loadError}</p>
@@ -115,7 +115,7 @@ export default async function HomesPage({ searchParams }: { searchParams: Promis
             </div>
           </div>
         ) : data.data.length === 0 ? (
-          <div className="mx-3 rounded-xl border border-white/[.07] bg-[var(--surface)] px-4 py-7 text-center sm:mx-5">
+          <div className="rounded-xl border border-white/[.07] bg-[var(--surface)] px-4 py-7 text-center">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#c9a227]/[.1] text-[#e0bb4f]"><Building2 size={22}/></span>
             <h3 className="mt-4 text-base font-semibold text-white">{params.q || params.city || params.area || params.propertyType ? 'No homes match those filters' : 'No approved homes yet'}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/50">{params.q || params.city || params.area || params.propertyType ? 'Try a broader location, another property type, or clear your filters. Only approved and available listings appear here.' : 'New rentals appear here after the owner submits them and VANTA approves them. You can still browse VANTA or list a property.'}</p>
