@@ -1330,6 +1330,9 @@ function UsersContent() {
                           ) : null}
                         </p>
                         <p className="truncate font-mono text-[11px] text-console-text-3">@{u.username}</p>
+                        <p className="mt-0.5 max-w-[220px] truncate text-[10px] text-console-text-3" title={u.email || 'No email address on file'}>
+                          {u.email || 'No email address on file'}
+                        </p>
                       </div>
                     </div>
                     <ActionMenu actions={actionsFor(u)} label={`Actions for @${u.username}`} />
