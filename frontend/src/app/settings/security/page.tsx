@@ -13,6 +13,7 @@ import {
   KeyRound,
   Laptop,
   Loader2,
+  Mail,
   Lock,
   LogOut,
   ShieldCheck,
@@ -97,6 +98,61 @@ export default function SecuritySettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const [currentEmail, setCurrentEmail] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+
+  const requestEmailVerification = async () => {
+    if (!token) return;
+    if (!/^\\S+@\\S+\\.\\S+$/.test(newEmail.trim())) {
+      toast.error('Enter a valid new email address');
+      return;
+    }
+    if (!emailCurrentPassword) {
+      toast.error('Enter your current password to confirm this change');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      await apiPost('/api/settings/account/email-change/request', {
+        email: newEmail.trim(),
+        currentPassword: emailCurrentPassword,
+      }, token);
+      setPendingEmail(newEmail.trim());
+      setEmailCode('');
+      toast.success('Verification code sent', 'Check your new email address. The code expires in 10 minutes.');
+    } catch (err) {
+      toast.error('Could not send verification code', (err as Error)?.message);
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const verifyEmailChange = async () => {
+    if (!token) return;
+    if (!/^\\d{6}$/.test(emailCode.trim())) {
+      toast.error('Enter the 6-digit code sent to your new email');
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      const result = await apiPost<{ email: string }>('/api/settings/account/email-change/verify', { code: emailCode.trim() }, token);
+      setCurrentEmail(result.email || pendingEmail);
+      setNewEmail('');
+      setPendingEmail('');
+      setEmailCurrentPassword('');
+      setEmailCode('');
+      toast.success('Email address updated and verified');
+    } catch (err) {
+      toast.error('Email verification failed', (err as Error)?.message);
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
   /* ── Real 2FA state (backend authoritative) ── */
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
@@ -111,12 +167,14 @@ export default function SecuritySettingsPage() {
       apiGet<{ sessions: SessionItem[] }>('/api/settings/sessions', token),
       apiGet<{ logs: SecurityLog[] }>('/api/settings/security-logs', token).catch(() => ({ logs: [] })),
       apiGet<{ enabled: boolean }>('/api/auth/2fa/status', token).catch(() => ({ enabled: false })),
+      apiGet<{ email?: string | null }>('/api/profiles/me', token).catch(() => ({ email: '' })),
     ])
-      .then(([s, l, tfa]) => {
+      .then(([s, l, tfa, profile]) => {
         if (cancel) return;
         setSessions(s?.sessions || []);
         setLogs(l?.logs || []);
         setTwoFactorEnabled(Boolean(tfa?.enabled));
+        setCurrentEmail(profile?.email || '');
       })
       .catch(() => {
         if (!cancel) toast.error('Could not load security settings');
@@ -260,6 +318,53 @@ export default function SecuritySettingsPage() {
         </div>
       ) : (
         <>
+          {/* ── Verified email address ── */}
+          <SettingsGroup
+            icon={Mail}
+            title="Email address"
+            description="Change your sign-in and recovery email securely"
+          >
+            <div className="space-y-3 px-4 py-4">
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">Current verified email</p>
+                <p className="mt-1 break-all text-sm text-white/80">{currentEmail || 'No email address on file'}</p>
+              </div>
+              {!pendingEmail ? (
+                <>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs text-white/55">New email address</span>
+                    <input type="email" autoComplete="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="you@example.com" className="settings-input w-full" />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs text-white/55">Current password</span>
+                    <input type="password" autoComplete="current-password" value={emailCurrentPassword} onChange={(event) => setEmailCurrentPassword(event.target.value)} placeholder="Confirm it’s you" className="settings-input w-full" />
+                  </label>
+                  <button type="button" onClick={() => void requestEmailVerification()} disabled={emailBusy || !newEmail.trim() || !emailCurrentPassword} className="btn-accent flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50">
+                    {emailBusy ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} />}
+                    Send verification code
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-[#d6a83f]/20 bg-[#d6a83f]/[0.06] px-3 py-2.5">
+                    <p className="text-xs text-white/50">Verification sent to</p>
+                    <p className="mt-1 break-all text-sm font-medium text-white">{pendingEmail}</p>
+                  </div>
+                  <label className="block space-y-1.5">
+                    <span className="text-xs text-white/55">6-digit verification code</span>
+                    <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\\D/g, '').slice(0, 6))} placeholder="000000" className="settings-input w-full tracking-[0.3em]" />
+                  </label>
+                  <button type="button" onClick={() => void verifyEmailChange()} disabled={emailBusy || emailCode.length !== 6} className="btn-accent flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50">
+                    {emailBusy ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+                    Verify and update email
+                  </button>
+                  <button type="button" onClick={() => { setPendingEmail(''); setEmailCode(''); }} disabled={emailBusy} className="w-full py-2 text-xs text-white/45 hover:text-white/75 disabled:opacity-40">Cancel email change</button>
+                </>
+              )}
+              <p className="text-[11px] leading-5 text-white/35">We’ll only update your account after the new address receives and verifies a one-time code. Your old address receives a security notification.</p>
+            </div>
+          </SettingsGroup>
+
           {/* ── Two-factor authentication ── */}
           <SettingsGroup
             icon={Fingerprint}
