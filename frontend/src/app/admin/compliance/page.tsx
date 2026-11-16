@@ -658,7 +658,13 @@ export default function AdminCompliancePage() {
         await adminComplianceApi.processChildSafetyFlag(flag.id, action, note || undefined);
         const result = await adminComplianceApi.getChildSafetyFlags(100, 0);
         setChildSafetyFlags(result.flags || []);
-        showToast(action === 'restrict' ? 'Account restricted and flag escalated.' : `Child-safety flag ${action}d.`);
+        const actionMessages = {
+          approve: 'Child-safety flag approved.',
+          dismiss: 'Child-safety flag dismissed.',
+          escalate: 'Child-safety flag escalated.',
+          restrict: 'Account restricted and flag escalated.',
+        };
+        showToast(actionMessages[action]);
       } catch (err: any) {
         showToast(err?.message || 'Unable to process child-safety flag.', 'error');
       } finally {
