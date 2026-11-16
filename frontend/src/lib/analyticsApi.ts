@@ -200,7 +200,7 @@ class AnalyticsAPI {
   // ============================================================
 
   async getCohortAnalysis(): Promise<CohortAnalysis[]> {
-    const body = await apiGet<{ data: { cohorts: CohortAnalysis[] } }>(`${this.baseUrl}/cohorts`, getAnalyticsAccessToken());
+    const body = await apiGet<any>(`${this.baseUrl}/cohorts`, getAnalyticsAccessToken());
     const payload = body?.data ?? body;
     return Array.isArray(payload?.cohorts) ? payload.cohorts : Array.isArray(payload) ? payload : [];
   }
