@@ -1401,6 +1401,26 @@ For questions about your data, contact privacy@vanta.app
     return flag;
   }
 
+  async getChildSafetyFlags(limit = 50, offset = 0, status?: string) {
+    const where = status ? { status } : {};
+    const [flags, total] = await Promise.all([
+      prisma.childSafetyFlag.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, username: true, email: true, status: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.childSafetyFlag.count({ where }),
+    ]);
+
+    return { flags, total, limit, offset };
+  }
+
   async processChildSafetyFlag(flagId: string, adminId: string, action: string, note?: string) {
     const statusByAction: Record<string, string> = {
       approve: 'APPROVED',
