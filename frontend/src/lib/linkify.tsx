@@ -81,7 +81,7 @@ function renderTextTokens(
     }
     const href = marker === '@'
       ? `/profile/${value.toLowerCase()}`
-      : `/explore?q=%23${encodeURIComponent(value)}`;
+      : `/discover?q=%23${encodeURIComponent(value)}`;
     nodes.push(createElement('a', {
       key: keyRef.current++,
       href,
