@@ -326,7 +326,7 @@ export default function SecuritySettingsPage() {
           >
             <div className="space-y-3 px-4 py-4">
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2.5">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">Current verified email</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">Current account email</p>
                 <p className="mt-1 break-all text-sm text-white/80">{currentEmail || 'No email address on file'}</p>
               </div>
               {!pendingEmail ? (
