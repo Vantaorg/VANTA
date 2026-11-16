@@ -1805,11 +1805,12 @@ export const getAllAdsAnalytics = async (req: AuthenticatedRequest, res: Respons
 
 export const getAuditLogs = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const action = req.query.action as string;
-    const adminId = req.query.admin as string;
+    const action = typeof req.query.action === 'string' ? req.query.action : undefined;
+    const adminId = typeof req.query.admin === 'string' ? req.query.admin : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 200) : undefined;
     const page = parseAdminQueryInt(req.query.page, 1, 1, 100000);
     const limit = parseAdminQueryInt(req.query.limit, 50, 1, 200);
-    const result = await adminService.getAuditLogs({ action, adminId, page, limit });
+    const result = await adminService.getAuditLogs({ action, adminId, search, page, limit });
     res.status(200).json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
