@@ -1408,7 +1408,7 @@ For questions about your data, contact privacy@vanta.app
         where,
         include: {
           user: {
-            select: { id: true, username: true, email: true, status: true },
+            select: { id: true, username: true, status: true },
           },
         },
         orderBy: { createdAt: 'desc' },
