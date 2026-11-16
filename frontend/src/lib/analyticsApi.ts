@@ -238,12 +238,12 @@ class AnalyticsAPI {
   }
 
   async getCurrentDAU(): Promise<number> {
-    const body = await apiGet<{ data: { dau: number } }>(`${this.baseUrl}/users/dau`, getAnalyticsAccessToken());
+    const body = await apiGet<{ data?: { dau?: number }; dau?: number }>(`${this.baseUrl}/users/dau`, getAnalyticsAccessToken());
     return body?.data?.dau ?? body?.dau ?? 0;
   }
 
   async getOnlineUsers(): Promise<number> {
-    const body = await apiGet<{ data: { online: number } }>(`${this.baseUrl}/users/online`, getAnalyticsAccessToken());
+    const body = await apiGet<{ data?: { online?: number }; online?: number }>(`${this.baseUrl}/users/online`, getAnalyticsAccessToken());
     return body?.data?.online ?? body?.online ?? 0;
   }
 
