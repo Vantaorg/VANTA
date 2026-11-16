@@ -848,6 +848,18 @@ export class WalletService {
     if (typeof pinCode !== 'string' || !/^\d{4,6}$/.test(pinCode)) throw new Error("A valid 4-6 digit wallet PIN is required");
     await this.verifyPin(senderId, pinCode);
 
+    // Every transfer must carry a stable idempotency key. This is enforced
+    // in the service as well as the HTTP controller so non-HTTP callers and
+    // older clients cannot create unprotected transfers.
+    if (
+      typeof requestId !== 'string' ||
+      requestId.length < 8 ||
+      requestId.length > 100 ||
+      !/^[A-Za-z0-9._-]+$/.test(requestId)
+    ) {
+      throw new Error("A valid requestId (8-100 letters, numbers, . _ -) is required for every transfer");
+    }
+
     // Calculate fee (5% sender pays)
     const fee = calculateTransferFee(safeAmount);
     const totalDeduction = safeAmount + fee;
@@ -891,31 +903,29 @@ export class WalletService {
       );
     }
 
-    // Idempotency (Phase 4): a retried/double-submitted request with the same
+    // Idempotency: a retried/double-submitted request with the same required
     // requestId must never debit twice. UNIQUE(senderId, requestId) is the
     // database-level guard; this lookup is the fast path that returns the
     // already-committed transfer.
-    if (requestId) {
-      const existing = await prisma.coinTransfer.findUnique({
-        where: { senderId_requestId: { senderId, requestId } },
-      });
-      if (existing) {
-        // An idempotency key is bound to the original transfer intent. Reusing
-        // it with a different recipient, amount or note must not silently
-        // return an unrelated transfer as though the new request succeeded.
-        if (
-          existing.receiverId !== receiverId ||
-          existing.amount !== safeAmount ||
-          (existing.note || undefined) !== (note || undefined)
-        ) {
-          throw new Error("This requestId is already used for a different transfer");
-        }
-        return {
-          transfer: existing,
-          replayed: true,
-          message: "This transfer was already processed.",
-        };
+    const existing = await prisma.coinTransfer.findUnique({
+      where: { senderId_requestId: { senderId, requestId } },
+    });
+    if (existing) {
+      // An idempotency key is bound to the original transfer intent. Reusing
+      // it with a different recipient, amount or note must not silently
+      // return an unrelated transfer as though the new request succeeded.
+      if (
+        existing.receiverId !== receiverId ||
+        existing.amount !== safeAmount ||
+        (existing.note || undefined) !== (note || undefined)
+      ) {
+        throw new Error("This requestId is already used for a different transfer");
       }
+      return {
+        transfer: existing,
+        replayed: true,
+        message: "This transfer was already processed.",
+      };
     }
 
     // Step-up OTP for high-value transfers (Phase 5).
@@ -1131,6 +1141,7 @@ export class WalletService {
           type: "TRANSFER_SENT",
           amount: totalDeduction,
           fee,
+          balanceBefore: senderCurrent.coinBalance,
           balance: updatedSender.coinBalance,
           status: "COMPLETED",
           description: buildTransactionDescription(TX_TYPES.TRANSFER_SENT, safeAmount, receiverLabel, note),
@@ -1147,6 +1158,7 @@ export class WalletService {
           type: "TRANSFER_RECEIVED",
           amount: netReceived,
           fee: 0,
+          balanceBefore: receiverCurrent.coinBalance,
           balance: updatedReceiver.coinBalance,
           status: "COMPLETED",
           description: buildTransactionDescription(TX_TYPES.TRANSFER_RECEIVED, netReceived, senderLabel),
