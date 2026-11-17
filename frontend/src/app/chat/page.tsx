@@ -2925,7 +2925,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               )}
               <div className="flex items-center gap-1.5 bg-transparent px-0 py-0">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
-                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
+                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
                 <input ref={musicInputRef} type="file" className="hidden" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" onChange={handleMusicAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
