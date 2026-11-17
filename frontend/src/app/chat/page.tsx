@@ -335,7 +335,7 @@ export default function MessagesPage() {
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
   // Poll voting is not supported by this backend yet. Keep the attachment sheet
   // intact, but do not create messages that can only appear as raw JSON.
-  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[] } | null>(null);
+  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean } | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
@@ -1287,7 +1287,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
     if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
     if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
-    const sent = await sendSpecialMessage('POLL', { question, options, votes: [] }, 'Poll');
+    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, votes: [] }, 'Poll');
     if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
   };
 
@@ -2611,7 +2611,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
                               <p className="text-sm font-semibold text-white">{poll.question}</p>
-                              <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · Choose one option</p>
+                              <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · {msg.content && (() => { try { return JSON.parse(msg.content).allowMultiple ? 'Choose all that apply' : 'Choose one option'; } catch { return 'Choose one option'; } })()}</p>
                               <div className="mt-2 flex flex-col gap-1.5">
                                 {poll.options.map((option, optionIndex) => {
                                   const votes = msg.pollVotes ?? [];
@@ -2839,7 +2839,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={24}/></span>
                         <span className="text-xs font-semibold text-white">Location</span>
                       </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''] }); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false }); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/15 text-sky-300"><BarChart3 size={24}/></span>
                         <span className="text-xs font-semibold text-white">Poll</span>
                       </button>
@@ -2868,6 +2868,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
                     <input value={pollDraft.question} onChange={event => setPollDraft(draft => draft ? { ...draft, question: event.target.value } : draft)} maxLength={200} placeholder="Ask a question" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                    <label className="mt-3 flex items-center gap-2 text-xs text-white/70">
+                      <input type="checkbox" checked={pollDraft.allowMultiple} onChange={event => setPollDraft(draft => draft ? { ...draft, allowMultiple: event.target.checked } : draft)} className="accent-[#d6a83f]" />
+                      Allow multiple answers
+                    </label>
                     <div className="mt-2 flex flex-col gap-2">
                       {pollDraft.options.map((option, optionIndex) => (
                         <div key={optionIndex} className="flex items-center gap-2">
