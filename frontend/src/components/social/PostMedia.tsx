@@ -8,6 +8,7 @@ import { resolveMediaUrl } from '@/lib/mediaUrl';
 export interface PostAttachment {
   id?: string;
   url: string;
+  poster?: string;
   type?: string;
   mimeType?: string;
 }
@@ -158,7 +159,7 @@ export default function PostMedia({
           muted={muted}
           loop
           playsInline
-          preload={preload}
+          preload={poster ? preload : 'auto'}
           onClick={togglePlay}
           onDoubleClick={onDoubleClick}
           onTimeUpdate={(event) => {
@@ -269,6 +270,7 @@ export function PostMediaCarousel({
     return (
       <PostMedia
         src={only.url}
+        poster={only.poster}
         isVideo={isVideoAttachment(only)}
         alt={alt}
         autoplayOnView={autoplayOnView}
@@ -286,6 +288,7 @@ export function PostMediaCarousel({
       <PostMedia
         key={active.url + index}
         src={active.url}
+        poster={active.poster}
         isVideo={isVideoAttachment(active)}
         alt={alt}
         autoplayOnView={autoplayOnView}
