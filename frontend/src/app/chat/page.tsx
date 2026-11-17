@@ -399,6 +399,41 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
   // Toggles the compact Camera / Photos / Files attachment sheet above the composer.
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  const [cameraPreviewError, setCameraPreviewError] = useState<string | null>(null);
+  const cameraPreviewRef = useRef<HTMLVideoElement>(null);
+  const cameraPreviewStreamRef = useRef<MediaStream | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const stopPreview = () => {
+      cameraPreviewStreamRef.current?.getTracks().forEach(track => track.stop());
+      cameraPreviewStreamRef.current = null;
+      if (cameraPreviewRef.current) cameraPreviewRef.current.srcObject = null;
+    };
+    if (!showAttachmentSheet) {
+      stopPreview();
+      setCameraPreviewError(null);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraPreviewError('Live camera preview is not available here. Use Camera to open your device camera.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(stream => {
+        if (cancelled) { stream.getTracks().forEach(track => track.stop()); return; }
+        cameraPreviewStreamRef.current = stream;
+        if (cameraPreviewRef.current) {
+          cameraPreviewRef.current.srcObject = stream;
+          void cameraPreviewRef.current.play().catch(() => undefined);
+        }
+        setCameraPreviewError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setCameraPreviewError('Allow camera access to use the live preview, or tap Camera to open the device camera.');
+      });
+    return () => { cancelled = true; stopPreview(); };
+  }, [showAttachmentSheet]);
+
   const uploadAbortRef = useRef<AbortController | null>(null);
   // Retains local files + preview URLs for in-chat media messages that are
   // still uploading (or failed), so a retry can re-upload the same files.
@@ -1489,6 +1524,28 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (documentInputs.length) {
       setAttachmentDrafts(previous => addDrafts(previous, documentInputs, file => URL.createObjectURL(file)));
     }
+  };
+
+  const captureLivePhoto = () => {
+    const video = cameraPreviewRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      showToast?.({ type: 'error', title: 'Camera not ready', message: 'Wait for the live preview, then try again.' });
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (!blob) { showToast?.({ type: 'error', title: 'Photo failed', message: 'Could not capture this photo. Try again.' }); return; }
+      const file = new File([blob], `vanta-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setAttachmentDrafts(previous => [...previous, {
+        file, previewUrl: URL.createObjectURL(file), fileType: 'IMAGE', progress: 0, status: 'ready',
+        id: typeof crypto !== 'undefined' && crypto?.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`,
+      }]);
+    }, 'image/jpeg', 0.92);
   };
 
   /** Open the native device camera for a photo or video. */
@@ -2757,6 +2814,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <p className="mt-1 text-[11px] text-white/45">Choose how you want to attach it</p>
                       </div>
                       <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
+                    </div>
+                    <div className="mb-3 overflow-hidden rounded-xl bg-black">
+                      <video ref={cameraPreviewRef} autoPlay playsInline muted className="max-h-52 min-h-32 w-full object-cover" />
+                      {cameraPreviewError && <p className="px-3 py-2 text-[10px] text-white/55">{cameraPreviewError}</p>}
+                      <div className="flex items-center justify-center gap-3 border-t border-white/10 px-3 py-2">
+                        <button type="button" onClick={captureLivePhoto} disabled={Boolean(cameraPreviewError) || isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40">Take photo</button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-[68px] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
