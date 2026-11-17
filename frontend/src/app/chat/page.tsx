@@ -77,6 +77,7 @@ interface Message {
   text: string;
   type?: string;
   legacyPoll?: { question: string; options: string[] } | null;
+  pollVotes?: Array<{ userId: string; optionIndex: number }>;
   sender: { id: string; username: string; avatar?: string; verified?: boolean; fullName?: string; };
   timestamp: string;
   read: boolean;
@@ -138,6 +139,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
     } catch { /* ordinary text */ }
   }
   let legacyPoll: { question: string; options: string[] } | null = null;
+  let pollVotes: Array<{ userId: string; optionIndex: number }> = [];
   let pollPayload = false;
   if (typeof content === 'string' && (msg.type == null || ['TEXT', 'POLL'].includes(String(msg.type).toUpperCase()))) {
     try {
@@ -145,6 +147,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
       pollPayload = Boolean(parsed && typeof parsed === 'object' && ('question' in parsed || 'options' in parsed));
       if (parsed && typeof parsed.question === 'string' && parsed.question.trim() && Array.isArray(parsed.options) && parsed.options.length >= 2 && parsed.options.length <= 10 && parsed.options.every((option: unknown) => typeof option === 'string' && option.trim())) {
         legacyPoll = { question: parsed.question.trim(), options: parsed.options.map((option: string) => option.trim()) };
+        pollVotes = Array.isArray(parsed.votes) ? parsed.votes.filter((vote: any) => vote && typeof vote.userId === 'string' && Number.isInteger(vote.optionIndex) && vote.optionIndex >= 0 && vote.optionIndex < parsed.options.length) : [];
       }
     } catch { /* ordinary text */ }
   }
@@ -183,6 +186,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
     isOwn: (msg.senderId ?? msg.sender?.id) === currentUserId,
     attachments,
     reactions: msg.reactions ?? [],
+    pollVotes,
     replyTo: msg.replyTo,
   };
 };
@@ -1243,9 +1247,24 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const submitPoll = async () => {
-    setPollDraft(null);
-    setShowAttachmentSheet(false);
-    showToast?.({ type: 'info', title: 'Polls unavailable', message: 'Polls cannot be created until voting is supported.' });
+    if (!pollDraft) return;
+    const question = pollDraft.question.trim();
+    const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
+    if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
+    if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
+    const sent = await sendSpecialMessage('POLL', { question, options, votes: [] }, 'Poll');
+    if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
+  };
+
+  const voteOnPoll = async (message: Message, optionIndex: number) => {
+    if (!token || !message.id || message.pending || message.failed) return;
+    try {
+      const result = await apiPost<any>(`/api/messages/poll/${encodeURIComponent(message.id)}/vote`, { optionIndex }, token);
+      const saved = normalizeMessage(result.data ?? result.message ?? result);
+      setMessages(previous => previous.map(item => item.id === message.id ? saved : item));
+    } catch (err: any) {
+      showToast?.({ type: 'error', title: 'Vote not saved', message: errorMessage(err, { action: 'save your vote', fallback: 'Please try again.' }) });
+    }
   };
 
   const searchContacts = async (query: string) => {
@@ -2535,11 +2554,20 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
                               <p className="text-sm font-semibold text-white">{poll.question}</p>
-                              <p className="mt-0.5 text-[10px] text-white/40">{poll.options.length ? 'Voting isn’t available for this poll.' : 'Poll details aren’t available.'}</p>
+                              <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · Choose one option</p>
                               <div className="mt-2 flex flex-col gap-1.5">
-                                {poll.options.map((option, optionIndex) => (
-                                  <div key={optionIndex} className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs text-white/85">{option}</div>
-                                ))}
+                                {poll.options.map((option, optionIndex) => {
+                                  const votes = msg.pollVotes ?? [];
+                                  const count = votes.filter(vote => vote.optionIndex === optionIndex).length;
+                                  const selected = votes.some(vote => vote.userId === user?.id && vote.optionIndex === optionIndex);
+                                  const percent = votes.length ? Math.round(count / votes.length * 100) : 0;
+                                  return (
+                                    <button key={optionIndex} type="button" onClick={() => void voteOnPoll(msg, optionIndex)} disabled={Boolean(msg.pending || msg.failed)} className={cn('relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-xs transition disabled:opacity-60', selected ? 'border-[#d6a83f]/60 bg-[#d6a83f]/10 text-white' : 'border-white/[0.1] bg-white/[0.03] text-white/85 hover:bg-white/[0.07]')}>
+                                      <span className="absolute inset-y-0 left-0 bg-[#d6a83f]/10" style={{ width: `${percent}%` }} />
+                                      <span className="relative flex items-center justify-between gap-3"><span>{option}</span><span className="shrink-0 text-[10px] text-white/55">{count} · {percent}%</span></span>
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
@@ -2730,8 +2758,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                       <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
-                    <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-3">
-                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-[68px] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
                         <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={24}/></span>
                         <span className="text-xs font-semibold text-white">Camera</span>
                       </button>
