@@ -150,7 +150,7 @@ class MainActivity : Activity() {
                 }
 
                 override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
-                    if (!isTrustedPage(url) || request.origin.host != VANTA_HOST) {
+                    if (!isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
                         request.deny()
                         return
                     }
@@ -195,7 +195,13 @@ class MainActivity : Activity() {
                         .distinct()
                         .toTypedArray()
 
-                    showNativeAttachmentPicker()
+                    val accepted = acceptedFileTypes
+                    val mediaOnly = accepted.isNotEmpty() && accepted.all { it.startsWith("image/") || it.startsWith("video/") }
+                    when {
+                        mediaOnly && fileChooserParams.isCaptureEnabled -> launchCamera()
+                        mediaOnly -> launchPhotos()
+                        else -> launchFiles()
+                    }
                     return true
                 }
             }
