@@ -392,7 +392,7 @@ export class ChatService {
       }
     }
 
-    const safeContent = cleanContent(content);
+    let safeContent = cleanContent(content);
     if (type === "POLL") {
       let poll: any;
       try { poll = JSON.parse(safeContent); } catch { throw new Error("Poll data is invalid"); }
@@ -404,7 +404,7 @@ export class ChatService {
       poll.votes = [];
       poll.allowMultiple = poll.allowMultiple === true;
       // Persist a normalized poll payload; never trust client-supplied vote totals.
-      content = JSON.stringify(poll);
+      safeContent = JSON.stringify(poll);
     }
     const permissions = conversationPermissions(conversation.permissions);
     const isAdministrator = ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role);
