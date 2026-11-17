@@ -554,7 +554,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
 
         {(isHomePage || isDiscoverPage || pathname === '/profile' || (pathname?.startsWith('/profile/') && !isEditProfilePage)) && (
-          <button type="button" onClick={openCreateHub} aria-label="Create" className="vanta-floating-action fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-[52px] w-[52px] place-items-center">
+          <button type="button" onClick={openCreateHub} aria-label="Create" style={{ bottom: 'calc(5.25rem + max(env(safe-area-inset-bottom), var(--vanta-native-safe-bottom, 0px)))' }} className="vanta-floating-action fixed right-4 z-40 grid h-[52px] w-[52px] place-items-center">
             <Plus size={25} strokeWidth={2.5} />
           </button>
         )}
@@ -566,7 +566,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             exit={{ y: '100%', opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeInOut' }}
             style={{ pointerEvents: bottomNavHidden ? 'none' : 'auto' }}
-            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[var(--nav-surface)] pb-[env(safe-area-inset-bottom)] shadow-none will-change-transform"
+            className="fixed inset-x-0 bottom-[var(--vanta-kb,0px)] z-40 w-full border-t border-white/[0.10] bg-[var(--nav-surface)] pb-[max(env(safe-area-inset-bottom),var(--vanta-native-safe-bottom,0px))] shadow-none will-change-transform"
             aria-label="Mobile navigation"
           >
             <div className="mx-auto grid min-h-16 w-full max-w-5xl grid-cols-5 items-center px-2 pt-1">
