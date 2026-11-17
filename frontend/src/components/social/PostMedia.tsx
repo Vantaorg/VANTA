@@ -159,7 +159,16 @@ export default function PostMedia({
           muted={muted}
           loop
           playsInline
-          preload={poster ? preload : 'auto'}
+          preload={preload}
+          onLoadedMetadata={(event) => {
+            const element = event.currentTarget;
+            // When older uploads have no generated poster, seek a tiny amount
+            // into the clip so WebView/Chromium decodes a visible preview frame
+            // without downloading the whole video or autoplaying it.
+            if (!poster && element.currentTime === 0 && Number.isFinite(element.duration) && element.duration > 0) {
+              try { element.currentTime = Math.min(0.1, element.duration / 2); } catch { /* metadata-only preview */ }
+            }
+          }}
           onClick={togglePlay}
           onDoubleClick={onDoubleClick}
           onTimeUpdate={(event) => {
