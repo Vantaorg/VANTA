@@ -42,6 +42,7 @@ import android.widget.TextView
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var acceptedFileTypes: Array<String> = emptyArray()
@@ -122,6 +123,11 @@ class MainActivity : Activity() {
                         runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
                     }
                     return true
+                }
+
+                override fun onPageFinished(view: WebView, url: String?) {
+                    super.onPageFinished(view, url)
+                    applySystemBottomInset()
                 }
 
                 override fun onReceivedSslError(
@@ -222,11 +228,12 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             root.setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                // The web app already applies env(safe-area-inset-bottom) to its fixed
-                // navigation. Applying the Android bottom inset here as well
-                // shrinks the WebView and double-counts the safe area, lifting
-                // the entire bottom navigation too far above the system bar.
+                // Keep the WebView edge-to-edge. Pass the Android bottom inset
+                // to CSS instead of shrinking the WebView; fixed navigation can
+                // then reserve the inset exactly once (without double-counting).
+                systemBottomInsetPx = bars.bottom
                 view.setPadding(bars.left, bars.top, bars.right, 0)
+                webView.post { applySystemBottomInset() }
                 insets
             }
         }
@@ -268,6 +275,14 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    private fun applySystemBottomInset() {
+        if (!::webView.isInitialized) return
+        webView.evaluateJavascript(
+            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${systemBottomInsetPx}px')",
+            null
+        )
     }
 
     private fun isTrustedPage(url: String?): Boolean {
