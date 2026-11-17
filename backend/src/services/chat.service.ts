@@ -482,9 +482,16 @@ export class ChatService {
         vote && typeof vote.userId === "string" && Number.isInteger(vote.optionIndex) &&
         vote.optionIndex >= 0 && vote.optionIndex < payload.options.length
       ) : [];
-      const previousVote = votes.find((vote: any) => vote.userId === userId);
-      if (previousVote?.optionIndex === optionIndex) return message;
-      payload.votes = [...votes.filter((vote: any) => vote.userId !== userId), { userId, optionIndex }];
+      if (payload.allowMultiple === true) {
+        const alreadySelected = votes.some((vote: any) => vote.userId === userId && vote.optionIndex === optionIndex);
+        payload.votes = alreadySelected
+          ? votes.filter((vote: any) => !(vote.userId === userId && vote.optionIndex === optionIndex))
+          : [...votes, { userId, optionIndex }];
+      } else {
+        const previousVote = votes.find((vote: any) => vote.userId === userId);
+        if (previousVote?.optionIndex === optionIndex) return message;
+        payload.votes = [...votes.filter((vote: any) => vote.userId !== userId), { userId, optionIndex }];
+      }
       const updated = await prisma.message.updateMany({
         where: { id: message.id, content: message.content, type: "POLL" },
         data: { content: JSON.stringify(payload) },
