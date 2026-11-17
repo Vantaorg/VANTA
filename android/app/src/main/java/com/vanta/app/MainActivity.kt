@@ -2,6 +2,8 @@ package com.vanta.app
 
 import android.app.Activity
 import android.app.Dialog
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.ClipData
@@ -40,16 +42,30 @@ import android.widget.TextView
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var acceptedFileTypes: Array<String> = emptyArray()
+    private var pendingGeolocationCallback: android.webkit.GeolocationPermissions.Callback? = null
+    private var pendingGeolocationOrigin: String? = null
+    private var pendingWebPermissionRequest: android.webkit.PermissionRequest? = null
 
     companion object {
-        private const val VANTA_ORIGIN = "https://vanta-nu.vercel.app"
-        private const val VANTA_HOST = "vanta-nu.vercel.app"
+        private const val PRODUCTION_ORIGIN = "https://vanta-nu.vercel.app"
+        // Debug APKs use the matching Vercel PR preview so frontend fixes are
+        // actually exercised on-device. Release builds always use production.
+        private const val DEBUG_ORIGIN = "https://vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        private val VANTA_ORIGIN: String
+            get() = if (BuildConfig.DEBUG) DEBUG_ORIGIN else PRODUCTION_ORIGIN
+        private val VANTA_HOSTS = setOf(
+            "vanta-nu.vercel.app",
+            "vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        )
         private const val FILE_CHOOSER_REQUEST = 4107
         private const val CAMERA_REQUEST = 4108
         private const val CAMERA_URI_STATE = "vanta.pending.camera.uri"
+        private const val LOCATION_PERMISSION_REQUEST = 4109
+        private const val WEB_MEDIA_PERMISSION_REQUEST = 4110
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,12 +117,17 @@ class MainActivity : Activity() {
                 ): Boolean {
                     if (!request.isForMainFrame) return false
                     val uri = request.url
-                    if (uri.scheme == "https" && uri.host == VANTA_HOST) return false
+                    if (uri.scheme == "https" && uri.host in VANTA_HOSTS) return false
 
                     if (uri.scheme == "https") {
                         runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
                     }
                     return true
+                }
+
+                override fun onPageFinished(view: WebView, url: String?) {
+                    super.onPageFinished(view, url)
+                    applySystemBottomInset()
                 }
 
                 override fun onReceivedSslError(
@@ -119,6 +140,56 @@ class MainActivity : Activity() {
             }
 
             webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String,
+                    callback: android.webkit.GeolocationPermissions.Callback
+                ) {
+                    if (!isTrustedPage(origin)) {
+                        callback.invoke(origin, false, false)
+                        return
+                    }
+                    val fineGranted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    val coarseGranted = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    if (fineGranted || coarseGranted) {
+                        callback.invoke(origin, true, false)
+                        return
+                    }
+                    pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+                    pendingGeolocationCallback = callback
+                    pendingGeolocationOrigin = origin
+                    requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                        LOCATION_PERMISSION_REQUEST
+                    )
+                }
+
+                override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
+                    if (!isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
+                        request.deny()
+                        return
+                    }
+                    val wantsVideo = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                    val wantsAudio = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                    if (!wantsVideo && !wantsAudio) {
+                        request.deny()
+                        return
+                    }
+                    val permissions = mutableListOf<String>()
+                    if (wantsVideo && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        permissions.add(Manifest.permission.CAMERA)
+                    }
+                    if (wantsAudio && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        permissions.add(Manifest.permission.RECORD_AUDIO)
+                    }
+                    if (permissions.isEmpty()) {
+                        request.grant(request.resources)
+                    } else {
+                        pendingWebPermissionRequest?.deny()
+                        pendingWebPermissionRequest = request
+                        requestPermissions(permissions.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
+                    }
+                }
+
                 override fun onShowFileChooser(
                     view: WebView,
                     filePathCallback: android.webkit.ValueCallback<Array<Uri>>,
@@ -138,7 +209,13 @@ class MainActivity : Activity() {
                         .distinct()
                         .toTypedArray()
 
-                    showNativeAttachmentPicker()
+                    val accepted = acceptedFileTypes
+                    val mediaOnly = accepted.isNotEmpty() && accepted.all { it.startsWith("image/") || it.startsWith("video/") }
+                    when {
+                        mediaOnly && fileChooserParams.isCaptureEnabled -> launchCamera()
+                        mediaOnly -> launchPhotos()
+                        else -> launchFiles()
+                    }
                     return true
                 }
             }
@@ -151,7 +228,12 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             root.setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                // Keep the WebView edge-to-edge. Pass the Android bottom inset
+                // to CSS instead of shrinking the WebView; fixed navigation can
+                // then reserve the inset exactly once (without double-counting).
+                systemBottomInsetPx = bars.bottom
+                view.setPadding(bars.left, bars.top, bars.right, 0)
+                webView.post { applySystemBottomInset() }
                 insets
             }
         }
@@ -165,10 +247,48 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST -> {
+                val granted = grantResults.indices.any { index ->
+                    grantResults[index] == PackageManager.PERMISSION_GRANTED &&
+                        (permissions[index] == Manifest.permission.ACCESS_FINE_LOCATION ||
+                            permissions[index] == Manifest.permission.ACCESS_COARSE_LOCATION)
+                }
+                pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, granted, false)
+                pendingGeolocationCallback = null
+                pendingGeolocationOrigin = null
+            }
+            WEB_MEDIA_PERMISSION_REQUEST -> {
+                val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+                val request = pendingWebPermissionRequest
+                pendingWebPermissionRequest = null
+                if (granted && request != null && isTrustedPage(webView.url)) {
+                    request.grant(request.resources)
+                } else {
+                    request?.deny()
+                }
+            }
+        }
+    }
+
+    private fun applySystemBottomInset() {
+        if (!::webView.isInitialized) return
+        webView.evaluateJavascript(
+            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${systemBottomInsetPx}px')",
+            null
+        )
+    }
+
     private fun isTrustedPage(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
         val uri = Uri.parse(url)
-        return uri.scheme == "https" && uri.host == VANTA_HOST
+        return uri.scheme == "https" && uri.host in VANTA_HOSTS
     }
 
     private fun showNativeAttachmentPicker() {
@@ -467,6 +587,10 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         pendingFileCallback?.onReceiveValue(null)
         pendingFileCallback = null
+        pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+        pendingGeolocationCallback = null
+        pendingWebPermissionRequest?.deny()
+        pendingWebPermissionRequest = null
         if (isFinishing) {
             pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             pendingCameraUri = null

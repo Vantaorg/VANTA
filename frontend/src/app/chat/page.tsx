@@ -77,6 +77,7 @@ interface Message {
   text: string;
   type?: string;
   legacyPoll?: { question: string; options: string[] } | null;
+  pollVotes?: Array<{ userId: string; optionIndex: number }>;
   sender: { id: string; username: string; avatar?: string; verified?: boolean; fullName?: string; };
   timestamp: string;
   read: boolean;
@@ -138,6 +139,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
     } catch { /* ordinary text */ }
   }
   let legacyPoll: { question: string; options: string[] } | null = null;
+  let pollVotes: Array<{ userId: string; optionIndex: number }> = [];
   let pollPayload = false;
   if (typeof content === 'string' && (msg.type == null || ['TEXT', 'POLL'].includes(String(msg.type).toUpperCase()))) {
     try {
@@ -145,6 +147,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
       pollPayload = Boolean(parsed && typeof parsed === 'object' && ('question' in parsed || 'options' in parsed));
       if (parsed && typeof parsed.question === 'string' && parsed.question.trim() && Array.isArray(parsed.options) && parsed.options.length >= 2 && parsed.options.length <= 10 && parsed.options.every((option: unknown) => typeof option === 'string' && option.trim())) {
         legacyPoll = { question: parsed.question.trim(), options: parsed.options.map((option: string) => option.trim()) };
+        pollVotes = Array.isArray(parsed.votes) ? parsed.votes.filter((vote: any) => vote && typeof vote.userId === 'string' && Number.isInteger(vote.optionIndex) && vote.optionIndex >= 0 && vote.optionIndex < parsed.options.length) : [];
       }
     } catch { /* ordinary text */ }
   }
@@ -183,6 +186,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
     isOwn: (msg.senderId ?? msg.sender?.id) === currentUserId,
     attachments,
     reactions: msg.reactions ?? [],
+    pollVotes,
     replyTo: msg.replyTo,
   };
 };
@@ -329,9 +333,8 @@ export default function MessagesPage() {
   const [autoDeleteSeconds, setAutoDeleteSeconds] = useState(0);
   const [customDeleteDays, setCustomDeleteDays] = useState('2');
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
-  // Poll voting is not supported by this backend yet. Keep the attachment sheet
-  // intact, but do not create messages that can only appear as raw JSON.
-  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[] } | null>(null);
+  // Polls are stored as typed chat messages with server-validated vote payloads.
+  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean } | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
@@ -395,6 +398,41 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [attachmentDrafts, setAttachmentDrafts] = useState<AttachmentDraft[]>([]);
   // Toggles the compact Camera / Photos / Files attachment sheet above the composer.
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  const [cameraPreviewError, setCameraPreviewError] = useState<string | null>(null);
+  const cameraPreviewRef = useRef<HTMLVideoElement>(null);
+  const cameraPreviewStreamRef = useRef<MediaStream | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const stopPreview = () => {
+      cameraPreviewStreamRef.current?.getTracks().forEach(track => track.stop());
+      cameraPreviewStreamRef.current = null;
+      if (cameraPreviewRef.current) cameraPreviewRef.current.srcObject = null;
+    };
+    if (!showAttachmentSheet) {
+      stopPreview();
+      setCameraPreviewError(null);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraPreviewError('Live camera preview is not available here. Use Camera to open your device camera.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(stream => {
+        if (cancelled) { stream.getTracks().forEach(track => track.stop()); return; }
+        cameraPreviewStreamRef.current = stream;
+        if (cameraPreviewRef.current) {
+          cameraPreviewRef.current.srcObject = stream;
+          void cameraPreviewRef.current.play().catch(() => undefined);
+        }
+        setCameraPreviewError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setCameraPreviewError('Allow camera access to use the live preview, or tap Camera to open the device camera.');
+      });
+    return () => { cancelled = true; stopPreview(); };
+  }, [showAttachmentSheet]);
+
   const uploadAbortRef = useRef<AbortController | null>(null);
   // Retains local files + preview URLs for in-chat media messages that are
   // still uploading (or failed), so a retry can re-upload the same files.
@@ -1243,9 +1281,24 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const submitPoll = async () => {
-    setPollDraft(null);
-    setShowAttachmentSheet(false);
-    showToast?.({ type: 'info', title: 'Polls unavailable', message: 'Polls cannot be created until voting is supported.' });
+    if (!pollDraft) return;
+    const question = pollDraft.question.trim();
+    const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
+    if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
+    if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
+    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, votes: [] }, 'Poll');
+    if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
+  };
+
+  const voteOnPoll = async (message: Message, optionIndex: number) => {
+    if (!token || !message.id || message.pending || message.failed) return;
+    try {
+      const result = await apiPost<any>(`/api/messages/poll/${encodeURIComponent(message.id)}/vote`, { optionIndex }, token);
+      const saved = normalizeMessage(result.data ?? result.message ?? result);
+      setMessages(previous => previous.map(item => item.id === message.id ? saved : item));
+    } catch (err: any) {
+      showToast?.({ type: 'error', title: 'Vote not saved', message: errorMessage(err, { action: 'save your vote', fallback: 'Please try again.' }) });
+    }
   };
 
   const searchContacts = async (query: string) => {
@@ -1470,6 +1523,28 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (documentInputs.length) {
       setAttachmentDrafts(previous => addDrafts(previous, documentInputs, file => URL.createObjectURL(file)));
     }
+  };
+
+  const captureLivePhoto = () => {
+    const video = cameraPreviewRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      showToast?.({ type: 'error', title: 'Camera not ready', message: 'Wait for the live preview, then try again.' });
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (!blob) { showToast?.({ type: 'error', title: 'Photo failed', message: 'Could not capture this photo. Try again.' }); return; }
+      const file = new File([blob], `vanta-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setAttachmentDrafts(previous => [...previous, {
+        file, previewUrl: URL.createObjectURL(file), fileType: 'IMAGE', progress: 0, status: 'ready',
+        id: typeof crypto !== 'undefined' && crypto?.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`,
+      }]);
+    }, 'image/jpeg', 0.92);
   };
 
   /** Open the native device camera for a photo or video. */
@@ -2535,11 +2610,21 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
                               <p className="text-sm font-semibold text-white">{poll.question}</p>
-                              <p className="mt-0.5 text-[10px] text-white/40">{poll.options.length ? 'Voting isn’t available for this poll.' : 'Poll details aren’t available.'}</p>
+                              <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · {msg.content && (() => { try { return JSON.parse(msg.content).allowMultiple ? 'Choose all that apply' : 'Choose one option'; } catch { return 'Choose one option'; } })()}</p>
                               <div className="mt-2 flex flex-col gap-1.5">
-                                {poll.options.map((option, optionIndex) => (
-                                  <div key={optionIndex} className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs text-white/85">{option}</div>
-                                ))}
+                                {poll.options.map((option, optionIndex) => {
+                                  const votes = msg.pollVotes ?? [];
+                                  const count = votes.filter(vote => vote.optionIndex === optionIndex).length;
+                                  const selected = votes.some(vote => vote.userId === user?.id && vote.optionIndex === optionIndex);
+                                  const totalVoters = new Set(votes.map(vote => vote.userId)).size;
+                                  const percent = totalVoters ? Math.round(count / totalVoters * 100) : 0;
+                                  return (
+                                    <button key={optionIndex} type="button" onClick={() => void voteOnPoll(msg, optionIndex)} disabled={Boolean(msg.pending || msg.failed)} className={cn('relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-xs transition disabled:opacity-60', selected ? 'border-[#d6a83f]/60 bg-[#d6a83f]/10 text-white' : 'border-white/[0.1] bg-white/[0.03] text-white/85 hover:bg-white/[0.07]')}>
+                                      <span className="absolute inset-y-0 left-0 bg-[#d6a83f]/10" style={{ width: `${percent}%` }} />
+                                      <span className="relative flex items-center justify-between gap-3"><span>{option}</span><span className="shrink-0 text-[10px] text-white/55">{count} · {percent}%</span></span>
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
@@ -2717,8 +2802,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   })()}
                 </div>
               )}
-              {/* Browser fallback picker. The installed Android app opens the native
-                  Camera / Photos / Files sheet from MainActivity instead. */}
+              {/* Unified attachment sheet: live camera preview plus one compact action strip. */}
               {showAttachmentSheet && (
                 <>
                   <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-[60] bg-black/55" />
@@ -2730,39 +2814,21 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       </div>
                       <button type="button" onClick={() => setShowAttachmentSheet(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
-                    <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-3">
-                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Camera</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><ImageIcon size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Photos</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Files</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Location</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''] }); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/15 text-sky-300"><BarChart3 size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Poll</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-violet-500/15 text-violet-300"><User size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Contact</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Music2 size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Music</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Wallet</span>
-                      </button>
+                    <div className="mb-3 overflow-hidden rounded-xl bg-black">
+                      <video ref={cameraPreviewRef} autoPlay playsInline muted className="max-h-52 min-h-32 w-full object-cover" />
+                      {cameraPreviewError && <p className="px-3 py-2 text-[10px] text-white/55">{cameraPreviewError}</p>}
+                      <div className="flex items-center justify-center gap-3 border-t border-white/10 px-3 py-2">
+                        <button type="button" onClick={captureLivePhoto} disabled={Boolean(cameraPreviewError) || isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40">Take photo</button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto border-t border-white/[0.07] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full bg-[#26384a] px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40"><ImageIcon size={15}/> Gallery</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><FileText size={15}/> Files</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><MapPin size={15}/> Location</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false }); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><BarChart3 size={15}/> Poll</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><User size={15}/> Contact</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><Music2 size={15}/> Music</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><WalletIcon size={15}/> Wallet</button>
                     </div>
                   </section>
                 </>
@@ -2776,6 +2842,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
                     <input value={pollDraft.question} onChange={event => setPollDraft(draft => draft ? { ...draft, question: event.target.value } : draft)} maxLength={200} placeholder="Ask a question" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                    <label className="mt-3 flex items-center gap-2 text-xs text-white/70">
+                      <input type="checkbox" checked={pollDraft.allowMultiple} onChange={event => setPollDraft(draft => draft ? { ...draft, allowMultiple: event.target.checked } : draft)} className="accent-[#d6a83f]" />
+                      Allow multiple answers
+                    </label>
                     <div className="mt-2 flex flex-col gap-2">
                       {pollDraft.options.map((option, optionIndex) => (
                         <div key={optionIndex} className="flex items-center gap-2">
@@ -2830,19 +2900,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               )}
               <div className="flex items-center gap-1.5 bg-transparent px-0 py-0">
                 {/* Hidden native pickers — each invokes a distinct real device capability */}
-                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,.pdf,.doc,.docx,.txt" multiple onChange={handleAttachment} />
+                <input ref={attachmentInputRef} type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleAttachment} />
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
                 <input ref={musicInputRef} type="file" className="hidden" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" onChange={handleMusicAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
-                <button onClick={() => {
-                  const nativeAndroid = typeof navigator !== 'undefined' && navigator.userAgent.includes('VANTAAndroid');
-                  if (nativeAndroid) {
-                    setShowAttachmentSheet(false);
-                    window.requestAnimationFrame(() => attachmentInputRef.current?.click());
-                  } else {
-                    setShowAttachmentSheet(value => !value);
-                  }
-                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-9 w-9 shrink-0 rounded-full bg-white/[0.045] disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
+                <button onClick={() => setShowAttachmentSheet(value => !value)} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-9 w-9 shrink-0 rounded-full bg-white/[0.045] disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
                 <div className="flex-1 relative">
                   <textarea
                     ref={messageInputRef}

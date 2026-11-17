@@ -62,6 +62,7 @@ const relativeTime = (value?: string) => {
 };
 const getAuthor = (item: Item) => item.author || item.user || item.creator || item.host || {};
 const mediaUrl = (item: Item) => resolveMediaUrl(item.media || item.mediaUrl || item.image || item.thumbnail || item.coverUrl || item.playbackUrl);
+const mediaPoster = (item: Item) => resolveMediaUrl(item.thumbnailUrl || item.thumbnail || item.posterUrl || item.previewImageUrl || item.coverUrl || item.previewUrl || '');
 
 /**
  * Ordered media attachments for a post. VANTA multi-media posts return an
@@ -77,12 +78,13 @@ const postAttachments = (item: Item): PostAttachment[] => {
         url: resolveMediaUrl(attachment?.url || attachment?.src || ''),
         type: attachment?.type,
         mimeType: attachment?.mimeType,
+        poster: resolveMediaUrl(attachment?.thumbnailUrl || attachment?.posterUrl || attachment?.previewUrl || ''),
       }))
       .filter((attachment: PostAttachment) => Boolean(attachment.url));
     if (resolved.length > 0) return resolved;
   }
   const single = mediaUrl(item);
-  return single ? [{ url: single }] : [];
+  return single ? [{ url: single, poster: mediaPoster(item) || undefined }] : [];
 };
 export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onMore, feedCompactMedia = false }: FeedPostCardProps) {
   const router = useRouter();
@@ -94,8 +96,10 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const creator = getAuthor(item);
   const creatorAvatar = creator.avatarUrl || creator.profile?.avatarUrl || creator.avatar || creator.profilePicture || '';
   const isOwn = creator.id === currentUserId;
-  const source = mediaUrl(item);
   const attachments = postAttachments(item);
+  const source = mediaUrl(item) || attachments[0]?.url || '';
+  const poster = mediaPoster(item) || attachments[0]?.poster || '';
+  const singleIsVideo = isVideoItem(item) || /video/i.test(String(attachments[0]?.type || attachments[0]?.mimeType || '')) || /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(source);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
@@ -168,7 +172,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
                 feedCompact={feedCompactMedia}
               />
             ) : (
-              <PostMedia src={source} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
+              <PostMedia src={source} poster={poster || undefined} isVideo={singleIsVideo} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
             )}
           </div>
         )}

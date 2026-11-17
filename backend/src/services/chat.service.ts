@@ -392,7 +392,20 @@ export class ChatService {
       }
     }
 
-    const safeContent = cleanContent(content);
+    let safeContent = cleanContent(content);
+    if (type === "POLL") {
+      let poll: any;
+      try { poll = JSON.parse(safeContent); } catch { throw new Error("Poll data is invalid"); }
+      if (!poll || typeof poll.question !== "string" || !poll.question.trim() || poll.question.length > 200 ||
+          !Array.isArray(poll.options) || poll.options.length < 2 || poll.options.length > 10 ||
+          poll.options.some((option: unknown) => typeof option !== "string" || !option.trim() || option.length > 100)) {
+        throw new Error("A poll needs a question and 2 to 10 valid options");
+      }
+      poll.votes = [];
+      poll.allowMultiple = poll.allowMultiple === true;
+      // Persist a normalized poll payload; never trust client-supplied vote totals.
+      safeContent = JSON.stringify(poll);
+    }
     const permissions = conversationPermissions(conversation.permissions);
     const isAdministrator = ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role);
     if (conversation.type === "GROUP" && !isAdministrator) {
@@ -415,7 +428,7 @@ export class ChatService {
       const replyTarget = await prisma.message.findFirst({ where: { id: replyToId, conversationId, moderationRemovedAt: null, deletedAt: null }, select: { id: true } });
       if (!replyTarget) throw new Error("Reply target not found");
     }
-    const allowedTypes = new Set(["TEXT", "IMAGE", "VIDEO", "AUDIO", "FILE", "STORY_REPLY", "CONTACT", "LOCATION", "WALLET"]);
+    const allowedTypes = new Set(["TEXT", "IMAGE", "VIDEO", "AUDIO", "FILE", "STORY_REPLY", "CONTACT", "LOCATION", "WALLET", "POLL"]);
     // Story replies are private direct messages about a specific Story. The
     // client passes snapshot metadata so the reference survives Story expiry.
     const storyReplyRef = storyReply && typeof storyReply.storyId === "string" && storyReply.storyId.length > 0
@@ -456,6 +469,59 @@ export class ChatService {
       return created;
     });
     return protectMessageMedia(message, uploadedFiles, senderId);
+  }
+
+  async voteOnPoll(messageId: string, userId: string, optionIndex: number) {
+    if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex > 9) {
+      throw new Error("Invalid poll option");
+    }
+    // Optimistic compare-and-swap prevents simultaneous votes from overwriting
+    // each other while keeping poll data compatible with the existing Message model.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const message = await prisma.message.findFirst({
+        where: { id: messageId, type: "POLL", deletedAt: null, moderationRemovedAt: null },
+        include: { conversation: { include: { participants: { select: { userId: true } } } } },
+      });
+      if (!message || !message.conversation.participants.some((participant: any) => participant.userId === userId)) {
+        throw new Error("Poll not found or unauthorized");
+      }
+      let payload: any;
+      try { payload = JSON.parse(message.content); } catch { throw new Error("Poll data is invalid"); }
+      if (!payload || typeof payload.question !== "string" || !Array.isArray(payload.options) ||
+          payload.options.length < 2 || payload.options.length > 10 || optionIndex >= payload.options.length) {
+        throw new Error("Poll option not found");
+      }
+      const votes = Array.isArray(payload.votes) ? payload.votes.filter((vote: any) =>
+        vote && typeof vote.userId === "string" && Number.isInteger(vote.optionIndex) &&
+        vote.optionIndex >= 0 && vote.optionIndex < payload.options.length
+      ) : [];
+      if (payload.allowMultiple === true) {
+        const alreadySelected = votes.some((vote: any) => vote.userId === userId && vote.optionIndex === optionIndex);
+        payload.votes = alreadySelected
+          ? votes.filter((vote: any) => !(vote.userId === userId && vote.optionIndex === optionIndex))
+          : [...votes, { userId, optionIndex }];
+      } else {
+        const previousVote = votes.find((vote: any) => vote.userId === userId);
+        payload.votes = previousVote?.optionIndex === optionIndex
+          ? votes
+          : [...votes.filter((vote: any) => vote.userId !== userId), { userId, optionIndex }];
+      }
+      const updated = await prisma.message.updateMany({
+        where: { id: message.id, content: message.content, type: "POLL" },
+        data: { content: JSON.stringify(payload) },
+      });
+      if (updated.count === 1) {
+        await prisma.conversation.update({ where: { id: message.conversationId }, data: { updatedAt: new Date() } });
+        return prisma.message.findUnique({
+          where: { id: message.id },
+          include: {
+            sender: { select: userSelect }, reads: true, attachments: true,
+            reactions: { include: { user: { select: { id: true, username: true } } } },
+          },
+        });
+      }
+    }
+    throw new Error("Poll vote could not be saved. Please try again.");
   }
 
   async editMessage(messageId: string, userId: string, content: string) {

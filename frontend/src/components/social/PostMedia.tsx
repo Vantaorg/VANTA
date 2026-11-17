@@ -8,6 +8,7 @@ import { resolveMediaUrl } from '@/lib/mediaUrl';
 export interface PostAttachment {
   id?: string;
   url: string;
+  poster?: string;
   type?: string;
   mimeType?: string;
 }
@@ -159,6 +160,15 @@ export default function PostMedia({
           loop
           playsInline
           preload={preload}
+          onLoadedMetadata={(event) => {
+            const element = event.currentTarget;
+            // When older uploads have no generated poster, seek a tiny amount
+            // into the clip so WebView/Chromium decodes a visible preview frame
+            // without downloading the whole video or autoplaying it.
+            if (!poster && element.currentTime === 0 && Number.isFinite(element.duration) && element.duration > 0) {
+              try { element.currentTime = Math.min(0.1, element.duration / 2); } catch { /* metadata-only preview */ }
+            }
+          }}
           onClick={togglePlay}
           onDoubleClick={onDoubleClick}
           onTimeUpdate={(event) => {
@@ -269,6 +279,7 @@ export function PostMediaCarousel({
     return (
       <PostMedia
         src={only.url}
+        poster={only.poster}
         isVideo={isVideoAttachment(only)}
         alt={alt}
         autoplayOnView={autoplayOnView}
@@ -286,6 +297,7 @@ export function PostMediaCarousel({
       <PostMedia
         key={active.url + index}
         src={active.url}
+        poster={active.poster}
         isVideo={isVideoAttachment(active)}
         alt={alt}
         autoplayOnView={autoplayOnView}
