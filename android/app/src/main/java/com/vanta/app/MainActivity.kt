@@ -50,8 +50,16 @@ class MainActivity : Activity() {
     private var pendingWebPermissionRequest: android.webkit.PermissionRequest? = null
 
     companion object {
-        private const val VANTA_ORIGIN = "https://vanta-nu.vercel.app"
-        private const val VANTA_HOST = "vanta-nu.vercel.app"
+        private const val PRODUCTION_ORIGIN = "https://vanta-nu.vercel.app"
+        // Debug APKs use the matching Vercel PR preview so frontend fixes are
+        // actually exercised on-device. Release builds always use production.
+        private const val DEBUG_ORIGIN = "https://vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        private val VANTA_ORIGIN: String
+            get() = if (BuildConfig.DEBUG) DEBUG_ORIGIN else PRODUCTION_ORIGIN
+        private val VANTA_HOSTS = setOf(
+            "vanta-nu.vercel.app",
+            "vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        )
         private const val FILE_CHOOSER_REQUEST = 4107
         private const val CAMERA_REQUEST = 4108
         private const val CAMERA_URI_STATE = "vanta.pending.camera.uri"
@@ -108,7 +116,7 @@ class MainActivity : Activity() {
                 ): Boolean {
                     if (!request.isForMainFrame) return false
                     val uri = request.url
-                    if (uri.scheme == "https" && uri.host == VANTA_HOST) return false
+                    if (uri.scheme == "https" && uri.host in VANTA_HOSTS) return false
 
                     if (uri.scheme == "https") {
                         runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
@@ -214,7 +222,11 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             root.setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                // The web app already applies env(safe-area-inset-bottom) to its fixed
+                // navigation. Applying the Android bottom inset here as well
+                // shrinks the WebView and double-counts the safe area, lifting
+                // the entire bottom navigation too far above the system bar.
+                view.setPadding(bars.left, bars.top, bars.right, 0)
                 insets
             }
         }
@@ -261,7 +273,7 @@ class MainActivity : Activity() {
     private fun isTrustedPage(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
         val uri = Uri.parse(url)
-        return uri.scheme == "https" && uri.host == VANTA_HOST
+        return uri.scheme == "https" && uri.host in VANTA_HOSTS
     }
 
     private fun showNativeAttachmentPicker() {
