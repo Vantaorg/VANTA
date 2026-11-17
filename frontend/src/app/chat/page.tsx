@@ -2616,7 +2616,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                                   const votes = msg.pollVotes ?? [];
                                   const count = votes.filter(vote => vote.optionIndex === optionIndex).length;
                                   const selected = votes.some(vote => vote.userId === user?.id && vote.optionIndex === optionIndex);
-                                  const percent = votes.length ? Math.round(count / votes.length * 100) : 0;
+                                  const totalVoters = new Set(votes.map(vote => vote.userId)).size;
+                                  const percent = totalVoters ? Math.round(count / totalVoters * 100) : 0;
                                   return (
                                     <button key={optionIndex} type="button" onClick={() => void voteOnPoll(msg, optionIndex)} disabled={Boolean(msg.pending || msg.failed)} className={cn('relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-xs transition disabled:opacity-60', selected ? 'border-[#d6a83f]/60 bg-[#d6a83f]/10 text-white' : 'border-white/[0.1] bg-white/[0.03] text-white/85 hover:bg-white/[0.07]')}>
                                       <span className="absolute inset-y-0 left-0 bg-[#d6a83f]/10" style={{ width: `${percent}%` }} />
