@@ -2862,15 +2862,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 <input ref={cameraInputRef} type="file" className="hidden" accept="image/*,video/*" capture="environment" onChange={handleAttachment} />
                 <input ref={musicInputRef} type="file" className="hidden" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" onChange={handleMusicAttachment} />
                 <input ref={fileInputRef} type="file" className="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple onChange={handleDocumentAttachment} />
-                <button onClick={() => {
-                  const nativeAndroid = typeof navigator !== 'undefined' && navigator.userAgent.includes('VANTAAndroid');
-                  if (nativeAndroid) {
-                    setShowAttachmentSheet(false);
-                    window.requestAnimationFrame(() => attachmentInputRef.current?.click());
-                  } else {
-                    setShowAttachmentSheet(value => !value);
-                  }
-                }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-9 w-9 shrink-0 rounded-full bg-white/[0.045] disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
+                <button onClick={() => setShowAttachmentSheet(value => !value)} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="btn-icon h-9 w-9 shrink-0 rounded-full bg-white/[0.045] disabled:opacity-50" aria-label="Add attachment">{isUploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={17} />}</button>
                 <div className="flex-1 relative">
                   <textarea
                     ref={messageInputRef}
