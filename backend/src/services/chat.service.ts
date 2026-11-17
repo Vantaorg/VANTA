@@ -502,8 +502,9 @@ export class ChatService {
           : [...votes, { userId, optionIndex }];
       } else {
         const previousVote = votes.find((vote: any) => vote.userId === userId);
-        if (previousVote?.optionIndex === optionIndex) return message;
-        payload.votes = [...votes.filter((vote: any) => vote.userId !== userId), { userId, optionIndex }];
+        payload.votes = previousVote?.optionIndex === optionIndex
+          ? votes
+          : [...votes.filter((vote: any) => vote.userId !== userId), { userId, optionIndex }];
       }
       const updated = await prisma.message.updateMany({
         where: { id: message.id, content: message.content, type: "POLL" },
