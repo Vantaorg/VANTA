@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConversations, getMessages, startConversation, sendMessage, markMessagesRead, searchMessages, editMessage, deleteMessage, getUnreadCount, reactToMessage, setMessagePinned, setConversationMuted, recordCallMessage } from '../controllers/message.controller';
+import { getConversations, getMessages, startConversation, sendMessage, markMessagesRead, searchMessages, editMessage, deleteMessage, getUnreadCount, reactToMessage, setMessagePinned, setConversationMuted, recordCallMessage, voteOnPoll } from '../controllers/message.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
 import { rateLimiter } from '../security/rateLimiter';
 
@@ -24,6 +24,7 @@ router.put('/:conversationId/mute', setConversationMuted);
 router.get('/:conversationId/search', searchMessages);
 router.get('/:conversationId', getMessages);
 router.post('/send', sendMessage);
+router.post('/poll/:messageId/vote', voteOnPoll);
 router.put('/:conversationId/read', markMessagesRead);
 
 export default router;
