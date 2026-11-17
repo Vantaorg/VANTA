@@ -114,6 +114,24 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+export const voteOnPoll = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const optionIndex = Number(req.body?.optionIndex);
+    if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex > 9) {
+      res.status(400).json({ error: 'A valid poll option is required' }); return;
+    }
+    const message = await chatService.voteOnPoll(getParamString(req.params.messageId), userId, optionIndex);
+    if (!message) { res.status(404).json({ error: 'Poll not found' }); return; }
+    await broadcastMessageEvent(message.conversationId, 'message:updated', message);
+    res.json({ data: message });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Poll vote failed';
+    res.status(statusFor(message)).json({ error: message });
+  }
+};
+
 export const reactToMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user?.userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
