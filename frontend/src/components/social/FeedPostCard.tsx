@@ -96,8 +96,10 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const creator = getAuthor(item);
   const creatorAvatar = creator.avatarUrl || creator.profile?.avatarUrl || creator.avatar || creator.profilePicture || '';
   const isOwn = creator.id === currentUserId;
-  const source = mediaUrl(item);
   const attachments = postAttachments(item);
+  const source = mediaUrl(item) || attachments[0]?.url || '';
+  const poster = mediaPoster(item) || attachments[0]?.poster || '';
+  const singleIsVideo = isVideoItem(item) || /video/i.test(String(attachments[0]?.type || attachments[0]?.mimeType || '')) || /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(source);
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
@@ -170,7 +172,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
                 feedCompact={feedCompactMedia}
               />
             ) : (
-              <PostMedia src={source} poster={mediaPoster(item) || undefined} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
+              <PostMedia src={source} poster={poster || undefined} isVideo={singleIsVideo} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
             )}
           </div>
         )}
