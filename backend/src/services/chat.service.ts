@@ -393,6 +393,19 @@ export class ChatService {
     }
 
     const safeContent = cleanContent(content);
+    if (type === "POLL") {
+      let poll: any;
+      try { poll = JSON.parse(safeContent); } catch { throw new Error("Poll data is invalid"); }
+      if (!poll || typeof poll.question !== "string" || !poll.question.trim() || poll.question.length > 200 ||
+          !Array.isArray(poll.options) || poll.options.length < 2 || poll.options.length > 10 ||
+          poll.options.some((option: unknown) => typeof option !== "string" || !option.trim() || option.length > 100)) {
+        throw new Error("A poll needs a question and 2 to 10 valid options");
+      }
+      poll.votes = [];
+      poll.allowMultiple = poll.allowMultiple === true;
+      // Persist a normalized poll payload; never trust client-supplied vote totals.
+      content = JSON.stringify(poll);
+    }
     const permissions = conversationPermissions(conversation.permissions);
     const isAdministrator = ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role);
     if (conversation.type === "GROUP" && !isAdministrator) {
