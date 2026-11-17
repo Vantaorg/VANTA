@@ -333,8 +333,7 @@ export default function MessagesPage() {
   const [autoDeleteSeconds, setAutoDeleteSeconds] = useState(0);
   const [customDeleteDays, setCustomDeleteDays] = useState('2');
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
-  // Poll voting is not supported by this backend yet. Keep the attachment sheet
-  // intact, but do not create messages that can only appear as raw JSON.
+  // Polls are stored as typed chat messages with server-validated vote payloads.
   const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean } | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
@@ -2802,8 +2801,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   })()}
                 </div>
               )}
-              {/* Browser fallback picker. The installed Android app opens the native
-                  Camera / Photos / Files sheet from MainActivity instead. */}
+              {/* Unified attachment sheet: live camera preview plus one compact action strip. */}
               {showAttachmentSheet && (
                 <>
                   <button type="button" aria-label="Close attachment picker" onClick={() => setShowAttachmentSheet(false)} className="fixed inset-0 z-[60] bg-black/55" />
