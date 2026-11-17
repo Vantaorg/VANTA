@@ -2821,39 +2821,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <button type="button" onClick={captureLivePhoto} disabled={Boolean(cameraPreviewError) || isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40">Take photo</button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <button type="button" onClick={openCamera} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex min-w-[68px] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><Camera size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Camera</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><ImageIcon size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Photos</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.08] text-white/80"><FileText size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Files</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#c9a227]/15 text-[#e2bb4c]"><MapPin size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Location</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false }); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-sky-500/15 text-sky-300"><BarChart3 size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Poll</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-violet-500/15 text-violet-300"><User size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Contact</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Music2 size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Music</span>
-                      </button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex flex-col items-center gap-2 rounded-xl px-3 py-2 transition hover:bg-white/[0.05] active:scale-[0.98] disabled:opacity-40">
-                        <span className="grid h-14 w-14 place-items-center rounded-full bg-[#d6a83f]/15 text-[#f2c75c]"><WalletIcon size={24}/></span>
-                        <span className="text-xs font-semibold text-white">Wallet</span>
-                      </button>
+                    <div className="flex items-center gap-2 overflow-x-auto border-t border-white/[0.07] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full bg-[#26384a] px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40"><ImageIcon size={15}/> Gallery</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><FileText size={15}/> Files</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><MapPin size={15}/> Location</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false }); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><BarChart3 size={15}/> Poll</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><User size={15}/> Contact</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><Music2 size={15}/> Music</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><WalletIcon size={15}/> Wallet</button>
                     </div>
                   </section>
                 </>
