@@ -62,6 +62,7 @@ const relativeTime = (value?: string) => {
 };
 const getAuthor = (item: Item) => item.author || item.user || item.creator || item.host || {};
 const mediaUrl = (item: Item) => resolveMediaUrl(item.media || item.mediaUrl || item.image || item.thumbnail || item.coverUrl || item.playbackUrl);
+const mediaPoster = (item: Item) => resolveMediaUrl(item.thumbnailUrl || item.thumbnail || item.posterUrl || item.previewImageUrl || item.coverUrl || item.previewUrl || '');
 
 /**
  * Ordered media attachments for a post. VANTA multi-media posts return an
@@ -77,12 +78,13 @@ const postAttachments = (item: Item): PostAttachment[] => {
         url: resolveMediaUrl(attachment?.url || attachment?.src || ''),
         type: attachment?.type,
         mimeType: attachment?.mimeType,
+        poster: resolveMediaUrl(attachment?.thumbnailUrl || attachment?.posterUrl || attachment?.previewUrl || ''),
       }))
       .filter((attachment: PostAttachment) => Boolean(attachment.url));
     if (resolved.length > 0) return resolved;
   }
   const single = mediaUrl(item);
-  return single ? [{ url: single }] : [];
+  return single ? [{ url: single, poster: mediaPoster(item) || undefined }] : [];
 };
 export default function FeedPostCard({ item, currentUserId, onLike, onSave, onComment, onShare, onGift, onMore, feedCompactMedia = false }: FeedPostCardProps) {
   const router = useRouter();
@@ -168,7 +170,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
                 feedCompact={feedCompactMedia}
               />
             ) : (
-              <PostMedia src={source} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
+              <PostMedia src={source} poster={mediaPoster(item) || undefined} isVideo={isVideoItem(item)} alt={caption || `Post by ${creator.username || 'creator'}`} autoplayOnView={feedAutoplayOn} feedCompact={feedCompactMedia} onDoubleClick={() => { if (!item.liked) onLike(item); }}/>
             )}
           </div>
         )}
