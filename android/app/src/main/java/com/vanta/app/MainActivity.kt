@@ -2,6 +2,8 @@ package com.vanta.app
 
 import android.app.Activity
 import android.app.Dialog
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.ClipData
@@ -43,6 +45,9 @@ class MainActivity : Activity() {
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var acceptedFileTypes: Array<String> = emptyArray()
+    private var pendingGeolocationCallback: android.webkit.GeolocationPermissions.Callback? = null
+    private var pendingGeolocationOrigin: String? = null
+    private var pendingWebPermissionRequest: android.webkit.PermissionRequest? = null
 
     companion object {
         private const val VANTA_ORIGIN = "https://vanta-nu.vercel.app"
@@ -50,6 +55,8 @@ class MainActivity : Activity() {
         private const val FILE_CHOOSER_REQUEST = 4107
         private const val CAMERA_REQUEST = 4108
         private const val CAMERA_URI_STATE = "vanta.pending.camera.uri"
+        private const val LOCATION_PERMISSION_REQUEST = 4109
+        private const val WEB_MEDIA_PERMISSION_REQUEST = 4110
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,6 +126,56 @@ class MainActivity : Activity() {
             }
 
             webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String,
+                    callback: android.webkit.GeolocationPermissions.Callback
+                ) {
+                    if (!isTrustedPage(origin)) {
+                        callback.invoke(origin, false, false)
+                        return
+                    }
+                    val fineGranted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    val coarseGranted = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    if (fineGranted || coarseGranted) {
+                        callback.invoke(origin, true, false)
+                        return
+                    }
+                    pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+                    pendingGeolocationCallback = callback
+                    pendingGeolocationOrigin = origin
+                    requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                        LOCATION_PERMISSION_REQUEST
+                    )
+                }
+
+                override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
+                    if (!isTrustedPage(url) || request.origin.host != VANTA_HOST) {
+                        request.deny()
+                        return
+                    }
+                    val wantsVideo = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                    val wantsAudio = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                    if (!wantsVideo && !wantsAudio) {
+                        request.deny()
+                        return
+                    }
+                    val permissions = mutableListOf<String>()
+                    if (wantsVideo && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        permissions.add(Manifest.permission.CAMERA)
+                    }
+                    if (wantsAudio && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        permissions.add(Manifest.permission.RECORD_AUDIO)
+                    }
+                    if (permissions.isEmpty()) {
+                        request.grant(request.resources)
+                    } else {
+                        pendingWebPermissionRequest?.deny()
+                        pendingWebPermissionRequest = request
+                        requestPermissions(permissions.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
+                    }
+                }
+
                 override fun onShowFileChooser(
                     view: WebView,
                     filePathCallback: android.webkit.ValueCallback<Array<Uri>>,
@@ -162,6 +219,36 @@ class MainActivity : Activity() {
             webView.loadUrl(VANTA_ORIGIN)
         } else {
             webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST -> {
+                val granted = grantResults.indices.any { index ->
+                    grantResults[index] == PackageManager.PERMISSION_GRANTED &&
+                        (permissions[index] == Manifest.permission.ACCESS_FINE_LOCATION ||
+                            permissions[index] == Manifest.permission.ACCESS_COARSE_LOCATION)
+                }
+                pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, granted, false)
+                pendingGeolocationCallback = null
+                pendingGeolocationOrigin = null
+            }
+            WEB_MEDIA_PERMISSION_REQUEST -> {
+                val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+                val request = pendingWebPermissionRequest
+                pendingWebPermissionRequest = null
+                if (granted && request != null && isTrustedPage(webView.url)) {
+                    request.grant(request.resources)
+                } else {
+                    request?.deny()
+                }
+            }
         }
     }
 
@@ -467,6 +554,10 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         pendingFileCallback?.onReceiveValue(null)
         pendingFileCallback = null
+        pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+        pendingGeolocationCallback = null
+        pendingWebPermissionRequest?.deny()
+        pendingWebPermissionRequest = null
         if (isFinishing) {
             pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             pendingCameraUri = null
