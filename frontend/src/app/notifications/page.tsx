@@ -137,7 +137,8 @@ export default function NotificationsPage() {
     setError(false);
     try {
       const response = await apiGet<NotificationResponse>(requestPath(cursor), token, { skipCache: true });
-      const received = Array.isArray(response.items) ? response.items : [];
+      // Direct and group chat messages belong in Chats, not the activity feed.
+      const received = Array.isArray(response.items) ? response.items.filter(item => normalizedTypeOf(item) !== 'message') : [];
       setItems(current => cursor ? [...current, ...received.filter(item => !current.some(existing => existing.id === item.id))] : received);
       setNextCursor(response.nextCursor);
       setAuthoritativeUnreadCount(response.unreadCount);
