@@ -143,7 +143,7 @@ export default function StoryTray({
               fullName: user?.fullName,
               // Auth sessions can expose the Profile table's avatarUrl
               // separately from the legacy User.avatar field.
-              avatar: user?.avatar || user?.avatarUrl || user?.profile?.avatarUrl || user?.profile?.avatar || null,
+              avatar: (typeof user?.avatar === 'string' ? user.avatar : null) || (typeof user?.avatarUrl === 'string' ? user.avatarUrl : null) || (typeof user?.profile?.avatarUrl === 'string' ? user.profile.avatarUrl : null) || (typeof user?.profile?.avatar === 'string' ? user.profile.avatar : null),
               verified: Boolean(user?.verified),
             }}
             stories={ownGroup?.stories || []}
