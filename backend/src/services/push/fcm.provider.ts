@@ -160,7 +160,7 @@ export const fcmProvider: PushProvider = {
     try {
       // sendEachForMulticast resolves with per-token results (HTTP v1): a dead
       // token surfaces as an error entry instead of throwing the whole batch.
-      const batch = await admin.messaging.sendEachForMulticast(message);
+      const batch = await admin.messaging(admin.app).sendEachForMulticast(message);
       const response = batch?.responses?.[0];
       if (response?.success) return { ok: true };
 
