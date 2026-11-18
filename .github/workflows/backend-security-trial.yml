@@ -22,10 +22,12 @@ jobs:
       - name: Generate temporary lockfile
         working-directory: backend
         run: npm install --package-lock-only --ignore-scripts
-      - name: Apply non-breaking npm audit fixes only
+      - name: Trial targeted picomatch override
         working-directory: backend
-        run: npm audit fix
-      - name: Capture remaining audit report
+        run: |
+          node -e "const p=require('./package.json'); p.overrides={...(p.overrides||{}), picomatch:'^4.0.3'}; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2)+'\\n')"
+          npm install --package-lock-only --ignore-scripts
+      - name: Capture remaining audit report (informational)
         working-directory: backend
         run: |
           npm audit --json > audit-report.json || true
