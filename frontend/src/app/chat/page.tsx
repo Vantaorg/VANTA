@@ -1236,14 +1236,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   // Telegram-style rich messages (location / poll / contact / wallet) travel as
   // typed messages with a JSON payload in `content`. Rendering is client-side.
-  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string): Promise<boolean> => {
+  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string, attachments: any[] = []): Promise<boolean> => {
     if (!token || !user || !activeConversation || specialSending) return false;
     setSpecialSending(true);
     const pendingId = `pending-${Date.now()}`;
-    const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, createdAt: new Date().toISOString(), pending: true, pendingLabel });
+    const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, attachments, createdAt: new Date().toISOString(), pending: true, pendingLabel });
     setMessages(previous => [...previous, pending]);
     try {
-      const result = await apiPost<any>('/api/messages/send', { conversationId: activeConversation, content: JSON.stringify(payload), type }, token);
+      const result = await apiPost<any>('/api/messages/send', { conversationId: activeConversation, content: JSON.stringify(payload), type, attachments }, token);
       const saved = normalizeMessage(result.data ?? result.message ?? result);
       setMessages(previous => [...previous.filter(item => item.id !== pendingId && item.id !== saved.id), saved]);
       fetchConversations();
@@ -1293,6 +1293,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
     if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
     let imageUrl: string | undefined;
+    let imageAttachment: any[] = [];
     if (pollDraft.imageFile) {
       if (!token || !activeConversation) return;
       try {
@@ -1301,13 +1302,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         form.append('conversationId', activeConversation);
         const uploaded = await apiUpload<any>('/api/upload/message', form, token);
         imageUrl = uploaded.url ?? uploaded.data?.url;
-        if (!imageUrl) throw new Error('Upload did not return an image URL');
+        const fileId = uploaded.fileId ?? uploaded.id ?? uploaded.data?.fileId;
+        if (!imageUrl || !fileId) throw new Error('Upload did not return a usable image attachment');
+        imageAttachment = [{ fileId, url: imageUrl, fileType: 'IMAGE', fileName: pollDraft.imageFile.name, fileSize: pollDraft.imageFile.size }];
       } catch (err: any) {
         showToast?.({ type: 'error', title: 'Poll image upload failed', message: errorMessage(err, { action: 'upload the poll image', context: 'photo', fallback: 'Please choose another image.' }) });
         return;
       }
     }
-    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, ...(imageUrl ? { imageUrl } : {}), votes: [] }, 'Poll');
+    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, ...(imageUrl ? { imageUrl } : {}), votes: [] }, 'Poll', imageAttachment);
     if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
   };
 
