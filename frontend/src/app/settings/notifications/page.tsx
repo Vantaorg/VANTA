@@ -129,7 +129,9 @@ export default function NotificationSettingsPage() {
   const pushOnThisDevice = push.status === 'enabled' || push.status === 'granted';
   const pushDescription =
     push.status === 'unsupported' || !push.supported
-      ? "OS notifications aren't supported in this browser. Open VANTA on a phone or computer that supports Web Push (Chrome/Android, Safari 16.4+, Edge/Firefox)."
+      ? (typeof navigator !== 'undefined' && /VANTAAndroid/i.test(navigator.userAgent)
+          ? "Native Android notifications aren't connected yet. This app runs inside WebView, which cannot use the browser Web Push setup. VANTA needs Firebase Cloud Messaging (FCM) integration for Android OS notifications."
+          : "OS notifications aren't available in this browser context. Open VANTA in a supported browser, or use the native app once Android push is connected.")
       : push.status === 'unconfigured'
         ? "Push notifications aren't set up on the VANTA server yet. Your browser and app are working — this just needs the server's push keys configured once."
         : push.status === 'network-error'
