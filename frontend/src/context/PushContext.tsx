@@ -56,11 +56,13 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const [permission, setPermission] = useState<PushPermissionState>('default');
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [configIssue, setConfigIssue] = useState<string | null>(null);
+  const [nativeToken, setNativeToken] = useState<string | null>(null);
 
   const refreshing = useRef(false);
   const lastTokenRef = useRef<string | null>(null);
   const nativeTokenRef = useRef<string | null>(null);
   const registeredNativeTokenRef = useRef<string | null>(null);
+  const lastAuthTokenRef = useRef<string | null>(null);
 
   /** Passive sync: register the SW + register the device IF permission is granted. */
   const syncPassive = useCallback(async (requestPermission: boolean): Promise<{ ok: boolean; reason?: string }> => {
@@ -126,7 +128,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     } finally {
       refreshing.current = false;
     }
-  }, [token, user]);
+  }, [token, user, nativeToken]);
 
   useEffect(() => {
     void syncPassive(false);
@@ -137,14 +139,19 @@ export function PushProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const receiveNativeToken = (event: Event) => {
       const value = (event as CustomEvent<{ token?: string }>).detail?.token;
-      if (typeof value === 'string' && value.length >= 20) nativeTokenRef.current = value;
+      if (typeof value === 'string' && value.length >= 20) {
+        nativeTokenRef.current = value;
+        setNativeToken(value);
+        setSupported(true);
+        setStatus('permission-pending');
+      }
     };
     window.addEventListener('vanta-native-fcm-token', receiveNativeToken);
     return () => window.removeEventListener('vanta-native-fcm-token', receiveNativeToken);
   }, []);
 
   useEffect(() => {
-    const nativeToken = nativeTokenRef.current;
+    if (token) lastAuthTokenRef.current = token;
     if (!token || !user || !nativeToken || registeredNativeTokenRef.current === nativeToken) return;
     let cancelled = false;
     void registerDevice(nativeToken, {
@@ -182,10 +189,12 @@ export function PushProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token && nativeTokenRef.current) {
       const nativeToken = nativeTokenRef.current;
-      void unregisterDeviceByToken(nativeToken, token || '').finally(() => {
-        nativeTokenRef.current = null;
-        registeredNativeTokenRef.current = null;
-      });
+      const authToken = lastAuthTokenRef.current;
+      if (authToken) void unregisterDeviceByToken(nativeToken, authToken);
+      nativeTokenRef.current = null;
+      registeredNativeTokenRef.current = null;
+      lastAuthTokenRef.current = null;
+      setNativeToken(null);
     }
     if (!token && lastTokenRef.current) {
       const hadToken = lastTokenRef.current;
