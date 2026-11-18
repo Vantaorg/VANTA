@@ -148,7 +148,15 @@ export default function HomePage() {
       if (suggestedResult.status === 'fulfilled') setSuggested(unwrap(suggestedResult.value));
     });
     const socket = createSocket(token, 'home-social');
-    const update = (data: any) => setItems(previous => previous.map(item => item.id === data.postId ? { ...item, likes: data.likes ?? item.likes, shares: data.shares ?? item.shares, comments: data.commentCount ?? item.comments } : item));
+    const update = (data: any) => setItems(previous => previous.map(item => item.id === data.postId ? {
+      ...item,
+      likes: data.likes ?? item.likes,
+      shares: data.shares ?? item.shares,
+      comments: data.commentCount ?? item.comments,
+      // The server broadcasts the actor and their resulting like state. Keep
+      // the heart state in sync for this viewer as well as the aggregate count.
+      ...(data.likedBy === user?.id && typeof data.liked === 'boolean' ? { liked: data.liked } : {}),
+    } : item));
     socket.on('social:post-updated', update); socket.on('social:comment-created', update); socket.connect();
     return () => { socket.off('social:post-updated', update); socket.off('social:comment-created', update); socket.disconnect(); };
   }, [token]);
@@ -190,13 +198,25 @@ export default function HomePage() {
     try {
       if (isVideoItem(item)) {
         // Reels are stored in the prisma.video table and must be addressed via
-        // /api/reels/:videoId. The reel save endpoint toggles save/un-save with a
-        // single POST. Keep this in lockstep with the Reels page so a Reel behaves
-        // identically no matter where it was opened.
-        if (mode === 'like') await apiPost(`${base}/${id}/like`, {}, token);
-        else await apiPost(`${base}/${id}/save`, {}, token);
+        // /api/reels/:videoId. Reconcile the optimistic state with the server's
+        // returned state so rapid taps or stale feed data cannot drift the count.
+        if (mode === 'like') {
+          const result = await apiPost<any>(`${base}/${id}/like`, {}, token);
+          setItems(previous => previous.map(entry => entry.id === item.id ? {
+            ...entry,
+            liked: typeof result?.liked === 'boolean' ? result.liked : !was,
+            likes: Number.isFinite(Number(result?.likes ?? result?.likeCount)) ? Number(result?.likes ?? result?.likeCount) : entry.likes,
+          } : entry));
+        } else {
+          await apiPost(`${base}/${id}/save`, {}, token);
+        }
       } else if (mode === 'like') {
-        await apiPost(`${base}/${id}/like`, {}, token);
+        const result = await apiPost<any>(`${base}/${id}/like`, {}, token);
+        setItems(previous => previous.map(entry => entry.id === item.id ? {
+          ...entry,
+          liked: typeof result?.liked === 'boolean' ? result.liked : !was,
+          likes: Number.isFinite(Number(result?.likeCount ?? result?.likes)) ? Number(result?.likeCount ?? result?.likes) : entry.likes,
+        } : entry));
       } else if (was) {
         await apiDelete(`${base}/${id}/save`, token);
       } else {

@@ -23,6 +23,9 @@ const WITH_AUTHOR = {
       username: true,
       fullName: true,
       avatar: true,
+      // Profile photos are stored on Profile.avatarUrl; selecting only the
+      // legacy User.avatar field silently returned placeholders in feed cards.
+      profile: { select: { avatarUrl: true } },
       verified: true,
       ...BADGE_USER_SELECT,
     },
@@ -532,7 +535,7 @@ export class FeedService {
         id: post.author?.id || post.authorId,
         username: post.author?.username,
         fullName: post.author?.fullName || post.author?.username,
-        avatar: post.author?.avatar,
+        avatar: post.author?.profile?.avatarUrl || post.author?.avatar,
         verified: post.author?.verified,
         verificationBadge: post.author?.verificationBadge || null,
       },

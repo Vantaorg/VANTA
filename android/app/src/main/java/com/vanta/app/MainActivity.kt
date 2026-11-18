@@ -227,12 +227,13 @@ class MainActivity : Activity() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             root.setOnApplyWindowInsetsListener { view, insets ->
-                val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                // Keep the WebView edge-to-edge. Pass the Android bottom inset
-                // to CSS instead of shrinking the WebView; fixed navigation can
-                // then reserve the inset exactly once (without double-counting).
-                systemBottomInsetPx = bars.bottom
-                view.setPadding(bars.left, bars.top, bars.right, 0)
+                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
+                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
+                // Keep the WebView edge-to-edge. Reserve only the actual Android
+                // navigation-bar inset; systemBars() also includes other system
+                // UI and can leave an oversized empty strip below app navigation.
+                systemBottomInsetPx = navigationBars.bottom
+                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
                 webView.post { applySystemBottomInset() }
                 insets
             }
