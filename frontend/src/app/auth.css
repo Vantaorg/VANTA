@@ -434,3 +434,80 @@
 @media (prefers-reduced-motion: reduce) {
   .auth-shell { animation: none; }
 }
+
+
+/*
+ * Android WebView auth viewport fix.
+ * Keep the document itself locked to the visible device viewport. Registration
+ * can scroll inside its content column only when a short screen genuinely
+ * cannot fit the current step; the page/background never becomes a tall
+ * document. Login is fully fixed and never scrolls.
+ */
+.auth-page {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.auth-shell {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.auth-shell::-webkit-scrollbar { display: none; }
+.auth-page-login .auth-shell {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  justify-content: center;
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+.auth-page-login .auth-header {
+  margin-top: clamp(10px, 2.5vh, 22px);
+  margin-bottom: clamp(10px, 2.2vh, 20px);
+}
+.auth-page-login .auth-providers {
+  margin-top: clamp(10px, 1.8vh, 16px);
+  padding-top: clamp(10px, 1.8vh, 16px);
+}
+.auth-page-login .auth-switch {
+  margin-top: clamp(10px, 2vh, 18px);
+  padding-top: clamp(9px, 1.8vh, 15px);
+}
+.auth-page-login .auth-legal { margin-top: clamp(8px, 1.6vh, 14px); }
+.auth-page-register .auth-shell {
+  justify-content: flex-start;
+  gap: 0;
+}
+@media (max-height: 740px) {
+  .auth-page-register .auth-shell { padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  .auth-page-register .auth-header,
+  .auth-page-register .auth-page-register .auth-header { margin-top: 16px; margin-bottom: 14px; }
+  .auth-page-register .auth-form { gap: 12px; }
+  .auth-page-register .auth-switch { margin-top: 12px; padding-top: 10px; }
+}
+@media (max-height: 680px) {
+  .auth-page-login .auth-header { margin-top: 8px; margin-bottom: 8px; }
+  .auth-page-login .auth-header p { display: none; }
+  .auth-page-login .auth-form { gap: 10px; }
+  .auth-page-login .auth-input,
+  .auth-page-login .auth-submit { height: 46px; }
+  .auth-page-login .auth-providers { margin-top: 8px; padding-top: 8px; }
+  .auth-page-login .auth-switch { margin-top: 8px; padding-top: 8px; }
+  .auth-page-login .auth-legal { margin-top: 7px; }
+}
+@media (max-height: 600px) {
+  .auth-page-login .auth-brand { display: none; }
+  .auth-page-login .auth-header { margin-top: 4px; }
+}
