@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "803082279066",
+    "project_id": "vanta-5b45f",
+    "storage_bucket": "vanta-5b45f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803082279066:android:4b9c52aa02fc7838bf6723",
+        "android_client_info": { "package_name": "com.vanta.app" }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyAqwbhWduo20ebL_duCWme5s5-PfTtWH30" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803082279066:android:c1e0d49a43c89afbbf6723",
+        "android_client_info": { "package_name": "com.vanta.app.debug" }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyAqwbhWduo20ebL_duCWme5s5-PfTtWH30" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}
