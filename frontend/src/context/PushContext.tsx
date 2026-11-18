@@ -67,6 +67,10 @@ export function PushProvider({ children }: { children: ReactNode }) {
   /** Passive sync: register the SW + register the device IF permission is granted. */
   const syncPassive = useCallback(async (requestPermission: boolean): Promise<{ ok: boolean; reason?: string }> => {
     if (!token || !user) return { ok: false, reason: 'no-session' };
+    if (nativeTokenRef.current) {
+      setSupported(true);
+      return { ok: true };
+    }
     if (!isPushSupported()) {
       setStatus('unsupported');
       setSupported(false);
@@ -160,7 +164,11 @@ export function PushProvider({ children }: { children: ReactNode }) {
       deviceModel: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 160) : 'Android',
       appVersion: '0.1.0',
     }, token).then((device) => {
-      if (!cancelled && device) registeredNativeTokenRef.current = nativeToken;
+      if (!cancelled && device) {
+        registeredNativeTokenRef.current = nativeToken;
+        setSupported(true);
+        setStatus('enabled');
+      }
     });
     return () => { cancelled = true; };
   }, [token, user]);
