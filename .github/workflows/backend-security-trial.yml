@@ -1,0 +1,61 @@
+name: Backend non-breaking security update trial
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/backend-security-trial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trial:
+    name: Try non-breaking audit fixes and verify backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate temporary lockfile
+        working-directory: backend
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Apply non-breaking npm audit fixes only
+        working-directory: backend
+        run: npm audit fix
+      - name: Capture remaining audit report
+        working-directory: backend
+        run: |
+          npm audit --json > audit-report.json || true
+          node -e "const a=require('./audit-report.json'); console.log(JSON.stringify(a.metadata?.vulnerabilities ?? {}, null, 2))"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Validate Prisma and generate client
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
+          JWT_SECRET: test-jwt-secret-long-enough-for-tests
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-long-enough-for-tests
+          ENCRYPTION_KEY: test-encryption-key-for-ci-only-32-bytes
+          ENCRYPTION_SALT: a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0fedcba9876543210
+        run: npm --prefix backend run test -- --runInBand --forceExit --detectOpenHandles=false
+      - name: Build backend
+        run: npm --prefix backend run build
+      - name: Upload temporary audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-nonbreaking-audit-trial
+          path: |
+            backend/package-lock.json
+            backend/audit-report.json
+          if-no-files-found: warn
