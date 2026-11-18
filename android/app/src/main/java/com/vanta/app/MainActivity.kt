@@ -32,6 +32,7 @@ import android.net.http.SslError
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.firebase.messaging.FirebaseMessaging
 
 /**
  * Hosted VANTA WebView shell with a native, unified Camera / Photos / Files picker.
@@ -128,6 +129,7 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
                     applySystemBottomInset()
+                    publishNativeFcmToken()
                 }
 
                 override fun onReceivedSslError(
@@ -245,6 +247,35 @@ class MainActivity : Activity() {
             webView.loadUrl(VANTA_ORIGIN)
         } else {
             webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
+        }
+
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4111)
+        }
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE).edit()
+                .putString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, token).apply()
+            publishNativeFcmToken(token)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent?.getStringExtra(VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE)
+        if (!route.isNullOrBlank() && route.startsWith("/") && !route.startsWith("//")) {
+            webView.post { webView.loadUrl(VANTA_ORIGIN + route) }
+        }
+    }
+
+    private fun publishNativeFcmToken(tokenOverride: String? = null) {
+        if (!::webView.isInitialized || webView.url.isNullOrBlank() || !isTrustedPage(webView.url)) return
+        val token = tokenOverride ?: getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE)
+            .getString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, null)
+        if (token.isNullOrBlank()) return
+        val safeToken = org.json.JSONObject.quote(token)
+        webView.post {
+            webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('vanta-native-fcm-token', { detail: { token: " + safeToken + " } }));", null)
         }
     }
 
