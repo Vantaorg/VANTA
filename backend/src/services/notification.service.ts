@@ -82,14 +82,22 @@ export class NotificationService {
     cursor?: string,
     filters: { unreadOnly?: boolean; types?: string[] } = {}
   ) {
-    const normalizedTypes = filters.types?.map(normalizeType).filter(Boolean);
+    const normalizedTypes = filters.types?.map(normalizeType).filter(type => Boolean(type) && !["message", "group", "channel"].includes(type));
+    const excludedChatTypes = ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL", "direct_message", "DIRECT_MESSAGE", "chat_message", "CHAT_MESSAGE"];
     const storedTypes = normalizedTypes
       ? [...new Set(normalizedTypes.flatMap(type => [type, type.toUpperCase()]))]
       : undefined;
+    if (filters.types?.length && !storedTypes?.length) {
+      return { items: [], nextCursor: undefined, unreadCount: await this.getUnreadCount(userId) };
+    }
+    const typeFilter = storedTypes?.length
+      ? { notIn: excludedChatTypes, in: storedTypes }
+      : { notIn: excludedChatTypes };
     const where = {
       userId,
+      // Chat activity is exclusively handled by Chats. Never surface it here.
+      type: typeFilter,
       ...(filters.unreadOnly ? { read: false } : {}),
-      ...(storedTypes?.length ? { type: { in: storedTypes } } : {}),
     };
     const notifications = await prisma.notification.findMany({
       where,
@@ -121,6 +129,8 @@ export class NotificationService {
       where: {
         userId,
         read: false,
+        // Legacy chat notification rows must not inflate the Notifications badge.
+        type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL", "direct_message", "DIRECT_MESSAGE", "chat_message", "CHAT_MESSAGE"] },
       },
     });
 
@@ -159,28 +169,10 @@ export class NotificationService {
   }
 
   /**
-   * Marks the message-type notifications of a conversation as read and pushes
-   * the authoritative unread count to the user in realtime. The chat read flow
-   * calls this after marking MessageRead rows so the Notifications badge stays
-   * in sync with the Chat badge (one unread message = one unread notification).
+   * Legacy compatibility shim. Chat unread state is owned by the Chat system;
+   * this method intentionally does not mutate notification records.
    */
-  async markConversationNotificationsRead(userId: string, conversationId: string) {
-    const updated = await prisma.notification.updateMany({
-      where: {
-        userId,
-        type: { in: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
-        entityId: conversationId,
-        read: false,
-      },
-      data: { read: true, readAt: new Date() },
-    });
-
-    if (updated.count > 0) {
-      emitToUser(userId, "notifications_read", { all: true });
-      const unreadCount = await this.getUnreadCount(userId);
-      emitToUser(userId, "unread_count", { count: unreadCount });
-      return unreadCount;
-    }
+  async markConversationNotificationsRead(_userId: string, _conversationId: string) {
     return null;
   }
 
@@ -331,14 +323,12 @@ export class NotificationService {
     );
   }
 
-  async notifyNewMessage(receiverId: string, senderUsername: string, conversationId: string, senderId?: string, messageId?: string) {
-    return this.createNotification(
-      receiverId,
-      "message",
-      "New Message",
-      `${senderUsername} sent you a message`,
-      { actorId: senderId, conversationId, senderUsername, entityType: "conversation", entityId: conversationId, referenceKey: messageId ? `message:${messageId}` : undefined }
-    );
+  /**
+   * Legacy compatibility shim: message events must never create Notifications.
+   * Chat unread counters and push delivery are handled by the Chat subsystem.
+   */
+  async notifyNewMessage(_receiverId: string, _senderUsername: string, _conversationId: string, _senderId?: string, _messageId?: string) {
+    return null;
   }
 
   async notifyGiftReceived(receiverId: string, senderUsername: string, giftName: string, amount: number, senderId?: string, transactionId?: string) {
@@ -398,6 +388,45 @@ export class NotificationService {
       "Withdrawal Update",
       `Your withdrawal of $${amount} has been ${statusText}`,
       { status, amount }
+    );
+  }
+
+  /**
+   * Daily birthday sweep. DOB is only used to notify the account owner;
+   * it is never exposed or announced to other users.
+   */
+  async notifyVerificationGranted(userId: string, badgeType: string) {
+    return this.createNotification(
+      userId,
+      "system",
+      "You're verified on VANTA!",
+      "Your account has officially been verified. Your verified badge is now visible on your profile.",
+      { destination: `/profile/${userId}`, milestone: "verification", badgeType, referenceKey: `verification-granted:${badgeType}:${Date.now()}` }
+    );
+  }
+
+  async notifyBirthday(userId: string, year: number) {
+    return this.createNotification(
+      userId,
+      "milestone",
+      "Happy Birthday!",
+      "Today is your special day! Everyone at VANTA wishes you happiness, success, and an amazing year ahead. Enjoy your day!",
+      { destination: "/profile", milestone: "birthday", year, referenceKey: `birthday:${year}` }
+    );
+  }
+
+  /**
+   * Annual account anniversary; createNotification's unique referenceKey makes
+   * this idempotent even if the scheduled sweep runs multiple times.
+   */
+  async notifyAnniversary(userId: string, years: number, year: number) {
+    const yearLabel = years === 1 ? "1 year" : `${years} years`;
+    return this.createNotification(
+      userId,
+      "milestone",
+      "Happy VANTA Anniversary!",
+      `You've been part of VANTA for ${yearLabel} today! Thank you for being part of our community. Here's to many more years together.`,
+      { destination: "/profile", milestone: "anniversary", years, year, referenceKey: `anniversary:${year}` }
     );
   }
 

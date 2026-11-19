@@ -8,6 +8,7 @@ import { normalizeAdminUserSearch, buildVerifiedFilters } from '../services/admi
 import { isVerificationPlanKey, VERIFICATION_PLAN_KEYS } from '../services/verification.service';
 import { appealService, AppealError } from '../services/appeal.service';
 import { followerRewardService, FollowerRewardError } from '../services/follower-reward.service';
+import { notificationService } from '../services/notification.service';
 
 // Bound every admin list query before it reaches Prisma. Negative, malformed,
 // fractional and excessively large pagination values must never reach the DB.
@@ -1010,6 +1011,11 @@ export const assignVerification = async (req: AuthenticatedRequest, res: Respons
     }
     const adminId = req.user?.userId as string;
     const result = await verificationService.assignVerificationPlan(userId, plan, adminId);
+    try {
+      await notificationService.notifyVerificationGranted(userId, result.badgeType);
+    } catch (notificationError) {
+      console.warn('[Notifications] Verification alert could not be delivered:', notificationError);
+    }
     await auditLog.log({
       userId: adminId,
       action: 'VERIFICATION_PLAN_ASSIGNED',
