@@ -1127,6 +1127,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const handleSelectConversation = (id: string) => {
     stopOutgoingTyping();
+    closeMessageSelection();
     // Leaving a conversation cancels any unsent reply/edits — a reply belongs to
     // the exact conversation it was created in, never to the whole messaging app.
     setReplyingTo(null);
@@ -1162,6 +1163,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setPendingNewMessage(false);
     setReplyingTo(null);
     setEditingMessage(null);
+    closeMessageSelection();
     setMessageInput('');
     setActiveConversation(null);
     setMessages([]);
@@ -2560,7 +2562,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             {(searchingMessages || messageSearchResults.length > 0) && <div className="border-b border-white/[0.08] bg-[#101010] px-4 py-2"><div className="flex items-center justify-between"><span className="text-[10px] text-white/40">{searchingMessages ? 'Searching chat...' : `${messageSearchResults.length} result${messageSearchResults.length === 1 ? '' : 's'}`}</span><button onClick={() => setMessageSearchResults([])} className="text-white/40" aria-label="Close search results"><X size={13}/></button></div>{messageSearchResults.slice(0, 5).map(result => <button key={result.id} onClick={() => document.getElementById(`message-${result.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="mt-1 block w-full truncate rounded bg-white/[0.03] px-2 py-1 text-left text-[10px] text-white/60">@{result.sender.username}: {result.text}</button>)}</div>}
 
             {/* Messages */}
-            <div ref={messagesViewportRef} className="relative min-h-0 flex-1 touch-pan-y overscroll-contain overflow-x-hidden overflow-y-auto scrollbar-hide bg-[#050505] px-3 py-4 pb-6 [overflow-anchor:none] [-webkit-overflow-scrolling:touch]">
+            <div ref={messagesViewportRef} className={cn("relative min-h-0 flex-1 touch-pan-y overscroll-contain overflow-x-hidden overflow-y-auto scrollbar-hide bg-[#050505] px-3 py-4 pb-6 [overflow-anchor:none] [-webkit-overflow-scrolling:touch]", selectedMessageIds.size > 0 && "pt-20 pb-24")}>
               {messageCursor && <div className="flex justify-center"><button onClick={loadOlderMessages} disabled={loadingOlder} className="rounded-full bg-white/[0.05] px-3 py-1 text-[10px] text-white/50 disabled:opacity-50">{loadingOlder ? 'Loading…' : 'Load older messages'}</button></div>}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
