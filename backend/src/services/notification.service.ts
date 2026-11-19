@@ -82,12 +82,14 @@ export class NotificationService {
     cursor?: string,
     filters: { unreadOnly?: boolean; types?: string[] } = {}
   ) {
-    const normalizedTypes = filters.types?.map(normalizeType).filter(Boolean);
+    const normalizedTypes = filters.types?.map(normalizeType).filter(type => Boolean(type) && !["message", "group", "channel"].includes(type));
     const storedTypes = normalizedTypes
       ? [...new Set(normalizedTypes.flatMap(type => [type, type.toUpperCase()]))]
       : undefined;
     const where = {
       userId,
+      // Chat activity is exclusively handled by Chats. Never surface it here.
+      type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
       ...(filters.unreadOnly ? { read: false } : {}),
       ...(storedTypes?.length ? { type: { in: storedTypes } } : {}),
     };
@@ -121,6 +123,8 @@ export class NotificationService {
       where: {
         userId,
         read: false,
+        // Legacy chat notification rows must not inflate the Notifications badge.
+        type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
       },
     });
 
@@ -159,28 +163,10 @@ export class NotificationService {
   }
 
   /**
-   * Marks the message-type notifications of a conversation as read and pushes
-   * the authoritative unread count to the user in realtime. The chat read flow
-   * calls this after marking MessageRead rows so the Notifications badge stays
-   * in sync with the Chat badge (one unread message = one unread notification).
+   * Legacy compatibility shim. Chat unread state is owned by the Chat system;
+   * this method intentionally does not mutate notification records.
    */
-  async markConversationNotificationsRead(userId: string, conversationId: string) {
-    const updated = await prisma.notification.updateMany({
-      where: {
-        userId,
-        type: { in: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
-        entityId: conversationId,
-        read: false,
-      },
-      data: { read: true, readAt: new Date() },
-    });
-
-    if (updated.count > 0) {
-      emitToUser(userId, "notifications_read", { all: true });
-      const unreadCount = await this.getUnreadCount(userId);
-      emitToUser(userId, "unread_count", { count: unreadCount });
-      return unreadCount;
-    }
+  async markConversationNotificationsRead(_userId: string, _conversationId: string) {
     return null;
   }
 
@@ -331,14 +317,12 @@ export class NotificationService {
     );
   }
 
-  async notifyNewMessage(receiverId: string, senderUsername: string, conversationId: string, senderId?: string, messageId?: string) {
-    return this.createNotification(
-      receiverId,
-      "message",
-      "New Message",
-      `${senderUsername} sent you a message`,
-      { actorId: senderId, conversationId, senderUsername, entityType: "conversation", entityId: conversationId, referenceKey: messageId ? `message:${messageId}` : undefined }
-    );
+  /**
+   * Legacy compatibility shim: message events must never create Notifications.
+   * Chat unread counters and push delivery are handled by the Chat subsystem.
+   */
+  async notifyNewMessage(_receiverId: string, _senderUsername: string, _conversationId: string, _senderId?: string, _messageId?: string) {
+    return null;
   }
 
   async notifyGiftReceived(receiverId: string, senderUsername: string, giftName: string, amount: number, senderId?: string, transactionId?: string) {
