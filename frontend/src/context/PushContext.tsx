@@ -141,15 +141,21 @@ export function PushProvider({ children }: { children: ReactNode }) {
   // The native Android shell publishes its FCM registration token only from
   // the trusted VANTA WebView. Keep it separate from the browser's VAPID token.
   useEffect(() => {
-    const receiveNativeToken = (event: Event) => {
-      const value = (event as CustomEvent<{ token?: string }>).detail?.token;
-      if (typeof value === 'string' && value.length >= 20) {
-        nativeTokenRef.current = value;
-        setNativeToken(value);
-        setSupported(true);
-        setStatus('permission-pending');
-      }
+    // The Android WebView can finish loading before React hydrates. Read the
+    // token snapshot as well as listening for events so that an early native
+    // event cannot be lost during startup.
+    const acceptNativeToken = (value: unknown) => {
+      if (typeof value !== 'string' || value.length < 20) return;
+      nativeTokenRef.current = value;
+      setNativeToken(value);
+      setSupported(true);
+      setStatus('permission-pending');
     };
+    const receiveNativeToken = (event: Event) => {
+      acceptNativeToken((event as CustomEvent<{ token?: string }>).detail?.token);
+    };
+    const nativeWindow = window as Window & { __VANTA_NATIVE_FCM_TOKEN__?: string };
+    acceptNativeToken(nativeWindow.__VANTA_NATIVE_FCM_TOKEN__);
     window.addEventListener('vanta-native-fcm-token', receiveNativeToken);
     return () => window.removeEventListener('vanta-native-fcm-token', receiveNativeToken);
   }, []);
@@ -171,7 +177,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => { cancelled = true; };
-  }, [token, user]);
+  }, [token, user, nativeToken]);
 
   // Re-sync when the window regains focus and the browser rotated the
   // subscription (handled by the service worker's pushsubscriptionchange).
