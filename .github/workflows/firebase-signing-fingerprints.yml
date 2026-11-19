@@ -51,10 +51,27 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon :app:assembleDebug
 
-          echo "=== Actual Gradle debug certificate SHA-1 ==="
-          keytool -list -v -keystore "$HOME/.android/debug.keystore" \
-            -alias androiddebugkey -storepass android |
-            grep -E 'SHA1:|SHA-1:'
+          echo "=== Actual Gradle debug APK certificate SHA-1 ==="
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          if [[ ! -f "$APK_PATH" ]]; then
+            echo "::error::Gradle debug APK was not found at $APK_PATH"
+            exit 1
+          fi
 
-          echo "Only SHA-1 certificate fingerprints are printed; keystore files and passwords are not uploaded or displayed."
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "$SDK_ROOT" || ! -d "$SDK_ROOT/build-tools" ]]; then
+            echo "::error::Android SDK build-tools directory was not found."
+            exit 1
+          fi
+
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [[ -z "$APKSIGNER" ]]; then
+            echo "::error::Android apksigner was not found in the SDK build-tools."
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --print-certs "$APK_PATH" |
+            grep -i 'certificate SHA-1 digest'
+
+          echo "Only SHA-1 certificate fingerprints are printed; APKs, keystore files and passwords are not uploaded or displayed."
         working-directory: android
