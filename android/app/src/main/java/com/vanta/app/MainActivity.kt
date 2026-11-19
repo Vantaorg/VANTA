@@ -275,7 +275,7 @@ class MainActivity : Activity() {
         if (token.isNullOrBlank()) return
         val safeToken = org.json.JSONObject.quote(token)
         webView.post {
-            webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('vanta-native-fcm-token', { detail: { token: " + safeToken + " } }));", null)
+            webView.evaluateJavascript("window.__VANTA_NATIVE_FCM_TOKEN__ = " + safeToken + "; window.dispatchEvent(new CustomEvent('vanta-native-fcm-token', { detail: { token: " + safeToken + " } }));", null)
         }
     }
 
