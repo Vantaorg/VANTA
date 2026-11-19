@@ -229,8 +229,6 @@ export class NotificationService {
         ? metadata.senderId
         : typeof metadata?.followerId === "string" ? metadata.followerId : undefined;
     const normalizedType = normalizeType(type);
-    // Chat messages are never notification records or notification pushes.
-    if (["message", "group", "channel", "direct_message", "chat_message"].includes(normalizedType)) return null;
     if (actorId === userId && !["system", "wallet_deposit", "wallet_transfer_sent", "gift"].includes(normalizedType)) return null;
     const entityType = typeof metadata?.entityType === "string" ? metadata.entityType : undefined;
     const entityId = typeof metadata?.entityId === "string" ? metadata.entityId : undefined;
