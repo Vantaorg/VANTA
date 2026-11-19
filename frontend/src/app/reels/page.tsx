@@ -601,7 +601,7 @@ export default function ReelsPage() {
     }
   };
 
-  if (loading) return <State title="Loading Reels" copy="Preparing your next story." loading />;
+  if (loading) return <div role="status" aria-label="Loading Reels" className="grid min-h-[100dvh] place-items-center bg-[#050505]"><Loader2 className="animate-spin text-[#c9a227]" size={30} strokeWidth={2.5} /></div>;
   if (loadError) return <State title="Reels need a refresh" copy="We couldn't bring in the latest videos." action="Try again" onAction={() => void load()} />;
   if (!reels.length) return <State title={feed === 'following' ? 'Your Following feed is empty.' : 'Nothing to watch yet.'} copy={feed === 'following' ? 'Follow creators to see their Reels here.' : 'Follow creators or share your first Reel with VANTA.'} action={feed === 'following' ? 'Discover Creators' : 'Create Reel'} secondaryAction={feed === 'following' ? 'Create Reel' : 'Discover Creators'} onAction={feed === 'following' ? () => router.push('/discover') : openReelUploader} onSecondary={feed === 'following' ? openReelUploader : () => router.push('/discover')} />;
 
