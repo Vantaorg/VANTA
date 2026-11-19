@@ -35,6 +35,8 @@ type NotificationContextValue = {
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 const safeCount = (value: unknown) => Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : 0;
+const CHAT_NOTIFICATION_TYPES = new Set(['message', 'group', 'channel', 'direct_message', 'chat_message']);
+const isChatNotification = (notification: VantaNotification) => CHAT_NOTIFICATION_TYPES.has(notification.type.trim().toLowerCase());
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
@@ -56,6 +58,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const interval = window.setInterval(refresh, 60_000);
     const socket = createSocket(token, 'notifications');
     const onNotification = (notification: VantaNotification) => {
+      // Chat activity belongs exclusively to Chats. Ignore it before it can
+      // affect the Notifications badge or trigger the feed refresh.
+      if (isChatNotification(notification)) return;
       setLatestNotification(notification);
       setUnreadCount(count => count + (notification.read ? 0 : 1));
     };
