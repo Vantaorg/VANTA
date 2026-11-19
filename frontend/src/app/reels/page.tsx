@@ -617,7 +617,7 @@ export default function ReelsPage() {
         scrollRef={reelsViewport}
         onRefresh={refreshReels}
         ariaLabel="VANTA Reels feed"
-        className="h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-[100dvh] min-h-[100dvh] w-full flex-none snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {reels.map((reel, index) => (
           <ReelCard
@@ -714,8 +714,8 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
   };
 
   return (
-    <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-full snap-start items-center justify-center bg-[#050505] pt-0  ">
-      <div className="flex h-full w-full items-center justify-center">
+    <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] min-h-[100dvh] w-full snap-start items-center justify-center bg-[#050505] pt-0">
+      <div className="flex h-full min-h-full w-full items-center justify-center">
         <div className="relative h-full w-full overflow-hidden bg-black">
           {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
           {nearby && !videoFailed && (
