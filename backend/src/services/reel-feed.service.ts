@@ -106,14 +106,14 @@ export async function buildReelFeed(input: {
 
   const reels = await prisma.video.findMany({
     where,
-    orderBy: [{ likes: { _count: "desc" as const } }, { createdAt: "desc" as const }],
+    // Candidate engagement counts were never used by the seeded shuffle.
+    // Keep a stable indexed order without forcing a relation-count sort.
+    orderBy: [{ createdAt: "desc" as const }],
     take: MAX_CANDIDATES,
     select: {
       id: true,
       creatorId: true,
-      views: true,
       createdAt: true,
-      _count: { select: { likes: true, comments: true, saves: true } },
     },
   });
 
@@ -149,10 +149,6 @@ export async function buildReelFeed(input: {
   const candidates = reels.map((reel) => ({
     id: reel.id,
     creatorId: reel.creatorId,
-    views: reel.views,
-    likes: reel._count.likes,
-    comments: reel._count.comments,
-    saves: reel._count.saves,
     createdAt: reel.createdAt,
   }));
 
