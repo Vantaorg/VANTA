@@ -753,8 +753,8 @@ async function startServer() {
     const expireRewardsTimer = setInterval(expireDueRewards, 15 * 60 * 1000);
     if (expireRewardsTimer.unref) expireRewardsTimer.unref();
 
-    // Birthday and VANTA account anniversaries: run hourly in UTC. Notification
-    // reference keys are unique per user/year, so retries and restarts are safe.
+    // Birthday and VANTA account anniversaries: run at startup and once daily in UTC.
+    // Notification reference keys are unique per user/year, so retries and restarts are safe.
     const sweepUserMilestones = async (): Promise<void> => {
       const now = new Date();
       const month = now.getUTCMonth() + 1;
