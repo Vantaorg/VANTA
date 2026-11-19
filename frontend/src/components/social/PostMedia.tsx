@@ -79,7 +79,7 @@ export default function PostMedia({
 }: PostMediaProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(defaultMuted);
+  const muted = defaultMuted;
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
 
