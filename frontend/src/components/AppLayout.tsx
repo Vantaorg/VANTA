@@ -93,7 +93,7 @@ const MobileMenu = memo(function MobileMenu({
   const { unreadCount: notificationUnread } = useNotifications();
   const { chatUnreadCount: chatUnread } = useChatUnread();
   const navBadgeFor = (href: string) => {
-    if (href === '/chat') return chatUnread + notificationUnread;
+    if (href === '/chat') return chatUnread;
     if (href === '/notifications') return notificationUnread;
     return 0;
   };
@@ -583,9 +583,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Link key={item.href} href={item.href} style={{ color: active ? '#c9a227' : undefined }} className={cn('flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] transition', active ? '!text-[#c9a227]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]')} aria-current={active ? 'page' : undefined}>
                     <span className="relative inline-flex">
                       <Icon size={item.href === '/chat' ? 22 : 20} strokeWidth={active ? 2.4 : 1.8} style={{ color: active ? '#c9a227' : undefined }} className={active ? '!text-[#c9a227]' : undefined} />
-                      {item.href === '/chat' && chatUnread + notificationUnread > 0 && (
-                        <span className="absolute -right-3 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[var(--nav-surface)]" aria-label={`${chatUnread + notificationUnread} unread items`}>
-                          {chatUnread + notificationUnread > 99 ? '99+' : chatUnread + notificationUnread}
+                      {item.href === '/chat' && chatUnread > 0 && (
+                        <span className="absolute -right-3 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#c9a227] px-1 text-[9px] font-bold leading-none text-black ring-2 ring-[var(--nav-surface)]" aria-label={`${chatUnread} unread messages`}>
+                          {chatUnread > 99 ? '99+' : chatUnread}
                         </span>
                       )}
                     </span>
