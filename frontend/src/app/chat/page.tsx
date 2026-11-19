@@ -477,7 +477,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [messageCursor, setMessageCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [conversationCursor, setConversationCursor] = useState<string | null>(null);
-  const [messageContextId, setMessageContextId] = useState<string | null>(null);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -507,6 +507,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const newChatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressedMessageRef = useRef<string | null>(null);
   const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedConversationRef = useRef<string | null>(null);
   const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1771,7 +1772,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const editExistingMessage = (message: Message) => {
     if (!token || !message.isOwn || message.deletedAt) return;
-    setEditingMessage(message); setMessageInput(message.text); setMessageContextId(null);
+    setEditingMessage(message); setMessageInput(message.text);
   };
 
   const saveEditedMessage = async () => {
@@ -1789,7 +1790,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const deleteExistingMessage = (message: Message) => {
     if (!token || (!message.isOwn && activeConv?.type === 'direct')) return;
     setDeleteConfirmMessage(message);
-    setMessageContextId(null);
   };
 
   const confirmDeleteMessage = async () => {
@@ -1817,27 +1817,55 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       swipeStartRef.current = null;
-      setMessageContextId(message.id);
+      longPressedMessageRef.current = message.id;
+      setSelectedMessageIds(current => current.size ? new Set([...current, message.id]) : new Set([message.id]));
       if ('vibrate' in navigator) navigator.vibrate(18);
     }, 420);
+  };
+
+  const toggleMessageSelection = (id: string) => {
+    setSelectedMessageIds(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const closeMessageSelection = () => setSelectedMessageIds(new Set());
+
+  const copySelectedMessages = async () => {
+    const selected = messages.filter(message => selectedMessageIds.has(message.id));
+    const content = selected.map(message => message.text || (message.attachments?.length ? '[Attachment]' : '')).filter(Boolean).join('\n');
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      showToast?.({ type: 'success', title: 'Copied', message: selected.length === 1 ? 'Message copied to clipboard.' : 'Messages copied to clipboard.' });
+      closeMessageSelection();
+    } catch {
+      showToast?.({ type: 'error', title: 'Copy failed', message: 'VANTA could not access the clipboard. Please try again.' });
+    }
+  };
+
+  const forwardSelectedMessages = async () => {
+    const selected = messages.filter(message => selectedMessageIds.has(message.id));
+    const content = selected.map(message => message.text || (message.attachments?.length ? '[Attachment]' : '')).filter(Boolean).join('\n\n');
+    if (!content) return;
+    try {
+      if (navigator.share) await navigator.share({ title: 'VANTA messages', text: content });
+      else {
+        await navigator.clipboard.writeText(content);
+        showToast?.({ type: 'success', title: 'Ready to forward', message: 'Selected messages copied. Paste them into a chat.' });
+      }
+      closeMessageSelection();
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') showToast?.({ type: 'error', title: 'Forward failed', message: error?.message || 'Please try again.' });
+    }
   };
 
   const cancelMessageLongPress = () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = null;
-  };
-
-  const forwardMessage = async (message: Message) => {
-    const text = message.text || 'Shared from VANTA';
-    try {
-      if (navigator.share) await navigator.share({ title: 'VANTA message', text });
-      else {
-        await navigator.clipboard.writeText(text);
-        showToast?.({ type: 'success', title: 'Message ready to forward', message: 'The message was copied to your clipboard.' });
-      }
-    } catch (error: any) {
-      if (error?.name !== 'AbortError') showToast?.({ type: 'error', title: 'Could not forward message', message: error?.message || 'Please try again.' });
-    } finally { setMessageContextId(null); }
   };
 
   const resetCreateModal = (options?: { discardImage?: boolean }) => {
@@ -2572,14 +2600,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   return <div key={msg.id} className={inSameRun ? 'mt-1' : ''}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full bg-[#202126] px-3 py-1.5 text-[11px] font-medium text-white/65">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
                   <div
                     id={`message-${msg.id}`}
-                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start')}
+                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.08] ring-1 ring-[#d6a83f]/45')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
-                    onPointerDown={event => startMessageLongPress(msg, event)}
+                    onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
-                    onContextMenu={event => { if (!msg.pending) { event.preventDefault(); setMessageContextId(msg.id); } }}
                   >
+                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
                       <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
@@ -3155,26 +3184,32 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
           </motion.div>
         ))}
-        {messageContextId && (() => {
-          const selected = messages.find(message => message.id === messageContextId);
-          if (!selected) return null;
-          return <motion.div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 px-4 py-8 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMessageContextId(null)}>
-            <motion.section role="dialog" aria-modal="true" aria-label="Message actions" initial={{ opacity: 0, scale: .94, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .96, y: 8 }} transition={{ type: 'spring', damping: 26, stiffness: 360 }} onClick={event => event.stopPropagation()} className="w-full max-w-[390px] overflow-hidden rounded-[26px] border border-white/[0.12] bg-[#202833] shadow-[0_24px_90px_rgba(0,0,0,.72)]">
-              <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" />
-              <div className="border-b border-white/[0.07] px-4 pb-3 pt-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#d6a83f]">Message</p><p className="mt-1 line-clamp-2 text-xs text-white/55">{selected.text || (selected.attachments?.length ? 'Attachment' : 'Message')}</p></div>
-              <div className="flex items-center justify-around border-b border-white/[0.07] px-3 py-3">{['❤️','😂','🔥','👏','👍'].map(reaction => <button key={reaction} onClick={() => { void reactToMessage(selected, reaction); setMessageContextId(null); }} className="grid h-10 w-10 place-items-center rounded-full bg-[#202023] text-lg active:scale-90">{reaction}</button>)}</div>
-              <div className="grid grid-cols-4 gap-1.5 p-2">
-                <button onClick={() => { void navigator.clipboard.writeText(selected.text || ''); setMessageContextId(null); showToast?.({ type: 'success', title: 'Copied', message: 'Message copied to clipboard.' }); }} className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 text-xs text-white/70 transition hover:bg-white/[0.06] active:scale-[.97]"><Copy size={18}/><span className="text-[10px]">Copy</span></button>
-                <button onClick={() => void forwardMessage(selected)} className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 text-xs text-white/70 transition hover:bg-white/[0.06] active:scale-[.97]"><Forward size={18}/><span className="text-[10px]">Forward</span></button>
-                {selected.isOwn && <button onClick={() => editExistingMessage(selected)} className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 text-xs text-white/70 transition hover:bg-white/[0.06] active:scale-[.97]"><Pencil size={18}/><span className="text-[10px]">Edit</span></button>}
-                {(selected.isOwn || activeConv?.type !== 'direct') && <button onClick={() => void deleteExistingMessage(selected)} className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 text-xs text-red-300 transition hover:bg-red-500/[0.08] active:scale-[.97]"><Trash2 size={18}/><span className="text-[10px]">Delete</span></button>}
-              </div>
-              <div className="border-t border-white/[0.07] px-3 py-2.5">
-                {activeConv?.type !== 'direct' && <button onClick={() => { void toggleMessagePin(selected); setMessageContextId(null); }} className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-[11px] text-white/45 transition hover:bg-white/[0.05]"><Pin size={14}/>{selected.pinnedAt ? 'Unpin message' : 'Pin message'}</button>}
-              </div>
-            </motion.section>
-          </motion.div>;
-        })()}
+        {selectedMessageIds.size > 0 && (
+          <>
+            <div className="fixed inset-x-0 top-0 z-[75] flex items-center gap-2 border-b border-white/10 bg-[#1f2630] px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] shadow-lg">
+              <button type="button" aria-label="Exit message selection" onClick={closeMessageSelection} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/[0.07] text-white"><X size={21}/></button>
+              <div className="min-w-0 flex-1 text-base font-semibold text-white">{selectedMessageIds.size} Selected</div>
+              <button type="button" aria-label="Copy selected messages" onClick={() => void copySelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Copy size={20}/></button>
+              <button type="button" aria-label="Forward selected messages" onClick={() => void forwardSelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Forward size={20}/></button>
+              {selectedMessageIds.size === 1 && (() => {
+                const selected = messages.find(message => selectedMessageIds.has(message.id));
+                if (!selected) return null;
+                return <>
+                  {selected.isOwn && <button type="button" aria-label="Edit selected message" onClick={() => { closeMessageSelection(); editExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Pencil size={20}/></button>}
+                  {(selected.isOwn || activeConv?.type !== 'direct') && <button type="button" aria-label="Delete selected message" onClick={() => { closeMessageSelection(); void deleteExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>}
+                </>;
+              })()}
+            </div>
+            <div className="fixed inset-x-0 bottom-0 z-[75] flex gap-2 border-t border-white/10 bg-[#1f2630] px-3 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(0,0,0,.25)]">
+              <button type="button" onClick={() => {
+                const selected = messages.filter(message => selectedMessageIds.has(message.id));
+                if (selected.length === 1) { setReplyingTo(createReply(activeConversation as string, selected[0])); closeMessageSelection(); }
+                else showToast?.({ type: 'info', title: 'Select one message', message: 'Reply works with one message at a time.' });
+              }} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#293441] text-sm font-semibold text-white/80"><Forward size={17} className="rotate-180"/> Reply</button>
+              <button type="button" onClick={() => void forwardSelectedMessages()} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#293441] text-sm font-semibold text-white/80"><Forward size={17}/> Forward</button>
+            </div>
+          </>
+        )}
         {deleteConfirmMessage && <DeleteConfirmDialog title="Delete this message for everyone?" description="This cannot be undone. The message will be removed for everyone in this conversation." confirmLabel="Delete for everyone" onCancel={() => setDeleteConfirmMessage(null)} onConfirm={() => void confirmDeleteMessage()} />}
         {editEntityOpen && activeConv && activeConv.type !== 'direct' && (<>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeChatSubview(() => setEditEntityOpen(false))} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" aria-label="Close management" />
