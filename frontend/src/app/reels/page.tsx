@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Send,
   Share2,
+  Sparkles,
   Trash2,
   User,
   Volume2,
@@ -130,6 +131,7 @@ export default function ReelsPage() {
   const [commentText, setCommentText] = useState('');
   const [commentSending, setCommentSending] = useState(false);
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const pendingActionsRef = useRef(new Set<string>());
   const sections = useRef<Record<string, HTMLElement | null>>({});
   const videos = useRef<Record<string, HTMLVideoElement | null>>({});
   const viewed = useRef(new Set<string>());
@@ -144,6 +146,7 @@ export default function ReelsPage() {
   const hasReels = reels.length > 0;
 
   const load = useCallback(async (start = 0, append = false, background = false) => {
+    if (!append) Object.values(videos.current).forEach(video => video?.pause());
     const requestId = ++loadRequest.current;
     if (!append && !background) { setLoading(true); setLoadError(false); }
     try {
@@ -199,6 +202,7 @@ export default function ReelsPage() {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         wasHidden = true;
+        Object.values(videos.current).forEach(video => video?.pause());
         return;
       }
       if (wasHidden) {
@@ -288,6 +292,10 @@ export default function ReelsPage() {
     }, 2000);
     return () => window.clearTimeout(timer);
   }, [active, muted, paused, reels, token]);
+
+  useEffect(() => () => {
+    Object.values(videos.current).forEach(video => video?.pause());
+  }, []);
 
   // Graceful autoplay-with-sound handling: some mobile/desktop browsers block
   // autoplay WITH audio until the user interacts. VANTA never intentionally mutes
@@ -428,17 +436,19 @@ export default function ReelsPage() {
   const toggle = async (reel: Reel, action: 'like' | 'save') => {
     if (!token) { toast.error('Sign in required'); return; }
     const key = `${action}:${reel.id}`;
-    if (pending[key]) return;
+    if (pendingActionsRef.current.has(key)) return;
+    pendingActionsRef.current.add(key);
     const was = action === 'like' ? !!reel.isLiked : !!reel.isSaved;
     setPending(items => ({ ...items, [key]: true }));
     patch(reel.id, action === 'like' ? { isLiked: !was, likes: Math.max(0, reel.likes + (was ? -1 : 1)) } : { isSaved: !was });
     try {
-      const result = await apiPost<{ liked?: boolean; saved?: boolean }>(`/api/reels/${reel.id}/${action}`, {}, token);
-      patch(reel.id, action === 'like' ? { isLiked: !!result.liked } : { isSaved: !!result.saved });
+      const result = await apiPost<{ liked?: boolean; saved?: boolean; likes?: number; likeCount?: number }>(`/api/reels/${reel.id}/${action}`, {}, token);
+      patch(reel.id, action === 'like' ? { isLiked: typeof result.liked === 'boolean' ? result.liked : !was, likes: Number.isFinite(Number(result.likes ?? result.likeCount)) ? Number(result.likes ?? result.likeCount) : Math.max(0, reel.likes + (was ? -1 : 1)) } : { isSaved: typeof result.saved === 'boolean' ? result.saved : !was });
     } catch (reason: any) {
       patch(reel.id, action === 'like' ? { isLiked: was, likes: reel.likes } : { isSaved: was });
       toast.error('Reel update failed', reason?.message);
     } finally {
+      pendingActionsRef.current.delete(key);
       setPending(items => ({ ...items, [key]: false }));
     }
   };
@@ -613,7 +623,7 @@ export default function ReelsPage() {
         scrollRef={reelsViewport}
         onRefresh={refreshReels}
         ariaLabel="VANTA Reels feed"
-        className="h-full snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {reels.map((reel, index) => (
           <ReelCard
@@ -711,7 +721,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
   };
 
   return (
-    <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] snap-start items-center justify-center bg-[#050505] pb-[calc(64px+env(safe-area-inset-bottom))] pt-0  ">
+    <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-full snap-start items-center justify-center bg-[#050505] pt-0  ">
       <div className="flex h-full w-full items-center justify-center">
         <div className="relative h-full w-full overflow-hidden bg-black">
           {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
@@ -781,7 +791,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
 
           <div className="absolute bottom-6 right-3 z-10 flex flex-col items-center gap-3 ">
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
-            <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} />
+            <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
             <Action icon={<Share2 />} label="Share" ariaLabel="Share Reel" onClick={onShare} />
             <Action icon={<Gift />} label="Gift" ariaLabel="Send a gift" onClick={onGift} />
@@ -796,8 +806,14 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
   );
 }
 
-function Action({ icon, label, ariaLabel, onClick, active }: { icon: ReactNode; label: string; ariaLabel: string; onClick: () => void; active?: boolean }) {
-  return <button type="button" onClick={onClick} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')} aria-label={ariaLabel} aria-pressed={active}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">{icon}</span><span>{label}</span></button>;
+function Action({ icon, label, ariaLabel, onClick, active, sparkle = false }: { icon: ReactNode; label: string; ariaLabel: string; onClick: () => void; active?: boolean; sparkle?: boolean }) {
+  const [pulse, setPulse] = useState(0);
+  return <motion.button type="button" onClick={() => { setPulse(value => value + 1); onClick(); }} whileTap={{ scale: 0.9 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }} className={cn('flex flex-col items-center gap-1 text-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', active ? 'text-[#c9a227]' : 'text-[#8a8a8a] hover:text-white')} aria-label={ariaLabel} aria-pressed={active}>
+    <span className="relative grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur">
+      <motion.span key={pulse} initial={{ scale: 0.65, rotate: -18 }} animate={{ scale: [0.65, 1.35, 0.95, 1], rotate: [-18, 10, -4, 0] }} transition={{ duration: 0.42, times: [0, 0.42, 0.72, 1], ease: 'easeOut' }}>{icon}</motion.span>
+      {sparkle && pulse > 0 && <motion.span key={`sparkle-${pulse}`} initial={{ opacity: 0, scale: 0.45, rotate: -25 }} animate={{ opacity: [0, 1, 0], scale: [0.45, 1.15, 0.75], rotate: [-25, 8, 25] }} transition={{ duration: 0.55 }} className="pointer-events-none absolute -right-1 -top-1 text-[#f2c75c]"><Sparkles size={15} /></motion.span>}
+    </span><span>{label}</span>
+  </motion.button>;
 }
 
 function CommentsPanel({ reel, items, loading, text, sending, currentUserId, setText, submit, remove, toggleLike, close }: { reel: Reel; items: ReelComment[]; loading: boolean; text: string; sending: boolean; currentUserId?: string; setText: (value: string) => void; submit: () => void; remove: (comment: ReelComment) => Promise<boolean>; toggleLike: (comment: ReelComment) => void; close: () => void }) {
