@@ -35,24 +35,6 @@ android {
 
     buildTypes {
         debug {
-            // Debug APKs use production by default. Developers can opt into a
-            // current preview explicitly with -PVANTA_DEBUG_ORIGIN=https://...
-            val debugOrigin = providers.gradleProperty("VANTA_DEBUG_ORIGIN")
-                .orElse("https://vanta-nu.vercel.app")
-                .get()
-            val parsedDebugOrigin = URI(debugOrigin)
-            require(
-                parsedDebugOrigin.scheme == "https" &&
-                    !parsedDebugOrigin.host.isNullOrBlank() &&
-                    parsedDebugOrigin.rawUserInfo == null &&
-                    parsedDebugOrigin.rawQuery == null &&
-                    parsedDebugOrigin.rawFragment == null &&
-                    (parsedDebugOrigin.rawPath.isNullOrEmpty() || parsedDebugOrigin.rawPath == "/")
-            ) {
-                "VANTA_DEBUG_ORIGIN must be an HTTPS origin without credentials, path, query, or fragment"
-            }
-            val escapedDebugOrigin = debugOrigin.replace("\\", "\\\\").replace("\"", "\\\"")
-            buildConfigField("String", "VANTA_ORIGIN", "\"$escapedDebugOrigin\"")
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
