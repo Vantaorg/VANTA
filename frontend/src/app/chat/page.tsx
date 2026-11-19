@@ -356,6 +356,8 @@ export default function MessagesPage() {
   const contactSearchSequenceRef = useRef(0);
   const contactSendInFlightRef = useRef(false);
   const [specialSending, setSpecialSending] = useState(false);
+  const specialSendLockRef = useRef(false);
+  const pollSubmitLockRef = useRef(false);
   const musicInputRef = useRef<HTMLInputElement>(null);
   const [createName, setCreateName] = useState('');
   const [createDescription, setCreateDescription] = useState('');
@@ -1244,7 +1246,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   // Telegram-style rich messages (location / poll / contact / wallet) travel as
   // typed messages with a JSON payload in `content`. Rendering is client-side.
   const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string, attachments: any[] = []): Promise<boolean> => {
-    if (!token || !user || !activeConversation || specialSending) return false;
+    if (!token || !user || !activeConversation || specialSendLockRef.current) return false;
+    specialSendLockRef.current = true;
     setSpecialSending(true);
     const pendingId = `pending-${Date.now()}`;
     const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, attachments, createdAt: new Date().toISOString(), pending: true, pendingLabel });
@@ -1255,11 +1258,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       setMessages(previous => [...previous.filter(item => item.id !== pendingId && item.id !== saved.id), saved]);
       fetchConversations();
       setSpecialSending(false);
+      specialSendLockRef.current = false;
       return true;
     } catch (err: any) {
       setMessages(previous => previous.map(item => item.id === pendingId ? { ...item, pending: false, failed: true } : item));
       showToast?.({ type: 'error', title: 'Message not sent', message: errorMessage(err, { action: 'send it', fallback: 'Try again.' }) });
       setSpecialSending(false);
+      specialSendLockRef.current = false;
       return false;
     }
   };
@@ -1294,15 +1299,16 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const submitPoll = async () => {
-    if (!pollDraft) return;
+    if (!pollDraft || pollSubmitLockRef.current) return;
+    pollSubmitLockRef.current = true;
     const question = pollDraft.question.trim();
     const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
-    if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
-    if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
+    if (!question) { pollSubmitLockRef.current = false; showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
+    if (options.length < 2) { pollSubmitLockRef.current = false; showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
     let imageUrl: string | undefined;
     let imageAttachment: any[] = [];
     if (pollDraft.imageFile) {
-      if (!token || !activeConversation) return;
+      if (!token || !activeConversation) { pollSubmitLockRef.current = false; return; }
       try {
         const form = new FormData();
         form.append('file', pollDraft.imageFile);
@@ -1314,11 +1320,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         imageAttachment = [{ fileId, url: imageUrl, fileType: 'IMAGE', fileName: pollDraft.imageFile.name, fileSize: pollDraft.imageFile.size }];
       } catch (err: any) {
         showToast?.({ type: 'error', title: 'Poll image upload failed', message: errorMessage(err, { action: 'upload the poll image', context: 'photo', fallback: 'Please choose another image.' }) });
+        pollSubmitLockRef.current = false;
         return;
       }
     }
     const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, ...(imageUrl ? { imageUrl } : {}), votes: [] }, 'Poll', imageAttachment);
     if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
+    pollSubmitLockRef.current = false;
   };
 
   const voteOnPoll = async (message: Message, optionIndex: number) => {
@@ -2867,12 +2875,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               )}
               {pollDraft && (
                 <>
-                  <button type="button" aria-label="Close poll composer" onClick={() => setPollDraft(null)} className="fixed inset-0 z-30 bg-black/45" />
-                  <section role="dialog" aria-label="Create a poll" className="fixed inset-x-3 bottom-[calc(var(--vanta-kb,0px)+5.25rem)] z-[70] mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-2xl border border-white/[0.09] bg-[#1F2630] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-                    <div className="mb-3 flex items-center justify-between">
+                  <section role="dialog" aria-modal="true" aria-label="Create a poll" className="fixed inset-0 z-[90] flex h-[var(--chat-viewport-height,100dvh)] w-screen flex-col overflow-y-auto overscroll-contain bg-[#1F2630] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]">
+                    <header className="sticky top-0 z-10 -mx-4 mb-5 flex h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#1F2630]/95 px-4 backdrop-blur-xl">
+                      <button type="button" onClick={() => setPollDraft(null)} className="grid h-10 w-10 place-items-center rounded-full text-white/75 hover:bg-white/[0.06]" aria-label="Back to chat"><ArrowLeft size={19}/></button>
                       <h3 className="text-sm font-semibold text-white">Create a poll</h3>
-                      <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
-                    </div>
+                      <button type="button" onClick={() => setPollDraft(null)} className="text-xs font-medium text-white/55">Cancel</button>
+                    </header>
                     <input value={pollDraft.question} onChange={event => setPollDraft(draft => draft ? { ...draft, question: event.target.value } : draft)} maxLength={200} placeholder="Ask a question" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
                     <div className="mt-3 flex items-center gap-3">
                       <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-white/[0.06] px-3 text-xs font-medium text-white/80 hover:bg-white/[0.1]">
@@ -2896,7 +2904,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       ))}
                       {pollDraft.options.length < 10 && <button type="button" onClick={() => setPollDraft(draft => draft ? { ...draft, options: [...draft.options, ''] } : draft)} className="self-start text-[11px] font-semibold text-[#f2c75c]">+ Add option</button>}
                     </div>
-                    <button type="button" onClick={() => void submitPoll()} disabled={specialSending} className="btn-gold mt-3 h-10 w-full text-xs disabled:opacity-50">Create poll</button>
+                    <button type="button" onClick={() => void submitPoll()} disabled={specialSending} className="btn-gold sticky bottom-0 mt-6 h-12 w-full shrink-0 rounded-xl text-sm font-semibold disabled:opacity-50">{specialSending ? <><Loader2 size={16} className="mr-2 inline animate-spin"/>Creating poll…</> : "Create poll"}</button>
                   </section>
                 </>
               )}
@@ -3150,8 +3158,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         {messageContextId && (() => {
           const selected = messages.find(message => message.id === messageContextId);
           if (!selected) return null;
-          return <motion.div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 px-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMessageContextId(null)}>
-            <motion.section role="dialog" aria-modal="true" aria-label="Message actions" initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} transition={{ type: 'spring', damping: 28, stiffness: 340 }} onClick={event => event.stopPropagation()} className="w-full max-w-[420px] overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#1F2630] shadow-[0_20px_64px_rgba(0,0,0,.55)]">
+          return <motion.div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 px-4 py-8 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMessageContextId(null)}>
+            <motion.section role="dialog" aria-modal="true" aria-label="Message actions" initial={{ opacity: 0, scale: .94, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .96, y: 8 }} transition={{ type: 'spring', damping: 26, stiffness: 360 }} onClick={event => event.stopPropagation()} className="w-full max-w-[390px] overflow-hidden rounded-[26px] border border-white/[0.12] bg-[#202833] shadow-[0_24px_90px_rgba(0,0,0,.72)]">
               <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" />
               <div className="border-b border-white/[0.07] px-4 pb-3 pt-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#d6a83f]">Message</p><p className="mt-1 line-clamp-2 text-xs text-white/55">{selected.text || (selected.attachments?.length ? 'Attachment' : 'Message')}</p></div>
               <div className="flex items-center justify-around border-b border-white/[0.07] px-3 py-3">{['❤️','😂','🔥','👏','👍'].map(reaction => <button key={reaction} onClick={() => { void reactToMessage(selected, reaction); setMessageContextId(null); }} className="grid h-10 w-10 place-items-center rounded-full bg-[#202023] text-lg active:scale-90">{reaction}</button>)}</div>
