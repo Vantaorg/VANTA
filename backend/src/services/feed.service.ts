@@ -224,7 +224,9 @@ export class FeedService {
                   ...BADGE_USER_SELECT,
                 },
               },
-              _count: { select: { likes: true, comments: true } },
+              likes: { where: { userId }, select: { id: true } },
+          saves: { where: { userId }, select: { id: true } },
+          _count: { select: { likes: true, comments: true } },
         },
       }), seed || '').slice(0, 8);
 
@@ -570,8 +572,8 @@ export class FeedService {
       shares: 0,
       views: video.views || 0,
       createdAt: video.createdAt,
-      liked: false,
-      saved: false,
+      liked: Array.isArray(video.likes) && video.likes.length > 0,
+      saved: Array.isArray(video.saves) && video.saves.length > 0,
       source,
     };
   }

@@ -31,6 +31,12 @@ const TABS: Array<{ id: ProfileTab; label: string; icon: typeof Film; ownOnly?: 
 
 const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [], about: [] });
 const errorStatus = (reason: any) => Number(reason?.statusCode ?? reason?.status ?? reason?.response?.status) || 0;
+const normalizeProfileItem = (item: any, likedTab = false): ProfileItem => {
+  const post = item?.post || item || {};
+  const liked = likedTab || (typeof post.liked === 'boolean' ? post.liked : typeof post.isLiked === 'boolean' ? post.isLiked : Array.isArray(post.likes) && post.likes.length > 0);
+  const likes = post.likesCount ?? (typeof post.likes === 'number' ? post.likes : post._count?.likes ?? (Array.isArray(post.likes) ? post.likes.length : 0));
+  return { ...post, liked, likes } as ProfileItem;
+};
 const nextCursorFrom = (value: any): string | undefined => {
   const candidates = [value?.nextCursor, value?.data?.nextCursor, value?.data?.data?.nextCursor];
   return candidates.find((cursor) => typeof cursor === 'string' && cursor.length > 0);
@@ -52,6 +58,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   const [shareFor, setShareFor] = useState<ProfileItem>(); const [moreFor, setMoreFor] = useState<ProfileItem>();
   const [giftFor, setGiftFor] = useState<ProfileItem>(); const [gifts, setGifts] = useState<GiftCatalogItem[]>([]); const [balance, setBalance] = useState(0);
   const profileRequest = useRef(0);
+  const pendingPostActionsRef = useRef(new Set<string>());
 
   const loadProfile = useCallback(async () => {
     if (authLoading) return;
@@ -101,7 +108,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
       .then(result => {
         if (!active) return;
-        const rows = postOnly(unwrap(result)).map(item => tab === 'likes' ? { ...(item.post || item), liked: true } : item);
+        const rows = postOnly(unwrap(result)).map(item => normalizeProfileItem(item, tab === 'likes'));
         setContent(current => ({ ...current, [tab]: rows }));
         setNextCursor(current => ({ ...current, [tab]: nextCursorFrom(result) }));
       })
@@ -124,7 +131,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
       setContentError('');
       apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
         .then(result => {
-          const rows = postOnly(unwrap(result)).map(item => tab === 'likes' ? { ...(item.post || item), liked: true } : item);
+          const rows = postOnly(unwrap(result)).map(item => normalizeProfileItem(item, tab === 'likes'));
           setContent(current => ({ ...current, [tab]: rows }));
           setNextCursor(current => ({ ...current, [tab]: nextCursorFrom(result) }));
         })
@@ -142,7 +149,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     setLoadingMore(true);
     try {
       const result = await apiGet<any>(`${endpoint}?limit=24&cursor=${encodeURIComponent(cursor)}`, token || undefined, { skipCache: true });
-      const rows = postOnly(unwrap(result)).map(item => requestedTab === 'likes' ? { ...(item.post || item), liked: true } : item);
+      const rows = postOnly(unwrap(result)).map(item => normalizeProfileItem(item, requestedTab === 'likes'));
       setContent(current => {
         const existingIds = new Set(current[requestedTab].map(cleanPostId));
         return { ...current, [requestedTab]: [...current[requestedTab], ...rows.filter(item => !existingIds.has(cleanPostId(item)))] };
@@ -192,10 +199,30 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   };
   const updatePost = (id: string, patch: ProfileItem) => setContent(current => ({ ...current, [tab]: current[tab].map(item => cleanPostId(item) === id ? { ...item, ...patch } : item) }));
   const togglePost = async (item: ProfileItem, mode: 'like' | 'save') => {
-    if (!token) return; const id = cleanPostId(item); const key = mode === 'like' ? 'liked' : 'saved'; const was = !!item[key];
-    updatePost(id, { [key]: !was, ...(mode === 'like' ? { likes: Math.max(0, finite(item.likes ?? item._count?.likes) + (was ? -1 : 1)) } : {}) });
-    try { if (mode === 'like') await apiPost(`/api/feed/${id}/like`, {}, token); else was ? await apiDelete(`/api/feed/${id}/save`, token) : await apiPost(`/api/feed/${id}/save`, {}, token); }
-    catch (reason: any) { updatePost(id, { [key]: was }); toast.error('Post update failed', reason?.message); }
+    if (!token) return;
+    const id = cleanPostId(item);
+    const actionKey = `${mode}:${id}`;
+    if (pendingPostActionsRef.current.has(actionKey)) return;
+    pendingPostActionsRef.current.add(actionKey);
+    const key = mode === 'like' ? 'liked' : 'saved';
+    const was = Boolean(item[key]);
+    const previousLikes = finite(item.likes ?? item._count?.likes);
+    updatePost(id, { [key]: !was, ...(mode === 'like' ? { likes: Math.max(0, previousLikes + (was ? -1 : 1)) } : {}) });
+    try {
+      if (mode === 'like') {
+        const result: any = await apiPost(`/api/feed/${id}/like`, {}, token);
+        updatePost(id, { liked: typeof result?.liked === 'boolean' ? result.liked : !was, likes: finite(result?.likeCount ?? result?.likes ?? previousLikes + (was ? -1 : 1)) });
+      } else if (was) {
+        await apiDelete(`/api/feed/${id}/save`, token);
+      } else {
+        await apiPost(`/api/feed/${id}/save`, {}, token);
+      }
+    } catch (reason: any) {
+      updatePost(id, { [key]: was, ...(mode === 'like' ? { likes: previousLikes } : {}) });
+      toast.error('Post update failed', reason?.message);
+    } finally {
+      pendingPostActionsRef.current.delete(actionKey);
+    }
   };
   const deletePost = async (item: ProfileItem) => {
     if (!token) return;
