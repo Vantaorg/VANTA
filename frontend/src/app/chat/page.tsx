@@ -1127,6 +1127,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const handleSelectConversation = (id: string) => {
     stopOutgoingTyping();
+    closeMessageSelection();
     // Leaving a conversation cancels any unsent reply/edits — a reply belongs to
     // the exact conversation it was created in, never to the whole messaging app.
     setReplyingTo(null);
@@ -1162,6 +1163,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     setPendingNewMessage(false);
     setReplyingTo(null);
     setEditingMessage(null);
+    closeMessageSelection();
     setMessageInput('');
     setActiveConversation(null);
     setMessages([]);
