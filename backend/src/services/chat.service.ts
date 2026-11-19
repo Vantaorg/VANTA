@@ -753,7 +753,13 @@ export class ChatService {
 
   async getUnreadCount(userId: string) {
     return prisma.message.count({
-      where: { senderId: { not: userId }, conversation: { participants: { some: { userId } } }, reads: { none: { userId } } },
+      where: {
+        senderId: { not: userId },
+        conversation: { participants: { some: { userId } } },
+        deletedAt: null,
+        moderationRemovedAt: null,
+        reads: { none: { userId } },
+      },
     });
   }
 
