@@ -623,7 +623,7 @@ export default function ReelsPage() {
         scrollRef={reelsViewport}
         onRefresh={refreshReels}
         ariaLabel="VANTA Reels feed"
-        className="h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] snap-y snap-mandatory touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {reels.map((reel, index) => (
           <ReelCard
