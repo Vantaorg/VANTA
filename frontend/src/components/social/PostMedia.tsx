@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Video, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 
 /** One attachment of a VANTA multi-media post (API shape from /api/feed). */
@@ -50,9 +50,9 @@ type PostMediaProps = {
   onDoubleClick?: () => void;
   /** Autoplay the video while it is on screen (default true). */
   autoplayOnView?: boolean;
-  /** Start muted (default true). */
+  /** Start muted (default false). */
   defaultMuted?: boolean;
-  /** Whether to render the mute toggle (default true for video). */
+  /** Whether to render the mute toggle (default false for video). */
   showMute?: boolean;
   /** Whether to render the centered play affordance (default true for video). */
   showPlay?: boolean;
@@ -74,8 +74,8 @@ export default function PostMedia({
   preload = 'metadata',
   onDoubleClick,
   autoplayOnView = true,
-  defaultMuted = true,
-  showMute = true,
+  defaultMuted = false,
+  showMute = false,
   showPlay = true,
   className,
   feedCompact = false,
