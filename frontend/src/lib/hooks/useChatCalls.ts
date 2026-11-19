@@ -131,7 +131,12 @@ async function loadRtcConfig(): Promise<RTCConfiguration> {
     if (response.ok) {
       const data = (await response.json()) as { iceServers?: RTCIceServer[] };
       const servers = Array.isArray(data?.iceServers) ? data.iceServers : [];
-      const valid = servers.filter(s => s && Array.isArray(s.urls) && s.urls.length > 0);
+      const valid = servers.filter((server) => {
+        if (!server || typeof server !== 'object') return false;
+        const urls = (server as RTCIceServer).urls;
+        return (typeof urls === 'string' && urls.trim().length > 0) ||
+          (Array.isArray(urls) && urls.some(url => typeof url === 'string' && url.trim().length > 0));
+      });
       if (valid.length > 0) {
         rtcConfigCache = { iceServers: valid };
         diag('ICE servers loaded from backend', valid.length);
@@ -298,6 +303,11 @@ export function useChatCalls(options: UseChatCallsOptions): UseChatCallsReturn {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  // The caller's ICE gathering can begin before the initial call offer has
+  // reached the backend. Queue candidates until call:user is emitted so the
+  // server has created the CallSession before it tries to persist them.
+  const pendingLocalCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const callSignalingReadyRef = useRef(false);
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const activeAtRef = useRef(0);
   const ringingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -382,6 +392,8 @@ const logCall = useCallback(
     }
     localStreamRef.current = null;
     pendingCandidatesRef.current = [];
+    pendingLocalCandidatesRef.current = [];
+    callSignalingReadyRef.current = false;
     incomingOfferRef.current = null;
     activeAtRef.current = 0;
   }, []);
@@ -417,10 +429,16 @@ const logCall = useCallback(
       const socketNow = socketRef.current;
       const session = sessionRef.current;
       if (!event.candidate || !socketNow || !session) return;
+      const candidate = event.candidate.toJSON();
+      if (!callSignalingReadyRef.current && session.callerId === userRef.current?.id) {
+        pendingLocalCandidatesRef.current.push(candidate);
+        diag('local ICE candidate queued until call session is created');
+        return;
+      }
       socketNow.emit('call:signal', {
         conversationId: session.conversationId,
         callId: session.callId,
-        data: event.candidate.toJSON(),
+        data: candidate,
         to: session.peerId,
       });
       diag('ICE candidate sent', event.candidate.candidate?.slice(0, 40));
@@ -665,12 +683,24 @@ const startCall = useCallback(async (type: CallType) => {
       return;
     }
 
+    // Persist/announce the initial offer before releasing queued ICE. Socket.IO
+    // preserves event order, so the backend creates CallSession first and can
+    // then safely buffer each candidate for a callee answering from a cold start.
     socketNow.emit('call:user', {
       conversationId: activeConversationId,
       callId,
       type,
       signalData: pc.localDescription,
     });
+    callSignalingReadyRef.current = true;
+    for (const candidate of pendingLocalCandidatesRef.current.splice(0)) {
+      socketNow.emit('call:signal', {
+        conversationId: activeConversationId,
+        callId,
+        data: candidate,
+        to: targetPeerId,
+      });
+    }
 
     // Auto-cancel after the callee does not answer (40–60s safety net so an
     // unanswered call can never ring forever).
