@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -40,7 +42,7 @@ android {
             val debugOrigin = providers.gradleProperty("VANTA_DEBUG_ORIGIN")
                 .orElse("https://vanta-nu.vercel.app")
                 .get()
-            val parsedDebugOrigin = java.net.URI(debugOrigin)
+            val parsedDebugOrigin = URI(debugOrigin)
             require(
                 parsedDebugOrigin.scheme == "https" &&
                     !parsedDebugOrigin.host.isNullOrBlank() &&
