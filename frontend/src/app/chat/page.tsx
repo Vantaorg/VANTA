@@ -1836,6 +1836,24 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const closeMessageSelection = () => setSelectedMessageIds(new Set());
 
+  // Android's system Back / browser Back first dismisses message selection.
+  // Keep a lightweight history entry while selection mode is active so it
+  // cannot accidentally navigate away from the conversation.
+  useEffect(() => {
+    if (selectedMessageIds.size === 0) return;
+    window.history.pushState(
+      { ...(window.history.state || {}), vantaMessageSelection: true },
+      '',
+      window.location.href,
+    );
+    const handleSelectionBack = () => closeMessageSelection();
+    window.addEventListener('popstate', handleSelectionBack);
+    return () => {
+      window.removeEventListener('popstate', handleSelectionBack);
+      if (window.history.state?.vantaMessageSelection) window.history.back();
+    };
+  }, [selectedMessageIds.size > 0]);
+
   const copySelectedMessages = async () => {
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
     const content = selected.map(message => message.text || (message.attachments?.length ? '[Attachment]' : '')).filter(Boolean).join('\n');
@@ -3019,7 +3037,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     placeholder="Message"
                     className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-2xl border-0 bg-[#27313d] px-3.5 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#354252]"
                     onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
+                      if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
                     }}
                   />
                 </div>
