@@ -385,6 +385,35 @@ export class NotificationService {
     );
   }
 
+  /**
+   * Daily birthday sweep. DOB is only used to notify the account owner;
+   * it is never exposed or announced to other users.
+   */
+  async notifyBirthday(userId: string, year: number) {
+    return this.createNotification(
+      userId,
+      "milestone",
+      "Happy Birthday!",
+      "Today is your special day! Everyone at VANTA wishes you happiness, success, and an amazing year ahead. Enjoy your day!",
+      { destination: "/profile", milestone: "birthday", year, referenceKey: `birthday:${year}` }
+    );
+  }
+
+  /**
+   * Annual account anniversary; createNotification's unique referenceKey makes
+   * this idempotent even if the scheduled sweep runs multiple times.
+   */
+  async notifyAnniversary(userId: string, years: number, year: number) {
+    const yearLabel = years === 1 ? "1 year" : `${years} years`;
+    return this.createNotification(
+      userId,
+      "milestone",
+      "Happy VANTA Anniversary!",
+      `You've been part of VANTA for ${yearLabel} today! Thank you for being part of our community. Here's to many more years together.`,
+      { destination: "/profile", milestone: "anniversary", years, year, referenceKey: `anniversary:${year}` }
+    );
+  }
+
   async notifyMilestone(userId: string, milestone: string, value: number) {
     return this.createNotification(
       userId,
