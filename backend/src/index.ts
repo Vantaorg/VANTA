@@ -58,7 +58,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import { handleChatSocket } from './sockets/chat.socket';
 import { handleLiveSocket } from './sockets/live.socket';
 import { handleGiftSocket } from './sockets/gift.socket';
-import { setNotificationIO } from './services/notification.service';
+import { setNotificationIO, notificationService } from './services/notification.service';
 import { setSocialEventsIO } from './services/social-events.service';
 import { apiLatencyMiddleware, healthStatus, metricsCollector, cacheService, setupDefaultAlerts } from './services';
 import { uploadStorageDir, getStorageDiagnostics } from './services/upload.service';
@@ -752,6 +752,38 @@ async function startServer() {
     void expireDueRewards();
     const expireRewardsTimer = setInterval(expireDueRewards, 15 * 60 * 1000);
     if (expireRewardsTimer.unref) expireRewardsTimer.unref();
+
+    // Birthday and VANTA account anniversaries: run hourly in UTC. Notification
+    // reference keys are unique per user/year, so retries and restarts are safe.
+    const sweepUserMilestones = async (): Promise<void> => {
+      const now = new Date();
+      const month = now.getUTCMonth() + 1;
+      const day = now.getUTCDate();
+      const year = now.getUTCFullYear();
+      try {
+        const birthdayUsers = await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT "id" FROM "User"
+          WHERE "dateOfBirth" IS NOT NULL
+            AND EXTRACT(MONTH FROM "dateOfBirth") = ${month}
+            AND EXTRACT(DAY FROM "dateOfBirth") = ${day}
+        `;
+        await Promise.all(birthdayUsers.map(user => notificationService.notifyBirthday(user.id, year)));
+
+        const anniversaryUsers = await prisma.$queryRaw<Array<{ id: string; years: number }>>`
+          SELECT "id", (EXTRACT(YEAR FROM ${now}::timestamp) - EXTRACT(YEAR FROM "createdAt"))::int AS "years"
+          FROM "User"
+          WHERE EXTRACT(MONTH FROM "createdAt") = ${month}
+            AND EXTRACT(DAY FROM "createdAt") = ${day}
+            AND EXTRACT(YEAR FROM "createdAt") < ${year}
+        `;
+        await Promise.all(anniversaryUsers.map(user => notificationService.notifyAnniversary(user.id, user.years, year)));
+      } catch (sweepError) {
+        console.warn('[Milestones] Birthday/anniversary sweep skipped:', sweepError);
+      }
+    };
+    void sweepUserMilestones();
+    const userMilestonesTimer = setInterval(sweepUserMilestones, 60 * 60 * 1000);
+    if (userMilestonesTimer.unref) userMilestonesTimer.unref();
 
     // Verification badge expiry: flip overdue ACTIVE badges to EXPIRED so
     // persisted state matches the read-time enforcement that already gates
