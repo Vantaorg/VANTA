@@ -34,6 +34,12 @@ android {
 
     buildTypes {
         debug {
+            // Debug APKs use production by default. Developers can opt into a
+            // current preview explicitly with -PVANTA_DEBUG_ORIGIN=https://...
+            val debugOrigin = providers.gradleProperty("VANTA_DEBUG_ORIGIN")
+                .orElse("https://vanta-nu.vercel.app")
+                .get()
+            buildConfigField("String", "VANTA_ORIGIN", "\"$debugOrigin\"")
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
