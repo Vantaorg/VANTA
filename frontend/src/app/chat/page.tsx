@@ -341,6 +341,13 @@ export default function MessagesPage() {
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
   // Polls are stored as typed chat messages with server-validated vote payloads.
   const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean; imageFile?: File | null } | null>(null);
+  const [pollImagePreviewUrl, setPollImagePreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pollDraft?.imageFile) { setPollImagePreviewUrl(null); return; }
+    const previewUrl = URL.createObjectURL(pollDraft.imageFile);
+    setPollImagePreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [pollDraft?.imageFile]);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
@@ -2634,7 +2641,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
                               <p className="text-sm font-semibold text-white">{poll.question}</p>
-                              {poll.imageUrl && <img src={poll.imageUrl} alt="Poll attachment" className="mt-2 max-h-56 w-full rounded-xl object-cover" />}
+                              {(poll.imageUrl || msg.attachments?.find(attachment => attachment.fileType === 'IMAGE')?.url) && <img src={poll.imageUrl || msg.attachments?.find(attachment => attachment.fileType === 'IMAGE')?.url || ''} alt="Poll image" className="mt-2 max-h-56 w-full rounded-xl object-cover" />}
                               <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · {msg.content && (() => { try { return JSON.parse(msg.content).allowMultiple ? 'Choose all that apply' : 'Choose one option'; } catch { return 'Choose one option'; } })()}</p>
                               <div className="mt-2 flex flex-col gap-1.5">
                                 {poll.options.map((option, optionIndex) => {
@@ -2872,9 +2879,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                         <ImageIcon size={15} /> Add image
                         <input type="file" accept="image/*" className="hidden" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !file.type.startsWith('image/')) { showToast?.({ type: 'error', title: 'Choose an image', message: 'Poll attachments must be image files.' }); event.target.value = ''; return; } setPollDraft(draft => draft ? { ...draft, imageFile: file } : draft); }} />
                       </label>
-                      {pollDraft.imageFile && <span className="min-w-0 flex-1 truncate text-[11px] text-white/55">{pollDraft.imageFile.name}</span>}
+                      {pollDraft.imageFile && <span className="text-[11px] text-white/55">Image attached</span>}
                       {pollDraft.imageFile && <button type="button" onClick={() => setPollDraft(draft => draft ? { ...draft, imageFile: null } : draft)} className="text-[11px] text-white/45 hover:text-white">Remove</button>}
                     </div>
+                    {pollImagePreviewUrl && <div className="mt-2 overflow-hidden rounded-xl border border-white/[0.08] bg-black/20"><img src={pollImagePreviewUrl} alt="Poll image preview" className="max-h-40 w-full object-contain" /></div>}
                     <label className="mt-3 flex items-center gap-2 text-xs text-white/70">
                       <input type="checkbox" checked={pollDraft.allowMultiple} onChange={event => setPollDraft(draft => draft ? { ...draft, allowMultiple: event.target.checked } : draft)} className="accent-[#d6a83f]" />
                       Allow multiple answers
