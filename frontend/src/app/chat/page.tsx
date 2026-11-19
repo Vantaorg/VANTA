@@ -477,7 +477,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [messageCursor, setMessageCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [conversationCursor, setConversationCursor] = useState<string | null>(null);
-  const [messageContextId, setMessageContextId] = useState<string | null>(null);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
@@ -508,6 +507,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const newChatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressedMessageRef = useRef<string | null>(null);
   const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedConversationRef = useRef<string | null>(null);
   const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1772,7 +1772,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const editExistingMessage = (message: Message) => {
     if (!token || !message.isOwn || message.deletedAt) return;
-    setEditingMessage(message); setMessageInput(message.text); setMessageContextId(null);
+    setEditingMessage(message); setMessageInput(message.text);
   };
 
   const saveEditedMessage = async () => {
@@ -1790,7 +1790,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const deleteExistingMessage = (message: Message) => {
     if (!token || (!message.isOwn && activeConv?.type === 'direct')) return;
     setDeleteConfirmMessage(message);
-    setMessageContextId(null);
   };
 
   const confirmDeleteMessage = async () => {
@@ -1818,7 +1817,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       swipeStartRef.current = null;
-      setMessageContextId(null);
+      longPressedMessageRef.current = message.id;
       setSelectedMessageIds(current => current.size ? new Set([...current, message.id]) : new Set([message.id]));
       if ('vibrate' in navigator) navigator.vibrate(18);
     }, 420);
@@ -1879,7 +1878,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError') showToast?.({ type: 'error', title: 'Could not forward message', message: error?.message || 'Please try again.' });
-    } finally { setMessageContextId(null); }
+    } finally { closeMessageSelection(); }
   };
 
   const resetCreateModal = (options?: { discardImage?: boolean }) => {
@@ -2616,13 +2615,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     id={`message-${msg.id}`}
                     className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.08] ring-1 ring-[#d6a83f]/45')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
-                    onClick={() => { if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
                     onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
-                    onContextMenu={event => { if (!msg.pending) { event.preventDefault(); setMessageContextId(msg.id); } }}
                   >
+                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
                       <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
