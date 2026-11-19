@@ -28,8 +28,6 @@ import {
   Sparkles,
   Trash2,
   User,
-  Volume2,
-  VolumeX,
   X,
 } from 'lucide-react';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
@@ -113,7 +111,7 @@ export default function ReelsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [active, setActive] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const muted = false;
   const [paused, setPaused] = useState(false);
   const [commentsFor, setCommentsFor] = useState<Reel | null>(null);
   const [shareFor, setShareFor] = useState<Reel | null>(null);
@@ -310,9 +308,6 @@ export default function ReelsPage() {
       }
     };
     const markInteraction = (event: Event) => {
-      const target = event.target as HTMLElement | null;
-      // Ignore taps on the inline volume/mute control so we don't fight the user.
-      if (target?.closest('[data-reel-mute]')) return;
       if (!userInteractedRef.current) userInteractedRef.current = true;
       retrySound();
     };
@@ -405,7 +400,6 @@ export default function ReelsPage() {
       if (event.key === 'ArrowDown') { event.preventDefault(); jump(active + 1); }
       if (event.key === 'ArrowUp') { event.preventDefault(); jump(active - 1); }
       if (event.key === ' ') { event.preventDefault(); setPaused(value => !value); }
-      if (event.key.toLowerCase() === 'm') setMuted(value => !value);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -639,7 +633,6 @@ export default function ReelsPage() {
             sections={sections}
             followPending={!!pending[`follow:${reel.author.id}`]}
             onPlayToggle={() => setPaused(value => !value)}
-            onMute={() => setMuted(value => !value)}
             onLike={() => void toggle(reel, 'like')}
             onSave={() => void toggle(reel, 'save')}
             onComment={() => void openComments(reel)}
@@ -666,11 +659,11 @@ export default function ReelsPage() {
   );
 }
 
-function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onMute, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
   reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
-  followPending: boolean; onPlayToggle: () => void; onMute: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onShare: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
+  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onShare: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(true);
@@ -768,7 +761,6 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
           {videoFailed && <div className="absolute inset-0 z-20 grid place-items-center bg-black/75 px-8 text-center"><div><Clapperboard className="mx-auto text-white/40" /><h3 className="mt-4 font-semibold">Unable to load Reel</h3><p className="mt-1 max-w-xs text-xs leading-5 text-white/45">{videoError || 'The video could not be played.'}</p><button type="button" onClick={retry} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm"><RefreshCw size={15} />Retry</button></div></div>}
 
           <div className="absolute right-3 top-16 z-10 flex gap-2">
-            <button type="button" onClick={onMute} data-reel-mute className="grid h-9 w-9 place-items-center rounded-full bg-black/45 text-white backdrop-blur" aria-label={muted ? 'Unmute Reel' : 'Mute Reel'}>{muted ? <VolumeX size={17} /> : <Volume2 size={17} />}</button>
             <button type="button" onClick={() => void fullscreen()} className="grid h-9 w-9 place-items-center rounded-full bg-black/45 text-white backdrop-blur" aria-label="Enter fullscreen"><Maximize size={16} /></button>
           </div>
 

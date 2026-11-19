@@ -1,0 +1,6 @@
+# Firebase Android client configuration contains public client API identifiers.
+# Server credentials must never be placed in these files.
+[[allowlists]]
+description = "Firebase Android google-services client configuration"
+paths = [ '''google-services\.json$''' ]
+regexes = [ '''AIzaSyAqwbhWduo20eb_L_duCWme5s5-PfTtWH30''' ]

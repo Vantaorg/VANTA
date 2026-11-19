@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Video, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 
 /** One attachment of a VANTA multi-media post (API shape from /api/feed). */
@@ -50,10 +50,8 @@ type PostMediaProps = {
   onDoubleClick?: () => void;
   /** Autoplay the video while it is on screen (default true). */
   autoplayOnView?: boolean;
-  /** Start muted (default true). */
+  /** Start muted (default false). */
   defaultMuted?: boolean;
-  /** Whether to render the mute toggle (default true for video). */
-  showMute?: boolean;
   /** Whether to render the centered play affordance (default true for video). */
   showPlay?: boolean;
   /** Extra className for the underlying media element. */
@@ -74,15 +72,14 @@ export default function PostMedia({
   preload = 'metadata',
   onDoubleClick,
   autoplayOnView = true,
-  defaultMuted = true,
-  showMute = true,
+  defaultMuted = false,
   showPlay = true,
   className,
   feedCompact = false,
 }: PostMediaProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(defaultMuted);
+  const muted = defaultMuted;
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -186,16 +183,6 @@ export default function PostMedia({
             className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur"
           >
             <Video size={22} />
-          </button>
-        )}
-        {showMute && (
-          <button
-            type="button"
-            onClick={() => setMuted((value) => !value)}
-            aria-label={muted ? 'Unmute video' : 'Mute video'}
-            className="absolute right-3 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white backdrop-blur"
-          >
-            {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-white/15">

@@ -63,13 +63,52 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const nativeTokenRef = useRef<string | null>(null);
   const registeredNativeTokenRef = useRef<string | null>(null);
   const lastAuthTokenRef = useRef<string | null>(null);
+  const nativeRegistrationInFlightRef = useRef(false);
+
+  const registerNativeTokenNow = useCallback(async (): Promise<boolean> => {
+    if (!token || !user || !nativeToken || registeredNativeTokenRef.current === nativeToken) {
+      return Boolean(nativeToken && registeredNativeTokenRef.current === nativeToken);
+    }
+    if (nativeRegistrationInFlightRef.current) return false;
+    nativeRegistrationInFlightRef.current = true;
+    try {
+      const device = await registerDevice(nativeToken, {
+        platform: 'android',
+        provider: 'fcm',
+        deviceModel: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 160) : 'Android',
+        appVersion: '0.1.0',
+      }, token);
+      if (device) {
+        registeredNativeTokenRef.current = nativeToken;
+        setSupported(true);
+        setStatus('enabled');
+        return true;
+      }
+      setSupported(true);
+      setStatus('network-error');
+      return false;
+    } finally {
+      nativeRegistrationInFlightRef.current = false;
+    }
+  }, [token, user, nativeToken]);
 
   /** Passive sync: register the SW + register the device IF permission is granted. */
   const syncPassive = useCallback(async (requestPermission: boolean): Promise<{ ok: boolean; reason?: string }> => {
     if (!token || !user) return { ok: false, reason: 'no-session' };
     if (nativeTokenRef.current) {
       setSupported(true);
-      return { ok: true };
+      const registered = await registerNativeTokenNow();
+      return registered
+        ? { ok: true }
+        : { ok: false, reason: 'native-registration-pending' };
+    }
+    // Android APK notifications use the native Firebase token, not Web Push.
+    // Skip VAPID and service-worker setup while the native bridge initializes.
+    const isNativeAndroid = typeof navigator !== 'undefined' && /\bVANTAAndroid\b/.test(navigator.userAgent);
+    if (isNativeAndroid) {
+      setSupported(true);
+      setStatus('permission-pending');
+      return { ok: false, reason: 'native-token-pending' };
     }
     if (!isPushSupported()) {
       setStatus('unsupported');
@@ -132,7 +171,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     } finally {
       refreshing.current = false;
     }
-  }, [token, user, nativeToken]);
+  }, [token, user, nativeToken, registerNativeTokenNow]);
 
   useEffect(() => {
     void syncPassive(false);
@@ -141,18 +180,22 @@ export function PushProvider({ children }: { children: ReactNode }) {
   // The native Android shell publishes its FCM registration token only from
   // the trusted VANTA WebView. Keep it separate from the browser's VAPID token.
   useEffect(() => {
-    // The Android WebView can finish loading before React hydrates. Read the
-    // token snapshot as well as listening for events so that an early native
-    // event cannot be lost during startup.
-    const acceptNativeToken = (value: unknown) => {
-      if (typeof value !== 'string' || value.length < 20) return;
-      nativeTokenRef.current = value;
-      setNativeToken(value);
-      setSupported(true);
-      setStatus('permission-pending');
-    };
     const receiveNativeToken = (event: Event) => {
-      acceptNativeToken((event as CustomEvent<{ token?: string }>).detail?.token);
+      const value = (event as CustomEvent<{ token?: string }>).detail?.token;
+      if (typeof value === 'string' && value.length >= 20) {
+        nativeTokenRef.current = value;
+        setNativeToken(value);
+        setSupported(true);
+        setStatus('permission-pending');
+      }
+    };
+    const acceptNativeToken = (value?: string) => {
+      if (typeof value === 'string' && value.length >= 20) {
+        nativeTokenRef.current = value;
+        setNativeToken(value);
+        setSupported(true);
+        setStatus('permission-pending');
+      }
     };
     const nativeWindow = window as Window & { __VANTA_NATIVE_FCM_TOKEN__?: string };
     acceptNativeToken(nativeWindow.__VANTA_NATIVE_FCM_TOKEN__);
@@ -162,22 +205,9 @@ export function PushProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (token) lastAuthTokenRef.current = token;
-    if (!token || !user || !nativeToken || registeredNativeTokenRef.current === nativeToken) return;
-    let cancelled = false;
-    void registerDevice(nativeToken, {
-      platform: 'android',
-      provider: 'fcm',
-      deviceModel: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 160) : 'Android',
-      appVersion: '0.1.0',
-    }, token).then((device) => {
-      if (!cancelled && device) {
-        registeredNativeTokenRef.current = nativeToken;
-        setSupported(true);
-        setStatus('enabled');
-      }
-    });
-    return () => { cancelled = true; };
-  }, [token, user, nativeToken]);
+    if (!token || !user || !nativeToken) return;
+    void registerNativeTokenNow();
+  }, [token, user, nativeToken, registerNativeTokenNow]);
 
   // Re-sync when the window regains focus and the browser rotated the
   // subscription (handled by the service worker's pushsubscriptionchange).
