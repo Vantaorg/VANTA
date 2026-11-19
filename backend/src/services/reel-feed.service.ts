@@ -117,35 +117,9 @@ export async function buildReelFeed(input: {
     },
   });
 
-  const reelIds = reels.map((r) => r.id);
-  const [myFollows, myViews] = await Promise.all([
-    userId
-      ? prisma.follow
-          .findMany({ where: { followerId: userId }, select: { followingId: true } })
-          .then((rows) => new Set(rows.map((x) => x.followingId)))
-      : Promise.resolve(new Set<string>()),
-    userId && reelIds.length
-      ? prisma.contentView.findMany({
-          where: { contentType: "REEL", userId, contentId: { in: reelIds } },
-          select: { contentId: true, viewedAt: true },
-        })
-      : Promise.resolve([]),
-  ]);
-
-  const viewedMeta = new Map<string, number>();
-  for (const view of myViews) {
-    const existing = viewedMeta.get(view.contentId);
-    viewedMeta.set(
-      view.contentId,
-      existing === undefined ? view.viewedAt.getTime() : Math.max(existing, view.viewedAt.getTime())
-    );
-  }
-
   const effectiveSeed =
     seed && seed.trim() ? seed : `vanta:${userId ?? "anon"}:${Math.random().toString(36).slice(2, 10)}`;
   const rand = mulberry32(hashSeed(effectiveSeed));
-  const now = Date.now();
-
   const candidates = reels.map((reel) => ({
     id: reel.id,
     creatorId: reel.creatorId,
@@ -167,6 +141,15 @@ export async function buildReelFeed(input: {
 
   const page = diversified.slice(start, start + limit);
   const nextStart = start + page.length < diversified.length ? start + page.length : null;
+  // Only check follow relationships for creators on this page, not every
+  // account the viewer follows. This keeps feed latency bounded for large graphs.
+  const pageCreatorIds = Array.from(new Set(page.map((reel) => reel.creatorId)));
+  const myFollows = userId && pageCreatorIds.length
+    ? new Set((await prisma.follow.findMany({
+        where: { followerId: userId, followingId: { in: pageCreatorIds } },
+        select: { followingId: true },
+      })).map((row) => row.followingId))
+    : new Set<string>();
 
   return {
     seed: effectiveSeed,
