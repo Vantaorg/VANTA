@@ -2577,7 +2577,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     onPointerDown={event => startMessageLongPress(msg, event)}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
-                    onPointerMove={event => { cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
+                    onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                     onContextMenu={event => { if (!msg.pending) { event.preventDefault(); setMessageContextId(msg.id); } }}
                   >
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
