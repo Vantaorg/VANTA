@@ -106,6 +106,7 @@ export default function HomePage() {
   const [giftError, setGiftError] = useState('');
   const sentinel = useRef<HTMLDivElement>(null);
   const pageScrollRef = useRef<HTMLDivElement>(null);
+  const pendingActionsRef = useRef(new Set<string>());
 
   const fetchFeed = useCallback(async (reset = true, requestedCursor?: string, nextSeed?: string) => {
     if (!token) return;
@@ -119,7 +120,7 @@ export default function HomePage() {
       if (tab !== 'following') query.set('seed', seedToUse);
       const endpoint = tab === 'following' ? '/api/feed' : '/api/feed/home';
       const data = await apiGet<any>(`${endpoint}?${query}`, token, { skipCache: reset });
-      const next = unwrap(data);
+      const next = unwrap(data).map(item => ({ ...item, liked: typeof item.liked === 'boolean' ? item.liked : typeof item.isLiked === 'boolean' ? item.isLiked : false, likes: item.likes ?? item.likesCount ?? item._count?.likes ?? 0 }));
       setItems(previous => reset ? next : [...previous, ...next.filter(item => !previous.some(existing => existing.id === item.id))]);
       setCursor(data?.nextCursor);
       setHasMore(Boolean(data?.nextCursor));
@@ -190,40 +191,33 @@ export default function HomePage() {
 
   const optimistic = async (item: Item, mode: 'like' | 'save') => {
     if (!token || item.type === 'live') return;
-    const key = mode === 'like' ? 'liked' : 'saved'; const was = Boolean(item[key]);
-    const apply = (value: boolean) => setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, [key]: value, ...(mode === 'like' ? { likes: Math.max(0, (entry.likes || 0) + (value ? 1 : -1)) } : {}) } : entry));
+    const id = cleanId(item);
+    const actionKey = `${mode}:${id}`;
+    if (pendingActionsRef.current.has(actionKey)) return;
+    pendingActionsRef.current.add(actionKey);
+    const key = mode === 'like' ? 'liked' : 'saved';
+    const was = Boolean(item[key]);
+    const previousLikes = Number(item.likes || 0);
+    const apply = (value: boolean, count?: number) => setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, [key]: value, ...(mode === 'like' ? { likes: Number.isFinite(count) ? Math.max(0, Number(count)) : Math.max(0, Number(entry.likes || 0) + (value ? 1 : -1)) } : {}) } : entry));
     apply(!was);
     const base = actionEndpointFor(item);
-    const id = cleanId(item);
     try {
-      if (isVideoItem(item)) {
-        // Reels are stored in the prisma.video table and must be addressed via
-        // /api/reels/:videoId. Reconcile the optimistic state with the server's
-        // returned state so rapid taps or stale feed data cannot drift the count.
-        if (mode === 'like') {
-          const result = await apiPost<any>(`${base}/${id}/like`, {}, token);
-          setItems(previous => previous.map(entry => entry.id === item.id ? {
-            ...entry,
-            liked: typeof result?.liked === 'boolean' ? result.liked : !was,
-            likes: Number.isFinite(Number(result?.likes ?? result?.likeCount)) ? Number(result?.likes ?? result?.likeCount) : entry.likes,
-          } : entry));
-        } else {
-          await apiPost(`${base}/${id}/save`, {}, token);
-        }
-      } else if (mode === 'like') {
+      if (mode === 'like') {
         const result = await apiPost<any>(`${base}/${id}/like`, {}, token);
-        setItems(previous => previous.map(entry => entry.id === item.id ? {
-          ...entry,
-          liked: typeof result?.liked === 'boolean' ? result.liked : !was,
-          likes: Number.isFinite(Number(result?.likeCount ?? result?.likes)) ? Number(result?.likeCount ?? result?.likes) : entry.likes,
-        } : entry));
+        setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, liked: typeof result?.liked === 'boolean' ? result.liked : !was, likes: Number.isFinite(Number(result?.likeCount ?? result?.likes)) ? Number(result?.likeCount ?? result?.likes) : Math.max(0, previousLikes + (was ? -1 : 1)) } : entry));
+      } else if (isVideoItem(item)) {
+        await apiPost(`${base}/${id}/save`, {}, token);
       } else if (was) {
         await apiDelete(`${base}/${id}/save`, token);
       } else {
         await apiPost(`${base}/${id}/save`, {}, token);
       }
+    } catch (reason: any) {
+      apply(was, previousLikes);
+      toast.error('Could not update post', reason?.message);
+    } finally {
+      pendingActionsRef.current.delete(actionKey);
     }
-    catch (reason: any) { apply(was); toast.error('Could not update post', reason?.message); }
   };
   const follow = async (item: Item) => {
     if (!token) return; const creator = getAuthor(item); const was = Boolean(item.following);
