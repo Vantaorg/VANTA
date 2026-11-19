@@ -83,15 +83,21 @@ export class NotificationService {
     filters: { unreadOnly?: boolean; types?: string[] } = {}
   ) {
     const normalizedTypes = filters.types?.map(normalizeType).filter(type => Boolean(type) && !["message", "group", "channel"].includes(type));
+    const excludedChatTypes = ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL", "direct_message", "DIRECT_MESSAGE", "chat_message", "CHAT_MESSAGE"];
     const storedTypes = normalizedTypes
       ? [...new Set(normalizedTypes.flatMap(type => [type, type.toUpperCase()]))]
       : undefined;
+    if (filters.types?.length && !storedTypes?.length) {
+      return { items: [], nextCursor: undefined, unreadCount: await this.getUnreadCount(userId) };
+    }
+    const typeFilter = storedTypes?.length
+      ? { notIn: excludedChatTypes, in: storedTypes }
+      : { notIn: excludedChatTypes };
     const where = {
       userId,
       // Chat activity is exclusively handled by Chats. Never surface it here.
-      type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
+      type: typeFilter,
       ...(filters.unreadOnly ? { read: false } : {}),
-      ...(storedTypes?.length ? { type: { in: storedTypes } } : {}),
     };
     const notifications = await prisma.notification.findMany({
       where,
@@ -124,7 +130,7 @@ export class NotificationService {
         userId,
         read: false,
         // Legacy chat notification rows must not inflate the Notifications badge.
-        type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL"] },
+        type: { notIn: ["message", "MESSAGE", "group", "GROUP", "channel", "CHANNEL", "direct_message", "DIRECT_MESSAGE", "chat_message", "CHAT_MESSAGE"] },
       },
     });
 
