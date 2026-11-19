@@ -40,7 +40,19 @@ android {
             val debugOrigin = providers.gradleProperty("VANTA_DEBUG_ORIGIN")
                 .orElse("https://vanta-nu.vercel.app")
                 .get()
-            buildConfigField("String", "VANTA_ORIGIN", "\"$debugOrigin\"")
+            val parsedDebugOrigin = java.net.URI(debugOrigin)
+            require(
+                parsedDebugOrigin.scheme == "https" &&
+                    !parsedDebugOrigin.host.isNullOrBlank() &&
+                    parsedDebugOrigin.rawUserInfo == null &&
+                    parsedDebugOrigin.rawQuery == null &&
+                    parsedDebugOrigin.rawFragment == null &&
+                    (parsedDebugOrigin.rawPath.isNullOrEmpty() || parsedDebugOrigin.rawPath == "/")
+            ) {
+                "VANTA_DEBUG_ORIGIN must be an HTTPS origin without credentials, path, query, or fragment"
+            }
+            val escapedDebugOrigin = debugOrigin.replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField("String", "VANTA_ORIGIN", "\"$escapedDebugOrigin\"")
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
