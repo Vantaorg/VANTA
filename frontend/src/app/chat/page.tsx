@@ -1836,6 +1836,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const closeMessageSelection = () => setSelectedMessageIds(new Set());
 
+  // Android/system Back can leave the conversation while selection mode is open.
+  // Never allow the selection toolbar to leak into the conversation list.
+  useEffect(() => {
+    if (showMobileList || !activeConversation) closeMessageSelection();
+  }, [showMobileList, activeConversation]);
+
   const copySelectedMessages = async () => {
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
     const content = selected.map(message => message.text || (message.attachments?.length ? '[Attachment]' : '')).filter(Boolean).join('\n');
@@ -3018,8 +3024,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     disabled={recordingState !== 'idle'}
                     placeholder="Message"
                     className="min-h-10 max-h-[100px] w-full resize-none overflow-y-auto rounded-2xl border-0 bg-[#27313d] px-3.5 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus:bg-[#354252]"
+                    enterKeyHint="enter"
                     onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey && (messageInput.trim() || attachmentDrafts.length)) { e.preventDefault(); sendComposer(); }
+                      // Keep Enter as a newline on phones; the visible Send button
+                      // is the only send action on mobile keyboards.
+                      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+                      if (!isMobile && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && (messageInput.trim() || attachmentDrafts.length)) {
+                        e.preventDefault();
+                        sendComposer();
+                      }
                     }}
                   />
                 </div>
