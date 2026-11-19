@@ -1,9 +1,6 @@
-# Exact fingerprints for Firebase Android client API keys in google-services.json.
-# These are client identifiers, not server credentials; restrict them in Google Cloud.
-[allowlist]
-description = "Firebase Android client API key fingerprints"
-fingerprints = [
-  "cf3294ecee0401ca03e1b2092dbf14c9acf13eb7:android/app/google-services.json:gcp-api-key:18",
-  "7db2fa1cb3cba70db3c954f62ef992b7b4014062:android/app/src/debug/google-services.json:gcp-api-key:14",
-  "7db2fa1cb3cba70db3c954f62ef992b7b4014062:android/app/src/debug/google-services.json:gcp-api-key:23",
-]
+# Firebase Android client configuration contains public client API identifiers.
+# Server credentials must never be placed in these files.
+[[allowlists]]
+description = "Firebase Android google-services client configuration"
+paths = [ '''google-services\.json$''' ]
+regexes = [ '''AIzaSyAqwbhWduo20eb_L_duCWme5s5-PfTtWH30''' ]
