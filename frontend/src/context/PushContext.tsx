@@ -73,7 +73,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     }
     // Android APK notifications use the native Firebase token, not Web Push.
     // Skip VAPID and service-worker setup while the native bridge initializes.
-    const isNativeAndroid = typeof navigator !== 'undefined' && /\\bVANTAAndroid\\b/.test(navigator.userAgent);
+    const isNativeAndroid = typeof navigator !== 'undefined' && /\bVANTAAndroid\b/.test(navigator.userAgent);
     if (isNativeAndroid) {
       setSupported(true);
       setStatus('permission-pending');
