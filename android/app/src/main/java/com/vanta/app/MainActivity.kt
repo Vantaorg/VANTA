@@ -50,6 +50,7 @@ class MainActivity : Activity() {
     private var pendingGeolocationCallback: android.webkit.GeolocationPermissions.Callback? = null
     private var pendingGeolocationOrigin: String? = null
     private var pendingWebPermissionRequest: android.webkit.PermissionRequest? = null
+    private var pendingWebPermissionNames: Set<String> = emptySet()
 
     companion object {
         private const val PRODUCTION_ORIGIN = "https://vanta-nu.vercel.app"
@@ -166,29 +167,50 @@ class MainActivity : Activity() {
                 }
 
                 override fun onPermissionRequest(request: android.webkit.PermissionRequest) {
+                    // WebRTC capture is allowed only to the trusted VANTA origin.
                     if (!isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
-                        request.deny()
+                        runOnUiThread { request.deny() }
                         return
                     }
-                    val wantsVideo = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
-                    val wantsAudio = request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+
+                    val requested = request.resources.toSet()
+                    val wantsVideo = requested.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                    val wantsAudio = requested.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
                     if (!wantsVideo && !wantsAudio) {
-                        request.deny()
+                        runOnUiThread { request.deny() }
                         return
                     }
-                    val permissions = mutableListOf<String>()
+
+                    val androidPermissions = mutableListOf<String>()
                     if (wantsVideo && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        permissions.add(Manifest.permission.CAMERA)
+                        androidPermissions.add(Manifest.permission.CAMERA)
                     }
                     if (wantsAudio && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        permissions.add(Manifest.permission.RECORD_AUDIO)
+                        androidPermissions.add(Manifest.permission.RECORD_AUDIO)
                     }
-                    if (permissions.isEmpty()) {
-                        request.grant(request.resources)
+
+                    if (androidPermissions.isEmpty()) {
+                        runOnUiThread {
+                            if (isTrustedPage(webView.url) && isTrustedPage(request.origin.toString())) {
+                                request.grant(requested.toTypedArray())
+                            } else {
+                                request.deny()
+                            }
+                        }
                     } else {
-                        pendingWebPermissionRequest?.deny()
-                        pendingWebPermissionRequest = request
-                        requestPermissions(permissions.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
+                        runOnUiThread {
+                            pendingWebPermissionRequest?.deny()
+                            pendingWebPermissionRequest = request
+                            pendingWebPermissionNames = requested
+                            requestPermissions(androidPermissions.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
+                        }
+                    }
+                }
+
+                override fun onPermissionRequestCanceled(request: android.webkit.PermissionRequest) {
+                    if (pendingWebPermissionRequest === request) {
+                        pendingWebPermissionRequest = null
+                        pendingWebPermissionNames = emptySet()
                     }
                 }
 
@@ -297,14 +319,31 @@ class MainActivity : Activity() {
                 pendingGeolocationOrigin = null
             }
             WEB_MEDIA_PERMISSION_REQUEST -> {
-                val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
                 val request = pendingWebPermissionRequest
+                val requestedResources = pendingWebPermissionNames
                 pendingWebPermissionRequest = null
-                if (granted && request != null && isTrustedPage(webView.url)) {
-                    request.grant(request.resources)
-                } else {
+                pendingWebPermissionNames = emptySet()
+
+                if (request == null || !isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
                     request?.deny()
+                    return
                 }
+
+                // Grant only the capture resources whose matching Android runtime
+                // permission is actually granted. A denied camera must not prevent
+                // an otherwise-authorized microphone-only request (and vice versa).
+                val allowedResources = mutableListOf<String>()
+                if (requestedResources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE) &&
+                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    allowedResources.add(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                }
+                if (requestedResources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE) &&
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    allowedResources.add(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                }
+
+                if (allowedResources.isNotEmpty()) request.grant(allowedResources.toTypedArray())
+                else request.deny()
             }
         }
     }
@@ -623,6 +662,7 @@ class MainActivity : Activity() {
         pendingGeolocationCallback = null
         pendingWebPermissionRequest?.deny()
         pendingWebPermissionRequest = null
+        pendingWebPermissionNames = emptySet()
         if (isFinishing) {
             pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             pendingCameraUri = null
