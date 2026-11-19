@@ -782,7 +782,7 @@ async function startServer() {
       }
     };
     void sweepUserMilestones();
-    const userMilestonesTimer = setInterval(sweepUserMilestones, 60 * 60 * 1000);
+    const userMilestonesTimer = setInterval(sweepUserMilestones, 24 * 60 * 60 * 1000);
     if (userMilestonesTimer.unref) userMilestonesTimer.unref();
 
     // Verification badge expiry: flip overdue ACTIVE badges to EXPIRED so
