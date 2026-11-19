@@ -300,7 +300,6 @@ export default function ReelsPage() {
       }
     };
     const markInteraction = (event: Event) => {
-      const target = event.target as HTMLElement | null;
       if (!userInteractedRef.current) userInteractedRef.current = true;
       retrySound();
     };
