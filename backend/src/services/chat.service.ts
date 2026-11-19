@@ -269,10 +269,15 @@ export class ChatService {
         const partner = type === "DIRECT"
           ? conversation.participants.find((p: any) => p.userId !== userId)?.user
           : undefined;
-        const participants = conversation.participants.map((p: any) => ({
-          ...enrichPublicUser(p.user),
-          role: p.role,
-        }));
+        const participants = conversation.participants.map((p: any) => {
+          const publicUser = { ...p.user };
+          delete publicUser.userPresence;
+          delete publicUser.userSettings;
+          return {
+            ...enrichPublicUser(publicUser),
+            role: p.role,
+          };
+        });
         let visiblePartner: any = partner;
         if (partner) {
           const onlineVisibility = String(partner.userSettings?.onlineStatus || "everyone").toLowerCase();
