@@ -19,7 +19,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Build debug variant and print certificate fingerprints
+      - name: Print production and debug certificate SHA-1 fingerprints
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -47,9 +47,15 @@ jobs:
             -storepass "$ANDROID_KEYSTORE_PASSWORD" |
             grep -E 'SHA1:|SHA-1:'
 
-          echo "=== Building debug variant to generate its debug keystore ==="
-          chmod +x ./gradlew
-          ./gradlew --no-daemon :app:assembleDebug
+          echo "=== Generating standard Android debug keystore ==="
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
 
           echo "=== Debug certificate SHA-1 ==="
           keytool -list -v -keystore "$HOME/.android/debug.keystore" \
