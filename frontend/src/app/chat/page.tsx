@@ -1868,19 +1868,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     longPressTimerRef.current = null;
   };
 
-  const forwardMessage = async (message: Message) => {
-    const text = message.text || 'Shared from VANTA';
-    try {
-      if (navigator.share) await navigator.share({ title: 'VANTA message', text });
-      else {
-        await navigator.clipboard.writeText(text);
-        showToast?.({ type: 'success', title: 'Message ready to forward', message: 'The message was copied to your clipboard.' });
-      }
-    } catch (error: any) {
-      if (error?.name !== 'AbortError') showToast?.({ type: 'error', title: 'Could not forward message', message: error?.message || 'Please try again.' });
-    } finally { closeMessageSelection(); }
-  };
-
   const resetCreateModal = (options?: { discardImage?: boolean }) => {
     const discardImage = options?.discardImage ?? true;
     const pendingFileId = createAvatarFileIdRef.current;
@@ -3206,7 +3193,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               <button type="button" aria-label="Forward selected messages" onClick={() => void forwardSelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Forward size={20}/></button>
               {selectedMessageIds.size === 1 && (() => {
                 const selected = messages.find(message => selectedMessageIds.has(message.id));
-                return selected && (selected.isOwn || activeConv?.type !== 'direct') ? <button type="button" aria-label="Delete selected message" onClick={() => { setSelectedMessageIds(new Set()); void deleteExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button> : null;
+                if (!selected) return null;
+                return <>
+                  {selected.isOwn && <button type="button" aria-label="Edit selected message" onClick={() => { closeMessageSelection(); editExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Pencil size={20}/></button>}
+                  {(selected.isOwn || activeConv?.type !== 'direct') && <button type="button" aria-label="Delete selected message" onClick={() => { closeMessageSelection(); void deleteExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>}
+                </>;
               })()}
             </div>
             <div className="fixed inset-x-0 bottom-0 z-[75] flex gap-2 border-t border-white/10 bg-[#1f2630] px-3 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(0,0,0,.25)]">
