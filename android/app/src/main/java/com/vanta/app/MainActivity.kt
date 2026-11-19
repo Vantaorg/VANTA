@@ -53,9 +53,7 @@ class MainActivity : Activity() {
     private var pendingWebPermissionNames: Set<String> = emptySet()
 
     companion object {
-        // The Gradle build sets this per variant. Debug defaults to production
-        // so APK testing cannot silently drift onto an old PR preview; an
-        // intentional preview can be selected with -PVANTA_DEBUG_ORIGIN=...
+        // Both APK variants use the same production origin from defaultConfig.
         private val VANTA_ORIGIN: String
             get() = BuildConfig.VANTA_ORIGIN
         private val VANTA_HOSTS = setOfNotNull(Uri.parse(BuildConfig.VANTA_ORIGIN).host)
