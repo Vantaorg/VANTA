@@ -225,6 +225,8 @@ export class ChatService {
               select: {
                 id: true,
                 ...userSelect,
+                userPresence: { select: { isOnline: true, lastActive: true } },
+                userSettings: { select: { onlineStatus: true, lastSeen: true } },
               },
             },
           },
@@ -271,6 +273,33 @@ export class ChatService {
           ...enrichPublicUser(p.user),
           role: p.role,
         }));
+        let visiblePartner: any = partner;
+        if (partner) {
+          const onlineVisibility = String(partner.userSettings?.onlineStatus || "everyone").toLowerCase();
+          const lastSeenVisibility = String(partner.userSettings?.lastSeen || "everyone").toLowerCase();
+          const needsFollowerCheck = ["followers", "following"].includes(onlineVisibility) ||
+            ["followers", "following"].includes(lastSeenVisibility);
+          const viewerFollowsPartner = needsFollowerCheck
+            ? Boolean(await prisma.follow.findFirst({
+                where: { followerId: userId, followingId: partner.id },
+                select: { followerId: true },
+              }))
+            : false;
+          const canSeeOnline = !["nobody", "noone", "none"].includes(onlineVisibility) &&
+            (!needsFollowerCheck || viewerFollowsPartner || !["followers", "following"].includes(onlineVisibility));
+          const canSeeLastSeen = !["nobody", "noone", "none"].includes(lastSeenVisibility) &&
+            (!["followers", "following"].includes(lastSeenVisibility) || viewerFollowsPartner);
+          const { userPresence, userSettings, ...publicPartner } = partner;
+          visiblePartner = {
+            ...enrichPublicUser(publicPartner),
+            userPresence: {
+              isOnline: canSeeOnline ? Boolean(userPresence?.isOnline) : false,
+              ...(canSeeLastSeen && userPresence?.lastActive ? { lastActive: userPresence.lastActive } : {}),
+            },
+            isOnline: canSeeOnline ? Boolean(userPresence?.isOnline) : false,
+            ...(canSeeLastSeen && userPresence?.lastActive ? { lastActive: userPresence.lastActive } : {}),
+          };
+        }
           const unreadCount = await prisma.message.count({
           where: {
             conversationId: conversation.id,
@@ -298,7 +327,7 @@ export class ChatService {
           currentRole: conversation.participants.find((p: any) => p.userId === userId)?.role || "MEMBER",
           mutedAt: conversation.participants.find((p: any) => p.userId === userId)?.mutedAt || null,
           memberCount: conversation.participants.length,
-          partner: partner ? enrichPublicUser(partner) : undefined,
+          partner: visiblePartner,
           lastMessage: conversation.messages[0] || null,
           unreadCount,
           participants,
