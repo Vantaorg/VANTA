@@ -82,7 +82,61 @@ class MainActivity : Activity() {
 
         pendingCameraUri = savedInstanceState?.getString(CAMERA_URI_STATE)?.let(Uri::parse)
 
-        webView = WebView(this).apply {
+        webView = createWebView()
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.rgb(5, 5, 5))
+            addView(webView)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            root.setOnApplyWindowInsetsListener { view, insets ->
+                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
+                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
+                // Keep the WebView edge-to-edge. Reserve only the actual Android
+                // navigation-bar inset; systemBars() also includes other system
+                // UI and can leave an oversized empty strip below app navigation.
+                systemBottomInsetPx = navigationBars.bottom
+                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
+                webView.post { applySystemBottomInset() }
+                insets
+            }
+        }
+        setContentView(root)
+
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+        if (savedInstanceState == null) {
+            // A notification may cold-start the activity. Honor its validated
+            // internal route instead of always opening the homepage.
+            val initialNotificationRoute = intent?.getStringExtra(
+                VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE
+            )?.takeIf { it.startsWith("/") && !it.startsWith("//") }
+            webView.loadUrl(VANTA_ORIGIN + (initialNotificationRoute ?: ""))
+        } else {
+            webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
+        }
+
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4111)
+        }
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE).edit()
+                .putString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, token).apply()
+            publishNativeFcmToken(token)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent?.getStringExtra(VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE)
+        if (!route.isNullOrBlank() && route.startsWith("/") && !route.startsWith("//")) {
+            webView.post { webView.loadUrl(VANTA_ORIGIN + route) }
+        }
+    }
+
+
+    private fun createWebView(): WebView {
+        return WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -133,6 +187,36 @@ class MainActivity : Activity() {
                     error: SslError
                 ) {
                     handler.cancel()
+                }
+
+                override fun onRenderProcessGone(
+                    view: WebView,
+                    detail: android.webkit.RenderProcessGoneDetail
+                ): Boolean {
+                    val parent = view.parent as? ViewGroup ?: return false
+                    val childIndex = parent.indexOfChild(view)
+                    val layoutParams = view.layoutParams
+                    val currentUrl = view.url?.takeIf(::isTrustedPage) ?: VANTA_ORIGIN
+
+                    pendingFileCallback?.onReceiveValue(null)
+                    pendingFileCallback = null
+                    pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+                    pendingGeolocationCallback = null
+                    pendingGeolocationOrigin = null
+                    pendingWebPermissionRequest?.deny()
+                    pendingWebPermissionRequest = null
+                    pendingWebPermissionNames = emptySet()
+
+                    view.stopLoading()
+                    view.webChromeClient = null
+                    view.webViewClient = WebViewClient()
+                    parent.removeView(view)
+                    view.destroy()
+
+                    webView = createWebView()
+                    parent.addView(webView, childIndex, layoutParams)
+                    webView.loadUrl(currentUrl)
+                    return true
                 }
             }
 
@@ -237,56 +321,7 @@ class MainActivity : Activity() {
                     return true
                 }
             }
-        }
-
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(Color.rgb(5, 5, 5))
-            addView(webView)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            root.setOnApplyWindowInsetsListener { view, insets ->
-                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
-                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
-                // Keep the WebView edge-to-edge. Reserve only the actual Android
-                // navigation-bar inset; systemBars() also includes other system
-                // UI and can leave an oversized empty strip below app navigation.
-                systemBottomInsetPx = navigationBars.bottom
-                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
-                webView.post { applySystemBottomInset() }
-                insets
-            }
-        }
-        setContentView(root)
-
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        if (savedInstanceState == null) {
-            // A notification may cold-start the activity. Honor its validated
-            // internal route instead of always opening the homepage.
-            val initialNotificationRoute = intent?.getStringExtra(
-                VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE
-            )?.takeIf { it.startsWith("/") && !it.startsWith("//") }
-            webView.loadUrl(VANTA_ORIGIN + (initialNotificationRoute ?: ""))
-        } else {
-            webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
-        }
-
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4111)
-        }
-        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-            getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE).edit()
-                .putString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, token).apply()
-            publishNativeFcmToken(token)
-        }
-    }
-
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        val route = intent?.getStringExtra(VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE)
-        if (!route.isNullOrBlank() && route.startsWith("/") && !route.startsWith("//")) {
-            webView.post { webView.loadUrl(VANTA_ORIGIN + route) }
-        }
+                }
     }
 
     private fun publishNativeFcmToken(tokenOverride: String? = null) {
