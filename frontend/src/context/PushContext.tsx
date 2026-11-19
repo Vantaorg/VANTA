@@ -11,7 +11,7 @@ import {
   unsubscribeAndUnregister,
   type PushPermissionState,
 } from '@/lib/pushClient';
-import { fetchPushConfig } from '@/lib/pushApi';
+import { fetchPushConfig, registerDevice, unregisterDeviceByToken } from '@/lib/pushApi';
 
 // ============================================================================
 // PushProvider — global OS-push state for the signed-in user.
@@ -56,13 +56,21 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const [permission, setPermission] = useState<PushPermissionState>('default');
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [configIssue, setConfigIssue] = useState<string | null>(null);
+  const [nativeToken, setNativeToken] = useState<string | null>(null);
 
   const refreshing = useRef(false);
   const lastTokenRef = useRef<string | null>(null);
+  const nativeTokenRef = useRef<string | null>(null);
+  const registeredNativeTokenRef = useRef<string | null>(null);
+  const lastAuthTokenRef = useRef<string | null>(null);
 
   /** Passive sync: register the SW + register the device IF permission is granted. */
   const syncPassive = useCallback(async (requestPermission: boolean): Promise<{ ok: boolean; reason?: string }> => {
     if (!token || !user) return { ok: false, reason: 'no-session' };
+    if (nativeTokenRef.current) {
+      setSupported(true);
+      return { ok: true };
+    }
     if (!isPushSupported()) {
       setStatus('unsupported');
       setSupported(false);
@@ -124,11 +132,46 @@ export function PushProvider({ children }: { children: ReactNode }) {
     } finally {
       refreshing.current = false;
     }
-  }, [token, user]);
+  }, [token, user, nativeToken]);
 
   useEffect(() => {
     void syncPassive(false);
   }, [syncPassive]);
+
+  // The native Android shell publishes its FCM registration token only from
+  // the trusted VANTA WebView. Keep it separate from the browser's VAPID token.
+  useEffect(() => {
+    const receiveNativeToken = (event: Event) => {
+      const value = (event as CustomEvent<{ token?: string }>).detail?.token;
+      if (typeof value === 'string' && value.length >= 20) {
+        nativeTokenRef.current = value;
+        setNativeToken(value);
+        setSupported(true);
+        setStatus('permission-pending');
+      }
+    };
+    window.addEventListener('vanta-native-fcm-token', receiveNativeToken);
+    return () => window.removeEventListener('vanta-native-fcm-token', receiveNativeToken);
+  }, []);
+
+  useEffect(() => {
+    if (token) lastAuthTokenRef.current = token;
+    if (!token || !user || !nativeToken || registeredNativeTokenRef.current === nativeToken) return;
+    let cancelled = false;
+    void registerDevice(nativeToken, {
+      platform: 'android',
+      provider: 'fcm',
+      deviceModel: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 160) : 'Android',
+      appVersion: '0.1.0',
+    }, token).then((device) => {
+      if (!cancelled && device) {
+        registeredNativeTokenRef.current = nativeToken;
+        setSupported(true);
+        setStatus('enabled');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [token, user]);
 
   // Re-sync when the window regains focus and the browser rotated the
   // subscription (handled by the service worker's pushsubscriptionchange).
@@ -152,6 +195,15 @@ export function PushProvider({ children }: { children: ReactNode }) {
 
   // Logout: best-effort deactivate this device's token server-side.
   useEffect(() => {
+    if (!token && nativeTokenRef.current) {
+      const nativeToken = nativeTokenRef.current;
+      const authToken = lastAuthTokenRef.current;
+      if (authToken) void unregisterDeviceByToken(nativeToken, authToken);
+      nativeTokenRef.current = null;
+      registeredNativeTokenRef.current = null;
+      lastAuthTokenRef.current = null;
+      setNativeToken(null);
+    }
     if (!token && lastTokenRef.current) {
       const hadToken = lastTokenRef.current;
       void unsubscribeAndUnregister(hadToken).finally(() => {

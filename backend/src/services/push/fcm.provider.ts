@@ -47,6 +47,7 @@ function loadAdmin(): { admin: any } | null {
       apps?: any[];
       app: () => any;
       messaging: any;
+      credential: { cert: (data: any) => any; applicationDefault: () => any };
     };
 
     let certData: any = undefined;
@@ -66,9 +67,12 @@ function loadAdmin(): { admin: any } | null {
     }
 
     if (certData || googlePath) {
+      const credential = certData
+        ? firebaseAdmin.credential.cert(certData)
+        : firebaseAdmin.credential.applicationDefault();
       const app = firebaseAdmin.apps && firebaseAdmin.apps.length
         ? firebaseAdmin.app()
-        : firebaseAdmin.initializeApp({ credential: certData, projectId });
+        : firebaseAdmin.initializeApp({ credential, projectId });
       admin = { ...firebaseAdmin, app };
     }
     configured = Boolean(admin);
@@ -111,6 +115,7 @@ export const fcmProvider: PushProvider = {
     const urgency = payload.priority === "high" ? "HIGH" : payload.priority === "low" ? "LOW" : "NORMAL";
 
     const message: any = {
+      tokens: [token],
       notification: { title: payload.title, body: payload.body },
       data: stringifyData(payload.data || {}),
     };
@@ -155,7 +160,7 @@ export const fcmProvider: PushProvider = {
     try {
       // sendEachForMulticast resolves with per-token results (HTTP v1): a dead
       // token surfaces as an error entry instead of throwing the whole batch.
-      const batch = await admin.messaging.sendEachForMulticast({ tokens: [token] }, message);
+      const batch = await admin.messaging(admin.app).sendEachForMulticast(message);
       const response = batch?.responses?.[0];
       if (response?.success) return { ok: true };
 
