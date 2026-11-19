@@ -53,16 +53,12 @@ class MainActivity : Activity() {
     private var pendingWebPermissionNames: Set<String> = emptySet()
 
     companion object {
-        private const val PRODUCTION_ORIGIN = "https://vanta-nu.vercel.app"
-        // Debug APKs use the matching Vercel PR preview so frontend fixes are
-        // actually exercised on-device. Release builds always use production.
-        private const val DEBUG_ORIGIN = "https://vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        // The Gradle build sets this per variant. Debug defaults to production
+        // so APK testing cannot silently drift onto an old PR preview; an
+        // intentional preview can be selected with -PVANTA_DEBUG_ORIGIN=...
         private val VANTA_ORIGIN: String
-            get() = if (BuildConfig.DEBUG) DEBUG_ORIGIN else PRODUCTION_ORIGIN
-        private val VANTA_HOSTS = setOf(
-            "vanta-nu.vercel.app",
-            "vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
-        )
+            get() = BuildConfig.VANTA_ORIGIN
+        private val VANTA_HOSTS = setOfNotNull(Uri.parse(BuildConfig.VANTA_ORIGIN).host)
         private const val FILE_CHOOSER_REQUEST = 4107
         private const val CAMERA_REQUEST = 4108
         private const val CAMERA_URI_STATE = "vanta.pending.camera.uri"
