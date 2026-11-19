@@ -189,6 +189,14 @@ export function PushProvider({ children }: { children: ReactNode }) {
         setStatus('permission-pending');
       }
     };
+    const acceptNativeToken = (value?: string) => {
+      if (typeof value === 'string' && value.length >= 20) {
+        nativeTokenRef.current = value;
+        setNativeToken(value);
+        setSupported(true);
+        setStatus('permission-pending');
+      }
+    };
     const nativeWindow = window as Window & { __VANTA_NATIVE_FCM_TOKEN__?: string };
     acceptNativeToken(nativeWindow.__VANTA_NATIVE_FCM_TOKEN__);
     window.addEventListener('vanta-native-fcm-token', receiveNativeToken);
