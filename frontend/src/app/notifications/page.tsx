@@ -65,6 +65,8 @@ const iconByType: Record<string, typeof Bell> = {
 };
 
 const normalizedTypeOf = (notification: VantaNotification) => notification.type.trim().toLowerCase();
+const CHAT_NOTIFICATION_TYPES = new Set(['message', 'group', 'channel', 'direct_message', 'chat_message']);
+const isChatNotification = (notification: VantaNotification) => CHAT_NOTIFICATION_TYPES.has(normalizedTypeOf(notification));
 
 const metadataOf = (notification: VantaNotification): Record<string, any> => {
   if (!notification.data) return {};
@@ -138,7 +140,7 @@ export default function NotificationsPage() {
     try {
       const response = await apiGet<NotificationResponse>(requestPath(cursor), token, { skipCache: true });
       // Direct and group chat messages belong in Chats, not the activity feed.
-      const received = Array.isArray(response.items) ? response.items.filter(item => normalizedTypeOf(item) !== 'message') : [];
+      const received = Array.isArray(response.items) ? response.items.filter(item => !isChatNotification(item)) : [];
       setItems(current => cursor ? [...current, ...received.filter(item => !current.some(existing => existing.id === item.id))] : received);
       setNextCursor(response.nextCursor);
       setAuthoritativeUnreadCount(response.unreadCount);
