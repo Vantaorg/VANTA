@@ -266,7 +266,12 @@ class MainActivity : Activity() {
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         if (savedInstanceState == null) {
-            webView.loadUrl(VANTA_ORIGIN)
+            // A notification may cold-start the activity. Honor its validated
+            // internal route instead of always opening the homepage.
+            val initialNotificationRoute = intent?.getStringExtra(
+                VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE
+            )?.takeIf { it.startsWith("/") && !it.startsWith("//") }
+            webView.loadUrl(VANTA_ORIGIN + (initialNotificationRoute ?: ""))
         } else {
             webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
         }
