@@ -955,10 +955,10 @@ export async function contactListing(listingId: string, enquirerId: string, mess
   // Notify the listing owner
   await notificationService.createNotification(
     listing.ownerId,
-    'message',
+    'system',
     'New property enquiry',
     `${enquirer.username || 'A user'} is interested in "${listing.title}"`,
-    { listingId, conversationId: conversation.id, enquirerId }
+    { listingId, conversationId: conversation.id, enquirerId, destination: `/chat/${conversation.id}` }
   );
 
   await auditLog.log({
