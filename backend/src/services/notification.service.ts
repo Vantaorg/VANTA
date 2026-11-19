@@ -389,6 +389,16 @@ export class NotificationService {
    * Daily birthday sweep. DOB is only used to notify the account owner;
    * it is never exposed or announced to other users.
    */
+  async notifyVerificationGranted(userId: string, badgeType: string) {
+    return this.createNotification(
+      userId,
+      "system",
+      "You're verified on VANTA!",
+      "Your account has officially been verified. Your verified badge is now visible on your profile.",
+      { destination: `/profile/${userId}`, milestone: "verification", badgeType, referenceKey: `verification-granted:${badgeType}:${Date.now()}` }
+    );
+  }
+
   async notifyBirthday(userId: string, year: number) {
     return this.createNotification(
       userId,
