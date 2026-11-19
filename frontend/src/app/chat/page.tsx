@@ -76,7 +76,7 @@ interface Message {
   id: string;
   text: string;
   type?: string;
-  legacyPoll?: { question: string; options: string[] } | null;
+  legacyPoll?: { question: string; options: string[]; imageUrl?: string | null } | null;
   pollVotes?: Array<{ userId: string; optionIndex: number }>;
   sender: { id: string; username: string; avatar?: string; verified?: boolean; fullName?: string; };
   timestamp: string;
@@ -138,7 +138,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
       );
     } catch { /* ordinary text */ }
   }
-  let legacyPoll: { question: string; options: string[] } | null = null;
+  let legacyPoll: { question: string; options: string[]; imageUrl?: string | null } | null = null;
   let pollVotes: Array<{ userId: string; optionIndex: number }> = [];
   let pollPayload = false;
   if (typeof content === 'string' && (msg.type == null || ['TEXT', 'POLL'].includes(String(msg.type).toUpperCase()))) {
@@ -146,7 +146,7 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
       const parsed = JSON.parse(content);
       pollPayload = Boolean(parsed && typeof parsed === 'object' && ('question' in parsed || 'options' in parsed));
       if (parsed && typeof parsed.question === 'string' && parsed.question.trim() && Array.isArray(parsed.options) && parsed.options.length >= 2 && parsed.options.length <= 10 && parsed.options.every((option: unknown) => typeof option === 'string' && option.trim())) {
-        legacyPoll = { question: parsed.question.trim(), options: parsed.options.map((option: string) => option.trim()) };
+        legacyPoll = { question: parsed.question.trim(), options: parsed.options.map((option: string) => option.trim()), imageUrl: typeof parsed.imageUrl === 'string' ? resolveMediaUrl(parsed.imageUrl) : null };
         pollVotes = Array.isArray(parsed.votes) ? parsed.votes.filter((vote: any) => vote && typeof vote.userId === 'string' && Number.isInteger(vote.optionIndex) && vote.optionIndex >= 0 && vote.optionIndex < parsed.options.length) : [];
       }
     } catch { /* ordinary text */ }
@@ -193,6 +193,12 @@ const normalizeMessageRecord = (msg: any, currentUserId?: string): Message => {
 
 const conversationPreviewText = (value: unknown, type?: string): string => {
   const raw = typeof value === 'string' ? value : '';
+  if (String(type || '').toUpperCase() === 'POLL') {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed?.question === 'string' && parsed.question.trim() ? `Sent a poll: ${parsed.question.trim()}` : 'Sent a poll';
+    } catch { return 'Sent a poll'; }
+  }
   if (String(type || '').toUpperCase() === 'CONTACT' || (raw.trim().startsWith('{') && raw.includes('"username"'))) {
     try {
       const parsed = JSON.parse(raw);
@@ -334,7 +340,7 @@ export default function MessagesPage() {
   const [customDeleteDays, setCustomDeleteDays] = useState('2');
   const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
   // Polls are stored as typed chat messages with server-validated vote payloads.
-  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean } | null>(null);
+  const [pollDraft, setPollDraft] = useState<{ question: string; options: string[]; allowMultiple: boolean; imageFile?: File | null } | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [contactResults, setContactResults] = useState<any[]>([]);
@@ -1230,14 +1236,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   // Telegram-style rich messages (location / poll / contact / wallet) travel as
   // typed messages with a JSON payload in `content`. Rendering is client-side.
-  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string): Promise<boolean> => {
+  const sendSpecialMessage = async (type: string, payload: any, pendingLabel: string, attachments: any[] = []): Promise<boolean> => {
     if (!token || !user || !activeConversation || specialSending) return false;
     setSpecialSending(true);
     const pendingId = `pending-${Date.now()}`;
-    const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, createdAt: new Date().toISOString(), pending: true, pendingLabel });
+    const pending = normalizeMessage({ id: pendingId, conversationId: activeConversation, senderId: user.id, sender: user, content: JSON.stringify(payload), type, attachments, createdAt: new Date().toISOString(), pending: true, pendingLabel });
     setMessages(previous => [...previous, pending]);
     try {
-      const result = await apiPost<any>('/api/messages/send', { conversationId: activeConversation, content: JSON.stringify(payload), type }, token);
+      const result = await apiPost<any>('/api/messages/send', { conversationId: activeConversation, content: JSON.stringify(payload), type, attachments }, token);
       const saved = normalizeMessage(result.data ?? result.message ?? result);
       setMessages(previous => [...previous.filter(item => item.id !== pendingId && item.id !== saved.id), saved]);
       fetchConversations();
@@ -1286,7 +1292,25 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const options = pollDraft.options.map(option => option.trim()).filter(Boolean);
     if (!question) { showToast?.({ type: 'error', title: 'Add a question', message: 'Enter a question before creating the poll.' }); return; }
     if (options.length < 2) { showToast?.({ type: 'error', title: 'Add more options', message: 'A poll needs at least two non-empty options.' }); return; }
-    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, votes: [] }, 'Poll');
+    let imageUrl: string | undefined;
+    let imageAttachment: any[] = [];
+    if (pollDraft.imageFile) {
+      if (!token || !activeConversation) return;
+      try {
+        const form = new FormData();
+        form.append('file', pollDraft.imageFile);
+        form.append('conversationId', activeConversation);
+        const uploaded = await apiUpload<any>('/api/upload/message', form, token);
+        imageUrl = uploaded.url ?? uploaded.data?.url;
+        const fileId = uploaded.fileId ?? uploaded.id ?? uploaded.data?.fileId;
+        if (!imageUrl || !fileId) throw new Error('Upload did not return a usable image attachment');
+        imageAttachment = [{ fileId, url: imageUrl, fileType: 'IMAGE', fileName: pollDraft.imageFile.name, fileSize: pollDraft.imageFile.size }];
+      } catch (err: any) {
+        showToast?.({ type: 'error', title: 'Poll image upload failed', message: errorMessage(err, { action: 'upload the poll image', context: 'photo', fallback: 'Please choose another image.' }) });
+        return;
+      }
+    }
+    const sent = await sendSpecialMessage('POLL', { question, options, allowMultiple: pollDraft.allowMultiple, ...(imageUrl ? { imageUrl } : {}), votes: [] }, 'Poll', imageAttachment);
     if (sent) { setPollDraft(null); setShowAttachmentSheet(false); }
   };
 
@@ -2610,6 +2634,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                           return (
                             <div className="min-w-0 max-w-[min(100%,340px)] px-3 py-2.5">
                               <p className="text-sm font-semibold text-white">{poll.question}</p>
+                              {poll.imageUrl && <img src={poll.imageUrl} alt="Poll attachment" className="mt-2 max-h-56 w-full rounded-xl object-cover" />}
                               <p className="mt-0.5 text-[10px] text-white/45">{msg.pollVotes?.length ?? 0} vote{(msg.pollVotes?.length ?? 0) === 1 ? '' : 's'} · {msg.content && (() => { try { return JSON.parse(msg.content).allowMultiple ? 'Choose all that apply' : 'Choose one option'; } catch { return 'Choose one option'; } })()}</p>
                               <div className="mt-2 flex flex-col gap-1.5">
                                 {poll.options.map((option, optionIndex) => {
@@ -2825,7 +2850,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => attachmentInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full bg-[#26384a] px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40"><ImageIcon size={15}/> Gallery</button>
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); window.requestAnimationFrame(() => fileInputRef.current?.click()); }} disabled={isUploadingAttachment || hasBusyDraft(attachmentDrafts)} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><FileText size={15}/> Files</button>
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); sendLocationMessage(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><MapPin size={15}/> Location</button>
-                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false }); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><BarChart3 size={15}/> Poll</button>
+                      <button type="button" onClick={() => { setShowAttachmentSheet(false); setPollDraft({ question: '', options: ['', ''], allowMultiple: false, imageFile: null }); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><BarChart3 size={15}/> Poll</button>
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); setContactPickerOpen(true); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><User size={15}/> Contact</button>
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); musicInputRef.current?.click(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><Music2 size={15}/> Music</button>
                       <button type="button" onClick={() => { setShowAttachmentSheet(false); openWallet(); }} disabled={specialSending} className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.06] disabled:opacity-40"><WalletIcon size={15}/> Wallet</button>
@@ -2842,6 +2867,14 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                       <button type="button" onClick={() => setPollDraft(null)} className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/60" aria-label="Close"><X size={16}/></button>
                     </div>
                     <input value={pollDraft.question} onChange={event => setPollDraft(draft => draft ? { ...draft, question: event.target.value } : draft)} maxLength={200} placeholder="Ask a question" className="h-11 w-full rounded-xl border border-white/[0.08] bg-[#161616] px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#d6a83f]/40" />
+                    <div className="mt-3 flex items-center gap-3">
+                      <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-white/[0.06] px-3 text-xs font-medium text-white/80 hover:bg-white/[0.1]">
+                        <ImageIcon size={15} /> Add image
+                        <input type="file" accept="image/*" className="hidden" onChange={event => { const file = event.target.files?.[0] ?? null; if (file && !file.type.startsWith('image/')) { showToast?.({ type: 'error', title: 'Choose an image', message: 'Poll attachments must be image files.' }); event.target.value = ''; return; } setPollDraft(draft => draft ? { ...draft, imageFile: file } : draft); }} />
+                      </label>
+                      {pollDraft.imageFile && <span className="min-w-0 flex-1 truncate text-[11px] text-white/55">{pollDraft.imageFile.name}</span>}
+                      {pollDraft.imageFile && <button type="button" onClick={() => setPollDraft(draft => draft ? { ...draft, imageFile: null } : draft)} className="text-[11px] text-white/45 hover:text-white">Remove</button>}
+                    </div>
                     <label className="mt-3 flex items-center gap-2 text-xs text-white/70">
                       <input type="checkbox" checked={pollDraft.allowMultiple} onChange={event => setPollDraft(draft => draft ? { ...draft, allowMultiple: event.target.checked } : draft)} className="accent-[#d6a83f]" />
                       Allow multiple answers

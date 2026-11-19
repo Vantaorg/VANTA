@@ -44,7 +44,6 @@ const filters: Filter[] = [
   { id: 'mentions', label: 'Mentions', types: ['mention'] },
   { id: 'live', label: 'Live', types: ['live', 'stream'] },
   { id: 'gifts', label: 'Gifts', types: ['gift', 'wallet', 'wallet_deposit', 'wallet_transfer_received', 'wallet_transfer_sent'] },
-  { id: 'chat', label: 'Chat', types: ['message'] },
   { id: 'system', label: 'System', types: ['system', 'milestone'] },
 ];
 
@@ -138,7 +137,8 @@ export default function NotificationsPage() {
     setError(false);
     try {
       const response = await apiGet<NotificationResponse>(requestPath(cursor), token, { skipCache: true });
-      const received = Array.isArray(response.items) ? response.items : [];
+      // Direct and group chat messages belong in Chats, not the activity feed.
+      const received = Array.isArray(response.items) ? response.items.filter(item => normalizedTypeOf(item) !== 'message') : [];
       setItems(current => cursor ? [...current, ...received.filter(item => !current.some(existing => existing.id === item.id))] : received);
       setNextCursor(response.nextCursor);
       setAuthoritativeUnreadCount(response.unreadCount);
@@ -192,7 +192,7 @@ export default function NotificationsPage() {
   const visibleUnread = items.some(item => !item.read);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-0 pb-[calc(5rem+env(safe-area-inset-bottom))] text-[var(--vanta-white)]">
+    <main className="flex min-h-[100dvh] w-full flex-col px-0 pb-[env(safe-area-inset-bottom)] text-[var(--vanta-white)]">
       <header className="sticky top-0 z-30 relative -mx-4 flex h-14 w-[calc(100%+2rem)] shrink-0 items-center gap-2.5 border-b border-white/[.08] bg-[var(--header-surface)] px-4">
         <button type="button" onClick={() => router.back()} aria-label="Go back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#8a8a8a] hover:bg-white/[.05] hover:text-white"><ArrowLeft size={20} /></button>
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#f5f5f5]">Notifications</h1>
@@ -202,8 +202,8 @@ export default function NotificationsPage() {
         </div>
       </header>
       <div className="mt-1 flex items-end justify-between gap-3 border-b border-white/[0.06] px-3">
-          <div className="flex min-w-0 gap-5 overflow-x-auto" role="tablist" aria-label="Notification categories">{filters.map(filter => <button key={filter.id} role="tab" aria-selected={filterId === filter.id} onClick={() => setFilterId(filter.id)} className={cn('relative shrink-0 pb-3 text-xs font-medium transition focus-visible:outline-none focus-visible:text-white', filterId === filter.id ? 'text-white after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#b8b8b8]' : 'text-[#666] hover:text-[#b8b8b8]')}>{filter.label}</button>)}</div>
-          <div className="mb-2 flex shrink-0 rounded-md border border-white/[0.08] bg-[var(--surface)] p-0.5" aria-label="Read status filter">{[false, true].map(value => <button key={String(value)} onClick={() => setUnreadOnly(value)} className={cn('rounded px-2.5 py-1.5 text-[11px] transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/50', unreadOnly === value ? 'bg-[#1c1c1c] text-white' : 'text-[#666] hover:text-[#b8b8b8]')}>{value ? 'Unread' : 'All'}</button>)}</div>
+          <div className="flex min-w-0 gap-5 overflow-x-auto" role="tablist" aria-label="Notification categories">{filters.map(filter => <button key={filter.id} role="tab" aria-selected={filterId === filter.id} onClick={() => setFilterId(filter.id)} className={cn('relative shrink-0 pb-3 text-xs font-medium transition focus-visible:outline-none focus-visible:text-white', filterId === filter.id ? 'text-[#d6a83f]' : 'text-[#8a8a8a] hover:text-white')}>{filter.label}</button>)}</div>
+          <div className="mb-2 flex shrink-0 rounded-md border border-white/[0.08] bg-[var(--surface)] p-0.5" aria-label="Read status filter">{[false, true].map(value => <button key={String(value)} onClick={() => setUnreadOnly(value)} className={cn('rounded px-2.5 py-1.5 text-[11px] transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/50', unreadOnly === value ? 'text-[#d6a83f]' : 'text-[#8a8a8a] hover:text-white')}>{value ? 'Unread' : 'All'}</button>)}</div>
         </div>
 
       <section className="overflow-hidden bg-[var(--background)]" aria-live="polite">
