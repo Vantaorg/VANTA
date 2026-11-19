@@ -321,7 +321,7 @@ class MainActivity : Activity() {
                     return true
                 }
             }
-                }
+        }
     }
 
     private fun publishNativeFcmToken(tokenOverride: String? = null) {
