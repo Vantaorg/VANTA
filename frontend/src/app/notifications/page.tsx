@@ -105,7 +105,7 @@ const localTime = (value: string) => {
 };
 
 function Skeletons() {
-  return <div aria-label="Loading notifications" className="divide-y divide-white/[0.06]">{[0, 1, 2, 3, 4].map(item => <div key={item} className="flex min-h-20 items-center gap-3 px-4 py-3"><div className="h-11 w-11 animate-pulse rounded-full bg-white/[0.07]" /><div className="flex-1 space-y-2"><div className="h-3.5 w-3/4 animate-pulse rounded bg-white/[0.07]" /><div className="h-3 w-24 animate-pulse rounded bg-white/[0.04]" /></div></div>)}</div>;
+  return <div aria-label="Loading notifications" className="">{[0, 1, 2, 3, 4].map(item => <div key={item} className="flex min-h-20 items-center gap-3 px-4 py-3"><div className="h-11 w-11 animate-pulse rounded-full bg-white/[0.07]" /><div className="flex-1 space-y-2"><div className="h-3.5 w-3/4 animate-pulse rounded bg-white/[0.07]" /><div className="h-3 w-24 animate-pulse rounded bg-white/[0.04]" /></div></div>)}</div>;
 }
 
 export default function NotificationsPage() {
@@ -203,7 +203,7 @@ export default function NotificationsPage() {
       </header>
       <div className="mt-1 flex items-end justify-between gap-3 px-3">
           <div className="flex min-w-0 gap-5 overflow-x-auto" role="tablist" aria-label="Notification categories">{filters.map(filter => <button key={filter.id} role="tab" aria-selected={filterId === filter.id} onClick={() => setFilterId(filter.id)} className={cn('relative shrink-0 pb-3 text-xs font-medium transition focus-visible:outline-none focus-visible:text-white', filterId === filter.id ? 'text-[#d6a83f]' : 'text-[#8a8a8a] hover:text-white')}>{filter.label}</button>)}</div>
-          <div className="mb-2 flex shrink-0 rounded-md border border-white/[0.08] bg-[var(--surface)] p-0.5" aria-label="Read status filter">{[false, true].map(value => <button key={String(value)} onClick={() => setUnreadOnly(value)} className={cn('rounded px-2.5 py-1.5 text-[11px] transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/50', unreadOnly === value ? 'text-[#d6a83f]' : 'text-[#8a8a8a] hover:text-white')}>{value ? 'Unread' : 'All'}</button>)}</div>
+          <div className="mb-2 flex shrink-0 rounded-md bg-[var(--surface)] p-0.5" aria-label="Read status filter">{[false, true].map(value => <button key={String(value)} onClick={() => setUnreadOnly(value)} className={cn('rounded px-2.5 py-1.5 text-[11px] transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/50', unreadOnly === value ? 'text-[#d6a83f]' : 'text-[#8a8a8a] hover:text-white')}>{value ? 'Unread' : 'All'}</button>)}</div>
         </div>
 
       <section className="overflow-hidden bg-[var(--background)]" aria-live="polite">
