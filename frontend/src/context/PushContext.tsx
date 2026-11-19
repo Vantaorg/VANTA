@@ -71,6 +71,14 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setSupported(true);
       return { ok: true };
     }
+    // Android APK notifications use the native Firebase token, not Web Push.
+    // Skip VAPID and service-worker setup while the native bridge initializes.
+    const isNativeAndroid = typeof navigator !== 'undefined' && /\\bVANTAAndroid\\b/.test(navigator.userAgent);
+    if (isNativeAndroid) {
+      setSupported(true);
+      setStatus('permission-pending');
+      return { ok: false, reason: 'native-token-pending' };
+    }
     if (!isPushSupported()) {
       setStatus('unsupported');
       setSupported(false);
@@ -171,7 +179,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => { cancelled = true; };
-  }, [token, user]);
+  }, [token, user, nativeToken]);
 
   // Re-sync when the window regains focus and the browser rotated the
   // subscription (handled by the service worker's pushsubscriptionchange).
