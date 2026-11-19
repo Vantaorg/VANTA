@@ -120,7 +120,7 @@ export default function HomePage() {
       if (tab !== 'following') query.set('seed', seedToUse);
       const endpoint = tab === 'following' ? '/api/feed' : '/api/feed/home';
       const data = await apiGet<any>(`${endpoint}?${query}`, token, { skipCache: reset });
-      const next = unwrap(data).map(item => ({ ...item, liked: typeof item.liked === 'boolean' ? item.liked : typeof item.isLiked === 'boolean' ? item.isLiked : false, likes: item.likes ?? item.likesCount ?? item._count?.likes ?? 0 }));
+      const next: Item[] = unwrap(data).map((item): Item => ({ ...item, liked: typeof item.liked === 'boolean' ? item.liked : typeof item.isLiked === 'boolean' ? item.isLiked : false, likes: item.likes ?? item.likesCount ?? item._count?.likes ?? 0 }));
       setItems(previous => reset ? next : [...previous, ...next.filter(item => !previous.some(existing => existing.id === item.id))]);
       setCursor(data?.nextCursor);
       setHasMore(Boolean(data?.nextCursor));
