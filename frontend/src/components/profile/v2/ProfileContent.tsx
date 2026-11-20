@@ -12,7 +12,7 @@ type Props = {
   currentUserId?: string | null;
   onLike: (_item: ProfileItem) => void; onSave: (_item: ProfileItem) => void;
   onComment: (_item: ProfileItem) => void; onGift: (_item: ProfileItem) => void;
-  onDelete: (_item: ProfileItem) => void; onShare: (_item: ProfileItem) => void;
+  onDelete: (_item: ProfileItem) => void; onShare: (_item: ProfileItem) => void; onRepost?: (_item: ProfileItem) => void;
   onFollow: (_item: ProfileItem) => void; onMore: (_item: ProfileItem) => void;
   onCreate?: () => void;
 };
@@ -26,11 +26,11 @@ type Props = {
  */
 export default function ProfileContent(props: Props) {
   const [preview, setPreview] = useState<{ src: string; alt: string } | null>(null);
-  const { tab, rows, profile, own, router, currentUserId, onLike, onSave, onComment, onGift, onDelete, onShare, onFollow, onMore, onCreate } = props;
+  const { tab, rows, profile, own, router, currentUserId, onLike, onSave, onComment, onGift, onDelete, onShare, onRepost, onFollow, onMore, onCreate } = props;
   if (tab === 'about') return <About profile={profile} />;
   if (!rows.length) return <Empty tab={tab} own={own} onCreate={onCreate} />;
   if (tab === 'posts' || tab === 'likes') {
-    return <div className="profile-post-feed">{rows.map(item => <FeedPostCard key={item.id} item={item} currentUserId={currentUserId} onLike={onLike} onSave={onSave} onComment={onComment} onShare={onShare} onGift={onGift} onFollow={onFollow} onMore={onMore} feedCompactMedia hideFollowButton />)}</div>;
+    return <div className="profile-post-feed">{rows.map(item => <FeedPostCard key={item.id} item={item} currentUserId={currentUserId} onLike={onLike} onSave={onSave} onComment={onComment} onShare={onShare} onRepost={onRepost} onGift={onGift} onFollow={onFollow} onMore={onMore} feedCompactMedia hideFollowButton />)}</div>;
   }
   // The grid renders the reels/media/live galleries. Keep the full ProfileTab type
   // so the (unreachable-for-posts) post/like tile branches below still typecheck.
