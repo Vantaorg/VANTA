@@ -401,7 +401,7 @@ class MainActivity : Activity() {
         view.evaluateJavascript("window.__VANTA_NATIVE_SHARE_NONCE = '$nativeShareNonce';", null)
     }
 
-    private inner class VantaNativeShareBridge {
+    inner class VantaNativeShareBridge {
         @JavascriptInterface
         fun shareText(text: String?, nonce: String?, requestId: String?) {
             if (nonce != nativeShareNonce || text.isNullOrBlank() || text.length > 4096) return
