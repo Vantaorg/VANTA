@@ -65,7 +65,7 @@ const iconByType: Record<string, typeof Bell> = {
 };
 
 const normalizedTypeOf = (notification: VantaNotification) => notification.type.trim().toLowerCase();
-const CHAT_NOTIFICATION_TYPES = new Set(['message', 'group', 'channel', 'direct_message', 'chat_message']);
+const CHAT_NOTIFICATION_TYPES = new Set(['message', 'group', 'channel', 'direct_message', 'chat_message', 'mention']);
 const isChatNotification = (notification: VantaNotification) => CHAT_NOTIFICATION_TYPES.has(normalizedTypeOf(notification));
 
 const metadataOf = (notification: VantaNotification): Record<string, any> => {
