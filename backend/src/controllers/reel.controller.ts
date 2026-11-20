@@ -176,6 +176,13 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
     const orderMap = new Map(pageReelIds.map((id, index) => [id, index]));
     reels.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 
+    const giftTotals = pageReelIds.length ? await prisma.giftTransaction.groupBy({
+      by: ["videoId"],
+      where: { videoId: { in: pageReelIds }, status: "COMPLETED" },
+      _sum: { quantity: true },
+    }) : [];
+    const giftsByReel = new Map(giftTotals.map((row) => [row.videoId, row._sum.quantity || 0]));
+
     res.status(200).json({
       items: reels.map((reel: any) => ({
         id: reel.id,
@@ -190,7 +197,7 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
         saves: reel._count.saves,
         shares: reel._count.shares,
         reposts: reel._count.reposts,
-        gifts: 0,
+        gifts: giftsByReel.get(reel.id) || 0,
         isReposted: userId ? reel.reposts?.length > 0 : false,
         isLiked: userId ? reel.likes?.length > 0 : false,
         isSaved: userId ? reel.saves?.length > 0 : false,
@@ -251,7 +258,8 @@ export const getReelById = async (req: AuthRequest, res: Response): Promise<void
         // Reel behaves identically whether opened from the feed or a detail link).
         likes: userId ? { where: { userId }, select: { id: true } } : false,
         saves: userId ? { where: { userId }, select: { id: true } } : false,
-        _count: { select: { likes: true, comments: true, saves: true } },
+        reposts: userId ? { where: { userId }, select: { id: true } } : false,
+        _count: { select: { likes: true, comments: true, saves: true, shares: true, reposts: true } },
       },
     });
 
