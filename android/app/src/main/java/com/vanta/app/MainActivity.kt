@@ -385,7 +385,7 @@ class MainActivity : Activity() {
     private fun applySystemBottomInset() {
         if (!::webView.isInitialized) return
         webView.evaluateJavascript(
-            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
+            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px'); document.documentElement.style.setProperty('--vanta-native-reel-action-offset', '${64 + (systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
             null
         )
     }
