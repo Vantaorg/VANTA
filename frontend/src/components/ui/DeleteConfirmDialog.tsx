@@ -9,6 +9,9 @@ type DeleteConfirmDialogProps = {
   description: string;
   confirmLabel: string;
   busy?: boolean;
+  checkboxLabel?: string;
+  checkboxChecked?: boolean;
+  onCheckboxChange?: (checked: boolean) => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -18,6 +21,9 @@ export default function DeleteConfirmDialog({
   description,
   confirmLabel,
   busy = false,
+  checkboxLabel,
+  checkboxChecked = false,
+  onCheckboxChange,
   onCancel,
   onConfirm,
 }: DeleteConfirmDialogProps) {
@@ -70,6 +76,12 @@ export default function DeleteConfirmDialog({
           </button>
         </header>
         <p className="mt-3 pl-12 text-[13px] leading-5 text-white/55">{description}</p>
+        {checkboxLabel && onCheckboxChange && (
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-white/[0.08] bg-[#18212b] px-3 py-3 text-[13px] text-white/80">
+            <input type="checkbox" checked={checkboxChecked} onChange={event => onCheckboxChange(event.target.checked)} disabled={busy} className="h-4 w-4 accent-[#d6a83f]" />
+            <span>{checkboxLabel}</span>
+          </label>
+        )}
         <div className="mt-5 flex items-center justify-end gap-2">
           <button
             type="button"
