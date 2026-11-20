@@ -2585,7 +2585,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   <p className="text-sm font-semibold text-white">{selectedMessageIds.size} selected</p>
                   <p className="text-[10px] text-white/45">Choose messages to manage</p>
                 </div>
-                <button type="button" onClick={() => setSelectedMessageIds(current => current.size === messages.length ? new Set() : new Set(messages.filter(message => !message.pending).map(message => message.id)))} className="rounded-full px-3 py-2 text-[11px] font-semibold text-[#f2c75c] transition hover:bg-[#d6a83f]/10">{selectedMessageIds.size === messages.filter(message => !message.pending).length ? "Clear all" : "Select all"}</button>
+                <button type="button" onClick={() => setSelectedMessageIds(current => current.size === messages.length ? new Set() : new Set(messages.filter(message => !message.pending).map(message => message.id)))} className="rounded-full px-3 py-2 text-[11px] font-semibold text-[#f2c75c] transition hover:bg-[#d6a83f]/10">{selectedMessageIds.size === messages.filter(message => !message.pending).length ? "Clear all" : "Select loaded"}</button>
               </header>
             )}
             <header className={cn("relative z-20 flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0d0d0f]/95 px-3 backdrop-blur-xl", selectedMessageIds.size > 0 && "hidden")}>
