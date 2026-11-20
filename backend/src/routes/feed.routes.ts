@@ -23,6 +23,8 @@ import {
   unsavePost,
   getSavedPosts,
   sharePost,
+  repostPost,
+  undoRepost,
   getPostById,
   viewPost,
 } from "../controllers/post.controller";
