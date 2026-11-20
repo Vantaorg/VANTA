@@ -480,6 +480,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(() => new Set());
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
+  const [deleteSelectedConfirmOpen, setDeleteSelectedConfirmOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyState<Message> | null>(null);
   // Only a reply bound to the currently-open conversation may be shown/submitted.
@@ -508,6 +509,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const newChatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedMessageRef = useRef<string | null>(null);
+  const selectionHistoryRef = useRef(false);
   const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedConversationRef = useRef<string | null>(null);
   const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1810,11 +1812,52 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     } catch (err: any) { showToast?.({ type: 'error', title: 'Delete failed', message: err?.message || 'Could not delete this message.' }); }
   };
 
+  const requestDeleteSelectedMessages = () => {
+    const selected = messages.filter(message => selectedMessageIds.has(message.id));
+    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
+    if (!deletable.length) {
+      showToast?.({ type: 'info', title: 'Nothing to delete', message: 'You can delete your own direct messages or messages you are allowed to manage.' });
+      return;
+    }
+    setDeleteSelectedConfirmOpen(true);
+  };
+
+  const confirmDeleteSelectedMessages = async () => {
+    if (!token) return;
+    const selected = messages.filter(message => selectedMessageIds.has(message.id));
+    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
+    if (!deletable.length) {
+      setDeleteSelectedConfirmOpen(false);
+      closeMessageSelection();
+      return;
+    }
+    setDeleteSelectedConfirmOpen(false);
+    const results: Array<PromiseSettledResult<any>> = [];
+    for (let index = 0; index < deletable.length; index += 10) {
+      const batch = await Promise.allSettled(deletable.slice(index, index + 10).map(message =>
+        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token)
+      ));
+      results.push(...batch);
+    }
+    const deletedIds = deletable.filter((_, index) => results[index].status === 'fulfilled').map(message => message.id);
+    const failedIds = deletable.filter((_, index) => results[index].status === 'rejected').map(message => message.id);
+    if (deletedIds.length) {
+      const deleted = new Set(deletedIds);
+      setMessages(previous => previous.filter(message => !deleted.has(message.id)));
+      void fetchConversations();
+    }
+    setSelectedMessageIds(new Set(failedIds));
+    if (failedIds.length) {
+      showToast?.({ type: 'error', title: 'Some messages were not deleted', message: `${deletedIds.length} deleted; ${failedIds.length} could not be deleted. The remaining messages are still selected.` });
+    } else {
+      showToast?.({ type: 'success', title: 'Messages deleted', message: `${deletedIds.length} messages deleted for everyone.` });
+    }
+  };
+
   const startMessageLongPress = (message: Message, event?: React.PointerEvent) => {
     if (message.pending) return;
     if (event) {
       swipeStartRef.current = { id: message.id, x: event.clientX, y: event.clientY, offset: 0 };
-      try { (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId); } catch { /* ignore */ }
     }
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
@@ -1834,12 +1877,63 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     });
   };
 
-  const closeMessageSelection = () => setSelectedMessageIds(new Set());
+  const closeMessageSelection = () => {
+    if (selectionHistoryRef.current) {
+      selectionHistoryRef.current = false;
+      window.history.back();
+    }
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    longPressedMessageRef.current = null;
+    swipeStartRef.current = null;
+    swipeOffsetRef.current = 0;
+    setSwipeOffset(null);
+    setDeleteSelectedConfirmOpen(false);
+    setSelectedMessageIds(new Set());
+  };
 
-  // Android/system Back can leave the conversation while selection mode is open.
+  // Give message selection its own history entry. Android/system Back closes
+  // selection first instead of unexpectedly navigating away from the chat.
+  useEffect(() => {
+    if (selectedMessageIds.size > 0 && !selectionHistoryRef.current) {
+      window.history.pushState(
+        { ...(window.history.state && typeof window.history.state === 'object' ? window.history.state : {}), vantaMessageSelection: true },
+        '',
+        window.location.href,
+      );
+      selectionHistoryRef.current = true;
+    }
+    if (selectedMessageIds.size === 0) {
+      if (selectionHistoryRef.current) {
+        selectionHistoryRef.current = false;
+        window.history.back();
+      }
+      return;
+    }
+    const closeOnBack = () => {
+      selectionHistoryRef.current = false;
+      closeMessageSelection();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMessageSelection();
+      }
+    };
+    window.addEventListener('popstate', closeOnBack);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('popstate', closeOnBack);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [selectedMessageIds.size]);
+
   // Never allow the selection toolbar to leak into the conversation list.
   useEffect(() => {
-    if (showMobileList || !activeConversation) closeMessageSelection();
+    if (showMobileList || !activeConversation) {
+      setDeleteSelectedConfirmOpen(false);
+      closeMessageSelection();
+    }
   }, [showMobileList, activeConversation]);
 
   const copySelectedMessages = async () => {
@@ -2611,9 +2705,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.08] ring-1 ring-[#d6a83f]/45')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
                     onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onContextMenu={event => event.preventDefault()}
                     onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
+                    onPointerLeave={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                   >
                     {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
@@ -3206,12 +3302,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
               <div className="min-w-0 flex-1 text-base font-semibold text-white">{selectedMessageIds.size} Selected</div>
               <button type="button" aria-label="Copy selected messages" onClick={() => void copySelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Copy size={20}/></button>
               <button type="button" aria-label="Forward selected messages" onClick={() => void forwardSelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Forward size={20}/></button>
+              <button type="button" aria-label="Delete selected messages" onClick={requestDeleteSelectedMessages} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>
               {selectedMessageIds.size === 1 && (() => {
                 const selected = messages.find(message => selectedMessageIds.has(message.id));
                 if (!selected) return null;
                 return <>
                   {selected.isOwn && <button type="button" aria-label="Edit selected message" onClick={() => { closeMessageSelection(); editExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Pencil size={20}/></button>}
-                  {(selected.isOwn || activeConv?.type !== 'direct') && <button type="button" aria-label="Delete selected message" onClick={() => { closeMessageSelection(); void deleteExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>}
+
                 </>;
               })()}
             </div>
@@ -3226,6 +3323,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
           </>
         )}
         {deleteConfirmMessage && <DeleteConfirmDialog title="Delete this message for everyone?" description="This cannot be undone. The message will be removed for everyone in this conversation." confirmLabel="Delete for everyone" onCancel={() => setDeleteConfirmMessage(null)} onConfirm={() => void confirmDeleteMessage()} />}
+        {deleteSelectedConfirmOpen && <DeleteConfirmDialog title="Delete selected messages for everyone?" description="This cannot be undone. Every selected message you are allowed to manage will be removed from this conversation." confirmLabel="Delete selected messages" onCancel={() => setDeleteSelectedConfirmOpen(false)} onConfirm={() => void confirmDeleteSelectedMessages()} />}
         {editEntityOpen && activeConv && activeConv.type !== 'direct' && (<>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeChatSubview(() => setEditEntityOpen(false))} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" aria-label="Close management" />
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] pointer-events-none"><motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} className="vanta-entity-settings pointer-events-auto ml-auto h-[var(--chat-viewport-height,100dvh)] w-full max-w-none overflow-y-auto overscroll-contain border-0 bg-[#1F2630] pb-[max(16px,env(safe-area-inset-bottom))]">

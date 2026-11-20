@@ -1,7 +1,7 @@
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import type { VerificationType } from '@/types/verification';
 
-export type ProfileTab = 'posts' | 'reels' | 'live' | 'media' | 'likes' | 'about';
+export type ProfileTab = 'posts' | 'reels' | 'live' | 'media' | 'likes';
 export type ProfileItem = Record<string, any>;
 export type ProfileData = ProfileItem & {
   id: string;

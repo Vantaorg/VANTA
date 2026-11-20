@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays, Eye, Film, Globe2, Heart, Image as ImageIcon, Info, Link2, MapPin, MessageCircle, Play, Radio, Trash2 } from 'lucide-react';
+import { Eye, Film, Heart, Image as ImageIcon, MessageCircle, Play, Radio, Trash2 } from 'lucide-react';
 import FeedPostCard from '@/components/social/FeedPostCard';
 import ImageViewer from '@/components/ui/ImageViewer';
 import type { ProfileData, ProfileItem, ProfileTab } from './profileTypes';
-import { cleanPostId, formatCount, joinedDate, mediaUrl, postKind, safeWebsite } from './profileTypes';
+import { cleanPostId, formatCount, mediaUrl, postKind } from './profileTypes';
 
 type Props = {
   tab: ProfileTab; rows: ProfileItem[]; profile: ProfileData; own: boolean; router: any;
@@ -27,7 +27,6 @@ type Props = {
 export default function ProfileContent(props: Props) {
   const [preview, setPreview] = useState<{ src: string; alt: string } | null>(null);
   const { tab, rows, profile, own, router, currentUserId, onLike, onSave, onComment, onGift, onDelete, onShare, onFollow, onMore, onCreate } = props;
-  if (tab === 'about') return <About profile={profile} />;
   if (!rows.length) return <Empty tab={tab} own={own} onCreate={onCreate} />;
   if (tab === 'posts' || tab === 'likes') {
     return <div className="profile-post-feed">{rows.map(item => <FeedPostCard key={item.id} item={item} currentUserId={currentUserId} onLike={onLike} onSave={onSave} onComment={onComment} onShare={onShare} onGift={onGift} onFollow={onFollow} onMore={onMore} feedCompactMedia hideFollowButton />)}</div>;
@@ -64,16 +63,6 @@ export default function ProfileContent(props: Props) {
       {!isText && gridTab !== 'media' && <div className="tile-overlay"><div className="tile-metrics">{isLive || gridTab === 'reels' ? <><Eye size={16} />{formatCount(item.views ?? item.viewerCount ?? item.totalViewers)}</> : <><button onClick={() => onLike(item)} aria-label={item.liked ? "Unlike" : "Like"} aria-pressed={Boolean(item.liked)} className={item.liked ? "text-[#c9a227]" : "text-[#8a8a8a]"}><Heart size={17} fill={item.liked ? "currentColor" : "none"} />{formatCount(item.likes ?? item._count?.likes)}</button><button onClick={() => onComment(item)} aria-label="Comments"><MessageCircle size={17} />{formatCount(item.comments ?? item._count?.comments)}</button></>}</div><div className="tile-actions">{gridTab === 'reels' && own && <button onClick={() => onDelete(item)} aria-label="Delete"><Trash2 size={16} /></button>}</div></div>}
     </article>;
   })}</div><ImageViewer src={preview?.src ?? null} alt={preview?.alt} onClose={() => setPreview(null)} /></>;
-}
-
-function About({ profile }: { profile: ProfileData }) {
-  return <div className="about-list"><h2>About</h2>
-    {profile.bio && <section><Info /><div><b>Bio</b><p>{profile.bio}</p></div></section>}
-    <section><Globe2 /><div><b>Username</b><p>@{profile.username}</p></div></section>
-    {(profile.location || profile.city || profile.country) && <section><MapPin /><div><b>Location</b><p>{profile.location || [profile.city, profile.country].filter(Boolean).join(', ')}</p></div></section>}
-    {safeWebsite(profile.website) && <section><Link2 /><div><b>Website</b><a href={safeWebsite(profile.website)} target="_blank" rel="noreferrer">{profile.website}</a></div></section>}
-    {joinedDate(profile) && <section><CalendarDays /><div><b>Member since</b><p>{joinedDate(profile)}</p></div></section>}
-  </div>;
 }
 
 function Empty({ tab, own, onCreate }: { tab: ProfileTab; own: boolean; onCreate?: () => void }) {

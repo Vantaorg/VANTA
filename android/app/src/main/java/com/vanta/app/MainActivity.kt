@@ -47,7 +47,6 @@ import java.util.UUID
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val nativeShareNonce = UUID.randomUUID().toString()
-    private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var acceptedFileTypes: Array<String> = emptyArray()
@@ -92,18 +91,24 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(5, 5, 5))
             addView(webView)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            root.setOnApplyWindowInsetsListener { view, insets ->
-                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
-                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
-                // Keep the WebView edge-to-edge. Reserve only the actual Android
-                // navigation-bar inset; systemBars() also includes other system
-                // UI and can leave an oversized empty strip below app navigation.
-                systemBottomInsetPx = navigationBars.bottom
-                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
-                webView.post { applySystemBottomInset() }
-                insets
-            }
+        @Suppress("DEPRECATION")
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            val systemBars = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(WindowInsets.Type.systemBars())
+            } else null
+            val left = systemBars?.left ?: insets.systemWindowInsetLeft
+            val top = systemBars?.top ?: insets.systemWindowInsetTop
+            val right = systemBars?.right ?: insets.systemWindowInsetRight
+            val navigationBottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            } else insets.systemWindowInsetBottom
+
+            // Keep app content inside the device-safe frame. Fixed full-screen
+            // pages now end above Android's navigation buttons instead of
+            // drawing underneath them.
+            view.setPadding(left, top, right, navigationBottom)
+            webView.post { applySystemBottomInset() }
+            insets
         }
         setContentView(root)
 
@@ -391,7 +396,9 @@ class MainActivity : Activity() {
     private fun applySystemBottomInset() {
         if (!::webView.isInitialized) return
         webView.evaluateJavascript(
-            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px'); document.documentElement.style.setProperty('--vanta-native-reel-action-offset', '${64 + (systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
+            // The WebView is already measured above the native navigation
+            // bar, so adding the inset again in CSS would create a double gap.
+            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '0px'); document.documentElement.style.setProperty('--vanta-native-reel-action-offset', '64px')",
             null
         )
     }

@@ -25,11 +25,10 @@ const TABS: Array<{ id: ProfileTab; label: string; icon: typeof Film; ownOnly?: 
   { id: 'posts', label: 'Posts', icon: MessageCircle },
   { id: 'reels', label: 'Reels', icon: Film },
   { id: 'media', label: 'Media', icon: ImageIcon },
-  { id: 'about', label: 'About', icon: Info },
   { id: 'likes', label: 'Likes', icon: Heart, ownOnly: true },
 ];
 
-const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [], about: [] });
+const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [] });
 const errorStatus = (reason: any) => Number(reason?.statusCode ?? reason?.status ?? reason?.response?.status) || 0;
 const normalizeProfileItem = (item: any, likedTab = false): ProfileItem => {
   const post = item?.post || item || {};
@@ -102,7 +101,6 @@ export default function CreatorHubPage({ username }: { username?: string }) {
 
   useEffect(() => {
     if (!profile) return;
-    if (tab === 'about') { setContentLoading(false); setContentError(''); return; }
     if (!endpoint) { setContent(current => ({ ...current, [tab]: [] })); setNextCursor(current => ({ ...current, [tab]: undefined })); return; }
     let active = true; setContentLoading(true); setContentError(''); setNextCursor(current => ({ ...current, [tab]: undefined }));
     apiGet<any>(`${endpoint}?limit=24`, token || undefined, { skipCache: true })
@@ -124,7 +122,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
 
   const refreshProfile = useCallback(async () => {
     await Promise.all([loadProfile(), new Promise<void>(resolve => {
-      if (!profile || tab === 'about' || !endpoint) { resolve(); return; }
+      if (!profile || !endpoint) { resolve(); return; }
       let settled = false;
       const finish = () => { if (!settled) { settled = true; resolve(); } };
       setContentLoading(true);

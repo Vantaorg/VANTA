@@ -78,6 +78,7 @@ jobs:
           src/__tests__/wallet.withdrawal.test.ts
           src/__tests__/wallet.reconciliation.test.ts
           src/__tests__/monetization.earnings-ledger.test.ts
+          src/__tests__/gift.service.test.ts
           src/__tests__/monetization.subscription-security.test.ts
           src/__tests__/security.fail-closed-prerequisites.test.ts
           src/__tests__/security.admin-session-2fa.test.ts
