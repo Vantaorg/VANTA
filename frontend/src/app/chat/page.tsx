@@ -1835,7 +1835,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const results: Array<PromiseSettledResult<any>> = [];
     for (let index = 0; index < deletable.length; index += 10) {
       const batch = await Promise.allSettled(deletable.slice(index, index + 10).map(message =>
-        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token)
+        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=${deleteForEveryone && message.isOwn}`, token)
       ));
       results.push(...batch);
     }
