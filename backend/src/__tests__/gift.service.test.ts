@@ -15,6 +15,9 @@ jest.mock('../prisma', () => ({
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    video: {
+      findUnique: jest.fn(),
+    },
     creatorDailyAnalytics: {
       upsert: jest.fn(),
     },
@@ -162,6 +165,43 @@ describe('GiftService', () => {
         .rejects.toThrow('quantity must be an integer between 1 and 99');
       expect(prisma.gift.findUnique).not.toHaveBeenCalled();
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    test('should persist the target Reel and requested gift quantity', async () => {
+      (prisma.gift.findUnique as jest.Mock).mockResolvedValue(mockGift);
+      (prisma.video.findUnique as jest.Mock).mockResolvedValue({ creatorId: 'user2' });
+      (prisma.user.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'user1', username: 'sender', fullName: null })
+        .mockResolvedValueOnce({ id: 'user2', username: 'receiver', fullName: null });
+
+      const persistedTransaction = { ...mockTransaction, videoId: 'reel1', quantity: 5 };
+      const createTransaction = jest.fn().mockResolvedValue(persistedTransaction);
+      (prisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => callback({
+        wallet: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'wallet1', coinBalance: 100, lockedCoins: 0 }),
+          update: jest.fn().mockResolvedValue({ id: 'wallet2', coinBalance: 7, earningsBalance: 0.02 }),
+        },
+        giftTransaction: { create: createTransaction },
+        walletTransaction: { create: jest.fn().mockResolvedValue({}) },
+        creatorDailyAnalytics: { upsert: jest.fn().mockResolvedValue({}) },
+        analyticsEvent: { create: jest.fn().mockResolvedValue({}) },
+      }));
+
+      const result = await giftService.sendGift('user1', 'user2', 'gift1', undefined, {
+        quantity: 5,
+        videoId: 'reel1',
+        requestId: 'gift_reel_123456',
+      });
+
+      expect(prisma.video.findUnique).toHaveBeenCalledWith({
+        where: { id: 'reel1', publishStatus: 'PUBLISHED', moderationRemovedAt: null },
+        select: { creatorId: true },
+      });
+      expect(createTransaction).toHaveBeenCalledWith({
+        data: expect.objectContaining({ videoId: 'reel1', quantity: 5 }),
+      });
+      expect(result).toEqual(expect.objectContaining({ quantity: 5, transaction: persistedTransaction }));
     });
   });
 

@@ -47,7 +47,6 @@ import java.util.UUID
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val nativeShareNonce = UUID.randomUUID().toString()
-    private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var acceptedFileTypes: Array<String> = emptyArray()
@@ -107,7 +106,6 @@ class MainActivity : Activity() {
             // Keep app content inside the device-safe frame. Fixed full-screen
             // pages now end above Android's navigation buttons instead of
             // drawing underneath them.
-            systemBottomInsetPx = navigationBottom
             view.setPadding(left, top, right, navigationBottom)
             webView.post { applySystemBottomInset() }
             insets

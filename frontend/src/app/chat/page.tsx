@@ -509,6 +509,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const newChatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedMessageRef = useRef<string | null>(null);
+  const selectionHistoryRef = useRef(false);
   const conversationLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedConversationRef = useRef<string | null>(null);
   const conversationLongPressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1872,9 +1873,51 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     });
   };
 
-  const closeMessageSelection = () => setSelectedMessageIds(new Set());
+  const closeMessageSelection = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    longPressedMessageRef.current = null;
+    swipeStartRef.current = null;
+    setSwipeOffset(null);
+    setSelectedMessageIds(new Set());
+  };
 
-  // Android/system Back can leave the conversation while selection mode is open.
+  // Give message selection its own history entry. Android/system Back closes
+  // selection first instead of unexpectedly navigating away from the chat.
+  useEffect(() => {
+    if (selectedMessageIds.size > 0 && !selectionHistoryRef.current) {
+      window.history.pushState(
+        { ...(window.history.state && typeof window.history.state === 'object' ? window.history.state : {}), vantaMessageSelection: true },
+        '',
+        window.location.href,
+      );
+      selectionHistoryRef.current = true;
+    }
+    if (selectedMessageIds.size === 0) {
+      if (selectionHistoryRef.current) {
+        selectionHistoryRef.current = false;
+        window.history.back();
+      }
+      return;
+    }
+    const closeOnBack = () => {
+      selectionHistoryRef.current = false;
+      closeMessageSelection();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMessageSelection();
+      }
+    };
+    window.addEventListener('popstate', closeOnBack);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('popstate', closeOnBack);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [selectedMessageIds.size]);
+
   // Never allow the selection toolbar to leak into the conversation list.
   useEffect(() => {
     if (showMobileList || !activeConversation) closeMessageSelection();
@@ -3251,7 +3294,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                 if (!selected) return null;
                 return <>
                   {selected.isOwn && <button type="button" aria-label="Edit selected message" onClick={() => { closeMessageSelection(); editExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Pencil size={20}/></button>}
-                  {(selected.isOwn || activeConv?.type !== 'direct') && <button type="button" aria-label="Delete selected message" onClick={() => { closeMessageSelection(); void deleteExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>}
+
                 </>;
               })()}
             </div>
