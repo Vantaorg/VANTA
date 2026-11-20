@@ -547,8 +547,10 @@ export default function ReelsPage() {
     try {
       if (mode === 'native' && navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', text: reel.description || undefined, url });
       else { await navigator.clipboard.writeText(url); toast.success('Reel link copied'); }
-      const result = await apiPost<{ shares: number }>(`/api/reels/${reel.id}/share`, {}, token || undefined);
-      patch(reel.id, { shares: result.shares });
+      if (token) {
+        const result = await apiPost<{ shares: number }>(`/api/reels/${reel.id}/share`, {}, token);
+        patch(reel.id, { shares: result.shares });
+      }
       setShareFor(null);
     } catch (reason: any) {
       if (reason?.name !== 'AbortError') toast.error('Unable to share this Reel', reason?.message);

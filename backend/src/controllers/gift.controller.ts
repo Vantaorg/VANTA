@@ -56,10 +56,10 @@ export const sendGift = async (req: AuthRequest, res: Response): Promise<void> =
       return;
     }
 
-    const transaction = await giftService.sendGift(senderId, receiverId, giftId, streamId, { quantity, message, isAnon: isAnon === true, requestId, videoId });
+    const giftResult = await giftService.sendGift(senderId, receiverId, giftId, streamId, { quantity, message, isAnon: isAnon === true, requestId, videoId });
     res.status(201).json({
       message: 'Gift sent successfully',
-      transaction,
+      ...giftResult,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
