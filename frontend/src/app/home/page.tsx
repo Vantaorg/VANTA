@@ -185,6 +185,29 @@ export default function HomePage() {
     }
   };
 
+  const repost = async (item: Item, quoteText?: string) => {
+    if (!token || isVideoItem(item)) { if (isVideoItem(item)) toast.error('Reposts are not available for reels yet.'); return; }
+    const id = cleanId(item); const key = `repost:${id}`;
+    if (pendingActionsRef.current.has(key)) return;
+    pendingActionsRef.current.add(key);
+    const was = Boolean(item.reposted);
+    setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: !was, reposts: Math.max(0, Number(entry.reposts || 0) + (was ? -1 : 1)) } : entry));
+    try {
+      const result = was && !quoteText ? await apiDelete(`/api/feed/${id}/repost`, token) : await apiPost<any>(`/api/feed/${id}/repost`, quoteText ? { quoteText } : {}, token);
+      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: was && !quoteText ? false : true, reposts: Number.isFinite(Number(result?.repostCount)) ? Number(result.repostCount) : Math.max(0, Number(entry.reposts || 0)) } : entry));
+      toast.success(was && !quoteText ? 'Repost removed' : quoteText ? 'Quote repost published' : 'Reposted');
+    } catch (reason: any) {
+      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: was, reposts: Math.max(0, Number(entry.reposts || 0) + (was ? 1 : -1)) } : entry));
+      toast.error('Repost failed', reason?.message || 'Please try again.');
+    } finally { pendingActionsRef.current.delete(key); }
+  };
+  const quoteRepost = (item: Item) => {
+    const quoteText = window.prompt('Add a comment to your quote repost');
+    if (quoteText === null) return;
+    if (!quoteText.trim()) { toast.error('Write something before publishing a quote repost.'); return; }
+    if (quoteText.length > 2000) { toast.error('Quote text must be 2,000 characters or fewer.'); return; }
+    setMoreFor(undefined); void repost(item, quoteText.trim());
+  };
   const openShare = (item: Item) => setShareFor(item);
   const openPostMore = (item: Item) => setMoreFor(item);
   const requestDelete = (item: Item) => { setMoreFor(undefined); setDeletePostFor(item); };
@@ -262,11 +285,11 @@ export default function HomePage() {
         <div className="mb-2 grid grid-cols-3 gap-1 rounded-lg border border-white/[.06] bg-[var(--surface)] p-0.5" role="tablist" aria-label="Feed filters">{([['forYou', 'For you'], ['following', 'Following'], ['latest', 'Latest']] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={cn('min-h-9 min-w-0 rounded-md px-1 text-xs font-medium transition sm:text-sm', tab === id ? 'bg-[#c9a227] text-black shadow-sm' : 'text-[#858585] hover:bg-white/[.04] hover:text-white')}>{label}</button>)}</div>
         <button type="button" onClick={openPostModal} className="mb-4 hidden w-full items-center gap-3 rounded-lg border border-white/[.08] bg-[#0d0d0f] px-4 py-3 text-left text-sm text-[#666] transition hover:border-white/[.14] hover:bg-[#151517] hover:text-[#b8b8b8] "><Avatar src={user?.avatar || user?.avatarUrl || (user?.profile as any)?.avatar || (user?.profile as any)?.avatarUrl} alt={user?.username || 'You'} size="md"/><span className="flex-1">Share something with VANTA...</span><span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[.08] text-[#b8b8b8]"><ImageIcon size={17}/></span></button>
         {!online && <div className="mb-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-[var(--surface)] px-3 py-2.5 text-xs text-[#b8b8b8]"><WifiOff size={14}/>You are offline. Some actions are unavailable.</div>}
-        {loading && !items.length ? <FeedSkeleton/> : error && !items.length ? <ErrorState retry={() => fetchFeed(true)}/> : !visible.length ? <EmptyFeed discover={() => router.push('/discover')}/> : <div className="space-y-2">{visible.map(item => <FeedPostCard key={item.id} item={item} currentUserId={user?.id} onLike={() => optimistic(item, 'like')} onSave={() => optimistic(item, 'save')} onComment={item => router.push(isVideoItem(item) ? detailPathFor(item) : `/post/${encodeURIComponent(cleanId(item))}/reply`)} onShare={setShareFor} onGift={openGift} onFollow={follow} onMore={setMoreFor} compactCaption feedCompactMedia hideFollowButton/>)}<div ref={sentinel} className="flex justify-center py-6">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}{!hasMore && <span className="text-xs text-[#666]">You&apos;re all caught up.</span>}</div></div>}
+        {loading && !items.length ? <FeedSkeleton/> : error && !items.length ? <ErrorState retry={() => fetchFeed(true)}/> : !visible.length ? <EmptyFeed discover={() => router.push('/discover')}/> : <div className="space-y-2">{visible.map(item => <FeedPostCard key={item.id} item={item} currentUserId={user?.id} onLike={() => optimistic(item, 'like')} onSave={() => optimistic(item, 'save')} onComment={item => router.push(isVideoItem(item) ? detailPathFor(item) : `/post/${encodeURIComponent(cleanId(item))}/reply`)} onShare={setShareFor} onRepost={item => void repost(item)} onGift={openGift} onFollow={follow} onMore={setMoreFor} compactCaption feedCompactMedia hideFollowButton/>)}<div ref={sentinel} className="flex justify-center py-6">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}{!hasMore && <span className="text-xs text-[#666]">You&apos;re all caught up.</span>}</div></div>}
       </main>
       </div>
     </PullToRefresh>
-    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {shareFor && <FeedPostShareSheet close={() => setShareFor(undefined)} share={share}/>} {moreFor && <FeedPostMoreSheet item={moreFor} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
+    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {shareFor && <FeedPostShareSheet close={() => setShareFor(undefined)} share={share}/>} {moreFor && <FeedPostMoreSheet item={moreFor} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} repost={() => { setMoreFor(undefined); void repost(moreFor); }} quoteRepost={() => quoteRepost(moreFor)} isReposted={Boolean(moreFor.reposted)} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
   </div>;
 }
 
