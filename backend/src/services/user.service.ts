@@ -407,7 +407,8 @@ export class UserService {
         },
         likes: { where: { userId: viewerId }, select: { id: true } },
         saves: { where: { userId: viewerId }, select: { id: true } },
-        _count: { select: { likes: true, comments: true } },
+        reposts: { where: { userId: viewerId }, select: { id: true } },
+        _count: { select: { likes: true, comments: true, reposts: true } },
       },
     });
 
