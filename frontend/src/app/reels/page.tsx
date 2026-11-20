@@ -696,7 +696,6 @@ export default function ReelsPage() {
             onLike={() => void toggle(reel, 'like')}
             onSave={() => void toggle(reel, 'save')}
             onComment={() => void openComments(reel)}
-            onShare={() => setShareFor(reel)}
             onGift={() => openGift(reel)}
             onFollow={() => void follow(reel)}
             onMore={() => setMoreFor(reel)}
@@ -709,8 +708,8 @@ export default function ReelsPage() {
 
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} toggleLike={toggleCommentLike} close={() => setCommentsFor(null)} />}
-        {shareFor && <SharePanel reel={shareFor} share={share} repost={() => void repost(shareFor)} close={() => setShareFor(null)} />}
-        {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
+        {shareFor && <SharePanel reel={shareFor} share={share} close={() => setShareFor(null)} />}
+        {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} share={() => { setMoreFor(null); setShareFor(moreFor); }} repost={() => { setMoreFor(null); void repost(moreFor); }} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
         {reportFor && <ReportPanel reel={reportFor} pending={!!pending[`report:${reportFor.id}`]} submit={category => void report(reportFor, category)} close={() => setReportFor(null)} />}
         {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} videoId={giftFor.id} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift, quantity = 1) => { setGiftBalance(remaining); patch(giftFor.id, { gifts: (giftFor.gifts || 0) + quantity }); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
@@ -719,11 +718,11 @@ export default function ReelsPage() {
   );
 }
 
-function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onShare, onGift, onFollow, onMore, onCreator }: {
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onGift, onFollow, onMore, onCreator }: {
   reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
-  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onShare: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
+  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(true);
@@ -845,7 +844,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
             <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
-            <Action icon={<Share2 />} label={formatCount(reel.shares || 0)} ariaLabel={`Share Reel · ${reel.shares || 0} shares`} onClick={onShare} />
+            <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.shares || 0} shares`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Share2 size={18} /></span><span>{formatCount(reel.shares || 0)}</span></div>
             <Action icon={<Gift />} label={formatCount(reel.gifts || 0)} ariaLabel={`Send a gift · ${reel.gifts || 0} gifts`} onClick={onGift} />
             <Action icon={<MoreHorizontal />} label="More" ariaLabel="More Reel actions" onClick={onMore} />
           </div>
@@ -994,14 +993,14 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
   </>;
 }
 
-function SharePanel({ reel, share, repost, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; repost: () => void; close: () => void }) {
+function SharePanel({ reel, share, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; close: () => void }) {
   const native = typeof window !== 'undefined' && (typeof navigator.share === 'function' || Boolean(window.VantaNative?.shareText));
-  return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share to apps</button>}<button type="button" onClick={repost} className="col-span-2 rounded-lg border border-[#c9a227]/30 bg-[#c9a227]/[.08] p-3 text-sm font-semibold text-[#e6c35a] hover:bg-[#c9a227]/[.14]">{reel.isReposted ? 'Remove repost' : 'Repost'} <span className="ml-1 text-white/50">· {formatCount(reel.reposts || 0)}</span></button></div></Dialog>;
+  return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share to apps</button>}</div></Dialog>;
 }
 
-function MorePanel({ reel, isOwn, save, follow, profile, report, remove, close }: { reel: Reel; isOwn: boolean; save: () => void; follow: () => void; profile: () => void; report: () => void; remove: () => void; close: () => void }) {
+function MorePanel({ reel, isOwn, share, repost, save, follow, profile, report, remove, close }: { reel: Reel; isOwn: boolean; share: () => void; repost: () => void; save: () => void; follow: () => void; profile: () => void; report: () => void; remove: () => void; close: () => void }) {
   const followed = !!(reel.author.following || reel.author.isFollowing || reel.isFollowing);
-  return <Dialog title="More" close={close}><div className="space-y-1.5"><MenuButton icon={<User size={17} />} label="View creator profile" onClick={profile} /><MenuButton icon={<Bookmark size={17} />} label={reel.isSaved ? 'Remove from saved' : 'Save Reel'} onClick={save} />{isOwn ? <MenuButton icon={<Trash2 size={17} />} label="Delete Reel" onClick={remove} /> : <MenuButton icon={followed ? <X size={17} /> : <Check size={17} />} label={followed ? 'Unfollow creator' : 'Follow creator'} onClick={follow} />}<MenuButton icon={<Flag size={17} />} label="Report Reel" onClick={report} /></div></Dialog>;
+  return <Dialog title="More" close={close}><div className="space-y-1.5"><MenuButton icon={<Share2 size={17} />} label={`Share Reel · ${formatCount(reel.shares || 0)}`} onClick={share} /><MenuButton icon={reel.isReposted ? <Check size={17} /> : <RefreshCw size={17} />} label={`${reel.isReposted ? 'Remove repost' : 'Repost'} · ${formatCount(reel.reposts || 0)}`} onClick={repost} /><MenuButton icon={<User size={17} />} label="View creator profile" onClick={profile} /><MenuButton icon={<Bookmark size={17} />} label={reel.isSaved ? 'Remove from saved' : 'Save Reel'} onClick={save} />{isOwn ? <MenuButton icon={<Trash2 size={17} />} label="Delete Reel" onClick={remove} /> : <MenuButton icon={followed ? <X size={17} /> : <Check size={17} />} label={followed ? 'Unfollow creator' : 'Follow creator'} onClick={follow} />}<MenuButton icon={<Flag size={17} />} label="Report Reel" onClick={report} /></div></Dialog>;
 }
 
 function DeleteReelDialog({ sending, onCancel, onConfirm }: { reel: Reel; sending: boolean; onCancel: () => void; onConfirm: () => void }) {
