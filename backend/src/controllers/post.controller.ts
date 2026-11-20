@@ -43,6 +43,31 @@ export const getSavedPosts = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+export const repostPost = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const quoteText = typeof req.body?.quoteText === "string" ? req.body.quoteText : undefined;
+    const result = await postService.repostPost(req.params.id, userId, quoteText);
+    res.status(200).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    res.status(message === "Post not found" ? 404 : 400).json({ error: message });
+  }
+};
+
+export const undoRepost = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await postService.undoRepost(req.params.id, userId);
+    res.status(200).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    res.status(400).json({ error: message });
+  }
+};
+
 export const sharePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
