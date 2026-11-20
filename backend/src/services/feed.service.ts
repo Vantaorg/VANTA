@@ -226,7 +226,8 @@ export class FeedService {
               },
               likes: { where: { userId }, select: { id: true } },
           saves: { where: { userId }, select: { id: true } },
-          _count: { select: { likes: true, comments: true } },
+          reposts: { where: { userId }, select: { id: true } },
+          _count: { select: { likes: true, comments: true, reposts: true } },
         },
       }), seed || '').slice(0, 8);
 
@@ -239,7 +240,8 @@ export class FeedService {
           ...WITH_AUTHOR,
           likes: { where: { userId }, select: { id: true } },
           saves: { where: { userId }, select: { id: true } },
-          _count: { select: { likes: true, comments: true } },
+          reposts: { where: { userId }, select: { id: true } },
+          _count: { select: { likes: true, comments: true, reposts: true } },
         },
       });
 
@@ -252,7 +254,8 @@ export class FeedService {
           ...WITH_AUTHOR,
           likes: { where: { userId }, select: { id: true } },
           saves: { where: { userId }, select: { id: true } },
-          _count: { select: { likes: true, comments: true } },
+          reposts: { where: { userId }, select: { id: true } },
+          _count: { select: { likes: true, comments: true, reposts: true } },
         },
       }), seed || '').slice(0, 5);
 
@@ -544,6 +547,8 @@ export class FeedService {
       likes: post._count?.likes || 0,
       comments: post._count?.comments || 0,
       shares: post.shareCount || 0,
+      reposts: post._count?.reposts || 0,
+      reposted: Array.isArray(post.reposts) && post.reposts.length > 0,
       createdAt: post.createdAt,
       liked: post.likes?.length > 0 || post.isLiked || false,
       saved: post.saves?.length > 0 || post.isSaved || false,
