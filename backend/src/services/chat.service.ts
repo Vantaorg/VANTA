@@ -601,7 +601,7 @@ export class ChatService {
       }), userId);
     }
 
-    const deletedFor = message.deletedFor === userId ? userId : userId;
+    const deletedFor = userId;
     return protectPersistedMessage(await prisma.message.update({
       where: { id: messageId, moderationRemovedAt: null },
       data: { deletedFor },
@@ -761,7 +761,7 @@ export class ChatService {
 
       // @mentions in chat must notify only actual conversation participants.
       const mentionedHandles = [...new Set(
-        [...String(message.content || "").matchAll(/(?:^|\\s)@([a-zA-Z0-9_]{1,30})\\b/g)].map(match => match[1].toLowerCase())
+        [...String(message.content || "").matchAll(/(?:^|\s)@([a-zA-Z0-9_]{1,30})\b/g)].map(match => match[1].toLowerCase())
       )];
       if (mentionedHandles.length) {
         const mentionedUsers = await prisma.user.findMany({
