@@ -463,6 +463,8 @@ export class UserService {
       likes: post._count?.likes || 0,
       comments: post._count?.comments || 0,
       shares: post.shareCount || 0,
+      reposts: post._count?.reposts || 0,
+      reposted: Array.isArray(post.reposts) && post.reposts.length > 0,
       createdAt: post.createdAt,
       liked: Boolean(ctx.liked),
       saved: Boolean(ctx.saved),
