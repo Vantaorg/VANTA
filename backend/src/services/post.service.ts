@@ -73,6 +73,31 @@ export class PostService {
     };
   }
 
+  async repostPost(postId: string, userId: string, quoteText?: string) {
+    const normalizedQuote = typeof quoteText === "string" ? quoteText.trim() : "";
+    if (normalizedQuote.length > 2000) throw new Error("Quote text must be 2000 characters or less");
+    const post = await prisma.post.findUnique({
+      where: { id: postId, moderationRemovedAt: null },
+      select: { id: true, authorId: true },
+    });
+    if (!post) throw new Error("Post not found");
+    if (post.authorId === userId && !normalizedQuote) throw new Error("You cannot repost your own post");
+    const repost = await prisma.postRepost.upsert({
+      where: { userId_postId: { userId, postId } },
+      create: { userId, postId, quoteText: normalizedQuote || null },
+      update: { quoteText: normalizedQuote || null },
+      select: { id: true, userId: true, postId: true, quoteText: true, createdAt: true },
+    });
+    emitSocialEvent("social:post-reposted", { postId, userId, reposted: true, quote: Boolean(normalizedQuote) });
+    return { reposted: true, repost };
+  }
+
+  async undoRepost(postId: string, userId: string) {
+    const deleted = await prisma.postRepost.deleteMany({ where: { userId, postId } });
+    emitSocialEvent("social:post-reposted", { postId, userId, reposted: false });
+    return { reposted: false, removed: deleted.count > 0 };
+  }
+
   async sharePost(postId: string, userId: string, destination = "COPY_LINK") {
     const post = await prisma.$transaction(async (tx) => {
       const updated = await tx.post.update({ where: { id: postId, moderationRemovedAt: null }, data: { shareCount: { increment: 1 } }, select: { shareCount: true } });
