@@ -9,6 +9,9 @@ type DeleteConfirmDialogProps = {
   description: string;
   confirmLabel: string;
   busy?: boolean;
+  checkboxLabel?: string;
+  checkboxChecked?: boolean;
+  onCheckboxChange?: (checked: boolean) => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -18,6 +21,9 @@ export default function DeleteConfirmDialog({
   description,
   confirmLabel,
   busy = false,
+  checkboxLabel,
+  checkboxChecked = false,
+  onCheckboxChange,
   onCancel,
   onConfirm,
 }: DeleteConfirmDialogProps) {
@@ -50,7 +56,7 @@ export default function DeleteConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative my-auto w-full max-w-[360px] max-h-[calc(100dvh_-_32px)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#141416] p-4 text-white shadow-xl shadow-black/40"
+        className="relative my-auto w-full max-w-[360px] max-h-[calc(100dvh_-_32px)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#1F2630] p-4 text-white shadow-xl shadow-black/40"
       >
         <header className="flex items-start gap-3">
           <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-500/[0.10] text-red-300">
@@ -70,6 +76,12 @@ export default function DeleteConfirmDialog({
           </button>
         </header>
         <p className="mt-3 pl-12 text-[13px] leading-5 text-white/55">{description}</p>
+        {checkboxLabel && onCheckboxChange && (
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-white/[0.08] bg-[#18212b] px-3 py-3 text-[13px] text-white/80">
+            <input type="checkbox" checked={checkboxChecked} onChange={event => onCheckboxChange(event.target.checked)} disabled={busy} className="h-4 w-4 accent-[#d6a83f]" />
+            <span>{checkboxLabel}</span>
+          </label>
+        )}
         <div className="mt-5 flex items-center justify-end gap-2">
           <button
             type="button"

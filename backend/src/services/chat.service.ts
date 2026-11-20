@@ -371,7 +371,7 @@ export class ChatService {
       // product treats "delete for everyone" as a hard removal, so we never
       // return deleted rows (no placeholders survive a refresh or a reload on
       // any device).
-      where: { conversationId, deletedAt: null, moderationRemovedAt: null, ...(retentionCutoff ? { createdAt: { gte: retentionCutoff } } : {}) },
+      where: { conversationId, deletedAt: null, moderationRemovedAt: null, OR: [{ deletedFor: null }, { deletedFor: { not: userId } }], ...(retentionCutoff ? { createdAt: { gte: retentionCutoff } } : {}) },
       include: {
         sender: {
           select: userSelect,
@@ -581,20 +581,32 @@ export class ChatService {
     const message = await prisma.message.findUnique({ where: { id: messageId, moderationRemovedAt: null }, include: { conversation: { include: { participants: true } } } });
     const participant = message?.conversation.participants.find((p: any) => p.userId === userId);
     const isGroupOrChannel = message?.conversation.type === "GROUP" || message?.conversation.type === "CHANNEL";
-    // Direct-chat creator roles do not confer moderation rights over another
-    // person's private messages. Only active group/channel admins can moderate.
     const canModerate = Boolean(isGroupOrChannel && participant && ["OWNER", "ADMIN", "MODERATOR"].includes(participant.role));
     const permissions = conversationPermissions(message?.conversation.permissions);
     const isChannel = message?.conversation.type === "CHANNEL";
     const isChannelOwner = isChannel && participant?.role === "OWNER";
-    // Channel "Delete messages" permission: when explicitly disabled, even
-    // administrators cannot force-delete other people's posts (owner excluded).
     const forceDeleteAllowed = !isChannel || isChannelOwner || permissions.deleteMessages !== false;
-    if (!message || !participant || (!canModerate && message.senderId !== userId) || (everyone && !canModerate && message.senderId !== userId)) {
-      throw new Error("Message not found or unauthorized");
+    if (!message || !participant) throw new Error("Message not found or unauthorized");
+
+    // Every participant may hide any message from their own view. Removing a
+    // message for everyone remains restricted to its sender or an authorized
+    // group/channel moderator.
+    if (everyone) {
+      if (message.senderId !== userId && !canModerate) throw new Error("Message not found or unauthorized");
+      if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");
+      return protectPersistedMessage(await prisma.message.update({
+        where: { id: messageId, moderationRemovedAt: null },
+        data: { content: "", deletedAt: new Date() },
+        include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } },
+      }), userId);
     }
-    if (isChannel && message.senderId !== userId && !forceDeleteAllowed) throw new Error("Message not found or unauthorized");
-    return protectPersistedMessage(await prisma.message.update({ where: { id: messageId, moderationRemovedAt: null }, data: { content: "", deletedAt: new Date() }, include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } } }), userId);
+
+    const deletedFor = userId;
+    return protectPersistedMessage(await prisma.message.update({
+      where: { id: messageId, moderationRemovedAt: null },
+      data: { deletedFor },
+      include: { sender: { select: userSelect }, reads: true, attachments: true, reactions: { include: { user: { select: { id: true, username: true } } } }, replyTo: { include: { sender: { select: { id: true, username: true } }, attachments: true } } },
+    }), userId);
   }
 
   async reactToMessage(messageId: string, userId: string, reaction: string) {
@@ -742,10 +754,30 @@ export class ChatService {
               notificationType,
               conversationType === "GROUP" || conversationType === "CHANNEL" ? "Group Activity" : "New Message",
               `${senderUsername} sent a message`,
-              { actorId: senderId, conversationId, senderUsername, entityType: "conversation", entityId: conversationId, referenceKey: messageId ? `message:${messageId}` : undefined }
+              { actorId: senderId, conversationId, senderUsername, entityType: "conversation", entityId: conversationId, messageId, referenceKey: messageId ? `message:${messageId}` : undefined }
             )
             .catch((error: any) => console.error(`[chat] notification failed for ${participant.userId}:`, error?.message || error))
         ));
+
+      // @mentions in chat must notify only actual conversation participants.
+      const mentionedHandles = [...new Set(
+        [...String(message.content || "").matchAll(/(?:^|\s)@([a-zA-Z0-9_]{1,30})\b/g)].map(match => match[1].toLowerCase())
+      )];
+      if (mentionedHandles.length) {
+        const mentionedUsers = await prisma.user.findMany({
+          where: { id: { in: participants.filter(p => p.userId !== senderId).map(p => p.userId) }, username: { in: mentionedHandles, mode: "insensitive" } },
+          select: { id: true, username: true },
+        });
+        await Promise.all(mentionedUsers.map((mentioned: any) =>
+          notificationService.createNotification(
+            mentioned.id,
+            "mention",
+            "You were mentioned",
+            `${senderUsername} mentioned you in a message`,
+            { actorId: senderId, conversationId, messageId, senderUsername, entityType: "conversation", entityId: conversationId, referenceKey: `mention:${messageId}:${mentioned.id}` }
+          ).catch((error: any) => console.error(`[chat] mention notification failed for ${mentioned.id}:`, error?.message || error))
+        ));
+      }
     } catch (error: any) {
       console.error("[chat] dispatchRecipientNotifications failed:", error?.message || error);
     }

@@ -481,6 +481,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
   const [deleteSelectedConfirmOpen, setDeleteSelectedConfirmOpen] = useState(false);
+  const [deleteForEveryone, setDeleteForEveryone] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyState<Message> | null>(null);
   // Only a reply bound to the currently-open conversation may be shown/submitted.
@@ -1792,7 +1793,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const deleteExistingMessage = (message: Message) => {
-    if (!token || (!message.isOwn && activeConv?.type === 'direct')) return;
+    if (!token) return;
+    setDeleteForEveryone(false);
     setDeleteConfirmMessage(message);
   };
 
@@ -1800,8 +1802,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const message = deleteConfirmMessage;
     if (!token || !message) return;
     setDeleteConfirmMessage(null);
+    setDeleteForEveryone(false);
     try {
-      const result = await apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token);
+      const result = await apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=${deleteForEveryone && message.isOwn}`, token);
       const deleted = normalizeMessage(result.data ?? result);
       // A deleted message is wiped from the conversation — never shown as a
       // placeholder or tombstone. Removing it from local state immediately
@@ -1814,18 +1817,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const requestDeleteSelectedMessages = () => {
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
-    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
-    if (!deletable.length) {
-      showToast?.({ type: 'info', title: 'Nothing to delete', message: 'You can delete your own direct messages or messages you are allowed to manage.' });
-      return;
-    }
+    if (!selected.length) return;
+    setDeleteForEveryone(false);
     setDeleteSelectedConfirmOpen(true);
   };
 
   const confirmDeleteSelectedMessages = async () => {
     if (!token) return;
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
-    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
+    const deletable = selected;
     if (!deletable.length) {
       setDeleteSelectedConfirmOpen(false);
       closeMessageSelection();
@@ -1835,7 +1835,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const results: Array<PromiseSettledResult<any>> = [];
     for (let index = 0; index < deletable.length; index += 10) {
       const batch = await Promise.allSettled(deletable.slice(index, index + 10).map(message =>
-        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token)
+        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=${deleteForEveryone && message.isOwn}`, token)
       ));
       results.push(...batch);
     }
@@ -1847,15 +1847,16 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       void fetchConversations();
     }
     setSelectedMessageIds(new Set(failedIds));
+    setDeleteForEveryone(false);
     if (failedIds.length) {
       showToast?.({ type: 'error', title: 'Some messages were not deleted', message: `${deletedIds.length} deleted; ${failedIds.length} could not be deleted. The remaining messages are still selected.` });
     } else {
-      showToast?.({ type: 'success', title: 'Messages deleted', message: `${deletedIds.length} messages deleted for everyone.` });
+      showToast?.({ type: 'success', title: 'Messages deleted', message: `${deletedIds.length} messages deleted.` });
     }
   };
 
   const startMessageLongPress = (message: Message, event?: React.PointerEvent) => {
-    if (message.pending) return;
+    if (message.pending || (event?.pointerType === 'mouse' && event.button !== 0)) return;
     if (event) {
       swipeStartRef.current = { id: message.id, x: event.clientX, y: event.clientY, offset: 0 };
     }
@@ -2577,7 +2578,17 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
         {activeConversation && activeConv ? (
           <>
             {/* Chat Header */}
-             <header className="relative z-20 flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0d0d0f]/95 px-3 backdrop-blur-xl">
+             {selectedMessageIds.size > 0 && (
+              <header className="relative z-20 flex h-14 min-h-14 shrink-0 items-center gap-2 border-b border-white/[0.08] bg-[#1F2630] px-3">
+                <button type="button" onClick={closeMessageSelection} aria-label="Exit message selection" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:bg-white/[0.07] hover:text-white"><X size={20}/></button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white">{selectedMessageIds.size} selected</p>
+                  <p className="text-[10px] text-white/45">Choose messages to manage</p>
+                </div>
+                <button type="button" onClick={() => setSelectedMessageIds(current => current.size === messages.length ? new Set() : new Set(messages.filter(message => !message.pending).map(message => message.id)))} className="rounded-full px-3 py-2 text-[11px] font-semibold text-[#f2c75c] transition hover:bg-[#d6a83f]/10">{selectedMessageIds.size === messages.filter(message => !message.pending).length ? "Clear all" : "Select loaded"}</button>
+              </header>
+            )}
+            <header className={cn("relative z-20 flex h-14 min-h-14 shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0d0d0f]/95 px-3 backdrop-blur-xl", selectedMessageIds.size > 0 && "hidden")}>
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={handleCloseConversation}
@@ -2662,7 +2673,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             {(searchingMessages || messageSearchResults.length > 0) && <div className="border-b border-white/[0.08] bg-[#101010] px-4 py-2"><div className="flex items-center justify-between"><span className="text-[10px] text-white/40">{searchingMessages ? 'Searching chat...' : `${messageSearchResults.length} result${messageSearchResults.length === 1 ? '' : 's'}`}</span><button onClick={() => setMessageSearchResults([])} className="text-white/40" aria-label="Close search results"><X size={13}/></button></div>{messageSearchResults.slice(0, 5).map(result => <button key={result.id} onClick={() => document.getElementById(`message-${result.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="mt-1 block w-full truncate rounded bg-white/[0.03] px-2 py-1 text-left text-[10px] text-white/60">@{result.sender.username}: {result.text}</button>)}</div>}
 
             {/* Messages */}
-            <div ref={messagesViewportRef} className={cn("relative min-h-0 flex-1 touch-pan-y overscroll-contain overflow-x-hidden overflow-y-auto scrollbar-hide bg-[#050505] px-3 py-4 pb-6 [overflow-anchor:none] [-webkit-overflow-scrolling:touch]", selectedMessageIds.size > 0 && "pt-20 pb-24")}>
+            <div ref={messagesViewportRef} className={cn("relative min-h-0 flex-1 touch-pan-y overscroll-contain overflow-x-hidden overflow-y-auto scrollbar-hide bg-[#050505] px-3 py-4 pb-6 [overflow-anchor:none] [-webkit-overflow-scrolling:touch]", selectedMessageIds.size > 0 && "bg-[#1F2630] pt-4 pb-4")}>
               {messageCursor && <div className="flex justify-center"><button onClick={loadOlderMessages} disabled={loadingOlder} className="rounded-full bg-white/[0.05] px-3 py-1 text-[10px] text-white/50 disabled:opacity-50">{loadingOlder ? 'Loading…' : 'Load older messages'}</button></div>}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
@@ -2702,17 +2713,21 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   return <div key={msg.id} className={inSameRun ? 'mt-1' : ''}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full bg-[#202126] px-3 py-1.5 text-[11px] font-medium text-white/65">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
                   <div
                     id={`message-${msg.id}`}
-                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.08] ring-1 ring-[#d6a83f]/45')}
+                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.10] ring-1 ring-[#d6a83f]/60', selectedMessageIds.size > 0 && 'px-2 [&_*]:pointer-events-none select-none')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
+                    role={selectedMessageIds.size > 0 ? "checkbox" : undefined}
+                    aria-checked={selectedMessageIds.size > 0 ? selectedMessageIds.has(msg.id) : undefined}
+                    tabIndex={selectedMessageIds.size > 0 ? 0 : undefined}
                     onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onKeyDown={event => { if (selectedMessageIds.size > 0 && (event.key === " " || event.key === "Enter")) { event.preventDefault(); toggleMessageSelection(msg.id); } }}
                     onContextMenu={event => event.preventDefault()}
-                    onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
+                    onPointerDown={event => startMessageLongPress(msg, event)}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerLeave={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                   >
-                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
+                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-right-1' : '-left-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
                       <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
@@ -2902,7 +2917,17 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
 
             {/* Message Input */}
-            {canPublish ? <div className="sticky bottom-0 z-30 shrink-0 bg-transparent px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
+            {selectedMessageIds.size > 0 ? (
+              <div className="sticky bottom-0 z-30 shrink-0 border-t border-white/[0.08] bg-[#1F2630] px-3 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+                <div className="grid grid-cols-5 gap-1.5">
+                  <button type="button" disabled={selectedMessageIds.size !== 1} onClick={() => { const selected = messages.find(message => selectedMessageIds.has(message.id)); if (selected) { setReplyingTo(createReply(activeConversation as string, selected)); closeMessageSelection(); } }} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252] disabled:opacity-35"><MessageCircle size={17}/>Reply</button>
+                  <button type="button" onClick={() => void forwardSelectedMessages()} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252]"><Forward size={17}/>Forward</button>
+                  <button type="button" onClick={() => void copySelectedMessages()} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252]"><Copy size={17}/>Copy</button>
+                  <button type="button" disabled={selectedMessageIds.size !== 1 || !messages.find(message => selectedMessageIds.has(message.id))?.isOwn} onClick={() => { const selected = messages.find(message => selectedMessageIds.has(message.id)); if (selected) { closeMessageSelection(); editExistingMessage(selected); } }} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252] disabled:opacity-35"><Pencil size={17}/>Edit</button>
+                  <button type="button" onClick={requestDeleteSelectedMessages} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#4a2c32] text-[10px] font-semibold text-[#ffb9bd] transition hover:bg-[#5a343b]"><Trash2 size={17}/>Delete</button>
+                </div>
+              </div>
+            ) : canPublish ? <div className="sticky bottom-0 z-30 shrink-0 bg-transparent px-2.5 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
               {editingMessage && <div className="mb-2 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70"><span>Editing message</span><button onClick={() => { setEditingMessage(null); setMessageInput(''); }} aria-label="Cancel editing"><X size={14} /></button></div>}
               {activeReply && <div className="mb-1.5 flex items-center gap-2 border-l-2 border-[#d6a83f] pr-2 pl-2 py-1"><button type="button" className="min-w-0 flex-1 truncate text-left text-[11px]" onClick={() => { const original = document.getElementById(`message-${activeReply.id}`); original?.scrollIntoView({ behavior: 'smooth', block: 'center' }); original?.classList.add('ring-1', 'ring-[#d6a83f]/70'); window.setTimeout(() => original?.classList.remove('ring-1', 'ring-[#d6a83f]/70'), 1200); }}><span className="font-semibold text-[#f2c75c]">@{activeReply.sender?.username || 'user'}</span><span className="text-white/45"> · {activeReply.text || activeReply.content || 'Attachment'}</span></button><button className="grid h-6 w-6 shrink-0 place-items-center rounded text-white/40" onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><X size={12} /></button></div>}
               {(recordingState === 'recording' || recordingState === 'ready' || recordingState === 'uploading') && (
@@ -3295,35 +3320,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
           </motion.div>
         ))}
-        {selectedMessageIds.size > 0 && (
-          <>
-            <div className="fixed inset-x-0 top-0 z-[75] flex items-center gap-2 border-b border-white/10 bg-[#1f2630] px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] shadow-lg">
-              <button type="button" aria-label="Exit message selection" onClick={closeMessageSelection} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/[0.07] text-white"><X size={21}/></button>
-              <div className="min-w-0 flex-1 text-base font-semibold text-white">{selectedMessageIds.size} Selected</div>
-              <button type="button" aria-label="Copy selected messages" onClick={() => void copySelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Copy size={20}/></button>
-              <button type="button" aria-label="Forward selected messages" onClick={() => void forwardSelectedMessages()} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Forward size={20}/></button>
-              <button type="button" aria-label="Delete selected messages" onClick={requestDeleteSelectedMessages} className="grid h-11 w-11 place-items-center rounded-full text-red-300 hover:bg-red-500/10"><Trash2 size={20}/></button>
-              {selectedMessageIds.size === 1 && (() => {
-                const selected = messages.find(message => selectedMessageIds.has(message.id));
-                if (!selected) return null;
-                return <>
-                  {selected.isOwn && <button type="button" aria-label="Edit selected message" onClick={() => { closeMessageSelection(); editExistingMessage(selected); }} className="grid h-11 w-11 place-items-center rounded-full text-white/85 hover:bg-white/10"><Pencil size={20}/></button>}
 
-                </>;
-              })()}
-            </div>
-            <div className="fixed inset-x-0 bottom-0 z-[75] flex gap-2 border-t border-white/10 bg-[#1f2630] px-3 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(0,0,0,.25)]">
-              <button type="button" onClick={() => {
-                const selected = messages.filter(message => selectedMessageIds.has(message.id));
-                if (selected.length === 1) { setReplyingTo(createReply(activeConversation as string, selected[0])); closeMessageSelection(); }
-                else showToast?.({ type: 'info', title: 'Select one message', message: 'Reply works with one message at a time.' });
-              }} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#293441] text-sm font-semibold text-white/80"><Forward size={17} className="rotate-180"/> Reply</button>
-              <button type="button" onClick={() => void forwardSelectedMessages()} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#293441] text-sm font-semibold text-white/80"><Forward size={17}/> Forward</button>
-            </div>
-          </>
-        )}
-        {deleteConfirmMessage && <DeleteConfirmDialog title="Delete this message for everyone?" description="This cannot be undone. The message will be removed for everyone in this conversation." confirmLabel="Delete for everyone" onCancel={() => setDeleteConfirmMessage(null)} onConfirm={() => void confirmDeleteMessage()} />}
-        {deleteSelectedConfirmOpen && <DeleteConfirmDialog title="Delete selected messages for everyone?" description="This cannot be undone. Every selected message you are allowed to manage will be removed from this conversation." confirmLabel="Delete selected messages" onCancel={() => setDeleteSelectedConfirmOpen(false)} onConfirm={() => void confirmDeleteSelectedMessages()} />}
+        {deleteConfirmMessage && <DeleteConfirmDialog title="Delete message" description="Are you sure you want to delete this message?" confirmLabel="Delete" checkboxLabel={deleteConfirmMessage.isOwn ? (activeConv?.type === "direct" ? "Also delete for @" + (activeConv.username || activeConv.name) : "Also delete for everyone") : undefined} checkboxChecked={deleteForEveryone} onCheckboxChange={setDeleteForEveryone} onCancel={() => { setDeleteConfirmMessage(null); setDeleteForEveryone(false); }} onConfirm={() => void confirmDeleteMessage()} />}
+        {deleteSelectedConfirmOpen && <DeleteConfirmDialog title="Delete selected messages" description="Are you sure you want to delete the selected messages?" confirmLabel="Delete" checkboxLabel={messages.some(message => selectedMessageIds.has(message.id) && message.isOwn) ? (activeConv?.type === "direct" ? "Also delete for @" + (activeConv.username || activeConv.name) : "Also delete for everyone") : undefined} checkboxChecked={deleteForEveryone} onCheckboxChange={setDeleteForEveryone} onCancel={() => { setDeleteSelectedConfirmOpen(false); setDeleteForEveryone(false); }} onConfirm={() => void confirmDeleteSelectedMessages()} />}
         {editEntityOpen && activeConv && activeConv.type !== 'direct' && (<>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeChatSubview(() => setEditEntityOpen(false))} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" aria-label="Close management" />
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] pointer-events-none"><motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} className="vanta-entity-settings pointer-events-auto ml-auto h-[var(--chat-viewport-height,100dvh)] w-full max-w-none overflow-y-auto overscroll-contain border-0 bg-[#1F2630] pb-[max(16px,env(safe-area-inset-bottom))]">

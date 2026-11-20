@@ -199,8 +199,11 @@ export const editMessage = async (req: AuthRequest, res: Response): Promise<void
 export const deleteMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user?.userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    const message = await chatService.deleteMessage(getParamString(req.params.messageId), req.user.userId, req.query.forEveryone === 'true');
-    await broadcastMessageEvent(message.conversationId, 'message:deleted', message);
+    const forEveryone = req.query.forEveryone === 'true';
+    const message = await chatService.deleteMessage(getParamString(req.params.messageId), req.user.userId, forEveryone);
+    // A "delete for me" operation must not remove the message for the other
+    // participant's open conversation.
+    if (forEveryone) await broadcastMessageEvent(message.conversationId, 'message:deleted', message);
     res.json({ data: message });
   } catch (error) { const message = error instanceof Error ? error.message : 'Request failed'; res.status(statusFor(message)).json({ error: message }); }
 };
