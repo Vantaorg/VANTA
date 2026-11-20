@@ -559,9 +559,9 @@ export default function ReelsPage() {
         } else if (window.VantaNative?.shareText && window.__VANTA_NATIVE_SHARE_NONCE) {
           const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `share-${Date.now()}-${Math.random().toString(36).slice(2)}`;
           await new Promise<void>((resolve, reject) => {
-            const timeout = window.setTimeout(() => finish(new Error('Share sheet timed out')), 15000);
+            let timeout: number | undefined;
             const finish = (error?: Error) => {
-              window.clearTimeout(timeout);
+              if (timeout !== undefined) window.clearTimeout(timeout);
               window.removeEventListener('vanta-native-share-result', onResult);
               error ? reject(error) : resolve();
             };
@@ -571,6 +571,7 @@ export default function ReelsPage() {
               finish(detail.ok ? undefined : new Error('Android could not open the share sheet'));
             };
             window.addEventListener('vanta-native-share-result', onResult);
+            timeout = window.setTimeout(() => finish(new Error('Share sheet timed out')), 15000);
             window.VantaNative?.shareText(`${data.text ? data.text + '\\n' : ''}${url}`, window.__VANTA_NATIVE_SHARE_NONCE!, requestId);
           });
         } else {
