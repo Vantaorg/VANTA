@@ -1896,7 +1896,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (selectedMessageIds.size === 0) {
       if (selectionHistoryRef.current) {
         selectionHistoryRef.current = false;
-        window.history.back();
+        // Remove only the temporary selection state; do not asynchronously
+        // pop a route entry if navigation begins immediately after closing.
+        window.history.replaceState(null, '', window.location.href);
       }
       return;
     }
