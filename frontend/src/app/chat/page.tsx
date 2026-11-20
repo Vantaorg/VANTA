@@ -2705,6 +2705,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.08] ring-1 ring-[#d6a83f]/45')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
                     onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onContextMenu={event => event.preventDefault()}
                     onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
