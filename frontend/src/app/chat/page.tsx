@@ -2713,9 +2713,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                   return <div key={msg.id} className={inSameRun ? 'mt-1' : ''}>{showDate && <div className="my-5 flex justify-center"><span className="rounded-full bg-[#202126] px-3 py-1.5 text-[11px] font-medium text-white/65">{dateLabel}</span></div>}{msg.id === firstUnreadId && <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d6a83f]/25"/><span className="rounded-full border border-[#d6a83f]/30 bg-[#d6a83f]/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.14em] text-[#f2c75c]">New messages</span><span className="h-px flex-1 bg-[#d6a83f]/25"/></div>}
                   <div
                     id={`message-${msg.id}`}
-                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.10] ring-1 ring-[#d6a83f]/60', selectedMessageIds.size > 0 && '[&_*]:pointer-events-none select-none')}
+                    className={cn('flex relative scroll-mt-24 transition-shadow touch-pan-y will-change-transform', msg.isOwn ? 'justify-end' : 'justify-start', selectedMessageIds.has(msg.id) && 'rounded-2xl bg-[#d6a83f]/[0.10] ring-1 ring-[#d6a83f]/60', selectedMessageIds.size > 0 && 'px-2 [&_*]:pointer-events-none select-none')}
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
+                    role={selectedMessageIds.size > 0 ? "checkbox" : undefined}
+                    aria-checked={selectedMessageIds.size > 0 ? selectedMessageIds.has(msg.id) : undefined}
+                    tabIndex={selectedMessageIds.size > 0 ? 0 : undefined}
                     onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
+                    onKeyDown={event => { if (selectedMessageIds.size > 0 && (event.key === " " || event.key === "Enter")) { event.preventDefault(); toggleMessageSelection(msg.id); } }}
                     onContextMenu={event => event.preventDefault()}
                     onPointerDown={event => startMessageLongPress(msg, event)}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
@@ -2723,7 +2727,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     onPointerLeave={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                   >
-                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
+                    {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-right-1' : '-left-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
                     <div className={cn('flex w-full min-w-0 items-start gap-2.5', msg.isOwn ? 'flex-row-reverse' : 'flex-row')}>
                       <div className="w-fit min-w-[3.5rem] max-w-[calc(100%-2.75rem)]">
                         {showSenderIdentity && (
@@ -2915,10 +2919,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             {/* Message Input */}
             {selectedMessageIds.size > 0 ? (
               <div className="sticky bottom-0 z-30 shrink-0 border-t border-white/[0.08] bg-[#1F2630] px-3 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-1.5">
                   <button type="button" disabled={selectedMessageIds.size !== 1} onClick={() => { const selected = messages.find(message => selectedMessageIds.has(message.id)); if (selected) { setReplyingTo(createReply(activeConversation as string, selected)); closeMessageSelection(); } }} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252] disabled:opacity-35"><MessageCircle size={17}/>Reply</button>
                   <button type="button" onClick={() => void forwardSelectedMessages()} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252]"><Forward size={17}/>Forward</button>
                   <button type="button" onClick={() => void copySelectedMessages()} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252]"><Copy size={17}/>Copy</button>
+                  <button type="button" disabled={selectedMessageIds.size !== 1 || !messages.find(message => selectedMessageIds.has(message.id))?.isOwn} onClick={() => { const selected = messages.find(message => selectedMessageIds.has(message.id)); if (selected) { closeMessageSelection(); editExistingMessage(selected); } }} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#293441] text-[10px] font-semibold text-white/85 transition hover:bg-[#354252] disabled:opacity-35"><Pencil size={17}/>Edit</button>
                   <button type="button" onClick={requestDeleteSelectedMessages} className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl bg-[#4a2c32] text-[10px] font-semibold text-[#ffb9bd] transition hover:bg-[#5a343b]"><Trash2 size={17}/>Delete</button>
                 </div>
               </div>
