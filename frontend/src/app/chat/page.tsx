@@ -1878,6 +1878,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const closeMessageSelection = () => {
+    if (selectionHistoryRef.current) {
+      selectionHistoryRef.current = false;
+      window.history.back();
+    }
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = null;
     longPressedMessageRef.current = null;
@@ -1902,12 +1906,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (selectedMessageIds.size === 0) {
       if (selectionHistoryRef.current) {
         selectionHistoryRef.current = false;
-        // Remove only our marker while preserving Next.js router state.
-        const historyState = window.history.state && typeof window.history.state === 'object'
-          ? { ...window.history.state }
-          : {};
-        delete historyState.vantaMessageSelection;
-        window.history.replaceState(historyState, '', window.location.href);
+        window.history.back();
       }
       return;
     }
