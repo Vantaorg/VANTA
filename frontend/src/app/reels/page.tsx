@@ -781,7 +781,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             {(reel.description?.length || reel.title?.length || 0) > 110 && <button type="button" onClick={() => setExpanded(value => !value)} className="mt-0.5 text-xs text-white/60">{expanded ? 'less' : 'more'}</button>}
           </div>
 
-          <div className="absolute bottom-6 right-3 z-10 flex flex-col items-center gap-3 ">
+          <div className="absolute bottom-[calc(1.5rem+var(--vanta-native-reel-action-offset,0px))] right-3 z-10 flex flex-col items-center gap-3 ">
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
             <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
