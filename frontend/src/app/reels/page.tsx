@@ -47,6 +47,13 @@ import { resolveMediaUrl } from '@/lib/mediaUrl';
 import { renderTextWithLinks } from '@/lib/linkify';
 import { feedFromSwipe, settleFeedSwipe, startFeedSwipe, trackFeedSwipe } from '@/lib/feedSwipe';
 
+declare global {
+  interface Window {
+    VantaNative?: { shareText: (text: string, nonce: string, requestId: string) => void };
+    __VANTA_NATIVE_SHARE_NONCE?: string;
+  }
+}
+
 type Feed = 'for-you' | 'following' | 'trending';
 type Author = {
   id: string;
@@ -545,8 +552,35 @@ export default function ReelsPage() {
   const share = async (reel: Reel, mode: 'copy' | 'native') => {
     const url = `${location.origin}/reels/${reel.id}`;
     try {
-      if (mode === 'native' && navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', text: reel.description || undefined, url });
-      else { await navigator.clipboard.writeText(url); toast.success('Reel link copied'); }
+      if (mode === 'native') {
+        const data = { title: reel.title || 'VANTA Reel', text: reel.description || undefined, url };
+        if (typeof navigator.share === 'function') {
+          await navigator.share(data);
+        } else if (window.VantaNative?.shareText && window.__VANTA_NATIVE_SHARE_NONCE) {
+          const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `share-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          await new Promise<void>((resolve, reject) => {
+            const timeout = window.setTimeout(() => finish(new Error('Share sheet timed out')), 15000);
+            const finish = (error?: Error) => {
+              window.clearTimeout(timeout);
+              window.removeEventListener('vanta-native-share-result', onResult);
+              error ? reject(error) : resolve();
+            };
+            const onResult = (event: Event) => {
+              const detail = (event as CustomEvent<{ requestId: string; ok: boolean }>).detail;
+              if (detail?.requestId !== requestId) return;
+              finish(detail.ok ? undefined : new Error('Android could not open the share sheet'));
+            };
+            window.addEventListener('vanta-native-share-result', onResult);
+            window.VantaNative?.shareText(`${data.text ? data.text + '\\n' : ''}${url}`, window.__VANTA_NATIVE_SHARE_NONCE!, requestId);
+          });
+        } else {
+          await navigator.clipboard.writeText(url);
+          toast.success('Reel link copied');
+        }
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Reel link copied');
+      }
       if (token) {
         const result = await apiPost<{ shares: number }>(`/api/reels/${reel.id}/share`, {}, token);
         patch(reel.id, { shares: result.shares });
@@ -960,7 +994,7 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
 }
 
 function SharePanel({ reel, share, repost, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; repost: () => void; close: () => void }) {
-  const native = typeof navigator !== 'undefined' && !!navigator.share;
+  const native = typeof window !== 'undefined' && (typeof navigator.share === 'function' || Boolean(window.VantaNative?.shareText));
   return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share to apps</button>}<button type="button" onClick={repost} className="col-span-2 rounded-lg border border-[#c9a227]/30 bg-[#c9a227]/[.08] p-3 text-sm font-semibold text-[#e6c35a] hover:bg-[#c9a227]/[.14]">{reel.isReposted ? 'Remove repost' : 'Repost'} <span className="ml-1 text-white/50">· {formatCount(reel.reposts || 0)}</span></button></div></Dialog>;
 }
 

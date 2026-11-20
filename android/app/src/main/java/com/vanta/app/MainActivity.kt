@@ -22,6 +22,7 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -33,16 +34,19 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.firebase.messaging.FirebaseMessaging
+import java.util.UUID
 
 /**
  * Hosted VANTA WebView shell with a native, unified Camera / Photos / Files picker.
  *
- * No JavaScript bridge is exposed. Existing HTML file inputs are routed through
- * WebChromeClient.onShowFileChooser, then the selected content URIs are returned
- * to the original upload input. Authentication and uploads remain in VANTA.
+ * The only JavaScript bridge is a nonce-gated native share-sheet action restricted
+ * to the trusted VANTA origin. Existing HTML file inputs are routed through
+ * WebChromeClient.onShowFileChooser, then selected content URIs return to the
+ * original upload input. Authentication and uploads remain in VANTA.
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private val nativeShareNonce = UUID.randomUUID().toString()
     private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
@@ -144,6 +148,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(5, 5, 5))
 
             settings.javaScriptEnabled = true
+            addJavascriptInterface(VantaNativeShareBridge(), "VantaNative")
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = true
             settings.allowFileAccess = false
@@ -178,6 +183,7 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
                     applySystemBottomInset()
+                    publishNativeShareNonce(view, url)
                     publishNativeFcmToken()
                 }
 
@@ -388,6 +394,37 @@ class MainActivity : Activity() {
             "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px'); document.documentElement.style.setProperty('--vanta-native-reel-action-offset', '${64 + (systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
             null
         )
+    }
+
+    private fun publishNativeShareNonce(view: WebView, url: String?) {
+        if (!isTrustedPage(url)) return
+        view.evaluateJavascript("window.__VANTA_NATIVE_SHARE_NONCE = '$nativeShareNonce';", null)
+    }
+
+    private inner class VantaNativeShareBridge {
+        @JavascriptInterface
+        fun shareText(text: String?, nonce: String?, requestId: String?) {
+            if (nonce != nativeShareNonce || text.isNullOrBlank() || text.length > 4096) return
+            if (requestId.isNullOrBlank() || !requestId.matches(Regex("[A-Za-z0-9_-]{1,80}"))) return
+
+            runOnUiThread {
+                val opened = try {
+                    if (!isTrustedPage(webView.url)) throw SecurityException("Untrusted VANTA page")
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text.trim())
+                    }
+                    startActivity(Intent.createChooser(sendIntent, "Share with"))
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('vanta-native-share-result', { detail: { requestId: '$requestId', ok: $opened } }));",
+                    null
+                )
+            }
+        }
     }
 
     private fun isTrustedPage(url: String?): Boolean {
