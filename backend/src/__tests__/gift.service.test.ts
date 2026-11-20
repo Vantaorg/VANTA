@@ -8,6 +8,7 @@ jest.mock('../prisma', () => ({
       findMany: jest.fn(),
       count: jest.fn(),
       upsert: jest.fn(),
+      updateMany: jest.fn(),
     },
     giftTransaction: {
       count: jest.fn(),
@@ -169,6 +170,7 @@ describe('GiftService', () => {
 
     test('should persist the target Reel and requested gift quantity', async () => {
       (prisma.gift.findUnique as jest.Mock).mockResolvedValue(mockGift);
+      (prisma.giftTransaction.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.video.findUnique as jest.Mock).mockResolvedValue({ creatorId: 'user2' });
       (prisma.user.findUnique as jest.Mock)
         .mockResolvedValueOnce({ id: 'user1', username: 'sender', fullName: null })
