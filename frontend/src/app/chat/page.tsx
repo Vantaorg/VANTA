@@ -1856,7 +1856,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const startMessageLongPress = (message: Message, event?: React.PointerEvent) => {
-    if (message.pending) return;
+    if (message.pending || (event?.pointerType === 'mouse' && event.button !== 0)) return;
     if (event) {
       swipeStartRef.current = { id: message.id, x: event.clientX, y: event.clientY, offset: 0 };
     }
@@ -2707,7 +2707,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     style={swipeOffset?.id === msg.id ? { transform: `translateX(${swipeOffset.offset}px)` } : undefined}
                     onClick={() => { if (longPressedMessageRef.current === msg.id) { longPressedMessageRef.current = null; return; } if (selectedMessageIds.size) toggleMessageSelection(msg.id); }}
                     onContextMenu={event => event.preventDefault()}
-                    onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
+                    onPointerDown={event => startMessageLongPress(msg, event)}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerLeave={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
