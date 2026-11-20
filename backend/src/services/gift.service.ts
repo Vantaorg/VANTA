@@ -227,7 +227,7 @@ export class GiftService {
     };
   }
 
-  async sendGift(senderId: string, receiverId: string, giftId: string, streamId?: string, options: { quantity?: number; message?: string; isAnon?: boolean; isSuper?: boolean; requestId?: string } = {}) {
+  async sendGift(senderId: string, receiverId: string, giftId: string, streamId?: string, options: { quantity?: number; message?: string; isAnon?: boolean; isSuper?: boolean; requestId?: string; videoId?: string } = {}) {
     const quantity = options.quantity === undefined ? 1 : options.quantity;
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
       throw new Error('quantity must be an integer between 1 and 99');
@@ -245,6 +245,7 @@ export class GiftService {
           existing.receiverId === receiverId &&
           existing.giftId === giftId &&
           (existing.streamId || undefined) === streamId &&
+          (existing.videoId || undefined) === options.videoId &&
           (existing.quantity || 1) === quantity &&
           (existing.message || null) === message &&
           Boolean(existing.isAnon) === isAnon;
@@ -271,6 +272,15 @@ export class GiftService {
 
     if (senderId === receiverId) {
       throw new Error('Cannot send a gift to yourself');
+    }
+
+    if (options.videoId) {
+      const reel = await prisma.video.findUnique({
+        where: { id: options.videoId, publishStatus: "PUBLISHED", moderationRemovedAt: null },
+        select: { creatorId: true },
+      });
+      if (!reel) throw new Error("Reel not found or unavailable");
+      if (reel.creatorId !== receiverId) throw new Error("Invalid Reel gift recipient");
     }
 
     if (streamId) {
@@ -369,6 +379,7 @@ export class GiftService {
           receiverId,
           giftId,
           streamId,
+          videoId: options.videoId,
           amount: totalCost,
           quantity,
           message,
@@ -486,6 +497,7 @@ export class GiftService {
           existing.receiverId === receiverId &&
           existing.giftId === giftId &&
           (existing.streamId || undefined) === streamId &&
+          (existing.videoId || undefined) === options.videoId &&
           (existing.quantity || 1) === quantity &&
           (existing.message || null) === message &&
           Boolean(existing.isAnon) === isAnon

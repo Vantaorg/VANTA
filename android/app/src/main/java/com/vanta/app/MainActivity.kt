@@ -22,6 +22,7 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -33,16 +34,19 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.firebase.messaging.FirebaseMessaging
+import java.util.UUID
 
 /**
  * Hosted VANTA WebView shell with a native, unified Camera / Photos / Files picker.
  *
- * No JavaScript bridge is exposed. Existing HTML file inputs are routed through
- * WebChromeClient.onShowFileChooser, then the selected content URIs are returned
- * to the original upload input. Authentication and uploads remain in VANTA.
+ * The only JavaScript bridge is a nonce-gated native share-sheet action restricted
+ * to the trusted VANTA origin. Existing HTML file inputs are routed through
+ * WebChromeClient.onShowFileChooser, then selected content URIs return to the
+ * original upload input. Authentication and uploads remain in VANTA.
  */
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private val nativeShareNonce = UUID.randomUUID().toString()
     private var systemBottomInsetPx = 0
     private var pendingFileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
@@ -53,16 +57,10 @@ class MainActivity : Activity() {
     private var pendingWebPermissionNames: Set<String> = emptySet()
 
     companion object {
-        private const val PRODUCTION_ORIGIN = "https://vanta-nu.vercel.app"
-        // Debug APKs use the matching Vercel PR preview so frontend fixes are
-        // actually exercised on-device. Release builds always use production.
-        private const val DEBUG_ORIGIN = "https://vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
+        // Both APK variants use the same production origin from defaultConfig.
         private val VANTA_ORIGIN: String
-            get() = if (BuildConfig.DEBUG) DEBUG_ORIGIN else PRODUCTION_ORIGIN
-        private val VANTA_HOSTS = setOf(
-            "vanta-nu.vercel.app",
-            "vanta-git-fix-chat-attachments-location-polls-vanta-73db.vercel.app"
-        )
+            get() = BuildConfig.VANTA_ORIGIN
+        private val VANTA_HOSTS = setOfNotNull(Uri.parse(BuildConfig.VANTA_ORIGIN).host)
         private const val FILE_CHOOSER_REQUEST = 4107
         private const val CAMERA_REQUEST = 4108
         private const val CAMERA_URI_STATE = "vanta.pending.camera.uri"
@@ -88,7 +86,61 @@ class MainActivity : Activity() {
 
         pendingCameraUri = savedInstanceState?.getString(CAMERA_URI_STATE)?.let(Uri::parse)
 
-        webView = WebView(this).apply {
+        webView = createWebView()
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.rgb(5, 5, 5))
+            addView(webView)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            root.setOnApplyWindowInsetsListener { view, insets ->
+                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
+                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
+                // Keep the WebView edge-to-edge. Reserve only the actual Android
+                // navigation-bar inset; systemBars() also includes other system
+                // UI and can leave an oversized empty strip below app navigation.
+                systemBottomInsetPx = navigationBars.bottom
+                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
+                webView.post { applySystemBottomInset() }
+                insets
+            }
+        }
+        setContentView(root)
+
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+        if (savedInstanceState == null) {
+            // A notification may cold-start the activity. Honor its validated
+            // internal route instead of always opening the homepage.
+            val initialNotificationRoute = intent?.getStringExtra(
+                VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE
+            )?.takeIf { it.startsWith("/") && !it.startsWith("//") }
+            webView.loadUrl(VANTA_ORIGIN + (initialNotificationRoute ?: ""))
+        } else {
+            webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
+        }
+
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4111)
+        }
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE).edit()
+                .putString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, token).apply()
+            publishNativeFcmToken(token)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent?.getStringExtra(VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE)
+        if (!route.isNullOrBlank() && route.startsWith("/") && !route.startsWith("//")) {
+            webView.post { webView.loadUrl(VANTA_ORIGIN + route) }
+        }
+    }
+
+
+    private fun createWebView(): WebView {
+        return WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -96,6 +148,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(5, 5, 5))
 
             settings.javaScriptEnabled = true
+            addJavascriptInterface(VantaNativeShareBridge(), "VantaNative")
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = true
             settings.allowFileAccess = false
@@ -130,6 +183,7 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
                     applySystemBottomInset()
+                    publishNativeShareNonce(view, url)
                     publishNativeFcmToken()
                 }
 
@@ -139,6 +193,36 @@ class MainActivity : Activity() {
                     error: SslError
                 ) {
                     handler.cancel()
+                }
+
+                override fun onRenderProcessGone(
+                    view: WebView,
+                    detail: android.webkit.RenderProcessGoneDetail
+                ): Boolean {
+                    val parent = view.parent as? ViewGroup ?: return false
+                    val childIndex = parent.indexOfChild(view)
+                    val layoutParams = view.layoutParams
+                    val currentUrl = view.url?.takeIf(::isTrustedPage) ?: VANTA_ORIGIN
+
+                    pendingFileCallback?.onReceiveValue(null)
+                    pendingFileCallback = null
+                    pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
+                    pendingGeolocationCallback = null
+                    pendingGeolocationOrigin = null
+                    pendingWebPermissionRequest?.deny()
+                    pendingWebPermissionRequest = null
+                    pendingWebPermissionNames = emptySet()
+
+                    view.stopLoading()
+                    view.webChromeClient = null
+                    view.webViewClient = WebViewClient()
+                    parent.removeView(view)
+                    view.destroy()
+
+                    webView = createWebView()
+                    parent.addView(webView, childIndex, layoutParams)
+                    webView.loadUrl(currentUrl)
+                    return true
                 }
             }
 
@@ -244,55 +328,6 @@ class MainActivity : Activity() {
                 }
             }
         }
-
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(Color.rgb(5, 5, 5))
-            addView(webView)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            root.setOnApplyWindowInsetsListener { view, insets ->
-                val systemBars = insets.getInsets(WindowInsets.Type.systemBars())
-                val navigationBars = insets.getInsets(WindowInsets.Type.navigationBars())
-                // Keep the WebView edge-to-edge. Reserve only the actual Android
-                // navigation-bar inset; systemBars() also includes other system
-                // UI and can leave an oversized empty strip below app navigation.
-                systemBottomInsetPx = navigationBars.bottom
-                view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
-                webView.post { applySystemBottomInset() }
-                insets
-            }
-        }
-        setContentView(root)
-
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        if (savedInstanceState == null) {
-            // A notification may cold-start the activity. Honor its validated
-            // internal route instead of always opening the homepage.
-            val initialNotificationRoute = intent?.getStringExtra(
-                VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE
-            )?.takeIf { it.startsWith("/") && !it.startsWith("//") }
-            webView.loadUrl(VANTA_ORIGIN + (initialNotificationRoute ?: ""))
-        } else {
-            webView.restoreState(savedInstanceState) ?: webView.loadUrl(VANTA_ORIGIN)
-        }
-
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4111)
-        }
-        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-            getSharedPreferences(VantaFirebaseMessagingService.PREFS, MODE_PRIVATE).edit()
-                .putString(VantaFirebaseMessagingService.KEY_FCM_TOKEN, token).apply()
-            publishNativeFcmToken(token)
-        }
-    }
-
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        val route = intent?.getStringExtra(VantaFirebaseMessagingService.EXTRA_NOTIFICATION_ROUTE)
-        if (!route.isNullOrBlank() && route.startsWith("/") && !route.startsWith("//")) {
-            webView.post { webView.loadUrl(VANTA_ORIGIN + route) }
-        }
     }
 
     private fun publishNativeFcmToken(tokenOverride: String? = null) {
@@ -356,9 +391,40 @@ class MainActivity : Activity() {
     private fun applySystemBottomInset() {
         if (!::webView.isInitialized) return
         webView.evaluateJavascript(
-            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
+            "document.documentElement.style.setProperty('--vanta-native-safe-bottom', '${(systemBottomInsetPx / resources.displayMetrics.density).toInt()}px'); document.documentElement.style.setProperty('--vanta-native-reel-action-offset', '${64 + (systemBottomInsetPx / resources.displayMetrics.density).toInt()}px')",
             null
         )
+    }
+
+    private fun publishNativeShareNonce(view: WebView, url: String?) {
+        if (!isTrustedPage(url)) return
+        view.evaluateJavascript("window.__VANTA_NATIVE_SHARE_NONCE = '$nativeShareNonce';", null)
+    }
+
+    inner class VantaNativeShareBridge {
+        @JavascriptInterface
+        fun shareText(text: String?, nonce: String?, requestId: String?) {
+            if (nonce != nativeShareNonce || text.isNullOrBlank() || text.length > 4096) return
+            if (requestId.isNullOrBlank() || !requestId.matches(Regex("[A-Za-z0-9_-]{1,80}"))) return
+
+            runOnUiThread {
+                val opened = try {
+                    if (!isTrustedPage(webView.url)) throw SecurityException("Untrusted VANTA page")
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text.trim())
+                    }
+                    startActivity(Intent.createChooser(sendIntent, "Share with"))
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('vanta-native-share-result', { detail: { requestId: '$requestId', ok: $opened } }));",
+                    null
+                )
+            }
+        }
     }
 
     private fun isTrustedPage(url: String?): Boolean {

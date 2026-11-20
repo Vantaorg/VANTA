@@ -82,6 +82,8 @@ model User {
   postCommentLikes  PostCommentLike[]
   postSaves         PostSave[]
   videos            Video[]                  @relation("CreatorVideos")
+  reelShares        ReelShare[]
+  reelReposts       ReelRepost[]
   videoLikes        VideoLike[]
   videoComments     VideoComment[]
   videoCommentLikes VideoCommentLike[]
@@ -661,6 +663,9 @@ model Video {
   likes         VideoLike[]
   comments      VideoComment[]
   saves         VideoSave[]
+  shares        ReelShare[]
+  reposts       ReelRepost[]
+  giftTransactions GiftTransaction[]
   watchHistory  WatchHistory[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -673,6 +678,31 @@ model Video {
   @@index([creatorId, views, createdAt])
   @@index([duration, createdAt])
   @@index([moderationRemovedAt])
+}
+
+model ReelShare {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([videoId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ReelRepost {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([videoId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model VideoLike {
@@ -1589,6 +1619,7 @@ model GiftTransaction {
   receiverId String
   giftId     String
   streamId   String?
+  videoId    String?
   amount     Int
   quantity   Int      @default(1)
   message    String?
@@ -1600,11 +1631,13 @@ model GiftTransaction {
   gift       Gift     @relation(fields: [giftId], references: [id], onDelete: Cascade)
   sender     User     @relation("SentGiftTransactions", fields: [senderId], references: [id], onDelete: Cascade)
   receiver   User     @relation("ReceivedGiftTransactions", fields: [receiverId], references: [id], onDelete: Cascade)
+  video      Video?   @relation(fields: [videoId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
 
   @@index([senderId])
   @@index([receiverId])
   @@index([streamId])
+  @@index([videoId, status, createdAt])
   @@index([createdAt])
   @@index([receiverId, createdAt])
   @@index([senderId, receiverId, createdAt])

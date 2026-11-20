@@ -25,7 +25,7 @@ function Visual({ gift, preview = false, size = 68 }: { gift: GiftCatalogItem; p
   return <GiftArtwork slug={gift.slug} name={gift.name} artworkType={gift.artworkType} assetUrl={asset} size={size} animate={preview} quality={giftVisualQuality(gift)} />;
 }
 
-export default function GiftPicker({ gifts, balance, recipient, token, streamId, initialGift, loading = false, loadError, onRetry, onClose, onSent }: { gifts: GiftCatalogItem[]; balance: number; recipient: Recipient; token: string; streamId?: string; initialGift?: GiftCatalogItem | null; loading?: boolean; loadError?: string; onRetry?: () => void; onClose: () => void; onSent: (_balance: number, _amount: number, _gift: GiftCatalogItem) => void }) {
+export default function GiftPicker({ gifts, balance, recipient, token, streamId, videoId, initialGift, loading = false, loadError, onRetry, onClose, onSent }: { gifts: GiftCatalogItem[]; balance: number; recipient: Recipient; token: string; streamId?: string; videoId?: string; initialGift?: GiftCatalogItem | null; loading?: boolean; loadError?: string; onRetry?: () => void; onClose: () => void; onSent: (_balance: number, _amount: number, _gift: GiftCatalogItem, _quantity?: number) => void }) {
   const router = useRouter(), toast = useToast();
   const [query, setQuery] = useState(''), [category, setCategory] = useState<GiftCategoryId>('all');
   const [selected, setSelected] = useState<GiftCatalogItem | null>(initialGift || null);
@@ -48,7 +48,7 @@ export default function GiftPicker({ gifts, balance, recipient, token, streamId,
   const send = async () => {
     if (!selected || insufficient || sending || !validRecipient) return; setSending(true);
     const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
-    try { const response = await apiPost<any>('/api/monetization/gifts/send', { receiverId: recipient.id, giftId: selected.id, streamId, quantity, message: message.trim() || undefined, requestId }, token); const result = response.transaction || response; onSent(response.remainingBalance ?? result.remainingBalance ?? balance, response.amount ?? result.amount ?? totalCost, selected); setSent(true); setTimeout(onClose, 2100); }
+    try { const response = await apiPost<any>('/api/monetization/gifts/send', { receiverId: recipient.id, giftId: selected.id, streamId, videoId, quantity, message: message.trim() || undefined, requestId }, token); const result = response.transaction || response; onSent(response.remainingBalance ?? result.remainingBalance ?? balance, response.amount ?? result.amount ?? totalCost, selected, quantity); setSent(true); setTimeout(onClose, 2100); }
     catch (error: any) { toast.error('Gift not sent', error?.message || 'The transaction could not be completed.'); setSending(false); }
   };
   return <>
