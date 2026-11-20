@@ -191,13 +191,16 @@ export default function HomePage() {
     if (pendingActionsRef.current.has(key)) return;
     pendingActionsRef.current.add(key);
     const was = Boolean(item.reposted);
-    setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: !was, reposts: Math.max(0, Number(entry.reposts || 0) + (was ? -1 : 1)) } : entry));
+    const previousCount = Math.max(0, Number(item.reposts || 0));
+    const undo = was && !quoteText;
+    const nextCount = Math.max(0, previousCount + (undo ? -1 : was ? 0 : 1));
+    setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: !undo, reposts: nextCount } : entry));
     try {
       const result = was && !quoteText ? await apiDelete(`/api/feed/${id}/repost`, token) : await apiPost<any>(`/api/feed/${id}/repost`, quoteText ? { quoteText } : {}, token);
-      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: was && !quoteText ? false : true, reposts: Number.isFinite(Number(result?.repostCount)) ? Number(result.repostCount) : Math.max(0, Number(entry.reposts || 0)) } : entry));
+      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: !undo, reposts: Number.isFinite(Number(result?.repostCount)) ? Number(result.repostCount) : nextCount } : entry));
       toast.success(was && !quoteText ? 'Repost removed' : quoteText ? 'Quote repost published' : 'Reposted');
     } catch (reason: any) {
-      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: was, reposts: Math.max(0, Number(entry.reposts || 0) + (was ? 1 : -1)) } : entry));
+      setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, reposted: was, reposts: previousCount } : entry));
       toast.error('Repost failed', reason?.message || 'Please try again.');
     } finally { pendingActionsRef.current.delete(key); }
   };
