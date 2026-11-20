@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Radio, RefreshCw, Users, WifiOff, Heart, TrendingUp, Sparkles, Menu } from 'lucide-react';
+import { Radio, RefreshCw, Users, WifiOff, Heart, TrendingUp, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiGet } from '@/lib/apiClient';
-import { openAppMenu } from '@/lib/openAppMenu';
 import LiveStreamCard from '@/components/live/LiveStreamCard';
 import { cn } from '@/lib/utils';
 
@@ -89,10 +88,7 @@ export default function LivePage() {
       animate={{ opacity: 1 }}
       data-vanta-page="live" className="mx-auto min-w-0 w-full space-y-4 pb-24"
     >
-      <header className="sticky top-0 z-30 -mx-4 flex h-14 w-[calc(100%+2rem)] items-center gap-3 border-b border-white/[.07] bg-[var(--header-surface)] px-4">
-        <button type="button" onClick={openAppMenu} aria-label="Open menu" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/65 transition hover:bg-white/[.06] hover:text-white">
-          <Menu size={19} />
-        </button>
+      <header className="sticky top-0 z-30 -mx-4 flex h-14 w-[calc(100%+2rem)] items-center gap-0 border-b border-white/[.07] bg-[var(--header-surface)] px-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-semibold tracking-tight text-white">Live</h1>
         </div>

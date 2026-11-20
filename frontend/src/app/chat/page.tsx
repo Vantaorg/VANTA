@@ -1814,7 +1814,6 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (message.pending) return;
     if (event) {
       swipeStartRef.current = { id: message.id, x: event.clientX, y: event.clientY, offset: 0 };
-      try { (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId); } catch { /* ignore */ }
     }
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
@@ -2614,6 +2613,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
                     onPointerDown={event => { if (!selectedMessageIds.size) startMessageLongPress(msg, event); }}
                     onPointerUp={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerCancel={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
+                    onPointerLeave={() => { cancelMessageLongPress(); finishMessageSwipe(); }}
                     onPointerMove={event => { const start = swipeStartRef.current; if (start && start.id === msg.id && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) cancelMessageLongPress(); trackMessageSwipe(event, msg); }}
                   >
                     {selectedMessageIds.size > 0 && <span aria-hidden="true" className={cn('absolute top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full border text-xs font-bold shadow', msg.isOwn ? '-left-1' : '-right-1', selectedMessageIds.has(msg.id) ? 'border-[#d6a83f] bg-[#d6a83f] text-[#1f2630]' : 'border-white/45 bg-[#1f2630] text-transparent')}>{selectedMessageIds.has(msg.id) ? '✓' : ''}</span>}
