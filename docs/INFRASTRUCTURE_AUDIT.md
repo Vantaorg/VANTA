@@ -51,6 +51,21 @@ VANTA already has security middleware, rate limiting, cache adapters, an in-proc
 **Action:** Implement a durable queue (Redis-backed queue with a real Redis service, or PostgreSQL-backed) with idempotency, bounded retry/backoff, exhausted-job visibility, job metrics and graceful shutdown. Scale workers independently after durability.
 **Status:** Confirmed in source; not changed.
 
+### P0 — Queue handler coverage gap
+**Finding:** Repository search/source inspection found queue handlers registered only for push delivery and call expiration. The image/video optimizer APIs enqueue image optimization, video transcoding, thumbnail generation, and temporary-file cleanup jobs, but no corresponding registered handlers were found in the inspected main branch. The queue's own worker marks a job failed immediately when no handler is registered.
+**Action:** Before adopting a durable queue, inventory every job type and producer, either register a real handler or remove/replace unsupported enqueue calls, and add tests proving every production job type has a handler and its work completes. Do not claim optimization runs merely because a job ID is returned.
+**Status:** Confirmed by source search and queue worker behavior; runtime enqueue paths not exhaustively exercised.
+
+### P0 — Queue persistence can retain stale completed jobs
+**Finding:** Queue persistence writes pending jobs only when the list is non-empty; when the queue empties, the persisted cache key is not cleared. Completed jobs are not explicitly removed from the persisted snapshot. If the same key survives in Redis, a restart may restore stale jobs and repeat completed work.
+**Action:** Persist queue state transitions transactionally (or use a durable broker with acknowledged jobs), delete/clear the snapshot when no pending jobs remain, and add restart/replay regression tests for successful completion, failure, cancellation, and empty queues.
+**Status:** Confirmed from source; replay behavior depends on Redis being configured and key state, so not runtime-tested.
+
+### P1 — Delayed and retry work is not restart-safe
+**Finding:** Delayed jobs are held in in-memory timers/maps and are not persisted when first scheduled. Retry attempts use an in-memory timeout before re-adding the job. A process restart during either delay can lose that work.
+**Action:** Represent scheduled/retry timestamps in durable storage, and let a durable worker reclaim due jobs after restart. Include bounded retries, idempotency, and failure visibility.
+**Status:** Confirmed from source; not runtime-tested.
+
 ### P1 — Redis dependency/service unverified
 **Finding:** Cache code attempts to load ioredis at runtime, but inspected manifests do not declare it directly and Railway inventory has no Redis service. Redis behavior cannot be assumed.
 **Action:** Verify dependency resolution and endpoint configuration without exposing values. If Redis is intended, declare the client and provision/connect Redis; test reconnect and shared-instance behavior. Otherwise document memory-only operation and remove Redis-dependent assumptions.
