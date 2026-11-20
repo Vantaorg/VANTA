@@ -1832,9 +1832,13 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       return;
     }
     setDeleteSelectedConfirmOpen(false);
-    const results = await Promise.allSettled(deletable.map(message =>
-      apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token)
-    ));
+    const results: Array<PromiseSettledResult<any>> = [];
+    for (let index = 0; index < deletable.length; index += 10) {
+      const batch = await Promise.allSettled(deletable.slice(index, index + 10).map(message =>
+        apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token)
+      ));
+      results.push(...batch);
+    }
     const deletedIds = deletable.filter((_, index) => results[index].status === 'fulfilled').map(message => message.id);
     const failedIds = deletable.filter((_, index) => results[index].status === 'rejected').map(message => message.id);
     if (deletedIds.length) {
@@ -1878,7 +1882,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     longPressTimerRef.current = null;
     longPressedMessageRef.current = null;
     swipeStartRef.current = null;
+    swipeOffsetRef.current = 0;
     setSwipeOffset(null);
+    setDeleteSelectedConfirmOpen(false);
     setSelectedMessageIds(new Set());
   };
 
@@ -1922,7 +1928,10 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   // Never allow the selection toolbar to leak into the conversation list.
   useEffect(() => {
-    if (showMobileList || !activeConversation) closeMessageSelection();
+    if (showMobileList || !activeConversation) {
+      setDeleteSelectedConfirmOpen(false);
+      closeMessageSelection();
+    }
   }, [showMobileList, activeConversation]);
 
   const copySelectedMessages = async () => {
