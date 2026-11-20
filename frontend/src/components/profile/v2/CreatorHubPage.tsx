@@ -230,13 +230,16 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     if (pendingPostActionsRef.current.has(key)) return;
     pendingPostActionsRef.current.add(key);
     const was = Boolean(item.reposted);
-    updatePost(id, { reposted: !was, reposts: Math.max(0, finite(item.reposts) + (was ? -1 : 1)) });
+    const previousCount = Math.max(0, finite(item.reposts));
+    const undo = was && !quoteText;
+    const nextCount = Math.max(0, previousCount + (undo ? -1 : was ? 0 : 1));
+    updatePost(id, { reposted: !undo, reposts: nextCount });
     try {
       const result: any = was && !quoteText ? await apiDelete(`/api/feed/${id}/repost`, token) : await apiPost(`/api/feed/${id}/repost`, quoteText ? { quoteText } : {}, token);
-      updatePost(id, { reposted: was && !quoteText ? false : true, reposts: Math.max(0, finite(item.reposts) + (was ? -1 : 1)) });
+      updatePost(id, { reposted: !undo, reposts: nextCount });
       toast.success(was && !quoteText ? 'Repost removed' : quoteText ? 'Quote repost published' : 'Reposted');
     } catch (reason: any) {
-      updatePost(id, { reposted: was, reposts: finite(item.reposts) });
+      updatePost(id, { reposted: was, reposts: previousCount });
       toast.error('Repost failed', reason?.message || 'Please try again.');
     } finally { pendingPostActionsRef.current.delete(key); }
   };
