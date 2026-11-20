@@ -481,6 +481,7 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(() => new Set());
   const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<Message | null>(null);
   const [deleteSelectedConfirmOpen, setDeleteSelectedConfirmOpen] = useState(false);
+  const [deleteForEveryone, setDeleteForEveryone] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyState<Message> | null>(null);
   // Only a reply bound to the currently-open conversation may be shown/submitted.
@@ -1792,7 +1793,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
   };
 
   const deleteExistingMessage = (message: Message) => {
-    if (!token || (!message.isOwn && activeConv?.type === 'direct')) return;
+    if (!token) return;
+    setDeleteForEveryone(false);
     setDeleteConfirmMessage(message);
   };
 
@@ -1800,8 +1802,9 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     const message = deleteConfirmMessage;
     if (!token || !message) return;
     setDeleteConfirmMessage(null);
+    setDeleteForEveryone(false);
     try {
-      const result = await apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=true`, token);
+      const result = await apiDelete<any>(`/api/messages/message/${message.id}?forEveryone=${deleteForEveryone && message.isOwn}`, token);
       const deleted = normalizeMessage(result.data ?? result);
       // A deleted message is wiped from the conversation — never shown as a
       // placeholder or tombstone. Removing it from local state immediately
@@ -1814,18 +1817,15 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
 
   const requestDeleteSelectedMessages = () => {
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
-    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
-    if (!deletable.length) {
-      showToast?.({ type: 'info', title: 'Nothing to delete', message: 'You can delete your own direct messages or messages you are allowed to manage.' });
-      return;
-    }
+    if (!selected.length) return;
+    setDeleteForEveryone(false);
     setDeleteSelectedConfirmOpen(true);
   };
 
   const confirmDeleteSelectedMessages = async () => {
     if (!token) return;
     const selected = messages.filter(message => selectedMessageIds.has(message.id));
-    const deletable = selected.filter(message => message.isOwn || activeConv?.type !== 'direct');
+    const deletable = selected;
     if (!deletable.length) {
       setDeleteSelectedConfirmOpen(false);
       closeMessageSelection();
@@ -1847,10 +1847,11 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
       void fetchConversations();
     }
     setSelectedMessageIds(new Set(failedIds));
+    setDeleteForEveryone(false);
     if (failedIds.length) {
       showToast?.({ type: 'error', title: 'Some messages were not deleted', message: `${deletedIds.length} deleted; ${failedIds.length} could not be deleted. The remaining messages are still selected.` });
     } else {
-      showToast?.({ type: 'success', title: 'Messages deleted', message: `${deletedIds.length} messages deleted for everyone.` });
+      showToast?.({ type: 'success', title: 'Messages deleted', message: `${deletedIds.length} messages deleted.` });
     }
   };
 
@@ -3322,8 +3323,8 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
             </div>
           </>
         )}
-        {deleteConfirmMessage && <DeleteConfirmDialog title="Delete this message for everyone?" description="This cannot be undone. The message will be removed for everyone in this conversation." confirmLabel="Delete for everyone" onCancel={() => setDeleteConfirmMessage(null)} onConfirm={() => void confirmDeleteMessage()} />}
-        {deleteSelectedConfirmOpen && <DeleteConfirmDialog title="Delete selected messages for everyone?" description="This cannot be undone. Every selected message you are allowed to manage will be removed from this conversation." confirmLabel="Delete selected messages" onCancel={() => setDeleteSelectedConfirmOpen(false)} onConfirm={() => void confirmDeleteSelectedMessages()} />}
+        {deleteConfirmMessage && <DeleteConfirmDialog title="Delete message" description="Are you sure you want to delete this message?" confirmLabel="Delete" checkboxLabel={deleteConfirmMessage.isOwn ? (activeConv?.type === "direct" ? "Also delete for @" + (activeConv.username || activeConv.name) : "Also delete for everyone") : undefined} checkboxChecked={deleteForEveryone} onCheckboxChange={setDeleteForEveryone} onCancel={() => { setDeleteConfirmMessage(null); setDeleteForEveryone(false); }} onConfirm={() => void confirmDeleteMessage()} />}
+        {deleteSelectedConfirmOpen && <DeleteConfirmDialog title="Delete selected messages" description="Are you sure you want to delete the selected messages?" confirmLabel="Delete" checkboxLabel={messages.some(message => selectedMessageIds.has(message.id) && message.isOwn) ? (activeConv?.type === "direct" ? "Also delete for @" + (activeConv.username || activeConv.name) : "Also delete for everyone") : undefined} checkboxChecked={deleteForEveryone} onCheckboxChange={setDeleteForEveryone} onCancel={() => { setDeleteSelectedConfirmOpen(false); setDeleteForEveryone(false); }} onConfirm={() => void confirmDeleteSelectedMessages()} />}
         {editEntityOpen && activeConv && activeConv.type !== 'direct' && (<>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeChatSubview(() => setEditEntityOpen(false))} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm" aria-label="Close management" />
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] pointer-events-none"><motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }} className="vanta-entity-settings pointer-events-auto ml-auto h-[var(--chat-viewport-height,100dvh)] w-full max-w-none overflow-y-auto overscroll-contain border-0 bg-[#1F2630] pb-[max(16px,env(safe-area-inset-bottom))]">
