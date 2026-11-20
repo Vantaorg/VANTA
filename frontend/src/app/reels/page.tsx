@@ -69,6 +69,10 @@ type Reel = {
   likes: number;
   comments: number;
   saves?: number;
+  shares?: number;
+  gifts?: number;
+  reposts?: number;
+  isReposted?: boolean;
   isLiked?: boolean;
   isSaved?: boolean;
   isFollowing?: boolean;
@@ -541,11 +545,30 @@ export default function ReelsPage() {
   const share = async (reel: Reel, mode: 'copy' | 'native') => {
     const url = `${location.origin}/reels/${reel.id}`;
     try {
-      if (mode === 'native' && navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', url });
+      if (mode === 'native' && navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', text: reel.description || undefined, url });
       else { await navigator.clipboard.writeText(url); toast.success('Reel link copied'); }
+      const result = await apiPost<{ shares: number }>(`/api/reels/${reel.id}/share`, {}, token || undefined);
+      patch(reel.id, { shares: result.shares });
       setShareFor(null);
     } catch (reason: any) {
-      if (reason?.name !== 'AbortError') toast.error('Unable to share this Reel');
+      if (reason?.name !== 'AbortError') toast.error('Unable to share this Reel', reason?.message);
+    }
+  };
+
+  const repost = async (reel: Reel) => {
+    if (!token) { toast.error('Sign in to repost'); return; }
+    const key = `repost:${reel.id}`;
+    if (pendingActionsRef.current.has(key)) return;
+    pendingActionsRef.current.add(key);
+    try {
+      const result = await apiPost<{ reposted: boolean; reposts: number }>(`/api/reels/${reel.id}/repost`, {}, token);
+      patch(reel.id, { isReposted: result.reposted, reposts: result.reposts });
+      toast.success(result.reposted ? 'Reel reposted' : 'Repost removed');
+      setShareFor(null);
+    } catch (reason: any) {
+      toast.error('Repost failed', reason?.message);
+    } finally {
+      pendingActionsRef.current.delete(key);
     }
   };
 
@@ -604,9 +627,9 @@ export default function ReelsPage() {
       <header className="pointer-events-none fixed left-0 right-0 top-0 z-30 flex h-14 items-center justify-center bg-black/35 px-16 backdrop-blur-sm">
         <div className="pointer-events-auto flex items-center gap-5" role="tablist" aria-label="Reel feeds">
           {(['for-you', 'following', 'trending'] as Feed[]).map(tab => (
-            <button key={tab} type="button" role="tab" aria-selected={feed === tab} onClick={() => setFeed(tab)} className={cn('relative h-10 text-xs font-medium text-white/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60', feed === tab && 'text-white')}>
+            <button key={tab} type="button" role="tab" aria-selected={feed === tab} onClick={() => setFeed(tab)} className={cn('relative h-10 text-xs font-semibold text-white/55 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a227]', feed === tab && 'text-[#e6c35a]')}>
               {feedLabel(tab)}
-              {feed === tab && <motion.span layoutId="reel-tab" className="absolute inset-x-1 -bottom-px h-px bg-[#b8b8b8]" />}
+              {feed === tab && <motion.span layoutId="reel-tab" className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-[#c9a227] shadow-[0_0_10px_rgba(201,162,39,.45)]" />}
             </button>
           ))}
         </div>
@@ -649,11 +672,11 @@ export default function ReelsPage() {
 
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} toggleLike={toggleCommentLike} close={() => setCommentsFor(null)} />}
-        {shareFor && <SharePanel reel={shareFor} share={share} close={() => setShareFor(null)} />}
+        {shareFor && <SharePanel reel={shareFor} share={share} repost={() => void repost(shareFor)} close={() => setShareFor(null)} />}
         {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
         {reportFor && <ReportPanel reel={reportFor} pending={!!pending[`report:${reportFor.id}`]} submit={category => void report(reportFor, category)} close={() => setReportFor(null)} />}
-        {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift) => { setGiftBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
+        {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} videoId={giftFor.id} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift, quantity = 1) => { setGiftBalance(remaining); patch(giftFor.id, { gifts: (giftFor.gifts || 0) + quantity }); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
       </AnimatePresence>
     </div>
   );
@@ -785,12 +808,12 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
             <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
-            <Action icon={<Share2 />} label="Share" ariaLabel="Share Reel" onClick={onShare} />
-            <Action icon={<Gift />} label="Gift" ariaLabel="Send a gift" onClick={onGift} />
+            <Action icon={<Share2 />} label={formatCount(reel.shares || 0)} ariaLabel={`Share Reel · ${reel.shares || 0} shares`} onClick={onShare} />
+            <Action icon={<Gift />} label={formatCount(reel.gifts || 0)} ariaLabel={`Send a gift · ${reel.gifts || 0} gifts`} onClick={onGift} />
             <Action icon={<MoreHorizontal />} label="More" ariaLabel="More Reel actions" onClick={onMore} />
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-20 h-0.5 bg-white/15"><span className="block h-full bg-white transition-[width] duration-100" style={{ width: `${progress}%` }} /></div>
+          <div className="absolute inset-x-0 bottom-0 z-20 h-0.5 bg-white/15"><span className="block h-full bg-[#c9a227] shadow-[0_0_8px_rgba(201,162,39,.5)] transition-[width] duration-100" style={{ width: `${progress}%` }} /></div>
         </div>
 
       </div>
@@ -934,9 +957,9 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
   </>;
 }
 
-function SharePanel({ reel, share, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; close: () => void }) {
+function SharePanel({ reel, share, repost, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; repost: () => void; close: () => void }) {
   const native = typeof navigator !== 'undefined' && !!navigator.share;
-  return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/70 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/70 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share via device</button>}</div></Dialog>;
+  return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share to apps</button>}<button type="button" onClick={repost} className="col-span-2 rounded-lg border border-[#c9a227]/30 bg-[#c9a227]/[.08] p-3 text-sm font-semibold text-[#e6c35a] hover:bg-[#c9a227]/[.14]">{reel.isReposted ? 'Remove repost' : 'Repost'} <span className="ml-1 text-white/50">· {formatCount(reel.reposts || 0)}</span></button></div></Dialog>;
 }
 
 function MorePanel({ reel, isOwn, save, follow, profile, report, remove, close }: { reel: Reel; isOwn: boolean; save: () => void; follow: () => void; profile: () => void; report: () => void; remove: () => void; close: () => void }) {

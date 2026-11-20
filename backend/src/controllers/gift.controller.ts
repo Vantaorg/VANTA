@@ -15,7 +15,7 @@ export const getGifts = async (req: Request, res: Response): Promise<void> => {
 export const sendGift = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const senderId = req.user?.userId;
-    const { receiverId, giftId, streamId, quantity, message, isAnon, requestId } = req.body;
+    const { receiverId, giftId, streamId, videoId, quantity, message, isAnon, requestId } = req.body;
 
     if (!senderId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -28,6 +28,14 @@ export const sendGift = async (req: AuthRequest, res: Response): Promise<void> =
     }
     if (streamId !== undefined && (typeof streamId !== 'string' || !streamId.trim())) {
       res.status(400).json({ error: 'streamId must be a non-empty string when provided' });
+      return;
+    }
+    if (videoId !== undefined && (typeof videoId !== 'string' || !videoId.trim())) {
+      res.status(400).json({ error: 'videoId must be a non-empty string when provided' });
+      return;
+    }
+    if (streamId && videoId) {
+      res.status(400).json({ error: 'A gift can target either a live stream or a Reel, not both' });
       return;
     }
     if (isAnon !== undefined && typeof isAnon !== 'boolean') {
@@ -48,7 +56,7 @@ export const sendGift = async (req: AuthRequest, res: Response): Promise<void> =
       return;
     }
 
-    const transaction = await giftService.sendGift(senderId, receiverId, giftId, streamId, { quantity, message, isAnon: isAnon === true, requestId });
+    const transaction = await giftService.sendGift(senderId, receiverId, giftId, streamId, { quantity, message, isAnon: isAnon === true, requestId, videoId });
     res.status(201).json({
       message: 'Gift sent successfully',
       transaction,

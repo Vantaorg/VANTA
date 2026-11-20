@@ -8,6 +8,8 @@ import {
   getReelComments,
   likeReelComment,
   saveReel,
+  shareReel,
+  repostReel,
   incrementReelViews,
   deleteReelComment,
   deleteReel,
@@ -35,6 +37,8 @@ router.post("/:id/fail", authenticateJWT, failReel);
 // Protected routes
 router.post("/:id/like", authenticateJWT, likeReel);
 router.post("/:id/save", authenticateJWT, saveReel);
+router.post("/:id/share", authenticateJWT, shareReel);
+router.post("/:id/repost", authenticateJWT, repostReel);
 router.post("/:id/comments", authenticateJWT, commentOnReel);
 router.post("/:id/comments/:commentId/like", authenticateJWT, likeReelComment);
 router.delete("/:id/comments/:commentId", authenticateJWT, deleteReelComment);

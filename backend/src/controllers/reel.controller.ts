@@ -166,7 +166,8 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
         },
         likes: userId ? { where: { userId }, select: { id: true } } : false,
         saves: userId ? { where: { userId }, select: { id: true } } : false,
-        _count: { select: { likes: true, comments: true, saves: true } },
+        reposts: userId ? { where: { userId }, select: { id: true } } : false,
+        _count: { select: { likes: true, comments: true, saves: true, shares: true, reposts: true } },
       },
     });
 
@@ -187,6 +188,10 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
         likes: reel._count.likes,
         comments: reel._count.comments,
         saves: reel._count.saves,
+        shares: reel._count.shares,
+        reposts: reel._count.reposts,
+        gifts: 0,
+        isReposted: userId ? reel.reposts?.length > 0 : false,
         isLiked: userId ? reel.likes?.length > 0 : false,
         isSaved: userId ? reel.saves?.length > 0 : false,
         isFollowing: followedCreators.has(reel.creatorId),
@@ -255,13 +260,21 @@ export const getReelById = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { creator, likes, saves, _count, ...rest } = reel as any;
+    const { creator, likes, saves, reposts, _count, ...rest } = reel as any;
+    const gifts = await prisma.giftTransaction.aggregate({
+      where: { videoId: reel.id, status: "COMPLETED" },
+      _sum: { quantity: true },
+    });
     res.status(200).json(enrichItemAuthors({
       ...rest,
       creator,
       likesCount: _count.likes,
       commentsCount: _count.comments,
       savesCount: _count.saves,
+      shares: _count.shares,
+      reposts: _count.reposts,
+      gifts: gifts._sum.quantity || 0,
+      isReposted: userId ? (reposts?.length ?? 0) > 0 : false,
       isLiked: userId ? (likes?.length ?? 0) > 0 : false,
       isSaved: userId ? (saves?.length ?? 0) > 0 : false,
     }));
@@ -396,6 +409,41 @@ export const likeReelComment = async (req: AuthRequest, res: Response): Promise<
     }
     const count = await prisma.videoCommentLike.count({ where: { commentId } });
     res.status(200).json({ liked, likes: count });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    res.status(400).json({ error: message });
+  }
+};
+
+export const shareReel = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const reelId = req.params.id;
+    const reel = await prisma.video.findUnique({ where: { id: reelId, publishStatus: "PUBLISHED", moderationRemovedAt: null }, select: { id: true } });
+    if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
+    await prisma.reelShare.create({ data: { userId, videoId: reelId } });
+    const shares = await prisma.reelShare.count({ where: { videoId: reelId } });
+    res.status(200).json({ shared: true, shares });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
+    res.status(400).json({ error: message });
+  }
+};
+
+export const repostReel = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const reelId = req.params.id;
+    const reel = await prisma.video.findUnique({ where: { id: reelId, publishStatus: "PUBLISHED", moderationRemovedAt: null }, select: { id: true } });
+    if (!reel) { res.status(404).json({ error: "Reel not found" }); return; }
+    const existing = await prisma.reelRepost.findUnique({ where: { userId_videoId: { userId, videoId: reelId } } });
+    const reposted = !existing;
+    if (existing) await prisma.reelRepost.delete({ where: { id: existing.id } });
+    else await prisma.reelRepost.create({ data: { userId, videoId: reelId } });
+    const reposts = await prisma.reelRepost.count({ where: { videoId: reelId } });
+    res.status(200).json({ reposted, reposts });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     res.status(400).json({ error: message });
