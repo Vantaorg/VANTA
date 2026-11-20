@@ -1902,9 +1902,12 @@ const [pendingNewMessage, setPendingNewMessage] = useState(false);
     if (selectedMessageIds.size === 0) {
       if (selectionHistoryRef.current) {
         selectionHistoryRef.current = false;
-        // Remove only the temporary selection state; do not asynchronously
-        // pop a route entry if navigation begins immediately after closing.
-        window.history.replaceState(null, '', window.location.href);
+        // Remove only our marker while preserving Next.js router state.
+        const historyState = window.history.state && typeof window.history.state === 'object'
+          ? { ...window.history.state }
+          : {};
+        delete historyState.vantaMessageSelection;
+        window.history.replaceState(historyState, '', window.location.href);
       }
       return;
     }
