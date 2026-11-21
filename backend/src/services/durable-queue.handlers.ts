@@ -1,4 +1,5 @@
-import { DurableJob, DurableJobHandler } from './durable-queue.worker';
+import { DurableJob } from './durable-queue.repository';
+import { DurableJobHandler } from './durable-queue.worker';
 import { pushNotificationService } from './push/push-notification.service';
 import { PushNotificationPayload, PushSendResult } from './push/push-types';
 
