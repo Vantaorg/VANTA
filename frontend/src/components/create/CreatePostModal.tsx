@@ -13,6 +13,7 @@ import { savePostDraft } from './DraftManager';
 import { apiPost, invalidateCache } from '@/lib/apiClient';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
+import QuoteEmbed from '@/components/social/QuoteEmbed';
 
 const MAX_CHARS = 5000;
 /** VANTA posts accept up to 10 attachments (matches MediaUploader's default). */
@@ -26,9 +27,10 @@ interface CreatePostModalProps {
 
 export default function CreatePostModal({ open, initialIntent = 'post', onClose }: CreatePostModalProps) {
   const { user, token } = useAuth();
-  const { closeAll, postPrefill } = useContentCreation();
+  const { closeAll, postPrefill, quoteTarget } = useContentCreation();
   const [content, setContent] = useState('');
   const [intent, setIntent] = useState(initialIntent);
+  const quoteUrl = quoteTarget && intent !== 'story' ? quoteTarget.url : '';
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [visibility, setVisibility] = useState<'public' | 'followers'>('public');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -41,7 +43,7 @@ export default function CreatePostModal({ open, initialIntent = 'post', onClose 
   const uploaderRef = useRef<MediaUploaderHandle>(null);
 
   const isTextStory = isStory && storyKind === 'text';
-  const hasContent = content.trim().length > 0 || media.length > 0;
+  const hasContent = content.trim().length > 0 || media.length > 0 || Boolean(quoteUrl);
   const isOverLimit = content.length > MAX_CHARS;
   const isUploadingMedia = media.some((item) => item.uploading || (!item.uploadedUrl && item.progress < 100 && !item.error));
   const hasFailedMedia = media.some((item) => item.error || !item.uploadedUrl);
@@ -172,7 +174,7 @@ export default function CreatePostModal({ open, initialIntent = 'post', onClose 
         const mediaFileIds = attached.map((item) => item.uploadedId).filter((id): id is string => Boolean(id));
 
         await apiPost('/api/feed', {
-          content: content.trim(),
+          content: [content.trim(), quoteUrl].filter(Boolean).join('\n\n'),
           mediaUrl: mediaUrls[0],
           mediaFileId: mediaFileIds[0],
           media: {
@@ -196,7 +198,7 @@ export default function CreatePostModal({ open, initialIntent = 'post', onClose 
     } finally {
       setIsSubmitting(false);
     }
-  }, [content, media, canSubmit, isSubmitting, onClose, closeAll, token, intent, isTextStory]);
+  }, [content, media, canSubmit, isSubmitting, onClose, closeAll, token, intent, isTextStory, quoteUrl]);
 
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
@@ -314,6 +316,8 @@ export default function CreatePostModal({ open, initialIntent = 'post', onClose 
                     aria-label="Post content"
                   />
                 )}
+
+                {quoteTarget && !isStory && <QuoteEmbed quote={quoteTarget} />}
 
                 {/* Clean VANTA error state */}
                 <AnimatePresence>

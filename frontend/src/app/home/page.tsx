@@ -268,7 +268,7 @@ export default function HomePage() {
       toast.success('Reposted'); setRepostFor(undefined);
     } catch (reason: any) { toast.error('Repost failed', reason?.message); }
   };
-  const quote = (target: Item) => { setRepostFor(undefined); openQuotePost(`\n\n${location.origin}${detailPathFor(target)}`); };
+  const quote = (target: Item) => { setRepostFor(undefined); openQuotePost({ kind: isVideoItem(target) ? 'reel' : 'post', id: cleanId(target), url: `${location.origin}${detailPathFor(target)}`, path: detailPathFor(target) }); };
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
 

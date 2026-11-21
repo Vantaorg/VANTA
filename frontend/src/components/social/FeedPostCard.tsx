@@ -12,6 +12,8 @@ import { resolveMediaUrl } from '@/lib/mediaUrl';
 import { isVideoItem, detailPathFor } from '@/lib/feedIdentity';
 import { useContentPrefs } from '@/lib/useContentPrefs';
 import { renderTextWithLinks } from '@/lib/linkify';
+import QuoteEmbed from '@/components/social/QuoteEmbed';
+import { extractQuoteRef } from '@/lib/quotePost';
 
 /**
  * FeedPostCard
@@ -103,7 +105,12 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
   const profilePath = creator.username ? `/profile/${creator.username}` : '/profile';
   const actionClass = 'flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-[10px] text-[#8a8a8a] transition hover:bg-white/[.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
   const caption = item.content || item.description;
-  const captionText = typeof caption === 'string' ? caption : '';
+  const rawCaption = typeof caption === 'string' ? caption : '';
+  // Quote posts carry the source post URL in their text; render it as an embed card.
+  const [host, setHost] = useState<string | undefined>(undefined);
+  useEffect(() => setHost(window.location.host), []);
+  const quoted = extractQuoteRef(rawCaption, host);
+  const captionText = quoted ? quoted.rest : rawCaption;
   const captionRef = useRef<HTMLParagraphElement>(null);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [likePulse, setLikePulse] = useState(0);
@@ -158,6 +165,7 @@ export default function FeedPostCard({ item, currentUserId, onLike, onSave, onCo
         </div>
         {item.location && <p className="truncate text-[10px] text-[#666]">{item.location}</p>}
         {captionText && <><p ref={captionRef} style={captionExpanded ? undefined : { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 5, overflow: 'hidden' }} className="whitespace-pre-wrap break-words text-[14px] leading-[1.4] text-[#dedede]">{renderTextWithLinks(captionText, 'linkify', { mentions: true, hashtags: true })}</p>{captionOverflows && <button type="button" onClick={() => setCaptionExpanded(value => !value)} aria-expanded={captionExpanded} className="-mt-0.5 self-start text-[13px] font-medium text-[#c9a227] transition hover:text-[#e0bb4f]">{captionExpanded ? 'Show less' : 'Show more'}</button>}</>}
+        {quoted && <QuoteEmbed quote={quoted.ref} />}
         {item.hashtags && <p className="text-[11px] text-[#c9a227]">{Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => `#${tag}`).join(' ') : item.hashtags}</p>}
         {/* Media sits INSIDE the content column so it aligns with the caption,
             matching text posts exactly. No full-bleed, no negative margins. */}
