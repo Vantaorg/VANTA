@@ -270,11 +270,24 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
     <div className="relative mx-auto h-full w-full max-w-[520px] overflow-hidden bg-[var(--background)]">
       {/* Full-bleed ambient backdrop so non-portrait uploads never letterbox
           into a thin strip: the contained video keeps its true aspect ratio
-          (never stretched/cropped) over a blurred copy of the same frame. */}
-      {posterSrc && (
+          (never stretched/cropped) over a blurred copy of the same frame.
+          Falls back to a muted clone of the video itself when no thumbnail
+          is available, so the fill still shows. */}
+      {posterSrc ? (
         <img
           src={posterSrc}
           alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
+        />
+      ) : (
+        <video
+          src={videoSrc}
+          muted
+          playsInline
+          loop
+          autoPlay
+          preload="metadata"
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
         />
