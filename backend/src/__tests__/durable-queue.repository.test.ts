@@ -19,7 +19,8 @@ describe('DurableQueueRepository', () => {
     expect(db.$executeRawUnsafe).not.toHaveBeenCalled();
   });
   it('rejects invalid priority and dates', async () => {
-    await expect(repo.enqueue('type', {}, { priority: Number.NaN })).rejects.toThrow('priority must be finite');
+    await expect(repo.enqueue('type', {}, { priority: Number.NaN })).rejects.toThrow('priority must be an integer');
+    await expect(repo.enqueue('type', {}, { priority: 1.5 })).rejects.toThrow('priority must be an integer');
     await expect(repo.enqueue('type', {}, { runAt: new Date('invalid') })).rejects.toThrow('runAt must be a valid date');
   });
   it('claims a due job atomically and returns null when none is available', async () => {
