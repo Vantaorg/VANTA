@@ -282,6 +282,8 @@
 
   /* Smooth scrolling */
   html {
+    /* Solid backing for browser/PWA status-bar safe-area region. */
+    background-color: #1f2630;
     scroll-behavior: smooth;
     max-width: 100%;
     /* NOTE: do NOT set overflow-x on the root element. Any non-visible

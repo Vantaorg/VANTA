@@ -21,6 +21,8 @@ import { CallProvider } from "@/context/CallContext";
 import { PushProvider } from "@/context/PushContext";
 
 export const metadata: Metadata = {
+  // Keep the installed iOS web app status-bar region opaque, not translucent.
+  appleWebApp: { capable: true, statusBarStyle: "black" },
   metadataBase: new URL('https://vanta.app'),
   title: {
     default: "VANTA | Create. Connect. Live.",

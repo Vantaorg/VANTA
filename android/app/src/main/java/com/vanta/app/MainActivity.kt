@@ -70,7 +70,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.decorView.setBackgroundColor(Color.rgb(5, 5, 5))
+        // Android 15 enforces transparent system bars for edge-to-edge apps.
+        // Keep the window/decor surface opaque so the status-bar region always
+        // resolves to VANTA slate instead of exposing the dark window fallback.
+        window.decorView.setBackgroundColor(Color.rgb(31, 38, 48))
         // Android 15+ enforces edge-to-edge for apps targeting API 35+.
         // Explicitly receive system-bar insets and apply them to the WebView
         // host so full-screen web routes (notably Reels) cannot occupy the
