@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, Check, Flag, Link2, RefreshCw, Search, Send, Share2, X } from 'lucide-react';
+import { Bookmark, Check, Download, Flag, Link2, RefreshCw, Search, Send, Share2, X } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { apiGet } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,10 @@ type Props = {
   onCopy: () => void;
   onNative: () => void;
   onSave: () => void;
+  /** Export + save a VANTA-branded copy. Omit to hide (browser can't export). */
+  onDownload?: () => void;
+  /** 0..1 while exporting, null when idle. */
+  downloadProgress?: number | null;
   onReport: () => void;
   /** Sends the reel link into an existing VANTA conversation. */
   onSend: (conversationId: string) => Promise<void>;
@@ -30,7 +34,7 @@ type Props = {
  * recipient search, a horizontal row of recent VANTA conversations, a row of
  * share targets (Repost, Copy link, apps) and a row of secondary actions.
  */
-export default function ReelShareSheet({ token, url, title, reposted, saved, close, onRepost, onCopy, onNative, onSave, onReport, onSend }: Props) {
+export default function ReelShareSheet({ token, url, title, reposted, saved, close, onRepost, onCopy, onNative, onSave, onDownload, downloadProgress = null, onReport, onSend }: Props) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(Boolean(token));
   const [searching, setSearching] = useState(false);
@@ -122,6 +126,7 @@ export default function ReelShareSheet({ token, url, title, reposted, saved, clo
 
       {token && (
         <div className="flex gap-4 overflow-x-auto border-t border-white/[.07] px-4 pt-4 [scrollbar-width:none]">
+          {onDownload && <Target label={downloadProgress !== null ? `${Math.round(downloadProgress * 100)}%` : 'Save video'} color="bg-white/10 text-white/80" onClick={downloadProgress !== null ? () => undefined : onDownload}><Download size={21} className={downloadProgress !== null ? 'animate-pulse' : ''} /></Target>}
           <Target label={saved ? 'Unsave' : 'Save'} color="bg-white/10 text-white/80" onClick={onSave}><Bookmark size={21} className={saved ? 'fill-current' : ''} /></Target>
           <Target label="Report" color="bg-white/10 text-white/80" onClick={onReport}><Flag size={21} /></Target>
         </div>

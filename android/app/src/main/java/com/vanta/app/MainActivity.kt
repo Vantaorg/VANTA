@@ -173,6 +173,7 @@ class MainActivity : Activity() {
 
             settings.javaScriptEnabled = true
             addJavascriptInterface(VantaNativeShareBridge(), "VantaNative")
+            addJavascriptInterface(VantaNativeVideoSaveBridge(), "VantaNativeVideo")
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = true
             settings.allowFileAccess = false
@@ -449,6 +450,40 @@ class MainActivity : Activity() {
                     "window.dispatchEvent(new CustomEvent('vanta-native-share-result', { detail: { requestId: '$requestId', ok: $opened } }));",
                     null
                 )
+            }
+        }
+    }
+
+    private val videoSaves = HashMap<String, java.io.OutputStream>()
+
+    inner class VantaNativeVideoSaveBridge {
+        /** Receives base64 chunks of an already-watermarked export and writes it to Movies/VANTA. */
+        @JavascriptInterface
+        fun saveVideoChunk(nonce: String?, id: String?, b64: String?, index: Int, total: Int, fileName: String?, mime: String?): Boolean {
+            if (nonce != nativeShareNonce || b64 == null || total !in 1..2000 || index !in 0 until total) return false
+            if (id.isNullOrBlank() || !id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) return false
+            val safeName = (fileName ?: "vanta.mp4").replace(Regex("[^A-Za-z0-9._-]"), "_").take(80)
+            val type = if (mime == "video/webm") "video/webm" else "video/mp4"
+            return try {
+                var out = videoSaves[id]
+                if (index == 0) {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.Video.Media.DISPLAY_NAME, safeName)
+                        put(android.provider.MediaStore.Video.Media.MIME_TYPE, type)
+                        put(android.provider.MediaStore.Video.Media.RELATIVE_PATH, "Movies/VANTA")
+                    }
+                    val uri = contentResolver.insert(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+                    out = contentResolver.openOutputStream(uri) ?: return false
+                    videoSaves[id] = out
+                }
+                out ?: return false
+                out.write(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
+                if (index == total - 1) { out.close(); videoSaves.remove(id) }
+                true
+            } catch (_: Exception) {
+                runCatching { videoSaves.remove(id)?.close() }
+                false
             }
         }
     }
