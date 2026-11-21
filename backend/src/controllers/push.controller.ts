@@ -113,7 +113,7 @@ export const getPushConfig = async (_req: Request, res: Response): Promise<void>
     config: {
       serviceWorkerPath: "/vanta-sw.js",
       vapidPublicKey,
-      icon: "/branding/vanta-app-icon.svg",
+      icon: "/branding/pwa-192.png",
       sound: "/sounds/vanta-ringtone.mp3",
       providers: {
         webpush: webpush.configured,
