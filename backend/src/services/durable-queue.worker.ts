@@ -82,53 +82,100 @@ export class DurableQueueWorker {
         await sleep(this.pollIntervalMs);
         continue;
       }
-      await this.process(job);
+
+      // A single job's handler or persistence failure must never reject this
+      // polling loop and silently reduce worker concurrency.
+      try {
+        await this.process(job);
+      } catch (error) {
+        console.error(`[DurableQueueWorker] Unexpected processing failure for ${job.id}; lease recovery will retry it:`, error);
+      }
     }
   }
 
   private async process(job: DurableJob): Promise<void> {
     const handler = this.handlers.get(job.type);
     if (!handler) {
-      await this.repository.failPermanently(job.id, this.workerId, new Error(`No durable handler registered for job type: ${job.type}`));
+      try {
+        const failed = await this.repository.failPermanently(
+          job.id,
+          this.workerId,
+          new Error(`No durable handler registered for job type: ${job.type}`),
+        );
+        if (!failed) console.warn(`[DurableQueueWorker] Lost ownership before failing unsupported job ${job.id}`);
+      } catch (error) {
+        // Leave the lease intact. Another claim can recover it after expiry.
+        console.error(`[DurableQueueWorker] Could not record unsupported job ${job.id}; lease recovery will retry it:`, error);
+      }
       return;
     }
 
     let leaseLost = false;
     let heartbeatStopped = false;
-    let heartbeatRunning = false;
-    const heartbeat = async (): Promise<void> => {
-      if (heartbeatStopped || heartbeatRunning || leaseLost) return;
-      heartbeatRunning = true;
-      try {
-        const renewed = await this.repository.renewLease(job.id, this.workerId, this.leaseMs);
-        if (!renewed) leaseLost = true;
-      } catch (error) {
-        console.error(`[DurableQueueWorker] Lease renewal failed for ${job.id}:`, error);
-        leaseLost = true;
-      } finally {
-        heartbeatRunning = false;
-      }
+    let heartbeatPromise: Promise<void> | null = null;
+    const heartbeat = (): Promise<void> => {
+      if (heartbeatStopped || heartbeatPromise || leaseLost) return Promise.resolve();
+      heartbeatPromise = (async () => {
+        try {
+          const renewed = await this.repository.renewLease(job.id, this.workerId, this.leaseMs);
+          if (!renewed) leaseLost = true;
+        } catch (error) {
+          console.error(`[DurableQueueWorker] Lease renewal failed for ${job.id}:`, error);
+          leaseLost = true;
+        } finally {
+          heartbeatPromise = null;
+        }
+      })();
+      return heartbeatPromise;
     };
     const heartbeatTimer = setInterval(() => { void heartbeat(); }, Math.max(1_000, Math.floor(this.leaseMs / 3)));
-
-    try {
-      await handler(job);
-      if (!leaseLost) {
-        const completed = await this.repository.complete(job.id, this.workerId);
-        if (!completed) console.warn(`[DurableQueueWorker] Lost ownership before completing ${job.id}`);
-      }
-    } catch (error) {
-      if (!leaseLost) {
-        const exponent = Math.max(0, job.attempts - 1);
-        const delay = Math.min(this.retryBaseMs * (2 ** exponent), this.retryMaxMs);
-        const jitteredDelay = Math.round(delay * (0.8 + Math.random() * 0.4));
-        const failed = await this.repository.fail(job.id, this.workerId, error, jitteredDelay);
-        if (!failed) console.warn(`[DurableQueueWorker] Lost ownership before recording failure for ${job.id}`);
-      }
-      console.error(`[DurableQueueWorker] Handler failed for ${job.id}:`, error);
-    } finally {
+    const stopHeartbeat = async (): Promise<void> => {
       heartbeatStopped = true;
       clearInterval(heartbeatTimer);
+      // Do not race a final lease renewal against complete/fail: a delayed
+      // heartbeat could otherwise extend a lease after ownership was released.
+      const inFlightHeartbeat = heartbeatPromise;
+      if (inFlightHeartbeat) await inFlightHeartbeat;
+    };
+
+    let handlerFailed = false;
+    let handlerError: unknown;
+    try {
+      await handler(job);
+    } catch (error) {
+      handlerFailed = true;
+      handlerError = error;
+    }
+
+    await stopHeartbeat();
+    if (leaseLost) {
+      console.warn(`[DurableQueueWorker] Lease lost while processing ${job.id}; leaving it for lease recovery`);
+      return;
+    }
+
+    if (handlerFailed) {
+      const exponent = Math.max(0, job.attempts - 1);
+      const delay = Math.min(this.retryBaseMs * (2 ** exponent), this.retryMaxMs);
+      const jitteredDelay = Math.round(delay * (0.8 + Math.random() * 0.4));
+      try {
+        const failed = await this.repository.fail(job.id, this.workerId, handlerError, jitteredDelay);
+        if (!failed) console.warn(`[DurableQueueWorker] Lost ownership before recording failure for ${job.id}`);
+      } catch (error) {
+        // Do not crash the poller or acknowledge the job. Its lease will expire
+        // and a later worker can safely reclaim it (at-least-once delivery).
+        console.error(`[DurableQueueWorker] Could not persist failure for ${job.id}; lease recovery will retry it:`, error);
+      }
+      console.error(`[DurableQueueWorker] Handler failed for ${job.id}:`, handlerError);
+      return;
+    }
+
+    try {
+      const completed = await this.repository.complete(job.id, this.workerId);
+      if (!completed) console.warn(`[DurableQueueWorker] Lost ownership before completing ${job.id}`);
+    } catch (error) {
+      // Completion is not assumed. Keep the active lease so PostgreSQL can
+      // recover the job after expiry rather than falsely reporting success.
+      console.error(`[DurableQueueWorker] Could not persist completion for ${job.id}; lease recovery will retry it:`, error);
     }
   }
 }
