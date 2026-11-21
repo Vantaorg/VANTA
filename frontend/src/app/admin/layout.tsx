@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Avatar from '@/components/ui/Avatar';
+import VantaLogo from '@/components/ui/VantaLogo';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -243,7 +244,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <div className="flex h-[var(--vc-header-h)] shrink-0 items-center justify-between gap-2 border-b border-console-border px-3">
                 <Link href="/admin" className="flex min-w-0 items-center gap-2.5">
-                  <img src="/branding/vanta-logo.png" alt="VANTA" className="h-6 w-auto" width={480} height={120} />
+                  <VantaLogo size={24} />
                   <span className="truncate text-[11px] font-bold uppercase tracking-[0.18em] text-console-gold">Command Center</span>
                 </Link>
                 <button onClick={() => setDrawerOpen(false)} className="vc-focus grid h-10 w-10 shrink-0 place-items-center rounded-[var(--vc-radius)] text-console-text-3 transition-colors hover:bg-white/[0.05] hover:text-console-text" aria-label="Close navigation">
@@ -262,7 +263,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[var(--vc-sidebar-w)] flex-col border-r border-console-border bg-console-bg2 pt-[env(safe-area-inset-top)] lg:flex">
         <div className="flex h-[var(--vc-header-h)] shrink-0 items-center gap-2.5 border-b border-console-border px-4">
           <Link href="/admin" className="flex min-w-0 items-center gap-2.5">
-            <img src="/branding/vanta-logo.png" alt="VANTA" className="h-6 w-auto" width={480} height={120} />
+            <VantaLogo size={24} />
             <span className="truncate text-[11px] font-bold uppercase tracking-[0.18em] text-console-gold">Command Center</span>
           </Link>
         </div>

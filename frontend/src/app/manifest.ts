@@ -2,8 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    // Stable install identity for the Chrome-installed PWA. `id` must not change
-    // once people have installed so browsers keep treating this as the same app.
+    // Keep the installed-app identity stable while updating the visible brand.
     id: "/",
     name: "VANTA — Create. Connect. Live.",
     short_name: "VANTA",
@@ -13,14 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     display_override: ["standalone"],
-    // The VANTA Live experience is portrait-first. Declaring portrait at the
-    // manifest level keeps an installed Android/PWA shell from rotating the app
-    // when the physical device is turned sideways (where the platform honors
-    // it); the live screens additionally use the runtime Screen Orientation
-    // API (see lib/orientationLock.ts).
     orientation: "portrait",
-    background_color: "#1F2630",
-    theme_color: "#1F2630",
+    background_color: "#02040D",
+    theme_color: "#02040D",
     icons: [
       { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
