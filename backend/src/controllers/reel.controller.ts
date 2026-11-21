@@ -182,6 +182,12 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
       _sum: { quantity: true },
     }) : [];
     const giftsByReel = new Map(giftTotals.map((row) => [row.videoId, row._sum.quantity || 0]));
+    const sentGifts = userId && pageReelIds.length ? await prisma.giftTransaction.findMany({
+      where: { senderId: userId, videoId: { in: pageReelIds }, status: "COMPLETED" },
+      select: { videoId: true },
+      distinct: ["videoId"],
+    }) : [];
+    const giftedByViewer = new Set(sentGifts.map((row) => row.videoId));
 
     res.status(200).json({
       items: reels.map((reel: any) => ({
@@ -198,6 +204,7 @@ export const getReels = async (req: AuthRequest, res: Response): Promise<void> =
         shares: reel._count.shares,
         reposts: reel._count.reposts,
         gifts: giftsByReel.get(reel.id) || 0,
+        isGifted: giftedByViewer.has(reel.id),
         isReposted: userId ? reel.reposts?.length > 0 : false,
         isLiked: userId ? reel.likes?.length > 0 : false,
         isSaved: userId ? reel.saves?.length > 0 : false,
@@ -273,8 +280,13 @@ export const getReelById = async (req: AuthRequest, res: Response): Promise<void
       where: { videoId: reel.id, status: "COMPLETED" },
       _sum: { quantity: true },
     });
+    const viewerGift = userId ? await prisma.giftTransaction.findFirst({
+      where: { senderId: userId, videoId: reel.id, status: "COMPLETED" },
+      select: { id: true },
+    }) : null;
     res.status(200).json(enrichItemAuthors({
       ...rest,
+      isGifted: Boolean(viewerGift),
       creator,
       likesCount: _count.likes,
       commentsCount: _count.comments,

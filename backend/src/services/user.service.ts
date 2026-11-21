@@ -1705,6 +1705,55 @@ export class UserService {
     return this.getUserReels(user.id, cursor, limit);
   }
 
+  // Reels this user reposted (most recent repost first). Each item carries
+  // repostedAt + the original creator so the profile can show real reposts.
+  async getUserReposts(userId: string, cursor?: string, limit: number = 12) {
+    const rows = await prisma.reelRepost.findMany({
+      where: { userId, video: { publishStatus: 'PUBLISHED', videoUrl: { not: null }, moderationRemovedAt: null } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        video: {
+          include: {
+            creator: { select: { id: true, username: true, fullName: true, avatar: true } },
+            _count: { select: { likes: true, comments: true } },
+          },
+        },
+      },
+    });
+    const hasMore = rows.length > limit;
+    if (hasMore) rows.pop();
+    const nextCursor = hasMore ? rows[rows.length - 1]?.id : undefined;
+    return {
+      items: rows.map(row => ({
+        id: row.video.id,
+        repostId: row.id,
+        title: row.video.title,
+        videoUrl: row.video.videoUrl,
+        thumbnailUrl: row.video.thumbnailUrl,
+        duration: row.video.duration,
+        views: row.video.views,
+        likes: row.video._count.likes,
+        comments: row.video._count.comments,
+        createdAt: row.video.createdAt,
+        repostedAt: row.createdAt,
+        creator: row.video.creator,
+      })),
+      nextCursor,
+    };
+  }
+
+  async getPublicUserRepostsByUsername(username: string, cursor?: string, limit: number = 12, viewerId?: string) {
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user) throw new Error('Profile not found');
+    assertProfileAccessible(user, viewerId);
+    if (!(await this.canViewProfile(user.id, viewerId))) {
+      throw new Error('This profile is private');
+    }
+    return this.getUserReposts(user.id, cursor, limit);
+  }
+
   // ===== LIVESTREAMS =====
   async getUserLivestreams(userId: string, cursor?: string, limit: number = 10) {
     const streams = await prisma.liveStream.findMany({

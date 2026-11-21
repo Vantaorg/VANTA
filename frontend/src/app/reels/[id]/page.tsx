@@ -46,6 +46,7 @@ type Reel = {
   isLiked?: boolean;
   isSaved?: boolean;
   isReposted?: boolean;
+  reposts?: number;
   creator?: Creator;
   author?: Creator;
 };
@@ -208,9 +209,8 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
   const repost = async () => {
     if (!token || !reel) return;
     try {
-      const result = await apiPost<{ reposted: boolean }>(`/api/reels/${reel.id}/repost`, {}, token);
-      setReel(current => current ? { ...current, isReposted: result.reposted } : current);
-      toast.success(result.reposted ? 'Reel reposted' : 'Repost removed');
+      const result = await apiPost<{ reposted: boolean; reposts?: number }>(`/api/reels/${reel.id}/repost`, {}, token);
+      setReel(current => current ? { ...current, isReposted: result.reposted, reposts: (result as any).reposts ?? current.reposts } : current);
       setShareOpen(false);
     } catch (reason: any) { toast.error('Repost failed', reason?.message); }
   };
@@ -437,6 +437,7 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+20px)] right-2 z-20 flex flex-col items-center gap-3">
         <ReelRailAction icon={<Heart className={liked ? 'fill-current' : ''} />} label={formatCount(likeCount)} ariaLabel={liked ? 'Unlike reel' : 'Like reel'} onClick={() => void toggleLike()} active={liked} />
         <ReelRailAction icon={<MessageCircle />} label={formatCount(commentCount)} ariaLabel="Open comments" onClick={openComments} />
+        <ReelRailAction icon={<RefreshCw />} label={formatCount(reel.reposts || 0)} ariaLabel={reel.isReposted ? 'Remove repost' : 'Repost reel'} onClick={() => void repost()} active={Boolean(reel.isReposted)} />
         <ReelRailAction icon={<Share2 />} label="Share" ariaLabel="Share reel" onClick={() => setShareOpen(true)} />
         <ReelRailAction icon={<Bookmark className={savedState ? 'fill-current' : ''} />} label={savedState ? 'Saved' : 'Save'} ariaLabel={savedState ? 'Remove from saved' : 'Save reel'} onClick={() => void toggleSave()} active={savedState} />
         <ReelRailAction icon={<MoreHorizontal />} label="More" ariaLabel="More reel actions" onClick={() => setMoreOpen(true)} />

@@ -27,6 +27,8 @@ import {
   getWalletPreview,
   getProfileReels,
   getPublicProfileReels,
+  getProfileReposts,
+  getPublicProfileReposts,
   getProfileLivestreams,
   getPublicProfileLivestreams,
 } from '../controllers/profile.controller';
@@ -44,6 +46,7 @@ router.get('/public/:username', optionallyAuthenticateJWT, getPublicProfile);
 router.get('/public/:username/posts', optionallyAuthenticateJWT, getPublicProfilePosts);
 router.get('/public/:username/media', optionallyAuthenticateJWT, getPublicProfileMedia);
 router.get('/public/:username/reels', optionallyAuthenticateJWT, getPublicProfileReels);
+router.get('/public/:username/reposts', optionallyAuthenticateJWT, getPublicProfileReposts);
 router.get('/public/:username/livestreams', optionallyAuthenticateJWT, getPublicProfileLivestreams);
 
 // Auth required routes
@@ -71,6 +74,7 @@ router.post('/me/pin', pinContent);
 router.delete('/me/pin', unpinContent);
 router.get('/me/wallet-preview', getWalletPreview);
 router.get('/me/reels', getProfileReels);
+router.get('/me/reposts', getProfileReposts);
 router.get('/me/livestreams', getProfileLivestreams);
 
 // Follow system
