@@ -775,7 +775,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
   return (
     <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] min-h-[100dvh] w-full snap-start items-center justify-center bg-[#050505] pt-0">
       <div className="flex h-full min-h-full w-full items-center justify-center">
-        <div className="relative h-full w-full overflow-hidden bg-black">
+        <div className="relative h-full w-full overflow-hidden bg-black md:max-w-[480px]">
           {/* Full-bleed ambient backdrop so non-portrait uploads never letterbox
               into a thin strip: the contained video keeps its true aspect ratio
               (never stretched/cropped) over a blurred copy of the same frame.
@@ -850,7 +850,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
           {active && paused && !videoFailed && <button type="button" onClick={onPlayToggle} className="absolute inset-0 z-10 m-auto grid h-14 w-14 place-items-center rounded-full bg-black/45 backdrop-blur" aria-label="Play Reel"><Play size={23} fill="white" /></button>}
           <AnimatePresence>{likedPulse && <motion.div initial={{ opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.15 }} className="pointer-events-none absolute inset-0 z-20 grid place-items-center"><Heart size={76} fill="white" className="drop-shadow-2xl" /></motion.div>}</AnimatePresence>
 
-          <div className="absolute bottom-5 left-4 right-20 z-10 ">
+          <div className="absolute bottom-[calc(1.25rem_+_var(--vanta-native-reel-action-offset,calc(4rem_+_env(safe-area-inset-bottom))))] left-4 right-20 z-10">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={onCreator} className="flex min-w-0 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
                 <Avatar src={reel.author.avatar} alt={reel.author.username} size="sm" />
@@ -864,7 +864,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             {(reel.description?.length || reel.title?.length || 0) > 110 && <button type="button" onClick={() => setExpanded(value => !value)} className="mt-0.5 text-xs text-white/60">{expanded ? 'less' : 'more'}</button>}
           </div>
 
-          <div className="absolute bottom-[calc(1.5rem+var(--vanta-native-reel-action-offset,0px))] right-3 z-10 flex flex-col items-center gap-3 ">
+          <div className="absolute bottom-[calc(1.5rem_+_var(--vanta-native-reel-action-offset,calc(4rem_+_env(safe-area-inset-bottom))))] right-3 z-10 flex flex-col items-center gap-3 ">
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
             <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
@@ -873,7 +873,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             <Action icon={<MoreHorizontal />} label="More" ariaLabel="More Reel actions" onClick={onMore} />
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-20 h-0.5 bg-white/15"><span className="block h-full bg-[#c9a227] shadow-[0_0_8px_rgba(201,162,39,.5)] transition-[width] duration-100" style={{ width: `${progress}%` }} /></div>
+          <div className="absolute inset-x-0 bottom-[var(--vanta-native-reel-action-offset,calc(4rem_+_env(safe-area-inset-bottom)))] z-20 h-0.5 bg-white/15"><span className="block h-full bg-[#c9a227] shadow-[0_0_8px_rgba(201,162,39,.5)] transition-[width] duration-100" style={{ width: `${progress}%` }} /></div>
         </div>
 
       </div>
