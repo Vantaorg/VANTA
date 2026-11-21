@@ -13,7 +13,7 @@
 
 'use strict';
 
-var VANTA_ICON = '/branding/vanta-app-icon.svg';
+var VANTA_ICON = '/branding/pwa-192.png';
 var VANTA_RINGTONE = '/sounds/vanta-ringtone.mp3';
 
 // Call events that only dismiss a visible incoming-call notification.
