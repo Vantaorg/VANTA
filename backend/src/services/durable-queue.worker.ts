@@ -113,8 +113,8 @@ export class DurableQueueWorker {
     let leaseLost = false;
     let heartbeatStopped = false;
     let heartbeatPromise: Promise<void> | null = null;
-    const heartbeat = (): Promise<void> => {
-      if (heartbeatStopped || heartbeatPromise || leaseLost) return Promise.resolve();
+    const heartbeat = async (): Promise<void> => {
+      if (heartbeatStopped || heartbeatPromise || leaseLost) return;
       heartbeatPromise = (async () => {
         try {
           const renewed = await this.repository.renewLease(job.id, this.workerId, this.leaseMs);
@@ -126,7 +126,7 @@ export class DurableQueueWorker {
           heartbeatPromise = null;
         }
       })();
-      return heartbeatPromise;
+      await heartbeatPromise;
     };
     const heartbeatTimer = setInterval(() => { void heartbeat(); }, Math.max(1_000, Math.floor(this.leaseMs / 3)));
     const stopHeartbeat = async (): Promise<void> => {
