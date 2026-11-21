@@ -12,6 +12,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { checkStudioAccess } from '@/lib/verificationApi';
 import { cn } from '@/lib/utils';
+import VantaLogo from '@/components/ui/VantaLogo';
 
 // ---------------------------------------------------------------------------
 // VANTA CREATOR STUDIO SHELL
@@ -205,7 +206,7 @@ export default function CreatorLayout({ children }: { children: React.ReactNode 
             >
               <div className="flex h-14 shrink-0 items-center justify-between border-b border-console-border px-4">
                 <Link href="/creator" className="flex items-center gap-2.5 vc-focus rounded">
-                  <img src="/branding/vanta-logo.png" alt="VANTA" className="h-6 w-auto" width={480} height={120} />
+                  <VantaLogo size={24} />
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-console-gold">Studio</span>
                 </Link>
                 <button onClick={() => setDrawerOpen(false)} className="vc-focus grid h-10 w-10 place-items-center rounded-[var(--vc-radius)] text-console-text-2 hover:bg-white/[0.05]" aria-label="Close navigation">
@@ -230,7 +231,7 @@ export default function CreatorLayout({ children }: { children: React.ReactNode 
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[var(--vc-sidebar-w)] flex-col border-r border-console-border bg-console-bg2 lg:flex">
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-console-border px-4">
           <Link href="/creator" className="flex items-center gap-2.5 vc-focus rounded">
-            <img src="/branding/vanta-logo.png" alt="VANTA" className="h-6 w-auto" width={480} height={120} />
+            <VantaLogo size={24} />
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-console-gold">Studio</span>
           </Link>
         </div>
