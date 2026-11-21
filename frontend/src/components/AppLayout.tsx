@@ -225,6 +225,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const lastPositions = new WeakMap<Element, number>();
 
     const handleScroll = (event: Event) => {
+      // Reels is a full-screen, swipe-driven feed: keep the primary VANTA
+      // navigation visible while users move between videos.
+      if (pathname?.startsWith('/reels')) {
+        setBottomNavHidden(false);
+        return;
+      }
+
       const target = event.target;
       const scroller =
         target instanceof Document
@@ -261,7 +268,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('scroll', handleScroll, true);
     return () => document.removeEventListener('scroll', handleScroll, true);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     setBottomNavHidden(false);

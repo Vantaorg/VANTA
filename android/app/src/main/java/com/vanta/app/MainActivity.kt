@@ -71,17 +71,25 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         window.decorView.setBackgroundColor(Color.rgb(5, 5, 5))
-        // Do not opt into edge-to-edge layout here. The WebView must occupy
-        // the safe content frame and stop above Android's gesture/button
-        // navigation area instead of drawing underneath the system bar.
+        // Android 15+ enforces edge-to-edge for apps targeting API 35+.
+        // Explicitly receive system-bar insets and apply them to the WebView
+        // host so full-screen web routes (notably Reels) cannot occupy the
+        // gesture or three-button navigation area.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(true)
+            window.setDecorFitsSystemWindows(false)
         } else {
             @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         }
         window.statusBarColor = Color.rgb(31, 38, 48)
         window.navigationBarColor = Color.rgb(31, 38, 48)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
         CookieManager.getInstance().setAcceptCookie(true)
 
         pendingCameraUri = savedInstanceState?.getString(CAMERA_URI_STATE)?.let(Uri::parse)
@@ -89,13 +97,36 @@ class MainActivity : Activity() {
         webView = createWebView()
 
         val root = FrameLayout(this).apply {
-            setBackgroundColor(Color.rgb(5, 5, 5))
+            setBackgroundColor(Color.rgb(31, 38, 48))
             addView(webView)
+            setOnApplyWindowInsetsListener { view, insets ->
+                val left: Int
+                val top: Int
+                val right: Int
+                val bottom: Int
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                    left = bars.left
+                    top = bars.top
+                    right = bars.right
+                    bottom = bars.bottom
+                } else {
+                    @Suppress("DEPRECATION")
+                    run {
+                        left = insets.systemWindowInsetLeft
+                        top = insets.systemWindowInsetTop
+                        right = insets.systemWindowInsetRight
+                        bottom = insets.systemWindowInsetBottom
+                    }
+                }
+                // FrameLayout lays its MATCH_PARENT WebView inside this
+                // padding, leaving the system navigation region native-owned.
+                view.setPadding(left, top, right, bottom)
+                insets
+            }
         }
-        // With decor fitting enabled Android lays out this root inside the
-        // system-bar-safe content area. Avoid applying the same insets again
-        // as root padding, which can double-shrink the WebView on some devices.
         setContentView(root)
+        root.requestApplyInsets()
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         if (savedInstanceState == null) {
