@@ -704,6 +704,7 @@ export default function ReelsPage() {
             onGift={() => openGift(reel)}
             onFollow={() => void follow(reel)}
             onMore={() => setMoreFor(reel)}
+            onShare={() => setShareFor(reel)}
             onCreator={() => router.push(`/profile/${reel.author.username}`)}
           />
         ))}
@@ -739,18 +740,19 @@ export default function ReelsPage() {
   );
 }
 
-function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onGift, onFollow, onMore, onCreator }: {
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onGift, onFollow, onMore, onShare, onCreator }: {
   reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
-  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onCreator: () => void;
+  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onShare: () => void; onCreator: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [progress, setProgress] = useState(0);
-  const [likedPulse, setLikedPulse] = useState(false);
+  const [likedPulse, setLikedPulse] = useState<'like' | 'unlike' | null>(null);
+  const pulseTimer = useRef<number>();
   const tapTimer = useRef<number>();
   const lastTap = useRef(0);
   const followed = !!(reel.author.following || reel.author.isFollowing || reel.isFollowing);
@@ -760,10 +762,17 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
   const { prefs: contentPrefs, hydrated: contentPrefsReady } = useContentPrefs();
   const autoplayEnabled = contentPrefsReady ? contentPrefs.autoplay : true;
 
+  useEffect(() => () => {
+    if (tapTimer.current) window.clearTimeout(tapTimer.current);
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+  }, []);
+
+  // Double-tap toggles like/unlike through the same handler as the Like button.
   const likeWithFeedback = () => {
-    if (!reel.isLiked) onLike();
-    setLikedPulse(true);
-    window.setTimeout(() => setLikedPulse(false), 520);
+    setLikedPulse(reel.isLiked ? 'unlike' : 'like');
+    onLike();
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(() => setLikedPulse(null), 700);
   };
 
   const handleTap = () => {
@@ -872,7 +881,7 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
           </div>
 
           {active && paused && !videoFailed && <button type="button" onClick={onPlayToggle} className="absolute inset-0 z-10 m-auto grid h-14 w-14 place-items-center rounded-full bg-black/45 backdrop-blur" aria-label="Play Reel"><Play size={23} fill="white" /></button>}
-          <AnimatePresence>{likedPulse && <motion.div initial={{ opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.15 }} className="pointer-events-none absolute inset-0 z-20 grid place-items-center"><Heart size={76} fill="white" className="drop-shadow-2xl" /></motion.div>}</AnimatePresence>
+          <AnimatePresence>{likedPulse && <motion.div key={likedPulse} initial={{ opacity: 0, scale: .5 }} animate={{ opacity: 1, scale: likedPulse === 'like' ? [0.5, 1.2, 1] : 1 }} exit={{ opacity: 0, scale: likedPulse === 'like' ? 1.25 : 0.85 }} className="pointer-events-none absolute inset-0 z-20 grid place-items-center">{likedPulse === 'like' ? <span className="relative"><Heart size={84} fill="#f2c75c" stroke="#c9a227" className="drop-shadow-[0_0_18px_rgba(242,199,92,.9)]" /><motion.span initial={{ opacity: 0, scale: .4, rotate: -20 }} animate={{ opacity: [0, 1, 0], scale: [.4, 1.2, .8], rotate: [-20, 10, 25] }} transition={{ duration: .6 }} className="absolute -right-4 -top-4 text-[#f2c75c]"><Sparkles size={28} /></motion.span><motion.span initial={{ opacity: 0, scale: .4 }} animate={{ opacity: [0, 1, 0], scale: [.4, 1, .7] }} transition={{ duration: .6, delay: .1 }} className="absolute -bottom-3 -left-5 text-[#ffe08a]"><Sparkles size={20} /></motion.span></span> : <Heart size={76} fill="none" stroke="#8a8a8a" className="drop-shadow-2xl" />}</motion.div>}</AnimatePresence>
 
           <div className="absolute bottom-[calc(1.25rem_+_var(--vanta-native-reel-action-offset,calc(4rem_+_env(safe-area-inset-bottom))))] left-4 right-20 z-10">
             <div className="flex flex-wrap items-center gap-2">
@@ -890,9 +899,9 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
 
           <div className="absolute bottom-[calc(1.5rem_+_var(--vanta-native-reel-action-offset,calc(4rem_+_env(safe-area-inset-bottom))))] right-3 z-10 flex flex-col items-center gap-3 ">
             <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.views} views`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
-            <Action icon={<Heart className={reel.isLiked ? 'fill-current text-[#c9a227]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
+            <Action icon={<Heart className={reel.isLiked ? 'fill-[#f2c75c] text-[#c9a227] drop-shadow-[0_0_6px_rgba(242,199,92,.85)]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
-            <div className="flex flex-col items-center gap-1 text-[10px] text-white/65" aria-label={`${reel.shares || 0} shares`}><span className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-[#161616]/88 backdrop-blur"><Share2 size={18} /></span><span>{formatCount(reel.shares || 0)}</span></div>
+            <Action icon={<Share2 />} label={formatCount(reel.shares || 0)} ariaLabel={`Share Reel · ${reel.shares || 0} shares`} onClick={onShare} />
             <Action icon={<Gift />} label={formatCount(reel.gifts || 0)} ariaLabel={`Send a gift · ${reel.gifts || 0} gifts`} onClick={onGift} />
             <Action icon={<MoreHorizontal />} label="More" ariaLabel="More Reel actions" onClick={onMore} />
           </div>
