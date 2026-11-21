@@ -59,6 +59,9 @@ describeWithDatabase('DurableQueueRepository PostgreSQL integration', () => {
     await pool.query('UPDATE "QueueJob" SET "lockedUntil" = NOW() - INTERVAL \'1 second\' WHERE "id" = $1', ['lease-job']);
     const second = await repository.claim('worker-b', 60_000);
     expect(second).toMatchObject({ id: 'lease-job', workerId: 'worker-b', attempts: 2 });
+    // A worker cannot extend a lease after it has expired or after ownership changes.
+    await expect(repository.renewLease('lease-job', 'worker-a', 60_000)).resolves.toBe(false);
+    await expect(repository.renewLease('lease-job', 'worker-b', 60_000)).resolves.toBe(true);
     await expect(repository.complete('lease-job', 'worker-a')).resolves.toBe(false);
     await expect(repository.complete('lease-job', 'worker-b')).resolves.toBe(true);
   });
