@@ -71,16 +71,17 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         window.decorView.setBackgroundColor(Color.rgb(5, 5, 5))
+        // Do not opt into edge-to-edge layout here. The WebView must occupy
+        // the safe content frame and stop above Android's gesture/button
+        // navigation area instead of drawing underneath the system bar.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            window.setDecorFitsSystemWindows(true)
         } else {
             @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                )
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         }
+        window.statusBarColor = Color.rgb(31, 38, 48)
+        window.navigationBarColor = Color.rgb(31, 38, 48)
         CookieManager.getInstance().setAcceptCookie(true)
 
         pendingCameraUri = savedInstanceState?.getString(CAMERA_URI_STATE)?.let(Uri::parse)
@@ -91,25 +92,9 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(5, 5, 5))
             addView(webView)
         }
-        @Suppress("DEPRECATION")
-        root.setOnApplyWindowInsetsListener { view, insets ->
-            val systemBars = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                insets.getInsets(WindowInsets.Type.systemBars())
-            } else null
-            val left = systemBars?.left ?: insets.systemWindowInsetLeft
-            val top = systemBars?.top ?: insets.systemWindowInsetTop
-            val right = systemBars?.right ?: insets.systemWindowInsetRight
-            val navigationBottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-            } else insets.systemWindowInsetBottom
-
-            // Keep app content inside the device-safe frame. Fixed full-screen
-            // pages now end above Android's navigation buttons instead of
-            // drawing underneath them.
-            view.setPadding(left, top, right, navigationBottom)
-            webView.post { applySystemBottomInset() }
-            insets
-        }
+        // With decor fitting enabled Android lays out this root inside the
+        // system-bar-safe content area. Avoid applying the same insets again
+        // as root padding, which can double-shrink the WebView on some devices.
         setContentView(root)
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
