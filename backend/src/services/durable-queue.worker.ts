@@ -89,7 +89,7 @@ export class DurableQueueWorker {
   private async process(job: DurableJob): Promise<void> {
     const handler = this.handlers.get(job.type);
     if (!handler) {
-      await this.repository.fail(job.id, this.workerId, new Error(`No durable handler registered for job type: ${job.type}`), 0);
+      await this.repository.failPermanently(job.id, this.workerId, new Error(`No durable handler registered for job type: ${job.type}`));
       return;
     }
 
