@@ -25,11 +25,12 @@ import { cleanPostId, finite, isVideoPost, postOnly, unwrap } from './profileTyp
 const TABS: Array<{ id: ProfileTab; label: string; icon: typeof Film; ownOnly?: boolean }> = [
   { id: 'posts', label: 'Posts', icon: MessageCircle },
   { id: 'reels', label: 'Reels', icon: Film },
+  { id: 'reposts', label: 'Reposts', icon: RefreshCw },
   { id: 'media', label: 'Media', icon: ImageIcon },
   { id: 'likes', label: 'Likes', icon: Heart, ownOnly: true },
 ];
 
-const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [] });
+const emptyContent = (): Record<ProfileTab, ProfileItem[]> => ({ posts: [], reels: [], live: [], media: [], likes: [], reposts: [] });
 const errorStatus = (reason: any) => Number(reason?.statusCode ?? reason?.status ?? reason?.response?.status) || 0;
 const normalizeProfileItem = (item: any, likedTab = false): ProfileItem => {
   const post = item?.post || item || {};
@@ -96,7 +97,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
 
   const endpoint = useMemo(() => {
     const prefix = own ? '/api/profiles/me' : `/api/profiles/public/${encodeURIComponent(normalized)}`;
-    if (tab === 'posts' || tab === 'media' || tab === 'reels') return `${prefix}/${tab}`;
+    if (tab === 'posts' || tab === 'media' || tab === 'reels' || tab === 'reposts') return `${prefix}/${tab}`;
     if (tab === 'live') return `${prefix}/livestreams`;
     if (tab === 'likes' && own) return '/api/profiles/me/likes';
     return '';

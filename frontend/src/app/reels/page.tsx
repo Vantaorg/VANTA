@@ -79,6 +79,7 @@ type Reel = {
   gifts?: number;
   reposts?: number;
   isReposted?: boolean;
+  isGifted?: boolean;
   isLiked?: boolean;
   isSaved?: boolean;
   isFollowing?: boolean;
@@ -605,7 +606,6 @@ export default function ReelsPage() {
     try {
       const result = await apiPost<{ reposted: boolean; reposts: number }>(`/api/reels/${reel.id}/repost`, {}, token);
       patch(reel.id, { isReposted: result.reposted, reposts: result.reposts });
-      toast.success(result.reposted ? 'Reel reposted' : 'Repost removed');
       setShareFor(null);
     } catch (reason: any) {
       toast.error('Repost failed', reason?.message);
@@ -702,6 +702,7 @@ export default function ReelsPage() {
             onSave={() => void toggle(reel, 'save')}
             onComment={() => void openComments(reel)}
             onGift={() => openGift(reel)}
+            onRepost={() => void repost(reel)}
             onFollow={() => void follow(reel)}
             onMore={() => setMoreFor(reel)}
             onShare={() => setShareFor(reel)}
@@ -734,17 +735,17 @@ export default function ReelsPage() {
         {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} share={() => { setMoreFor(null); setShareFor(moreFor); }} repost={() => { setMoreFor(null); void repost(moreFor); }} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
         {reportFor && <ReportPanel reel={reportFor} pending={!!pending[`report:${reportFor.id}`]} submit={category => void report(reportFor, category)} close={() => setReportFor(null)} />}
-        {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} videoId={giftFor.id} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift, quantity = 1) => { setGiftBalance(remaining); patch(giftFor.id, { gifts: (giftFor.gifts || 0) + quantity }); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
+        {giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(null)}><GiftPicker gifts={gifts} balance={giftBalance} recipient={giftFor.author} token={token} videoId={giftFor.id} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(null)} onSent={(remaining, _amount, gift, quantity = 1) => { setGiftBalance(remaining); patch(giftFor.id, { gifts: (giftFor.gifts || 0) + quantity, isGifted: true }); toast.success('Gift sent', `You sent ${gift.name} to ${giftFor.author.fullName || giftFor.author.username}`); }} /></GiftPickerBoundary>}
       </AnimatePresence>
     </div>
   );
 }
 
-function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onGift, onFollow, onMore, onShare, onCreator }: {
+function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, sections, followPending, onPlayToggle, onLike, onSave, onComment, onGift, onRepost, onFollow, onMore, onShare, onCreator }: {
   reel: Reel; isOwn: boolean; index: number; active: boolean; nearby: boolean; muted: boolean; paused: boolean;
   videos: MutableRefObject<Record<string, HTMLVideoElement | null>>;
   sections: MutableRefObject<Record<string, HTMLElement | null>>;
-  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onGift: () => void; onFollow: () => void; onMore: () => void; onShare: () => void; onCreator: () => void;
+  followPending: boolean; onPlayToggle: () => void; onLike: () => void; onSave: () => void; onComment: () => void; onGift: () => void; onRepost: () => void; onFollow: () => void; onMore: () => void; onShare: () => void; onCreator: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [videoLoading, setVideoLoading] = useState(true);
@@ -884,8 +885,9 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
             <div className="flex flex-col items-center gap-0.5 text-[10px] leading-3 text-white/65" aria-label={`${reel.views} views`}><span className="grid h-7 w-10 place-items-center"><Eye size={18} /></span><span>{formatCount(reel.views)}</span></div>
             <Action icon={<Heart className={reel.isLiked ? 'fill-[#f2c75c] text-[#c9a227] drop-shadow-[0_0_6px_rgba(242,199,92,.85)]' : 'text-[#8a8a8a]'} />} label={formatCount(reel.likes)} ariaLabel={reel.isLiked ? 'Unlike Reel' : 'Like Reel'} onClick={onLike} active={reel.isLiked} sparkle />
             <Action icon={<MessageCircle />} label={formatCount(reel.comments)} ariaLabel="Open comments" onClick={onComment} />
+            <Action icon={<RefreshCw />} label={formatCount(reel.reposts || 0)} ariaLabel={reel.isReposted ? 'Remove repost' : 'Repost Reel'} onClick={onRepost} active={Boolean(reel.isReposted)} />
             <Action icon={<Share2 />} label={formatCount(reel.shares || 0)} ariaLabel={`Share Reel · ${reel.shares || 0} shares`} onClick={onShare} />
-            <Action icon={<Gift />} label={formatCount(reel.gifts || 0)} ariaLabel={`Send a gift · ${reel.gifts || 0} gifts`} onClick={onGift} />
+            <Action icon={<Gift className={reel.isGifted ? 'fill-current' : ''} />} label={formatCount(reel.gifts || 0)} ariaLabel={`Send a gift · ${reel.gifts || 0} gifts`} onClick={onGift} active={Boolean(reel.isGifted)} />
             <Action icon={<MoreHorizontal />} label="More" ariaLabel="More Reel actions" onClick={onMore} />
           </div>
 

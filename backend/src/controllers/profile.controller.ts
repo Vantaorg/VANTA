@@ -534,6 +534,34 @@ export const getPublicProfileReels = async (req: Request, res: Response): Promis
   }
 };
 
+export const getProfileReposts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseLimit(req.query.limit, 12);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    res.status(200).json(await userService.getUserReposts(userId, cursor, limit));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    res.status(400).json({ error: message });
+  }
+};
+
+export const getPublicProfileReposts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const username = getParamString(req.params.username);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseLimit(req.query.limit, 12);
+    const viewerId = (req as AuthRequest).user?.userId;
+    res.status(200).json(await userService.getPublicUserRepostsByUsername(username, cursor, limit, viewerId));
+  } catch (error) {
+    sendPublicProfileError(res, error);
+  }
+};
+
 export const getProfileLivestreams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
