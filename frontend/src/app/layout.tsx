@@ -44,7 +44,6 @@ export const metadata: Metadata = {
     ],
     apple: [
       { url: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml" },
-      { url: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
   openGraph: {
