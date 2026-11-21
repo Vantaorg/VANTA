@@ -57,6 +57,15 @@ describe('DurableQueueRepository', () => {
     db.$executeRawUnsafe.mockResolvedValueOnce(0);
     await expect(repo.complete('j1', 'worker-b')).resolves.toBe(false);
   });
+  it('terminally fails an owned job without scheduling another attempt', async () => {
+    await expect(repo.failPermanently('j1', 'worker-a', new Error('unsupported type'))).resolves.toBe(true);
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining(`"status" = 'failed'`),
+      'j1', 'worker-a', 'unsupported type',
+    );
+    db.$executeRawUnsafe.mockResolvedValueOnce(0);
+    await expect(repo.failPermanently('j1', 'worker-b', 'stale owner')).resolves.toBe(false);
+  });
   it('persists retry timing and only mutates worker-owned jobs', async () => {
     await expect(repo.fail('j1', 'worker-a', new Error('boom'), 2500)).resolves.toBe(true);
     expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('CASE WHEN "attempts" >= "maxAttempts"'), 'j1', 'worker-a', 2500, 'boom');
