@@ -20,6 +20,9 @@ interface ContentCreationState {
   clearLiveDraft: () => void;
   openCreateHub: () => void;
   closeCreateHub: () => void;
+  /** Text pre-filled into the post composer (used by Quote). */
+  postPrefill: string;
+  openQuotePost: (prefill: string) => void;
   openPostModal: () => void;
   openStoryModal: () => void;
   openGoLiveModal: () => void;
@@ -32,6 +35,7 @@ const ContentCreationContext = createContext<ContentCreationState | null>(null);
 export function ContentCreationProvider({ children }: { children: ReactNode }) {
   const [activeFlow, setActiveFlow] = useState<CreationFlow>(null);
   const [createHubOpen, setCreateHubOpen] = useState(false);
+  const [postPrefill, setPostPrefill] = useState('');
   const [liveDraft, setLiveDraftState] = useState<LiveDraft | null>(null);
 
   const setLiveDraft = useCallback((draft: LiveDraft) => setLiveDraftState(draft), []);
@@ -41,6 +45,12 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
   const closeCreateHub = useCallback(() => setCreateHubOpen(false), []);
 
   const openPostModal = useCallback(() => {
+    setPostPrefill('');
+    setActiveFlow('post');
+  }, []);
+
+  const openQuotePost = useCallback((prefill: string) => {
+    setPostPrefill(prefill);
     setActiveFlow('post');
   }, []);
 
@@ -71,6 +81,8 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
         clearLiveDraft,
         openCreateHub,
         closeCreateHub,
+        postPrefill,
+        openQuotePost,
         openPostModal,
         openStoryModal,
         openGoLiveModal,

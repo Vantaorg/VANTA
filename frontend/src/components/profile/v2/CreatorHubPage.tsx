@@ -12,7 +12,7 @@ import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import GiftPicker, { type GiftCatalogItem } from '@/components/social/GiftPicker';
 import FeedPostMoreSheet from '@/components/social/FeedPostMoreSheet';
 import PullToRefresh from '@/components/ui/PullToRefresh';
-import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
+import FeedPostRepostSheet from '@/components/social/FeedPostRepostSheet';
 import { useToast } from '@/components/ui/Toast';
 import PeopleDialog from './PeopleDialog';
 import ProfileContent from './ProfileContent';
@@ -43,7 +43,7 @@ const nextCursorFrom = (value: any): string | undefined => {
 
 export default function CreatorHubPage({ username }: { username?: string }) {
   const { token, refreshToken, user, isLoading: authLoading } = useAuth(); const router = useRouter(); const toast = useToast();
-  const { openPostModal } = useContentCreation();
+  const { openPostModal, openQuotePost } = useContentCreation();
   const normalized = username && username !== 'me' ? decodeURIComponent(username).replace(/^@/, '') : '';
   const own = !normalized || (!!user?.username && normalized.toLowerCase() === user.username.toLowerCase());
   const [profile, setProfile] = useState<ProfileData | null>(null); const [tab, setTab] = useState<ProfileTab>('posts');
@@ -54,7 +54,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
   const [deletePostFor, setDeletePostFor] = useState<ProfileItem>();
   const [followPending, setFollowPending] = useState(false);
   const [people, setPeople] = useState<'followers' | 'following' | null>(null);
-  const [shareFor, setShareFor] = useState<ProfileItem>(); const [moreFor, setMoreFor] = useState<ProfileItem>();
+  const [repostFor, setRepostFor] = useState<ProfileItem>(); const [moreFor, setMoreFor] = useState<ProfileItem>();
   const [giftFor, setGiftFor] = useState<ProfileItem>(); const [gifts, setGifts] = useState<GiftCatalogItem[]>([]); const [balance, setBalance] = useState(0);
   const profileRequest = useRef(0);
   const pendingPostActionsRef = useRef(new Set<string>());
@@ -255,20 +255,27 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     catch (reason: any) { setGiftFor(undefined); toast.error('Gift picker unavailable', reason?.message); }
   };
   const creatorOf = (item: ProfileItem) => item.author || item.user || item.creator || item.host || {};
-  const sharePost = async (destination: 'COPY_LINK' | 'NATIVE' | 'MESSAGE') => {
-    if (!shareFor || !token) return;
-    const id = cleanPostId(shareFor);
+  const sharePost = async (destination: 'COPY_LINK' | 'NATIVE' | 'MESSAGE', target?: ProfileItem) => {
+    if (!target || !token) return;
+    const id = cleanPostId(target);
     const url = `${location.origin}/post/${id}`;
     try {
       await apiPost(`/api/feed/${id}/share`, { destination }, token);
       if (destination === 'COPY_LINK') await navigator.clipboard.writeText(url);
-      else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: 'VANTA', text: shareFor.content || shareFor.title || 'Check out this post on VANTA', url });
+      else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: 'VANTA', text: target.content || target.title || 'Check out this post on VANTA', url });
       else if (destination === 'MESSAGE') router.push(`/chat?share=${encodeURIComponent(url)}`);
-      toast.success('Shared successfully');
+      toast.success(destination === 'COPY_LINK' ? 'Link copied' : 'Shared successfully');
     }
     catch (reason: any) { toast.error('Share failed', reason?.message); }
-    finally { setShareFor(undefined); }
+    finally { setMoreFor(undefined); }
   };
+  const repostPost = async (target: ProfileItem) => {
+    if (!token) return;
+    try { await apiPost(`/api/feed/${cleanPostId(target)}/share`, { destination: 'REPOST' }, token); toast.success('Reposted'); }
+    catch (reason: any) { toast.error('Repost failed', reason?.message); }
+    finally { setRepostFor(undefined); }
+  };
+  const quotePost = (target: ProfileItem) => { setRepostFor(undefined); openQuotePost(`\n\n${location.origin}/post/${cleanPostId(target)}`); };
 
   if (authLoading || loading) return <ProfileSkeleton />;
   if (error || !profile) return <ProfileFailure kind={error || 'error'} retry={() => void loadProfile()} />;
@@ -279,8 +286,8 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     <ProfileHeader profile={profile} own={own} onFollow={() => { void follow(); }} onMessage={() => { void messageProfile(); }} onGift={() => { void openGift(profile); }} onCopy={() => { void copyProfile(); }} onPeople={setPeople} followPending={followPending} />
     {!own && <FollowerRewardGiftBox creatorUsername={profile.username} token={token} />}
     <nav className="profile-tabs" aria-label="Profile content">{TABS.filter(item => !item.ownOnly || own).map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}><Icon size={16} strokeWidth={tab === id ? 2.4 : 1.9} /><span className="tab-label">{label}</span></button>)}</nav>
-    <section className="profile-content" aria-live="polite">{contentLoading ? <ContentSkeleton /> : contentError ? <ContentError message={contentError} retry={() => setContentRetry(value => value + 1)} /> : <><ProfileContent tab={tab} rows={content[tab]} profile={profile} own={own} router={router} currentUserId={user?.id} onLike={item => void togglePost(item, 'like')} onSave={item => void togglePost(item, 'save')} onComment={item => router.push(`/post/${encodeURIComponent(cleanPostId(item))}/reply`)} onGift={item => void openGift(item)} onDelete={item => void deletePost(item)} onShare={setShareFor} onFollow={() => { void follow(); setContentRetry(value => value + 1); }} onMore={setMoreFor} onCreate={own ? openPostModal : undefined} />{nextCursor[tab] && <div className="profile-load-more"><button className="profile-button" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</button></div>}</>}</section>
-    <AnimatePresence>{giftFor && token && <GiftPicker gifts={gifts} balance={balance} recipient={{ id: profile.id, username: profile.username, fullName: profile.fullName || profile.displayName || profile.username, avatar }} token={token} initialGift={null} onClose={() => setGiftFor(undefined)} onSent={remaining => { setBalance(remaining); setGiftFor(undefined); toast.success('Gift sent'); }} />}{shareFor && token && <FeedPostShareSheet close={() => setShareFor(undefined)} share={sharePost} />}{moreFor && token && <FeedPostMoreSheet item={moreFor} isOwn={creatorOf(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = creatorOf(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void togglePost(moreFor, 'save'); setMoreFor(undefined); }} remove={() => deletePost(moreFor)} />}</AnimatePresence>
+    <section className="profile-content" aria-live="polite">{contentLoading ? <ContentSkeleton /> : contentError ? <ContentError message={contentError} retry={() => setContentRetry(value => value + 1)} /> : <><ProfileContent tab={tab} rows={content[tab]} profile={profile} own={own} router={router} currentUserId={user?.id} onLike={item => void togglePost(item, 'like')} onSave={item => void togglePost(item, 'save')} onComment={item => router.push(`/post/${encodeURIComponent(cleanPostId(item))}/reply`)} onGift={item => void openGift(item)} onDelete={item => void deletePost(item)} onShare={setRepostFor} onFollow={() => { void follow(); setContentRetry(value => value + 1); }} onMore={setMoreFor} onCreate={own ? openPostModal : undefined} />{nextCursor[tab] && <div className="profile-load-more"><button className="profile-button" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</button></div>}</>}</section>
+    <AnimatePresence>{giftFor && token && <GiftPicker gifts={gifts} balance={balance} recipient={{ id: profile.id, username: profile.username, fullName: profile.fullName || profile.displayName || profile.username, avatar }} token={token} initialGift={null} onClose={() => setGiftFor(undefined)} onSent={remaining => { setBalance(remaining); setGiftFor(undefined); toast.success('Gift sent'); }} />}{repostFor && token && <FeedPostRepostSheet close={() => setRepostFor(undefined)} repost={() => void repostPost(repostFor)} quote={() => quotePost(repostFor)} />}{moreFor && token && <FeedPostMoreSheet item={moreFor} share={destination => void sharePost(destination, moreFor)} isOwn={creatorOf(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = creatorOf(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void togglePost(moreFor, 'save'); setMoreFor(undefined); }} remove={() => deletePost(moreFor)} />}</AnimatePresence>
     {people && <PeopleDialog kind={people} own={own} username={profile.username} token={token || undefined} currentUserId={user?.id} close={() => setPeople(null)} />}
     {unfollowOpen && <ConfirmDialog username={profile.username} onCancel={() => setUnfollowOpen(false)} onConfirm={() => { void follow(); }} />}
     {deletePostFor && <DeleteDialog label={tab === 'reels' ? 'Reel' : 'Post'} onCancel={() => setDeletePostFor(undefined)} onConfirm={() => { void confirmDeletePost(); }} />}
