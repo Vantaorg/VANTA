@@ -26,7 +26,7 @@ interface CreatePostModalProps {
 
 export default function CreatePostModal({ open, initialIntent = 'post', onClose }: CreatePostModalProps) {
   const { user, token } = useAuth();
-  const { closeAll } = useContentCreation();
+  const { closeAll, postPrefill } = useContentCreation();
   const [content, setContent] = useState('');
   const [intent, setIntent] = useState(initialIntent);
   const [media, setMedia] = useState<MediaFile[]>([]);
@@ -79,10 +79,11 @@ export default function CreatePostModal({ open, initialIntent = 'post', onClose 
   useEffect(() => {
     if (!open) return;
     setIntent(initialIntent);
+    if (postPrefill) setContent(current => current || postPrefill);
     if (initialIntent === 'story') return;
     const timer = setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 350);
     return () => clearTimeout(timer);
-  }, [open, initialIntent]);
+  }, [open, initialIntent, postPrefill]);
 
   // Close on Escape
   useEffect(() => {

@@ -21,7 +21,7 @@ import GlobalSearch from '@/components/search/GlobalSearch';
 import PostMedia from '@/components/social/PostMedia';
 import FeedPostCard from '@/components/social/FeedPostCard';
 import FeedPostMoreSheet from '@/components/social/FeedPostMoreSheet';
-import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
+import FeedPostRepostSheet from '@/components/social/FeedPostRepostSheet';
 import GiftPicker, { GiftCatalogItem } from '@/components/social/GiftPicker';
 import GiftPickerBoundary from '@/components/social/GiftPickerBoundary';
 import { normalizeGiftCatalog } from '@/lib/giftCatalog';
@@ -79,7 +79,7 @@ export default function HomePage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { openPostModal, openStoryModal } = useContentCreation();
+  const { openPostModal, openStoryModal, openQuotePost } = useContentCreation();
   const [tab, setTab] = useState<FeedTab>('forYou');
   const [items, setItems] = useState<Item[]>([]);
   const [live, setLive] = useState<Item[]>([]);
@@ -96,7 +96,7 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [online, setOnline] = useState(true);
   const [giftFor, setGiftFor] = useState<Item>();
-  const [shareFor, setShareFor] = useState<Item>();
+  const [repostFor, setRepostFor] = useState<Item>();
   const [moreFor, setMoreFor] = useState<Item>();
   const [deletePostFor, setDeletePostFor] = useState<Item>();
   const [deletePostSending, setDeletePostSending] = useState(false);
@@ -197,7 +197,6 @@ export default function HomePage() {
     }
   };
 
-  const openShare = (item: Item) => setShareFor(item);
   const openPostMore = (item: Item) => setMoreFor(item);
   const requestDelete = (item: Item) => { setMoreFor(undefined); setDeletePostFor(item); };
 
@@ -250,17 +249,26 @@ export default function HomePage() {
     finally { setGiftLoading(false); }
   };
   const openGift = (item: Item) => { if (!token) return; setGiftFor(item); setGifts([]); setGiftError(''); void loadGiftData(); };
-  const share = async (destination: string) => {
-    if (!shareFor || !token) return;
-    const id = cleanId(shareFor);
-    const isReel = isVideoItem(shareFor);
+  const share = async (destination: string, target?: Item) => {
+    if (!target || !token) return;
+    const id = cleanId(target);
+    const isReel = isVideoItem(target);
     // Reels have their own detail route and (like the Reels page) no backend
     // share endpoint, so we just share the /reels/:id link. Posts use the feed
     // share endpoint.
-    const url = `${location.origin}${detailPathFor(shareFor)}`;
-    try { if (!isReel) await apiPost(`/api/feed/${id}/share`, { destination }, token); if (destination === 'COPY_LINK') await navigator.clipboard.writeText(url); else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: 'VANTA', text: shareFor.content, url }); else if (destination === 'MESSAGE') router.push(`/chat?share=${encodeURIComponent(url)}`); toast.success('Shared successfully'); setShareFor(undefined); }
+    const url = `${location.origin}${detailPathFor(target)}`;
+    try { if (!isReel) await apiPost(`/api/feed/${id}/share`, { destination }, token); if (destination === 'COPY_LINK') await navigator.clipboard.writeText(url); else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: 'VANTA', text: target.content, url }); else if (destination === 'MESSAGE') router.push(`/chat?share=${encodeURIComponent(url)}`); toast.success(destination === 'COPY_LINK' ? 'Link copied' : 'Shared successfully'); setMoreFor(undefined); }
     catch (reason: any) { toast.error('Share failed', reason?.message); }
   };
+  const repost = async (target: Item) => {
+    if (!token) return;
+    try {
+      if (isVideoItem(target)) await apiPost(`/api/reels/${cleanId(target)}/repost`, {}, token);
+      else await apiPost(`/api/feed/${cleanId(target)}/share`, { destination: 'REPOST' }, token);
+      toast.success('Reposted'); setRepostFor(undefined);
+    } catch (reason: any) { toast.error('Repost failed', reason?.message); }
+  };
+  const quote = (target: Item) => { setRepostFor(undefined); openQuotePost(`\n\n${location.origin}${detailPathFor(target)}`); };
   const visible = useMemo(() => { const base = items.filter(item => item.type !== 'suggested_creator'); if (tab === 'latest') return [...base].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()); return base; }, [items, tab]);
 
 
@@ -274,11 +282,11 @@ export default function HomePage() {
         <div className="mb-2 grid grid-cols-3 gap-1 rounded-lg border border-white/[.06] bg-[var(--surface)] p-0.5" role="tablist" aria-label="Feed filters">{([['forYou', 'For you'], ['following', 'Following'], ['latest', 'Latest']] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={cn('min-h-9 min-w-0 rounded-md px-1 text-xs font-medium transition sm:text-sm', tab === id ? 'bg-[#c9a227] text-black shadow-sm' : 'text-[#858585] hover:bg-white/[.04] hover:text-white')}>{label}</button>)}</div>
         <button type="button" onClick={openPostModal} className="mb-4 hidden w-full items-center gap-3 rounded-lg border border-white/[.08] bg-[#0d0d0f] px-4 py-3 text-left text-sm text-[#666] transition hover:border-white/[.14] hover:bg-[#151517] hover:text-[#b8b8b8] "><Avatar src={user?.avatar || user?.avatarUrl || (user?.profile as any)?.avatar || (user?.profile as any)?.avatarUrl} alt={user?.username || 'You'} size="md"/><span className="flex-1">Share something with VANTA...</span><span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[.08] text-[#b8b8b8]"><ImageIcon size={17}/></span></button>
         {!online && <div className="mb-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-[var(--surface)] px-3 py-2.5 text-xs text-[#b8b8b8]"><WifiOff size={14}/>You are offline. Some actions are unavailable.</div>}
-        {loading && !items.length ? <FeedSkeleton/> : error && !items.length ? <ErrorState retry={() => fetchFeed(true)}/> : !visible.length ? <EmptyFeed discover={() => router.push('/discover')}/> : <div className="space-y-2">{visible.map(item => <FeedPostCard key={item.id} item={item} currentUserId={user?.id} onLike={() => optimistic(item, 'like')} onSave={() => optimistic(item, 'save')} onComment={item => router.push(isVideoItem(item) ? detailPathFor(item) : `/post/${encodeURIComponent(cleanId(item))}/reply`)} onShare={setShareFor} onGift={openGift} onFollow={follow} onMore={setMoreFor} compactCaption feedCompactMedia hideFollowButton/>)}<div ref={sentinel} className="flex justify-center py-6">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}{!hasMore && <span className="text-xs text-[#666]">You&apos;re all caught up.</span>}</div></div>}
+        {loading && !items.length ? <FeedSkeleton/> : error && !items.length ? <ErrorState retry={() => fetchFeed(true)}/> : !visible.length ? <EmptyFeed discover={() => router.push('/discover')}/> : <div className="space-y-2">{visible.map(item => <FeedPostCard key={item.id} item={item} currentUserId={user?.id} onLike={() => optimistic(item, 'like')} onSave={() => optimistic(item, 'save')} onComment={item => router.push(isVideoItem(item) ? detailPathFor(item) : `/post/${encodeURIComponent(cleanId(item))}/reply`)} onShare={setRepostFor} onGift={openGift} onFollow={follow} onMore={setMoreFor} compactCaption feedCompactMedia hideFollowButton/>)}<div ref={sentinel} className="flex justify-center py-6">{loadingMore && <Loader2 className="animate-spin text-[#666]"/>}{!hasMore && <span className="text-xs text-[#666]">You&apos;re all caught up.</span>}</div></div>}
       </main>
       </div>
     </PullToRefresh>
-    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {shareFor && <FeedPostShareSheet close={() => setShareFor(undefined)} share={share}/>} {moreFor && <FeedPostMoreSheet item={moreFor} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
+    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {repostFor && <FeedPostRepostSheet close={() => setRepostFor(undefined)} repost={() => void repost(repostFor)} quote={() => quote(repostFor)}/>} {moreFor && <FeedPostMoreSheet item={moreFor} share={destination => void share(destination, moreFor)} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
   </div>;
 }
 
