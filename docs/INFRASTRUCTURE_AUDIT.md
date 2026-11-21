@@ -96,6 +96,24 @@ VANTA already has security middleware, rate limiting, cache adapters, an in-proc
 **Action:** Review indexes, pagination, N+1 queries, pool sizing, migration safety, connection saturation, and backup/restore. Load-test before replicas or partitioning.
 **Status:** Topology confirmed; performance/backup configuration unverified.
 
+## Queue inventory — producer/handler mapping (source inspection)
+
+The current queue declares 21 job constants. Source searches confirmed these enqueue call sites:
+- `video:transcode` — `VideoOptimizer.queueOptimization()`
+- `thumbnail:generate` — image and video optimizer `queueThumbnail()`
+- `image:optimize` — `ImageOptimizer.queueOptimization()`
+- `cleanup:temp` — `ImageOptimizer.optimize()` attempts to enqueue cleanup after conversion
+
+Handlers registered in the inspected backend source:
+- `push:deliver` — registered by PushNotificationService; retries a push delivery.
+- `call:expire` — registered by PushNotificationService; expires stale ringing call sessions.
+
+No handler was found in the default-branch search for the three media job types (`image:optimize`, `video:transcode`, `thumbnail:generate`) or `cleanup:temp`. The job processor logs a missing handler and marks that job failed without retry. This means these queue APIs must not be treated as proof the requested media processing completed.
+
+Additional confirmed call-site issue: the image optimizer's cleanup enqueue passes `{ path: inputPath, delay: 3600000 }` inside the job data object, rather than passing a delay in the queue's options argument. Therefore the queue receives cleanup as an immediate job, and it has no registered handler in inspected source.
+
+This inventory is limited to code search and inspection of the default branch at commit `224d194f0d68dda799dc4c6ebaaea80fa243c34e`. Search results are not exhaustive proofs that a handler cannot exist in dynamically loaded or unindexed code; the inspected files nevertheless show a clear missing-handler risk that should be covered by tests.
+
 ## Phased implementation plan
 1. Baseline and health/readiness: verify endpoint/storage diagnostics and add readiness semantics with regression tests.
 2. Queue reliability: map producers/handlers, select durable broker, implement idempotency/retries/restart recovery.
