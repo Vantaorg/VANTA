@@ -318,6 +318,7 @@ class JobQueue {
       clearTimeout(this.delayedQueue.get(jobId)!);
       this.delayedQueue.delete(jobId);
       this.jobHistory.set(jobId, { job: this.jobHistory.get(jobId)?.job!, status: 'failed', error: 'Cancelled' });
+      void this.persistQueue();
       return true;
     }
     // Check in pending queue
@@ -325,6 +326,7 @@ class JobQueue {
     if (index >= 0) {
       this.queue.splice(index, 1);
       this.jobHistory.set(jobId, { job: this.jobHistory.get(jobId)?.job!, status: 'failed', error: 'Cancelled' });
+      void this.persistQueue();
       return true;
     }
     return false;
