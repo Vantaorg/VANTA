@@ -3,70 +3,55 @@ import { DurableQueueRepository, DurableQueueClient, DurableJob } from '../servi
 describe('DurableQueueRepository', () => {
   let db: jest.Mocked<DurableQueueClient>;
   let repo: DurableQueueRepository;
-
   beforeEach(() => {
-    db = {
-      $executeRawUnsafe: jest.fn().mockResolvedValue(1),
-      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
-    };
+    db = { $executeRawUnsafe: jest.fn().mockResolvedValue(1), $queryRawUnsafe: jest.fn().mockResolvedValue([]) };
     repo = new DurableQueueRepository(db);
   });
-
   it('persists enqueue values with parameterized SQL', async () => {
     const scheduled = new Date('2026-11-21T12:00:00Z');
-    const id = await repo.enqueue('email:send', { to: 'user@example.test' }, {
-      id: 'test-job', priority: 5, maxAttempts: 4, runAt: scheduled,
-    });
+    const id = await repo.enqueue('email:send', { to: 'user@example.test' }, { id: 'test-job', priority: 5, maxAttempts: 4, runAt: scheduled });
     expect(id).toBe('test-job');
-    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO "QueueJob"'), 'test-job',
-      'email:send', JSON.stringify({ to: 'user@example.test' }), 5, 4, scheduled,
-    );
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO "QueueJob"'), 'test-job', 'email:send', JSON.stringify({ to: 'user@example.test' }), 5, 4, scheduled);
   });
-
-  it('rejects an empty job type', async () => {
+  it('rejects blank type and invalid attempt counts', async () => {
     await expect(repo.enqueue('  ', {})).rejects.toThrow('Job type is required');
+    await expect(repo.enqueue('type', {}, { maxAttempts: 0 })).rejects.toThrow('maxAttempts must be a positive integer');
     expect(db.$executeRawUnsafe).not.toHaveBeenCalled();
   });
-
-  it('claims one due job and returns null when no job is available', async () => {
+  it('rejects invalid priority and dates', async () => {
+    await expect(repo.enqueue('type', {}, { priority: Number.NaN })).rejects.toThrow('priority must be finite');
+    await expect(repo.enqueue('type', {}, { runAt: new Date('invalid') })).rejects.toThrow('runAt must be a valid date');
+  });
+  it('claims a due job atomically and returns null when none is available', async () => {
     const job = { id: 'j1' } as DurableJob;
     db.$queryRawUnsafe.mockResolvedValueOnce([job]);
     await expect(repo.claim('worker-a', 5000)).resolves.toBe(job);
-    expect(db.$queryRawUnsafe).toHaveBeenCalledWith(
-      expect.stringContaining('FOR UPDATE SKIP LOCKED'), 'worker-a', 5000,
-    );
+    expect(db.$queryRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE SKIP LOCKED'), 'worker-a', 5000);
+    expect(db.$queryRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('"attempts" < "maxAttempts"'), 'worker-a', 5000);
     db.$queryRawUnsafe.mockResolvedValueOnce([]);
     await expect(repo.claim('worker-a')).resolves.toBeNull();
   });
-
-  it('rejects blank worker identifiers', async () => {
+  it('rejects blank workers and invalid lease durations', async () => {
     await expect(repo.claim('')).rejects.toThrow('Worker id is required');
+    await expect(repo.claim('worker', 0)).rejects.toThrow('leaseMs must be positive');
     expect(db.$queryRawUnsafe).not.toHaveBeenCalled();
   });
-
   it('only completes a job owned by the worker', async () => {
     await expect(repo.complete('j1', 'worker-a')).resolves.toBe(true);
-    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE "id" = $1'), 'j1', 'worker-a',
-    );
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('WHERE "id" = $1'), 'j1', 'worker-a');
     db.$executeRawUnsafe.mockResolvedValueOnce(0);
     await expect(repo.complete('j1', 'worker-b')).resolves.toBe(false);
   });
-
-  it('persists failure and retry timing for worker-owned jobs', async () => {
+  it('persists retry timing and only mutates worker-owned jobs', async () => {
     await expect(repo.fail('j1', 'worker-a', new Error('boom'), 2500)).resolves.toBe(true);
-    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
-      expect.stringContaining('CASE WHEN "attempts" >= "maxAttempts"'), 'j1', 'worker-a', 2500, 'boom',
-    );
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('CASE WHEN "attempts" >= "maxAttempts"'), 'j1', 'worker-a', 2500, 'boom');
     db.$executeRawUnsafe.mockResolvedValueOnce(0);
     await expect(repo.fail('j1', 'worker-b', 'error')).resolves.toBe(false);
   });
-
-  it('normalizes negative retry delay to zero', async () => {
+  it('normalizes negative and non-finite retry delay', async () => {
     await repo.fail('j2', 'worker-a', 'failed', -20);
-    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
-      expect.any(String), 'j2', 'worker-a', 0, 'failed',
-    );
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.any(String), 'j2', 'worker-a', 0, 'failed');
+    await repo.fail('j3', 'worker-a', 'failed', Number.NaN);
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.any(String), 'j3', 'worker-a', 1000, 'failed');
   });
 });
