@@ -118,9 +118,9 @@ class JobQueue {
     try {
       // Only persist pending jobs
       const pendingJobs = this.queue.filter(j => j.attempts < j.maxAttempts);
-      if (pendingJobs.length > 0) {
-        await cacheService.set(this.QUEUE_PERSISTENCE_KEY, pendingJobs.slice(0, 500), 86_400_000);
-      }
+      // Persist the empty state too: otherwise a previous snapshot can survive
+      // after all jobs finish and replay stale work after a restart.
+      await cacheService.set(this.QUEUE_PERSISTENCE_KEY, pendingJobs.slice(0, 500), 86_400_000);
     } catch {
       // Ignore persistence errors
     }
