@@ -806,34 +806,17 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
     <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] min-h-[100dvh] w-full snap-start items-center justify-center bg-[#050505] pt-0">
       <div className="flex h-full min-h-full w-full items-center justify-center">
         <div className="relative h-full w-full overflow-hidden bg-black md:max-w-[480px]">
-          {/* Full-bleed ambient backdrop so non-portrait uploads never letterbox
-              into a thin strip: the contained video keeps its true aspect ratio
-              (never stretched/cropped) over a blurred copy of the same frame.
-              Falls back to a muted clone of the video itself when no thumbnail
-              is available, so the fill still shows. */}
+          {/* Keep the ambient fill as a thumbnail only. A second video decoder
+              is unnecessary and can compete with the active Reel on Android. */}
           {reel.thumbnailUrl ? (
             <img
               src={resolveMediaUrl(reel.thumbnailUrl)}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
-            />
-          ) : active && nearby && !videoLoading && !videoFailed ? (
-            // Only the active, already-playing reel gets a video-clone backdrop.
-            // One extra decoder per card (20+ in the feed) starves Android
-            // WebView's hardware decoders.
-            <video
-              src={resolveMediaUrl(reel.videoUrl)}
-              muted
-              playsInline
-              loop
-              autoPlay={!paused && autoplayEnabled}
-              preload="metadata"
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full scale-110 object-cover blur-[28px]"
             />
           ) : null}
-          {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
+          {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 z-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
           {nearby && !videoFailed && (
             <video
               ref={node => { videos.current[reel.id] = node; }}
@@ -867,11 +850,11 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
               onWaiting={() => setVideoLoading(true)}
               onPlaying={() => setVideoLoading(false)}
               onTimeUpdate={event => { const video = event.currentTarget; setProgress(video.duration ? (video.currentTime / video.duration) * 100 : 0); }}
-              className="h-full w-full object-contain"
+              className="absolute inset-0 z-[1] h-full w-full object-contain"
               aria-label={`Reel by ${reel.author.username}`}
             />
           )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/35" />
+          <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-t from-black/90 via-transparent to-black/35" />
 
           {videoLoading && !videoFailed && <div className="pointer-events-none absolute inset-0 grid place-items-center"><Loader2 className="animate-spin text-white/70" size={28} /></div>}
           {videoFailed && <div className="absolute inset-0 z-20 grid place-items-center bg-black/75 px-8 text-center"><div><Clapperboard className="mx-auto text-white/40" /><h3 className="mt-4 font-semibold">Unable to load Reel</h3><p className="mt-1 max-w-xs text-xs leading-5 text-white/45">{videoError || 'The video could not be played.'}</p><button type="button" onClick={retry} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm"><RefreshCw size={15} />Retry</button></div></div>}
