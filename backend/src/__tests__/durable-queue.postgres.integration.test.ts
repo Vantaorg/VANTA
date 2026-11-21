@@ -63,13 +63,42 @@ describeWithDatabase('DurableQueueRepository PostgreSQL integration', () => {
     await expect(repository.complete('lease-job', 'worker-b')).resolves.toBe(true);
   });
 
-  it('moves a failed attempt to pending with persisted retry time, then marks exhausted jobs failed', async () => {
-    await repository.enqueue('integration:retry', {}, { id: 'retry-job', maxAttempts: 1 });
-    const claimed = await repository.claim('worker-a');
-    expect(claimed).not.toBeNull();
-    await expect(repository.fail('retry-job', 'worker-a', new Error('integration failure'), 0)).resolves.toBe(true);
-    const row = await pool.query('SELECT "status", "lastError", "workerId" FROM "QueueJob" WHERE "id" = $1', ['retry-job']);
-    expect(row.rows[0]).toMatchObject({ status: 'failed', lastError: 'integration failure', workerId: null });
+  it('persists retry scheduling and marks a job failed after its final attempt', async () => {
+    await repository.enqueue('integration:retry', {}, { id: 'retry-job', maxAttempts: 2 });
+    const firstClaim = await repository.claim('worker-a');
+    expect(firstClaim).toMatchObject({ id: 'retry-job', attempts: 1, status: 'active' });
+
+    await expect(repository.fail('retry-job', 'worker-a', new Error('first failure'), 60_000)).resolves.toBe(true);
+    const pending = await pool.query(
+      'SELECT "status", "lastError", "workerId", "runAt" FROM "QueueJob" WHERE "id" = $1',
+      ['retry-job'],
+    );
+    expect(pending.rows[0]).toMatchObject({
+      status: 'pending',
+      lastError: 'first failure',
+      workerId: null,
+    });
+    expect(new Date(pending.rows[0].runAt).getTime()).toBeGreaterThan(Date.now());
     await expect(repository.claim('worker-b')).resolves.toBeNull();
+
+    await pool.query(
+      'UPDATE "QueueJob" SET "runAt" = NOW() - INTERVAL \'1 second\' WHERE "id" = $1',
+      ['retry-job'],
+    );
+    const secondClaim = await repository.claim('worker-b');
+    expect(secondClaim).toMatchObject({ id: 'retry-job', attempts: 2, status: 'active' });
+
+    await expect(repository.fail('retry-job', 'worker-b', new Error('final failure'), 0)).resolves.toBe(true);
+    const failed = await pool.query(
+      'SELECT "status", "lastError", "workerId", "attempts" FROM "QueueJob" WHERE "id" = $1',
+      ['retry-job'],
+    );
+    expect(failed.rows[0]).toMatchObject({
+      status: 'failed',
+      lastError: 'final failure',
+      workerId: null,
+      attempts: 2,
+    });
+    await expect(repository.claim('worker-c')).resolves.toBeNull();
   });
 });
