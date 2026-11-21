@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { createSocket } from '@/lib/socketClient';
 import { useToast } from '@/components/ui/Toast';
+import { canDownloadPostVideo, downloadPostVideo } from '@/lib/postVideoDownload';
 import Avatar from '@/components/ui/Avatar';
 import StoryTray from '@/components/story/StoryTray';
 import VerificationBadge from '@/components/ui/VerificationBadge';
@@ -79,6 +80,8 @@ export default function HomePage() {
   const { token, user } = useAuth();
   const router = useRouter();
   const toast = useToast();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const downloadPost = async (target: Item) => { if (downloadingId) return; setDownloadingId(target.id); await downloadPostVideo(target, toast, p => { if (p === null) { setDownloadingId(null); setMoreFor(undefined); } }); };
   const { openPostModal, openStoryModal, openQuotePost } = useContentCreation();
   const [tab, setTab] = useState<FeedTab>('forYou');
   const [items, setItems] = useState<Item[]>([]);
@@ -286,7 +289,7 @@ export default function HomePage() {
       </main>
       </div>
     </PullToRefresh>
-    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {repostFor && <FeedPostRepostSheet close={() => setRepostFor(undefined)} repost={() => void repost(repostFor)} quote={() => quote(repostFor)}/>} {moreFor && <FeedPostMoreSheet item={moreFor} share={destination => void share(destination, moreFor)} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
+    <AnimatePresence>{giftFor && token && <GiftPickerBoundary onClose={() => setGiftFor(undefined)}><GiftPicker gifts={gifts} balance={balance} recipient={getAuthor(giftFor)} token={token} streamId={giftFor.type === 'live' ? cleanId(giftFor) : undefined} loading={giftLoading} loadError={giftError} onRetry={() => void loadGiftData()} onClose={() => setGiftFor(undefined)} onSent={(remaining, _amount, gift) => { setBalance(remaining); toast.success('Gift sent', `You sent ${gift.name} to ${getAuthor(giftFor).fullName || getAuthor(giftFor).username}`); }}/></GiftPickerBoundary>} {repostFor && <FeedPostRepostSheet close={() => setRepostFor(undefined)} repost={() => void repost(repostFor)} quote={() => quote(repostFor)}/>} {moreFor && <FeedPostMoreSheet item={moreFor} download={canDownloadPostVideo(moreFor) ? () => void downloadPost(moreFor) : undefined} downloading={downloadingId === moreFor.id} share={destination => void share(destination, moreFor)} isOwn={getAuthor(moreFor).id === user?.id} close={() => setMoreFor(undefined)} openProfile={() => { const creator = getAuthor(moreFor); setMoreFor(undefined); router.push(creator.username ? `/profile/${creator.username}` : '/profile'); }} save={() => { void optimistic(moreFor, 'save'); setMoreFor(undefined); }} remove={() => requestDelete(moreFor)} />}{deletePostFor && <DeleteConfirmDialog title={`Delete this ${isVideoItem(deletePostFor) ? 'Reel' : 'Post'}?`} description={`This cannot be undone. The ${isVideoItem(deletePostFor) ? 'Reel' : 'post'} will be removed from VANTA immediately.`} confirmLabel={`Delete ${isVideoItem(deletePostFor) ? 'Reel' : 'post'}`} busy={deletePostSending} onCancel={() => { if (!deletePostSending) setDeletePostFor(undefined); }} onConfirm={() => void confirmDeletePost()} />}</AnimatePresence>
   </div>;
 }
 
