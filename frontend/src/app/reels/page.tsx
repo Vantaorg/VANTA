@@ -776,6 +776,17 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
     <section ref={node => { sections.current[reel.id] = node; }} data-index={index} className="relative flex h-[100dvh] min-h-[100dvh] w-full snap-start items-center justify-center bg-[#050505] pt-0">
       <div className="flex h-full min-h-full w-full items-center justify-center">
         <div className="relative h-full w-full overflow-hidden bg-black">
+          {/* Full-bleed ambient backdrop so non-portrait uploads never letterbox
+              into a thin strip: the contained video keeps its true aspect ratio
+              (never stretched/cropped) over a blurred copy of the same frame. */}
+          {reel.thumbnailUrl && (
+            <img
+              src={resolveMediaUrl(reel.thumbnailUrl)}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
+            />
+          )}
           {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
           {nearby && !videoFailed && (
             <video

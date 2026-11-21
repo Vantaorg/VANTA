@@ -268,6 +268,17 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
     {/* Immersive stage — edge-to-edge on mobile, centred on desktop. The video
         keeps its intrinsic aspect ratio (object-contain, never stretched). */}
     <div className="relative mx-auto h-full w-full max-w-[520px] overflow-hidden bg-[var(--background)]">
+      {/* Full-bleed ambient backdrop so non-portrait uploads never letterbox
+          into a thin strip: the contained video keeps its true aspect ratio
+          (never stretched/cropped) over a blurred copy of the same frame. */}
+      {posterSrc && (
+        <img
+          src={posterSrc}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
+        />
+      )}
       {/* Poster frame beneath the video while it loads or when it fails. */}
       {posterSrc && (
         <img
