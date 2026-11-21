@@ -116,8 +116,12 @@ export default function StoryTray({
     <section
       aria-label="Stories and Status"
       className={cn(
-        'sticky top-0 z-30 border-b border-white/[0.07] bg-[var(--background)]/95 backdrop-blur-md transition-[padding] duration-300',
-        compact ? (statusCollapsed ? 'py-0.5' : 'py-1.5') : 'px-0 py-2',
+        // Keep the Home top strip fully opaque. On installed web apps, extend
+        // that same slate surface through the iOS safe-area/status-bar inset.
+        'sticky top-0 z-30 border-b border-white/[0.07] bg-[var(--header-surface)] transition-[padding] duration-300',
+        compact
+          ? (statusCollapsed ? 'pt-[env(safe-area-inset-top)] pb-0.5' : 'pt-[env(safe-area-inset-top)] pb-1.5')
+          : 'px-0 py-2',
         className
       )}
     >
