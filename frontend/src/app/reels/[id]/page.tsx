@@ -19,6 +19,7 @@ import { resolveMediaUrl } from '@/lib/mediaUrl';
 import { apiDelete, apiGet, apiPost } from '@/lib/apiClient';
 import { renderTextWithLinks } from '@/lib/linkify';
 import { cn } from '@/lib/utils';
+import { exportWatermarkedVideo, saveBlobToDevice, supportsWatermarkExport, watermarkFileName } from '@/lib/videoWatermark';
 
 type Creator = {
   id: string;
@@ -85,6 +86,9 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
   const [unavailable, setUnavailable] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [canExport, setCanExport] = useState(false);
+  useEffect(() => { setCanExport(supportsWatermarkExport()); }, []);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportPending, setReportPending] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -179,6 +183,21 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
     } catch (reason: any) {
       if (reason?.name !== 'AbortError') toast.error('Share failed', reason?.message);
     }
+  };
+
+  // Branded download: only this exported copy carries the watermark; the stored
+  // reel and the on-screen player are untouched.
+  const downloadBranded = async () => {
+    if (!reel || downloadProgress !== null) return;
+    setDownloadProgress(0);
+    toast.success('Preparing your VANTA video', 'Keep this page open until it finishes');
+    try {
+      const { blob, mime } = await exportWatermarkedVideo({ url: resolveMediaUrl(reel.videoUrl), handle: creator?.username || '', onProgress: setDownloadProgress });
+      await saveBlobToDevice(blob, watermarkFileName(creator?.username || '', reel.id, mime));
+      toast.success('Video saved');
+    } catch (reason: any) {
+      toast.error('Download failed', reason?.message === 'unsupported' ? 'This browser cannot export branded video' : reason?.message);
+    } finally { setDownloadProgress(null); }
   };
 
   const sendToChat = async (conversationId: string) => {
@@ -472,6 +491,8 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
           onCopy={() => void copyLink()}
           onNative={() => void shareNative()}
           onSave={() => { void toggleSave(); setShareOpen(false); }}
+          onDownload={canExport ? () => void downloadBranded() : undefined}
+          downloadProgress={downloadProgress}
           onReport={() => { setShareOpen(false); setReportOpen(true); }}
           onSend={sendToChat}
         />
