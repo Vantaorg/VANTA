@@ -37,11 +37,34 @@ describe('DurableQueueRepository', () => {
     await expect(repo.claim('worker', 0)).rejects.toThrow('leaseMs must be positive');
     expect(db.$queryRawUnsafe).not.toHaveBeenCalled();
   });
+  it('renews only an unexpired lease owned by the worker', async () => {
+    await expect(repo.renewLease('j1', 'worker-a', 30_000)).resolves.toBe(true);
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('"lockedUntil" > NOW()'),
+      'j1', 'worker-a', 30_000,
+    );
+    db.$executeRawUnsafe.mockResolvedValueOnce(0);
+    await expect(repo.renewLease('j1', 'worker-b', 30_000)).resolves.toBe(false);
+  });
+  it('rejects invalid lease renewal inputs', async () => {
+    await expect(repo.renewLease('', 'worker-a')).rejects.toThrow('Job id is required');
+    await expect(repo.renewLease('j1', '')).rejects.toThrow('Worker id is required');
+    await expect(repo.renewLease('j1', 'worker-a', 0)).rejects.toThrow('leaseMs must be positive');
+  });
   it('only completes a job owned by the worker', async () => {
     await expect(repo.complete('j1', 'worker-a')).resolves.toBe(true);
     expect(db.$executeRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('WHERE "id" = $1'), 'j1', 'worker-a');
     db.$executeRawUnsafe.mockResolvedValueOnce(0);
     await expect(repo.complete('j1', 'worker-b')).resolves.toBe(false);
+  });
+  it('terminally fails an owned job without scheduling another attempt', async () => {
+    await expect(repo.failPermanently('j1', 'worker-a', new Error('unsupported type'))).resolves.toBe(true);
+    expect(db.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining(`"status" = 'failed'`),
+      'j1', 'worker-a', 'unsupported type',
+    );
+    db.$executeRawUnsafe.mockResolvedValueOnce(0);
+    await expect(repo.failPermanently('j1', 'worker-b', 'stale owner')).resolves.toBe(false);
   });
   it('persists retry timing and only mutates worker-owned jobs', async () => {
     await expect(repo.fail('j1', 'worker-a', new Error('boom'), 2500)).resolves.toBe(true);
