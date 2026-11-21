@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useContentCreation } from './ContentCreationContext';
 import { GO_LIVE_ROUTE } from '@/lib/goLiveEntry';
 import {
-  Plus,
+  PenLine,
   ImagePlus,
   Clapperboard,
   Radio,
@@ -26,25 +26,21 @@ const creationOptions = [
     id: 'post',
     icon: ImagePlus,
     label: 'Create Post',
-    description: 'Share text, photos or a video',
   },
   {
     id: 'reel',
     icon: Clapperboard,
     label: 'Upload Reel',
-    description: 'Share a short vertical video',
   },
   {
     id: 'livestream',
     icon: Radio,
     label: 'Go Live',
-    description: 'Start a live broadcast',
   },
   {
     id: 'story',
     icon: Zap,
     label: 'Story',
-    description: 'Post a moment that lasts 24 hours',
   },
 ];
 
@@ -136,14 +132,13 @@ export default function CreateHub({ open, onClose }: CreateHubProps) {
             <div className="flex max-h-[min(560px,calc(var(--vanta-vh,100dvh)-1rem))] flex-col overflow-hidden rounded-t-[24px] border border-b-0 border-white/[0.08] bg-[#1F2630] pb-[env(safe-area-inset-bottom)] shadow-[0_-18px_55px_rgba(0,0,0,0.45)]">
               <div className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-white/20" />
 
-              <header className="flex shrink-0 items-center justify-between px-5 pb-4 pt-4">
+              <header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#d6a83f]/12 text-[#e6bd58]">
-                    <Plus size={21} strokeWidth={2.2} />
+                    <PenLine size={21} strokeWidth={2.2} />
                   </div>
                   <div className="min-w-0">
                     <h2 id="vanta-create-title" className="text-[17px] font-semibold tracking-tight text-white">Create</h2>
-                    <p className="mt-0.5 text-xs text-white/45">Choose how you want to share.</p>
                   </div>
                 </div>
                 <button
@@ -156,7 +151,7 @@ export default function CreateHub({ open, onClose }: CreateHubProps) {
                 </button>
               </header>
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-1">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
                 <div className="space-y-1.5">
                   {creationOptions.map((option, i) => {
                     const Icon = option.icon;
@@ -170,7 +165,7 @@ export default function CreateHub({ open, onClose }: CreateHubProps) {
                         animate="visible"
                         onClick={() => handleSelect(option)}
                         className={cn(
-                          'group flex min-h-[68px] w-full items-center gap-3.5 rounded-2xl px-3.5 py-3 text-left transition-colors',
+                          'group flex min-h-[60px] w-full items-center gap-3.5 rounded-2xl px-3.5 py-3 text-left transition-colors',
                           'border border-transparent bg-[#171f29]/75 hover:border-white/[0.07] hover:bg-[#263240] active:bg-[#2b3948]',
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#d6a83f]/70',
                         )}
@@ -180,7 +175,6 @@ export default function CreateHub({ open, onClose }: CreateHubProps) {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-white">{option.label}</span>
-                          <span className="mt-1 block text-xs leading-4 text-white/45">{option.description}</span>
                         </span>
                         <ChevronRight size={17} className="shrink-0 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-white/55" />
                       </motion.button>
