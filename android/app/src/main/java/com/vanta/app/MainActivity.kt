@@ -100,20 +100,28 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(31, 38, 48))
             addView(webView)
             setOnApplyWindowInsetsListener { view, insets ->
-                val bars = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    insets.getInsets(WindowInsets.Type.systemBars())
+                val left: Int
+                val top: Int
+                val right: Int
+                val bottom: Int
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                    left = bars.left
+                    top = bars.top
+                    right = bars.right
+                    bottom = bars.bottom
                 } else {
                     @Suppress("DEPRECATION")
-                    android.graphics.Insets.of(
-                        insets.systemWindowInsetLeft,
-                        insets.systemWindowInsetTop,
-                        insets.systemWindowInsetRight,
-                        insets.systemWindowInsetBottom
-                    )
+                    run {
+                        left = insets.systemWindowInsetLeft
+                        top = insets.systemWindowInsetTop
+                        right = insets.systemWindowInsetRight
+                        bottom = insets.systemWindowInsetBottom
+                    }
                 }
                 // FrameLayout lays its MATCH_PARENT WebView inside this
                 // padding, leaving the system navigation region native-owned.
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                view.setPadding(left, top, right, bottom)
                 insets
             }
         }
