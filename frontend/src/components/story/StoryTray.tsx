@@ -120,7 +120,7 @@ export default function StoryTray({
         // that same slate surface through the iOS safe-area/status-bar inset.
         'sticky top-0 z-30 border-b border-white/[0.07] bg-[var(--header-surface)] transition-[padding] duration-300',
         compact
-          ? cn('pb-0.5', statusCollapsed ? 'pt-[env(safe-area-inset-top)]' : 'pt-[env(safe-area-inset-top)] pb-1.5')
+          ? (statusCollapsed ? 'pt-[env(safe-area-inset-top)] pb-0.5' : 'pt-[env(safe-area-inset-top)] pb-1.5')
           : 'px-0 py-2',
         className
       )}
