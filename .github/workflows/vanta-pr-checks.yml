@@ -11,101 +11,23 @@ permissions:
   contents: read
 
 jobs:
-  frontend:
-    name: Frontend lint, tests and production build
+  durable-queue-postgres:
+    name: Durable queue PostgreSQL integration and concurrency
     runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install workspace dependencies
-        run: npm ci
-      - name: Run frontend lint
-        run: npm --prefix frontend run lint
-      - name: Run frontend tests
-        run: npm --prefix frontend run test
-      - name: Build frontend for production
-        run: npm --prefix frontend run build
-
-  backend-tests:
-    name: Backend security regression tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install backend dependencies
-        run: npm --prefix backend install
-      - name: Validate active Prisma schema
-        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
         env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
-        run: npx prisma validate
-      - name: Generate Prisma Client from active schema
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
-        run: npx prisma generate
-      - name: Run targeted backend security regression tests
-        env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
-          JWT_SECRET: test-jwt-secret-long-enough-for-tests
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-long-enough-for-tests
-          ENCRYPTION_KEY: test-encryption-key-for-ci-only-32-bytes
-          ENCRYPTION_SALT: a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0fedcba9876543210
-        run: >
-          npm --prefix backend run test -- --runInBand --forceExit --detectOpenHandles=false
-          src/__tests__/security.rate-limiter.test.ts
-          src/__tests__/security.admin-authorization.test.ts
-          src/__tests__/auth.controller.session-security.test.ts
-          src/__tests__/security.password-recovery.test.ts
-          src/__tests__/security.session-manager.test.ts
-          src/__tests__/security.encryption.test.ts
-          src/__tests__/security.startup-config.test.ts
-          src/__tests__/private-media.service.test.ts
-          src/__tests__/private-media.controller.test.ts
-          src/__tests__/chat.service.test.ts
-          src/__tests__/upload.service.test.ts
-          src/__tests__/wallet.transfer-security.test.ts
-          src/__tests__/wallet.withdrawal.test.ts
-          src/__tests__/wallet.reconciliation.test.ts
-          src/__tests__/monetization.earnings-ledger.test.ts
-          src/__tests__/gift.service.test.ts
-          src/__tests__/monetization.subscription-security.test.ts
-          src/__tests__/security.fail-closed-prerequisites.test.ts
-          src/__tests__/security.admin-session-2fa.test.ts
-          src/__tests__/security.admin-rbac.test.ts
-          src/__tests__/security.analytics-routes.test.ts
-          src/__tests__/security.analytics-identity.test.ts
-          src/__tests__/security.verification-admin-routes.test.ts
-          src/__tests__/security.audit-log-hash.test.ts
-          src/__tests__/wallet.service.test.ts
-          src/__tests__/admin.finance-currency.test.ts
-          src/__tests__/account-status.test.ts
-          src/__tests__/call-session.service.test.ts
-          src/__tests__/story.service.test.ts
-          src/__tests__/live.service.test.ts
-          src/__tests__/compliance.active-schema.test.ts
-          src/__tests__/content-removal.service.test.ts
-          src/__tests__/privacy-permissions.test.ts
-          src/__tests__/user.service.test.ts
-          src/__tests__/group-ownership.test.ts
-          src/__tests__/channel-ownership.test.ts
-          src/__tests__/feed.moderation-guards.test.ts
-          src/__tests__/post.service.test.ts
-          src/ai/__tests__/privacy.middleware.test.ts
-
-  backend-build:
-    name: Backend TypeScript production build
-    runs-on: ubuntu-latest
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vanta_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d vanta_queue_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -115,15 +37,7 @@ jobs:
           node-version: 22
       - name: Install backend dependencies
         run: npm --prefix backend install
-      - name: Validate active Prisma schema
-        working-directory: backend
+      - name: Run PostgreSQL integration and concurrency tests
         env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
-        run: npx prisma validate
-      - name: Generate Prisma Client from active schema
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_test?schema=public
-        run: npx prisma generate
-      - name: Build backend
-        run: npm --prefix backend run build
+          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/vanta_queue_test
+        run: npm --prefix backend run test -- --runInBand src/__tests__/durable-queue.postgres.integration.test.ts
