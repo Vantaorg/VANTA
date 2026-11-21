@@ -49,7 +49,6 @@ import { cn, formatNumber } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
-import VantaLogo from '@/components/ui/VantaLogo';
 import type { VerificationType } from '@/types/verification';
 import GiftPicker from '@/components/social/GiftPicker';
 import GiftPickerBoundary from '@/components/social/GiftPickerBoundary';
@@ -270,7 +269,6 @@ export default function LiveViewerPage() {
   const guestStatusRef = useRef(guestStatus);
   const loadStreamRef = useRef<() => Promise<void>>(async () => undefined);
 
-  const QUICK_REACTIONS = ['❤️', '💜', '🔥', '💙'];
   const EMOJI_PALETTE = ['❤️', '💜', '🔥', '💙', '😂', '😍', '🎉', '👍', '🙌', '👏', '😭', '🥳', '✨', '💎', '🚀'];
 
   useEffect(() => { streamIdRef.current = streamId; }, [streamId]);
@@ -330,6 +328,26 @@ export default function LiveViewerPage() {
     burstReaction(emoji);
     socketRef.current?.emit('reaction', { streamId: streamIdRef.current, emoji });
   }, [burstReaction]);
+
+  // TikTok-style double-tap like: a second tap within 300ms on the stage sends
+  // the existing heart reaction (optimistic local burst + socket emit) and
+  // spawns a heart at the tap point.
+  const lastStageTapRef = useRef(0);
+  const [tapHearts, setTapHearts] = useState<{ id: string; x: number; y: number; rot: number }[]>([]);
+  const handleStageTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const now = Date.now();
+    if (now - lastStageTapRef.current > 300) {
+      lastStageTapRef.current = now;
+      return;
+    }
+    lastStageTapRef.current = 0;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const id = `${now}-${Math.random().toString(36).slice(2, 7)}`;
+    const rot = Math.round((Math.random() - 0.5) * 36);
+    setTapHearts((prev) => [...prev.slice(-7), { id, x: e.clientX - rect.left, y: e.clientY - rect.top, rot }]);
+    window.setTimeout(() => setTapHearts((prev) => prev.filter((h) => h.id !== id)), 900);
+    sendReaction('❤️');
+  }, [sendReaction]);
 
   const noticeJoin = useCallback((username: string, joined: boolean) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -953,7 +971,7 @@ const sendComment = useCallback(() => {
   return (
     <main data-dark-surface className="fixed inset-0 z-40 overflow-hidden bg-black text-white">
       {/* The live video is the primary interface — full screen. */}
-      <div className="absolute inset-0 z-[2]">
+      <div className="absolute inset-0 z-[2]" onClick={handleStageTap}>
         {stageActive ? (
           <LiveParticipantGrid participants={stageTiles} />
         ) : remoteVideo ? (
@@ -1009,6 +1027,25 @@ const sendComment = useCallback(() => {
         </AnimatePresence>
       </div>
 
+      {/* Double-tap hearts at the tap point */}
+      <div className="pointer-events-none absolute inset-0 z-[71] overflow-hidden" aria-hidden>
+        <AnimatePresence>
+          {tapHearts.map((h) => (
+            <motion.span
+              key={h.id}
+              initial={{ opacity: 0, scale: 0.3, rotate: h.rot }}
+              animate={{ opacity: [0, 1, 1, 0], scale: [0.3, 1.3, 1.1, 1.5], y: -70, rotate: h.rot }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.85, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+              className="absolute -ml-9 -mt-9 text-[72px] leading-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.5)]"
+              style={{ left: h.x, top: h.y }}
+            >
+              ❤️
+            </motion.span>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* Gift animations from any viewer */}
       <GiftAnimationOverlay events={giftAnimations} />
 
@@ -1025,21 +1062,6 @@ const sendComment = useCallback(() => {
             <X size={18} strokeWidth={2.6} />
           </button>
 
-          <button
-            type="button"
-            onClick={() => router.replace('/live')}
-            aria-label="Back to VANTA Live"
-            className="live-chip h-10 shrink-0 items-center gap-2 pl-1.5 pr-3 text-left transition hover:bg-black/60"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/10 bg-[#0B0B0D]">
-              <VantaLogo size={16} variant="black" />
-            </span>
-            <span className="flex min-w-0 items-baseline gap-1.5">
-              <span className="text-[13px] font-extrabold tracking-[0.14em] text-white">VANTA <span className="text-[#F2C75C]">Live</span></span>
-              {stream.host.verified && stream.host.verificationType && <VerificationBadge type={stream.host.verificationType} size="xs" />}
-            </span>
-          </button>
-
           <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
             {isConnecting && (
               <span role="status" className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-300 backdrop-blur-md">
@@ -1052,7 +1074,6 @@ const sendComment = useCallback(() => {
               </span>
               <span className="text-[#F87171]">LIVE</span>
               <span className="text-white/70">{streamClock || '0:00'}</span>
-              {stream.categoryName && <span className="hidden max-w-[88px] truncate text-white/50 sm:inline">{stream.categoryName}</span>}
             </span>
             <button
               type="button"
@@ -1096,22 +1117,14 @@ const sendComment = useCallback(() => {
         className="live-glass-strong absolute left-2.5 top-[calc(env(safe-area-inset-top)+60px)] z-20 flex max-w-[46vw] items-center gap-2 rounded-full p-1.5 pr-3 text-left transition hover:bg-black/70 active:scale-95"
       >
         <span className="relative shrink-0">
-          <Avatar src={stream.host.avatar} alt={stream.host.username} size="sm" className="ring-2 ring-[#F2C75C]/70" />
-          <span className="absolute -bottom-0.5 -right-0.5">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-live-dot absolute inline-flex h-full w-full rounded-full bg-[#F2C75C]/70" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#F2C75C]" />
-            </span>
-          </span>
+          <Avatar src={stream.host.avatar} alt={stream.host.username} size="sm" />
         </span>
         <span className="min-w-0">
           <span className="flex items-center gap-1.5">
             <span className="max-w-[9rem] truncate text-[13px] font-extrabold text-white">@{stream.host.username}</span>
+            {stream.host.verified && stream.host.verificationType && <VerificationBadge type={stream.host.verificationType} size="xs" />}
           </span>
-          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#F2C75C]">
-            Host
-            {stream.categoryName && <span className="font-medium normal-case tracking-normal text-white/50">&middot; {stream.categoryName}</span>}
-          </span>
+          <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-[#F2C75C]">Host</span>
         </span>
       </button>
 {/* Pinned message (compact overlay above the live chat) */}
@@ -1134,15 +1147,6 @@ const sendComment = useCallback(() => {
       {/* Floating live chat feed — real messages with an enter/stay/fade lifecycle */}
       <LiveChatFeed messages={messages} hostId={stream.host.id} />
 
-      {/* Bottom-left: quick reactions */}
-      <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+var(--vanta-kb,0px)+72px)] left-3 z-20 flex items-center gap-1.5">
-        {QUICK_REACTIONS.map((emoji) => (
-          <button key={emoji} type="button" onClick={() => sendReaction(emoji)} aria-label={`React ${emoji}`} className="live-orb grid h-9 w-9 place-items-center text-lg">
-            {emoji}
-          </button>
-        ))}
-      </div>
-
       {/* Bottom-right: floating glass action cluster */}
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+var(--vanta-kb,0px)+72px)] right-3 z-20 flex flex-col items-center gap-2.5">
         <RailButton onPress={() => sendReaction('❤️')} label="Like">
@@ -1156,9 +1160,6 @@ const sendComment = useCallback(() => {
         </RailButton>
         <RailButton onPress={() => void shareLive()} label="Share">
           <Share2 size={20} />
-        </RailButton>
-        <RailButton onPress={() => setSheet('more')} label="More">
-          <Ellipsis size={20} />
         </RailButton>
       </div>
 
@@ -1204,7 +1205,7 @@ const sendComment = useCallback(() => {
             aria-label="Send a message to the live chat"
             className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/40"
           />
-          {comment.trim() ? (
+          {comment.trim() && (
             <button
               type="button"
               onClick={sendComment}
@@ -1213,15 +1214,6 @@ const sendComment = useCallback(() => {
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#F2C75C] to-[#C9A227] text-black shadow-[0_4px_18px_rgba(201,162,39,0.35)] transition active:scale-95 disabled:opacity-40"
             >
               <Send size={17} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => sendReaction('❤️')}
-              aria-label="Send love"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#F87171] transition hover:bg-white/10 active:scale-95"
-            >
-              <Heart size={20} fill="currentColor" />
             </button>
           )}
         </div>

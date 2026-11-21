@@ -52,8 +52,11 @@ class MainActivity : Activity() {
     private var acceptedFileTypes: Array<String> = emptyArray()
     private var pendingGeolocationCallback: android.webkit.GeolocationPermissions.Callback? = null
     private var pendingGeolocationOrigin: String? = null
-    private var pendingWebPermissionRequest: android.webkit.PermissionRequest? = null
-    private var pendingWebPermissionNames: Set<String> = emptySet()
+    // Overlapping getUserMedia calls (camera and mic) arrive as separate
+    // PermissionRequests. They are queued and resolved together; none is denied
+    // just because another arrived while the Android prompt was showing.
+    private val pendingWebPermissions = mutableListOf<android.webkit.PermissionRequest>()
+    private var webPermissionsAsked: Set<String> = emptySet()
 
     companion object {
         // Both APK variants use the same production origin from defaultConfig.
@@ -234,9 +237,7 @@ class MainActivity : Activity() {
                     pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
                     pendingGeolocationCallback = null
                     pendingGeolocationOrigin = null
-                    pendingWebPermissionRequest?.deny()
-                    pendingWebPermissionRequest = null
-                    pendingWebPermissionNames = emptySet()
+                    denyAllPendingWebPermissions()
 
                     view.stopLoading()
                     view.webChromeClient = null
@@ -290,37 +291,14 @@ class MainActivity : Activity() {
                         return
                     }
 
-                    val androidPermissions = mutableListOf<String>()
-                    if (wantsVideo && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        androidPermissions.add(Manifest.permission.CAMERA)
-                    }
-                    if (wantsAudio && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        androidPermissions.add(Manifest.permission.RECORD_AUDIO)
-                    }
-
-                    if (androidPermissions.isEmpty()) {
-                        runOnUiThread {
-                            if (isTrustedPage(webView.url) && isTrustedPage(request.origin.toString())) {
-                                request.grant(requested.toTypedArray())
-                            } else {
-                                request.deny()
-                            }
-                        }
-                    } else {
-                        runOnUiThread {
-                            pendingWebPermissionRequest?.deny()
-                            pendingWebPermissionRequest = request
-                            pendingWebPermissionNames = requested
-                            requestPermissions(androidPermissions.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
-                        }
+                    runOnUiThread {
+                        pendingWebPermissions.add(request)
+                        processPendingWebPermissions()
                     }
                 }
 
                 override fun onPermissionRequestCanceled(request: android.webkit.PermissionRequest) {
-                    if (pendingWebPermissionRequest === request) {
-                        pendingWebPermissionRequest = null
-                        pendingWebPermissionNames = emptySet()
-                    }
+                    runOnUiThread { pendingWebPermissions.remove(request) }
                 }
 
                 override fun onShowFileChooser(
@@ -384,33 +362,76 @@ class MainActivity : Activity() {
                 pendingGeolocationOrigin = null
             }
             WEB_MEDIA_PERMISSION_REQUEST -> {
-                val request = pendingWebPermissionRequest
-                val requestedResources = pendingWebPermissionNames
-                pendingWebPermissionRequest = null
-                pendingWebPermissionNames = emptySet()
-
-                if (request == null || !isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
-                    request?.deny()
-                    return
+                val asked = webPermissionsAsked
+                webPermissionsAsked = emptySet()
+                // Resolve every queued request whose needed permissions were part
+                // of the prompt just answered; later arrivals needing a permission
+                // that was not asked yet stay queued and trigger a new prompt.
+                val iterator = pendingWebPermissions.iterator()
+                while (iterator.hasNext()) {
+                    val request = iterator.next()
+                    val needed = androidPermissionsFor(request)
+                    if (needed.all { it in asked || hasPermission(it) }) {
+                        iterator.remove()
+                        resolveWebPermission(request)
+                    }
                 }
-
-                // Grant only the capture resources whose matching Android runtime
-                // permission is actually granted. A denied camera must not prevent
-                // an otherwise-authorized microphone-only request (and vice versa).
-                val allowedResources = mutableListOf<String>()
-                if (requestedResources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE) &&
-                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                    allowedResources.add(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
-                }
-                if (requestedResources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE) &&
-                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    allowedResources.add(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
-                }
-
-                if (allowedResources.isNotEmpty()) request.grant(allowedResources.toTypedArray())
-                else request.deny()
+                processPendingWebPermissions()
             }
         }
+    }
+
+    private fun hasPermission(permission: String) =
+        checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun androidPermissionsFor(request: android.webkit.PermissionRequest): Set<String> {
+        val out = mutableSetOf<String>()
+        if (request.resources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)) out.add(Manifest.permission.CAMERA)
+        if (request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)) out.add(Manifest.permission.RECORD_AUDIO)
+        return out
+    }
+
+    /** Grants only the capture resources whose Android runtime permission is granted; trusted origin only. */
+    private fun resolveWebPermission(request: android.webkit.PermissionRequest) {
+        if (!isTrustedPage(webView.url) || !isTrustedPage(request.origin.toString())) {
+            request.deny()
+            return
+        }
+        val allowed = mutableListOf<String>()
+        if (request.resources.contains(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE) && hasPermission(Manifest.permission.CAMERA)) {
+            allowed.add(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+        }
+        if (request.resources.contains(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE) && hasPermission(Manifest.permission.RECORD_AUDIO)) {
+            allowed.add(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+        }
+        if (allowed.isNotEmpty()) request.grant(allowed.toTypedArray()) else request.deny()
+    }
+
+    private fun processPendingWebPermissions() {
+        // Requests that already have everything they need resolve immediately.
+        val iterator = pendingWebPermissions.iterator()
+        while (iterator.hasNext()) {
+            val request = iterator.next()
+            if (androidPermissionsFor(request).all(::hasPermission)) {
+                iterator.remove()
+                resolveWebPermission(request)
+            }
+        }
+        // Only one Android prompt at a time; the result handler re-runs this.
+        if (webPermissionsAsked.isNotEmpty() || pendingWebPermissions.isEmpty()) return
+        val missing = pendingWebPermissions
+            .flatMap { androidPermissionsFor(it) }
+            .filterNot(::hasPermission)
+            .toSet()
+        if (missing.isEmpty()) return
+        webPermissionsAsked = missing
+        requestPermissions(missing.toTypedArray(), WEB_MEDIA_PERMISSION_REQUEST)
+    }
+
+    private fun denyAllPendingWebPermissions() {
+        pendingWebPermissions.toList().forEach { it.deny() }
+        pendingWebPermissions.clear()
+        webPermissionsAsked = emptySet()
     }
 
     private fun applySystemBottomInset() {
@@ -792,9 +813,7 @@ class MainActivity : Activity() {
         pendingFileCallback = null
         pendingGeolocationCallback?.invoke(pendingGeolocationOrigin, false, false)
         pendingGeolocationCallback = null
-        pendingWebPermissionRequest?.deny()
-        pendingWebPermissionRequest = null
-        pendingWebPermissionNames = emptySet()
+        denyAllPendingWebPermissions()
         if (isFinishing) {
             pendingCameraUri?.let { runCatching { contentResolver.delete(it, null, null) } }
             pendingCameraUri = null
