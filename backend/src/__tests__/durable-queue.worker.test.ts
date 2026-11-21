@@ -16,6 +16,7 @@ describe('DurableQueueWorker', () => {
     renewLease: jest.fn<Promise<boolean>, [string, string, number]>().mockResolvedValue(true),
     complete: jest.fn<Promise<boolean>, [string, string]>().mockResolvedValue(true),
     fail: jest.fn<Promise<boolean>, [string, string, unknown, number]>().mockResolvedValue(true),
+    failPermanently: jest.fn<Promise<boolean>, [string, string, unknown]>().mockResolvedValue(true),
   });
 
   it('processes and completes a claimed job, then stops polling', async () => {
@@ -57,9 +58,9 @@ describe('DurableQueueWorker', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
     await worker.stop();
 
-    expect(repository.fail).toHaveBeenCalledWith('job-1', 'worker-test', expect.objectContaining({
+    expect(repository.failPermanently).toHaveBeenCalledWith('job-1', 'worker-test', expect.objectContaining({
       message: 'No durable handler registered for job type: test:run',
-    }), 0);
+    }));
     expect(repository.complete).not.toHaveBeenCalled();
   });
 
