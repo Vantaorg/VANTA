@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import type { QuoteRef } from '@/lib/quotePost';
 
 type CreationFlow = 'post' | 'story' | 'live' | 'reel' | null;
 
@@ -22,7 +23,9 @@ interface ContentCreationState {
   closeCreateHub: () => void;
   /** Text pre-filled into the post composer (used by Quote). */
   postPrefill: string;
-  openQuotePost: (prefill: string) => void;
+  /** Post being quoted in the composer (shown as a card, URL appended on publish). */
+  quoteTarget: QuoteRef | null;
+  openQuotePost: (prefill: string | QuoteRef) => void;
   openPostModal: () => void;
   openStoryModal: () => void;
   openGoLiveModal: () => void;
@@ -36,6 +39,7 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
   const [activeFlow, setActiveFlow] = useState<CreationFlow>(null);
   const [createHubOpen, setCreateHubOpen] = useState(false);
   const [postPrefill, setPostPrefill] = useState('');
+  const [quoteTarget, setQuoteTarget] = useState<QuoteRef | null>(null);
   const [liveDraft, setLiveDraftState] = useState<LiveDraft | null>(null);
 
   const setLiveDraft = useCallback((draft: LiveDraft) => setLiveDraftState(draft), []);
@@ -46,11 +50,13 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
 
   const openPostModal = useCallback(() => {
     setPostPrefill('');
+    setQuoteTarget(null);
     setActiveFlow('post');
   }, []);
 
-  const openQuotePost = useCallback((prefill: string) => {
-    setPostPrefill(prefill);
+  const openQuotePost = useCallback((prefill: string | QuoteRef) => {
+    if (typeof prefill === 'string') { setPostPrefill(prefill); setQuoteTarget(null); }
+    else { setPostPrefill(''); setQuoteTarget(prefill); }
     setActiveFlow('post');
   }, []);
 
@@ -69,6 +75,7 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
   const closeAll = useCallback(() => {
     setActiveFlow(null);
     setCreateHubOpen(false);
+    setQuoteTarget(null);
   }, []);
 
   return (
@@ -82,6 +89,7 @@ export function ContentCreationProvider({ children }: { children: ReactNode }) {
         openCreateHub,
         closeCreateHub,
         postPrefill,
+        quoteTarget,
         openQuotePost,
         openPostModal,
         openStoryModal,

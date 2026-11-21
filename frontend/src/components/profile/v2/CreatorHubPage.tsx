@@ -275,7 +275,7 @@ export default function CreatorHubPage({ username }: { username?: string }) {
     catch (reason: any) { toast.error('Repost failed', reason?.message); }
     finally { setRepostFor(undefined); }
   };
-  const quotePost = (target: ProfileItem) => { setRepostFor(undefined); openQuotePost(`\n\n${location.origin}/post/${cleanPostId(target)}`); };
+  const quotePost = (target: ProfileItem) => { setRepostFor(undefined); openQuotePost({ kind: 'post', id: cleanPostId(target), url: `${location.origin}/post/${cleanPostId(target)}`, path: `/post/${cleanPostId(target)}` }); };
 
   if (authLoading || loading) return <ProfileSkeleton />;
   if (error || !profile) return <ProfileFailure kind={error || 'error'} retry={() => void loadProfile()} />;
