@@ -788,18 +788,21 @@ function ReelCard({ reel, isOwn, index, active, nearby, muted, paused, videos, s
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
             />
-          ) : (
+          ) : active && nearby && !videoLoading && !videoFailed ? (
+            // Only the active, already-playing reel gets a video-clone backdrop.
+            // One extra decoder per card (20+ in the feed) starves Android
+            // WebView's hardware decoders.
             <video
               src={resolveMediaUrl(reel.videoUrl)}
               muted
               playsInline
               loop
-              autoPlay={active && !paused && autoplayEnabled}
+              autoPlay={!paused && autoplayEnabled}
               preload="metadata"
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-[28px]"
             />
-          )}
+          ) : null}
           {reel.thumbnailUrl && <img src={resolveMediaUrl(reel.thumbnailUrl)} alt="" className={cn('absolute inset-0 h-full w-full object-contain transition-opacity duration-300', !videoLoading && !videoFailed && 'opacity-0')} />}
           {nearby && !videoFailed && (
             <video
