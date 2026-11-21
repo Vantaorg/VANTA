@@ -227,7 +227,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const handleScroll = (event: Event) => {
       // Reels is a full-screen, swipe-driven feed: keep the primary VANTA
       // navigation visible while users move between videos.
-      if (isReelsPage) {
+      if (pathname?.startsWith('/reels')) {
         setBottomNavHidden(false);
         return;
       }
@@ -268,7 +268,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('scroll', handleScroll, true);
     return () => document.removeEventListener('scroll', handleScroll, true);
-  }, [isReelsPage]);
+  }, [pathname]);
 
   useEffect(() => {
     setBottomNavHidden(false);
