@@ -12,7 +12,7 @@ import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
 import CommentPanel from '@/components/social/CommentPanel';
 import FeedPostMoreSheet from '@/components/social/FeedPostMoreSheet';
-import FeedPostShareSheet from '@/components/social/FeedPostShareSheet';
+import ReelShareSheet from '@/components/social/ReelShareSheet';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
@@ -44,6 +44,7 @@ type Reel = {
   savesCount?: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  isReposted?: boolean;
   creator?: Creator;
   author?: Creator;
 };
@@ -161,18 +162,38 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
     catch { setReel(before); }
   };
 
-  const share = async (destination: string) => {
+  const reelUrl = () => `${window.location.origin}/reels/${encodeURIComponent(reel?.id || id)}`;
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(reelUrl()); toast.success('Link copied'); setShareOpen(false); }
+    catch (reason: any) { toast.error('Copy failed', reason?.message); }
+  };
+
+  const shareNative = async () => {
     if (!reel) return;
-    const url = `${window.location.origin}/reels/${encodeURIComponent(reel.id)}`;
+    const url = reelUrl();
     try {
-      if (destination === 'COPY_LINK') await navigator.clipboard.writeText(url);
-      else if (destination === 'NATIVE' && navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', url });
-      else if (destination === 'MESSAGE') router.push(`/chat?share=${encodeURIComponent(url)}`);
-      toast.success('Shared successfully');
+      if (navigator.share) await navigator.share({ title: reel.title || 'VANTA Reel', url });
+      else { await navigator.clipboard.writeText(url); toast.success('Link copied'); }
       setShareOpen(false);
     } catch (reason: any) {
-      toast.error('Share failed', reason?.message);
+      if (reason?.name !== 'AbortError') toast.error('Share failed', reason?.message);
     }
+  };
+
+  const sendToChat = async (conversationId: string) => {
+    try { await apiPost('/api/messages/send', { conversationId, content: reelUrl(), type: 'TEXT' }, token || undefined); }
+    catch (reason: any) { toast.error('Could not send', reason?.message); throw reason; }
+  };
+
+  const repost = async () => {
+    if (!token || !reel) return;
+    try {
+      const result = await apiPost<{ reposted: boolean }>(`/api/reels/${reel.id}/repost`, {}, token);
+      setReel(current => current ? { ...current, isReposted: result.reposted } : current);
+      toast.success(result.reposted ? 'Reel reposted' : 'Repost removed');
+      setShareOpen(false);
+    } catch (reason: any) { toast.error('Repost failed', reason?.message); }
   };
 
   const report = async (category: string) => {
@@ -440,7 +461,20 @@ export default function ReelDetailPage({ params }: { params: Promise<{ id: strin
         />
       )}
       {shareOpen && (
-        <FeedPostShareSheet title="Share reel" close={() => setShareOpen(false)} share={destination => void share(destination)} />
+        <ReelShareSheet
+          token={token}
+          url={`${typeof window !== 'undefined' ? window.location.origin : ''}/reels/${encodeURIComponent(reel.id)}`}
+          title={reel.title || 'VANTA Reel'}
+          reposted={Boolean(reel.isReposted)}
+          saved={savedState}
+          close={() => setShareOpen(false)}
+          onRepost={() => void repost()}
+          onCopy={() => void copyLink()}
+          onNative={() => void shareNative()}
+          onSave={() => { void toggleSave(); setShareOpen(false); }}
+          onReport={() => { setShareOpen(false); setReportOpen(true); }}
+          onSend={sendToChat}
+        />
       )}
       {reportOpen && (
         <ReportReelSheet
