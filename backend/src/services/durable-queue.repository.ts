@@ -19,7 +19,7 @@ export class DurableQueueRepository {
     const maxAttempts = options.maxAttempts ?? 3;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) throw new Error('maxAttempts must be a positive integer');
     const priority = options.priority ?? 0;
-    if (!Number.isFinite(priority)) throw new Error('priority must be finite');
+    if (!Number.isInteger(priority)) throw new Error('priority must be an integer');
     const runAt = options.runAt ?? new Date();
     if (!(runAt instanceof Date) || Number.isNaN(runAt.getTime())) throw new Error('runAt must be a valid date');
     const id = options.id ?? `job-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
