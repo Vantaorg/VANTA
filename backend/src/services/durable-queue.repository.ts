@@ -59,6 +59,19 @@ export class DurableQueueRepository {
     return rows[0] ?? null;
   }
 
+  /** Extend an active lease only while this worker still owns an unexpired lease. */
+  async renewLease(jobId: string, workerId: string, leaseMs = 60_000): Promise<boolean> {
+    if (!jobId.trim()) throw new Error('Job id is required');
+    if (!workerId.trim()) throw new Error('Worker id is required');
+    if (!Number.isFinite(leaseMs) || leaseMs <= 0) throw new Error('leaseMs must be positive');
+    const count = await this.db.$executeRawUnsafe(
+      `UPDATE "QueueJob" SET "lockedUntil" = NOW() + ($3 * INTERVAL '1 millisecond'), "updatedAt" = NOW()
+       WHERE "id" = $1 AND "status" = 'active' AND "workerId" = $2 AND "lockedUntil" > NOW()`,
+      jobId, workerId, leaseMs,
+    );
+    return count === 1;
+  }
+
   async complete(jobId: string, workerId: string): Promise<boolean> {
     const count = await this.db.$executeRawUnsafe(
       `UPDATE "QueueJob" SET "status" = 'completed', "completedAt" = NOW(),
