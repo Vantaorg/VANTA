@@ -10,8 +10,6 @@ import {
   Bookmark,
   Check,
   Clapperboard,
-  Copy,
-  ExternalLink,
   Flag,
   Gift,
   Heart,
@@ -39,6 +37,7 @@ import { useContentCreation } from '@/components/create/ContentCreationContext';
 import Avatar from '@/components/ui/Avatar';
 import VerificationBadge from '@/components/ui/VerificationBadge';
 import type { VerificationType } from '@/types/verification';
+import ReelShareSheet from '@/components/social/ReelShareSheet';
 import GiftPicker, { GiftCatalogItem } from '@/components/social/GiftPicker';
 import GiftPickerBoundary from '@/components/social/GiftPickerBoundary';
 import { normalizeGiftCatalog } from '@/lib/giftCatalog';
@@ -592,6 +591,12 @@ export default function ReelsPage() {
     }
   };
 
+  const sendToChat = async (conversationId: string) => {
+    if (!shareFor) return;
+    try { await apiPost('/api/messages/send', { conversationId, content: `${location.origin}/reels/${shareFor.id}`, type: 'TEXT' }, token || undefined); }
+    catch (reason: any) { toast.error('Could not send', reason?.message); throw reason; }
+  };
+
   const repost = async (reel: Reel) => {
     if (!token) { toast.error('Sign in to repost'); return; }
     const key = `repost:${reel.id}`;
@@ -708,7 +713,23 @@ export default function ReelsPage() {
 
       <AnimatePresence>
         {commentsFor && <CommentsPanel reel={commentsFor} items={comments} loading={commentsLoading} text={commentText} sending={commentSending} currentUserId={user?.id} setText={setCommentText} submit={submitComment} remove={deleteComment} toggleLike={toggleCommentLike} close={() => setCommentsFor(null)} />}
-        {shareFor && <SharePanel reel={shareFor} share={share} close={() => setShareFor(null)} />}
+        {shareFor && (() => {
+          const liveReel = reels.find(item => item.id === shareFor.id) ?? shareFor;
+          return <ReelShareSheet
+            token={token}
+            url={`${typeof window !== 'undefined' ? window.location.origin : ''}/reels/${encodeURIComponent(liveReel.id)}`}
+            title={liveReel.title || 'VANTA Reel'}
+            reposted={Boolean(liveReel.isReposted)}
+            saved={Boolean(liveReel.isSaved)}
+            close={() => setShareFor(null)}
+            onRepost={() => void repost(liveReel)}
+            onCopy={() => void share(liveReel, 'copy')}
+            onNative={() => void share(liveReel, 'native')}
+            onSave={() => { void toggle(liveReel, 'save'); setShareFor(null); }}
+            onReport={() => { setReportFor(liveReel); setShareFor(null); }}
+            onSend={sendToChat}
+          />;
+        })()}
         {moreFor && <MorePanel reel={moreFor} isOwn={Boolean(user && ((user.id && String(moreFor.author.id) === String(user.id)) || (user.username && moreFor.author.username?.toLowerCase() === user.username.toLowerCase())))} share={() => { setMoreFor(null); setShareFor(moreFor); }} repost={() => { setMoreFor(null); void repost(moreFor); }} save={() => { void toggle(moreFor, 'save'); setMoreFor(null); }} follow={() => { void follow(moreFor); setMoreFor(null); }} profile={() => router.push(`/profile/${moreFor.author.username}`)} report={() => { setReportFor(moreFor); setMoreFor(null); }} remove={() => { setDeleteReelFor(moreFor); setMoreFor(null); }} close={() => setMoreFor(null)} />}
         {deleteReelFor && <DeleteReelDialog reel={deleteReelFor} sending={deleteReelSending} onCancel={() => setDeleteReelFor(null)} onConfirm={() => void confirmDeleteReel()} />}
         {reportFor && <ReportPanel reel={reportFor} pending={!!pending[`report:${reportFor.id}`]} submit={category => void report(reportFor, category)} close={() => setReportFor(null)} />}
@@ -1018,11 +1039,6 @@ function CommentsPanel({ reel, items, loading, text, sending, currentUserId, set
     </motion.section>
     {deleteFor && <DeleteConfirmDialog title="Delete this comment?" description="This cannot be undone. The comment will be removed permanently." confirmLabel="Delete comment" busy={deleteBusy} onCancel={() => { if (!deleteBusy) setDeleteFor(null); }} onConfirm={() => void confirmRemove()} />}
   </>;
-}
-
-function SharePanel({ reel, share, close }: { reel: Reel; share: (reel: Reel, mode: 'copy' | 'native') => void; close: () => void }) {
-  const native = typeof window !== 'undefined' && (typeof navigator.share === 'function' || Boolean(window.VantaNative?.shareText));
-  return <Dialog title="Share Reel" close={close}><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => share(reel, 'copy')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><Copy className="mx-auto mb-2" size={20} />Copy link</button>{native && <button type="button" onClick={() => share(reel, 'native')} className="rounded-lg border border-white/10 p-4 text-sm text-white/75 hover:bg-white/[.05]"><ExternalLink className="mx-auto mb-2" size={20} />Share to apps</button>}</div></Dialog>;
 }
 
 function MorePanel({ reel, isOwn, share, repost, save, follow, profile, report, remove, close }: { reel: Reel; isOwn: boolean; share: () => void; repost: () => void; save: () => void; follow: () => void; profile: () => void; report: () => void; remove: () => void; close: () => void }) {
