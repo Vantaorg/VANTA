@@ -9,10 +9,11 @@
     "dev": "next dev",
     "dev:lan": "node scripts/dev-lan.mjs",
     "dev:https": "node scripts/dev-lan.mjs",
-    "build": "next build",
+    "build": "node scripts/install-branding-assets.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node ../node_modules/vitest/vitest.mjs run"
+    "test": "node ../node_modules/vitest/vitest.mjs run",
+    "postinstall": "node scripts/install-branding-assets.mjs"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.23",
