@@ -64,6 +64,65 @@ describe('DurableQueueWorker', () => {
     expect(repository.complete).not.toHaveBeenCalled();
   });
 
+  it('keeps polling when persisting a handler failure throws', async () => {
+    const repository = createRepository();
+    repository.fail.mockRejectedValue(new Error('database unavailable'));
+    const handler = jest.fn().mockRejectedValue(new Error('temporary handler error'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const worker = new DurableQueueWorker(repository as unknown as DurableQueueRepository, new Map([['test:run', handler]]), {
+      workerId: 'worker-test', pollIntervalMs: 2,
+    });
+
+    try {
+      worker.start();
+      await new Promise(resolve => setTimeout(resolve, 15));
+      await expect(worker.stop()).resolves.toBeUndefined();
+      expect(repository.claim.mock.calls.length).toBeGreaterThan(1);
+      expect(repository.complete).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('does not terminate when terminal failure persistence throws', async () => {
+    const repository = createRepository();
+    repository.failPermanently.mockRejectedValue(new Error('database unavailable'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const worker = new DurableQueueWorker(repository as unknown as DurableQueueRepository, new Map(), {
+      workerId: 'worker-test', pollIntervalMs: 2,
+    });
+
+    try {
+      worker.start();
+      await new Promise(resolve => setTimeout(resolve, 15));
+      await expect(worker.stop()).resolves.toBeUndefined();
+      expect(repository.claim.mock.calls.length).toBeGreaterThan(1);
+      expect(repository.complete).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('does not record a handler failure when persisting completion throws', async () => {
+    const repository = createRepository();
+    repository.complete.mockRejectedValue(new Error('database unavailable'));
+    const handler = jest.fn().mockResolvedValue(undefined);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const worker = new DurableQueueWorker(repository as unknown as DurableQueueRepository, new Map([['test:run', handler]]), {
+      workerId: 'worker-test', pollIntervalMs: 2,
+    });
+
+    try {
+      worker.start();
+      await new Promise(resolve => setTimeout(resolve, 15));
+      await expect(worker.stop()).resolves.toBeUndefined();
+      expect(repository.complete).toHaveBeenCalledWith('job-1', 'worker-test');
+      expect(repository.fail).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it('rejects unsafe worker configuration', () => {
     const repository = createRepository() as unknown as DurableQueueRepository;
     expect(() => new DurableQueueWorker(repository, new Map(), { concurrency: 0 })).toThrow('concurrency must be a positive integer');
