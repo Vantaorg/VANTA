@@ -82,6 +82,18 @@ export class DurableQueueRepository {
     return count === 1;
   }
 
+  /** Mark an owned job terminally failed (used for unsupported job types). */
+  async failPermanently(jobId: string, workerId: string, error: unknown): Promise<boolean> {
+    const message = error instanceof Error ? error.message : String(error);
+    const count = await this.db.$executeRawUnsafe(
+      `UPDATE "QueueJob" SET "status" = 'failed', "lastError" = $3,
+       "lockedAt" = NULL, "lockedUntil" = NULL, "workerId" = NULL, "updatedAt" = NOW()
+       WHERE "id" = $1 AND "status" = 'active' AND "workerId" = $2`,
+      jobId, workerId, message,
+    );
+    return count === 1;
+  }
+
   async fail(jobId: string, workerId: string, error: unknown, retryDelayMs = 1000): Promise<boolean> {
     const message = error instanceof Error ? error.message : String(error);
     const delay = Number.isFinite(retryDelayMs) ? Math.max(0, retryDelayMs) : 1000;
