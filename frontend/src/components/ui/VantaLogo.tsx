@@ -16,7 +16,7 @@ const textSizes = { sm: 'text-sm', md: 'text-lg', lg: 'text-2xl' };
 function VantaMark({ size = 36, className = '' }: { size?: number; className?: string }) {
   return (
     <img
-      src="/branding/vanta-app-icon.svg"
+      src="/branding/pwa-192.png"
       width={size}
       height={size}
       alt="VANTA"
