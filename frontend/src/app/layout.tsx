@@ -40,10 +40,11 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
-      { url: "/branding/vanta-app-icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/branding/favicon-64.png", sizes: "64x64", type: "image/png" },
     ],
     apple: [
-      { url: "/branding/vanta-app-icon.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "/branding/apple-touch-icon-180.png", sizes: "180x180", type: "image/png" },
     ],
   },
   openGraph: {
